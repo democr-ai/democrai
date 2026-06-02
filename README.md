@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://democr.ai/logo-full.svg" alt="Democr.ai" width="360">
+  <img src="https://democr.ai/logo-full-white.svg" alt="Democr.ai" width="360">
 </p>
 
 A Python framework for building agentic AI applications with a server-driven UI, native observability, and an integrated security model — designed for environments with regulatory or operational constraints where reproducibility and auditability matter.
