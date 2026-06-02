@@ -29,6 +29,7 @@ pandas
 pillow
 qrcode
 pyyaml
+apsw
 sqlite-vec
 httpx
 python-multipart

@@ -4,15 +4,13 @@ import array
 import hashlib
 import json
 import os
-import sqlite3
 import time
 from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
 
+import apsw
 import sqlite_vec
-
-from democrai.core.infrastructure.database.sqlite_tuning import apply_sqlite_pragmas_to_connection
 from democrai.core.infrastructure.storage.vector.base import Capability
 from democrai.core.infrastructure.storage.vector.base import Filter
 from democrai.core.infrastructure.storage.vector.base import IndexSpec
@@ -29,18 +27,22 @@ from democrai.core.infrastructure.storage.vector.base import normalize_score
 from democrai.core.infrastructure.storage.vector.base import physical_index_name
 
 
-def _load_sqlite_vec_on_connection(conn: sqlite3.Connection) -> tuple[bool, str | None]:
+def _load_sqlite_vec_on_connection(conn: Any) -> tuple[bool, str | None]:
     try:
-        sqlite_vec.load(conn)
-    except sqlite3.Error as exc:
+        conn.enable_load_extension(True)
+        conn.load_extension(sqlite_vec.loadable_path())
+    except Exception as exc:
         return False, str(exc)
-    except OSError as exc:
-        return False, str(exc)
+    finally:
+        try:
+            conn.enable_load_extension(False)
+        except Exception:
+            pass
     return True, None
 
 
 def sqlite_vec_available() -> tuple[bool, str | None]:
-    conn = sqlite3.connect(":memory:")
+    conn = apsw.Connection(":memory:")
     try:
         return _load_sqlite_vec_on_connection(conn)
     finally:
@@ -65,12 +67,38 @@ def _quote_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
-def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
-    row = conn.execute(
+def _table_exists(conn: Any, table_name: str) -> bool:
+    row = _fetchone(
+        conn,
         "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
         (table_name,),
-    ).fetchone()
+    )
     return row is not None
+
+
+def _fetchone(conn: Any, sql: str, params: Sequence[Any] = ()) -> tuple[Any, ...] | None:
+    for row in conn.execute(sql, tuple(params)):
+        return tuple(row)
+    return None
+
+
+def _fetchall(conn: Any, sql: str, params: Sequence[Any] = ()) -> list[tuple[Any, ...]]:
+    return [tuple(row) for row in conn.execute(sql, tuple(params))]
+
+
+def _apply_apsw_pragmas_to_connection(
+    conn: Any,
+    *,
+    busy_timeout_ms: int = 5000,
+    wal_autocheckpoint_pages: int = 1000,
+    journal_size_limit_bytes: int = 268435456,
+) -> None:
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute(f"PRAGMA wal_autocheckpoint={wal_autocheckpoint_pages}")
+    conn.execute(f"PRAGMA journal_size_limit={journal_size_limit_bytes}")
+    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+    conn.execute("PRAGMA temp_store=MEMORY")
 
 
 def _serialize_vector(vector: Sequence[float]) -> bytes:
@@ -142,13 +170,12 @@ class SQLiteVecVectorProvider(VectorProvider):
         self.db_path = db_path
         self.index_prefix = index_prefix
 
-    def _get_connection(self) -> sqlite3.Connection:
+    def _get_connection(self) -> Any:
         db_dir = os.path.dirname(os.path.abspath(self.db_path))
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
-        conn = sqlite3.connect(self.db_path, timeout=5.0)
-        apply_sqlite_pragmas_to_connection(conn)
-        conn.row_factory = sqlite3.Row
+        conn = apsw.Connection(self.db_path)
+        _apply_apsw_pragmas_to_connection(conn)
         ok, err = _load_sqlite_vec_on_connection(conn)
         if not ok:
             conn.close()
@@ -172,7 +199,7 @@ class SQLiteVecVectorProvider(VectorProvider):
             | Capability.REBUILD_INDEX,
         )
 
-    def _ensure_metadata_schema(self, conn: sqlite3.Connection) -> None:
+    def _ensure_metadata_schema(self, conn: Any) -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS vector_indices (
@@ -211,24 +238,26 @@ class SQLiteVecVectorProvider(VectorProvider):
             """
         )
 
-    def _ensure_index_schema(self, conn: sqlite3.Connection, spec: IndexSpec) -> str:
+    def _ensure_index_schema(self, conn: Any, spec: IndexSpec) -> str:
         table_name = _index_table_name(spec, self.index_prefix)
         self._ensure_metadata_schema(conn)
-        existing = conn.execute(
+        existing = _fetchone(
+            conn,
             """
             SELECT dim, metric, model_id, model_version, table_name
             FROM vector_indices
             WHERE tenant_id = ? AND app_id = ? AND name = ?
             """,
             (spec.tenant_id, spec.app_id, spec.name),
-        ).fetchone()
+        )
         if existing is not None:
-            if int(existing["dim"]) != int(spec.dim) or str(existing["metric"]) != spec.metric.value:
+            dim, metric, _model_id, _model_version, existing_table_name = existing
+            if int(dim) != int(spec.dim) or str(metric) != spec.metric.value:
                 raise ValueError(
                     "Vector index spec mismatch for "
                     f"{spec.tenant_id}:{spec.app_id}:{spec.name}"
                 )
-            return str(existing["table_name"])
+            return str(existing_table_name)
         metric_name = _metric_name(spec.metric)
         quoted_table = _quote_identifier(table_name)
         if not _table_exists(conn, table_name):
@@ -272,15 +301,16 @@ class SQLiteVecVectorProvider(VectorProvider):
         table_name = _index_table_name(spec, self.index_prefix)
         with self._get_connection() as conn:
             self._ensure_metadata_schema(conn)
-            row = conn.execute(
+            row = _fetchone(
+                conn,
                 """
                 SELECT table_name FROM vector_indices
                 WHERE tenant_id = ? AND app_id = ? AND name = ?
                 """,
                 (spec.tenant_id, spec.app_id, spec.name),
-            ).fetchone()
+            )
             if row is not None:
-                table_name = str(row["table_name"])
+                table_name = str(row[0])
             conn.execute(f"DROP TABLE IF EXISTS {_quote_identifier(table_name)}")
             conn.execute(
                 "DELETE FROM vector_indices WHERE tenant_id = ? AND app_id = ? AND name = ?",
@@ -305,7 +335,7 @@ class SQLiteVecVectorProvider(VectorProvider):
                 doc_key = _doc_key(scope, doc.id)
                 vector = _serialize_vector(doc.vector)
                 metadata = json.dumps(dict(doc.metadata or {}), separators=(",", ":"))
-                cursor = conn.execute(
+                conn.execute(
                     f"""
                     UPDATE {quoted_table}
                     SET embedding = ?, doc_id = ?, metadata = ?
@@ -313,7 +343,7 @@ class SQLiteVecVectorProvider(VectorProvider):
                     """,
                     (vector, doc.id, metadata, doc_key, int(scope.user_id), organization_id),
                 )
-                if cursor.rowcount == 0:
+                if int(conn.changes()) == 0:
                     conn.execute(
                         f"""
                         INSERT INTO {quoted_table} (
@@ -385,25 +415,24 @@ class SQLiteVecVectorProvider(VectorProvider):
             return len(ids)
 
     def _payload_rows_for_scope(
-        self, conn: sqlite3.Connection, scope: UserScope, spec: IndexSpec
-    ) -> list[sqlite3.Row]:
+        self, conn: Any, scope: UserScope, spec: IndexSpec
+    ) -> list[tuple[Any, ...]]:
         self._ensure_metadata_schema(conn)
-        return list(
-            conn.execute(
-                """
-                SELECT id, metadata
-                FROM vector_payloads
-                WHERE tenant_id = ? AND app_id = ? AND index_name = ?
-                  AND user_id = ? AND organization_id = ?
-                """,
-                (
-                    spec.tenant_id,
-                    spec.app_id,
-                    spec.name,
-                    int(scope.user_id),
-                    _scope_organization_id(scope),
-                ),
-            )
+        return _fetchall(
+            conn,
+            """
+            SELECT id, metadata
+            FROM vector_payloads
+            WHERE tenant_id = ? AND app_id = ? AND index_name = ?
+              AND user_id = ? AND organization_id = ?
+            """,
+            (
+                spec.tenant_id,
+                spec.app_id,
+                spec.name,
+                int(scope.user_id),
+                _scope_organization_id(scope),
+            ),
         )
 
     async def delete_by_filter(
@@ -413,9 +442,10 @@ class SQLiteVecVectorProvider(VectorProvider):
             self._ensure_index_schema(conn, spec)
             ids = []
             for row in self._payload_rows_for_scope(conn, scope, spec):
-                metadata = json.loads(str(row["metadata"] or "{}"))
+                doc_id, raw_metadata = row
+                metadata = json.loads(str(raw_metadata or "{}"))
                 if _filter_matches(metadata, flt):
-                    ids.append(str(row["id"]))
+                    ids.append(str(doc_id))
         return await self.delete_ids(scope, spec, ids)
 
     async def query(self, scope: UserScope, spec: IndexSpec, q: Query) -> list[Match]:
@@ -428,7 +458,8 @@ class SQLiteVecVectorProvider(VectorProvider):
                 k = max(
                     k,
                     int(
-                        conn.execute(
+                        _fetchone(
+                            conn,
                             """
                             SELECT COUNT(*)
                             FROM vector_payloads
@@ -442,10 +473,11 @@ class SQLiteVecVectorProvider(VectorProvider):
                                 int(scope.user_id),
                                 organization_id,
                             ),
-                        ).fetchone()[0]
+                        )[0]
                     ),
                 )
-            rows = conn.execute(
+            rows = _fetchall(
+                conn,
                 f"""
                 SELECT doc_id, embedding, distance, metadata
                 FROM {quoted_table}
@@ -455,19 +487,20 @@ class SQLiteVecVectorProvider(VectorProvider):
                   AND organization_id = ?
                 """,
                 (_serialize_vector(q.vector), k, int(scope.user_id), organization_id),
-            ).fetchall()
+            )
             matches: list[Match] = []
             for row in rows:
-                metadata = json.loads(str(row["metadata"] or "{}"))
+                doc_id, embedding, distance, raw_metadata = row
+                metadata = json.loads(str(raw_metadata or "{}"))
                 if not _filter_matches(metadata, q.filter):
                     continue
                 matches.append(
                     Match(
-                        id=str(row["doc_id"]),
-                        score=_score_from_distance(spec.metric, float(row["distance"])),
+                        id=str(doc_id),
+                        score=_score_from_distance(spec.metric, float(distance)),
                         metadata=metadata if q.include_metadata else None,
                         vector=(
-                            _deserialize_vector(row["embedding"])
+                            _deserialize_vector(embedding)
                             if q.include_vectors
                             else None
                         ),

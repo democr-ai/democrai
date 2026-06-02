@@ -61,19 +61,31 @@ def test_vector_factory_returns_pinecone_provider(monkeypatch: pytest.MonkeyPatc
 
 def test_sqlite_vec_loader_and_provider_cover_error_paths(monkeypatch: pytest.MonkeyPatch):
     class _Conn:
-        pass
+        def __init__(self):
+            self.calls = []
 
-    monkeypatch.setattr(sqlite_vec_mod.sqlite_vec, "load", lambda conn: None)
-    ok, err = sqlite_vec_mod._load_sqlite_vec_on_connection(_Conn())
+        def enable_load_extension(self, value):
+            self.calls.append(("enable", value))
+
+        def load_extension(self, path):
+            self.calls.append(("load", path))
+
+    monkeypatch.setattr(sqlite_vec_mod.sqlite_vec, "loadable_path", lambda: "/vec0")
+    conn = _Conn()
+    ok, err = sqlite_vec_mod._load_sqlite_vec_on_connection(conn)
     assert ok is True and err is None
+    assert conn.calls == [("enable", True), ("load", "/vec0"), ("enable", False)]
 
-    def _raise_sqlite_error(conn):
-        raise sqlite_vec_mod.sqlite3.OperationalError("boom")
+    class _FailingConn(_Conn):
+        def load_extension(self, path):
+            self.calls.append(("load", path))
+            raise RuntimeError("boom")
 
-    monkeypatch.setattr(sqlite_vec_mod.sqlite_vec, "load", _raise_sqlite_error)
-    ok, err = sqlite_vec_mod._load_sqlite_vec_on_connection(_Conn())
+    failing_conn = _FailingConn()
+    ok, err = sqlite_vec_mod._load_sqlite_vec_on_connection(failing_conn)
     assert ok is False
     assert "boom" in err
+    assert failing_conn.calls == [("enable", True), ("load", "/vec0"), ("enable", False)]
 
     provider = SQLiteVecVectorProvider(":memory:")
     info = asyncio.run(provider.info())

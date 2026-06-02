@@ -5,6 +5,12 @@ from typing import Any
 
 from democrai.core.application.access_policy.models import AccessResource
 from democrai.core.application.access_policy.models import AccessSubject
+from democrai.core.runtime.foundation.paths import data_dir
+
+
+_FILESYSTEM_TARGET_TOKENS = {
+    "data_dir": lambda: str(data_dir().resolve()),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +46,10 @@ def parse_access_manifest_rules(
             raise TypeError(f"access_manifest_rule_must_be_dict:{index}")
         resource_type = _required_string(item, "resource_type", index)
         operation = _required_string(item, "operation", index)
-        target = _required_string(item, "target", index)
+        target = _resolve_manifest_target(
+            resource_type=resource_type,
+            target=_required_string(item, "target", index),
+        )
         rules.append(
             AccessManifestRule(
                 subject=subject,
@@ -52,6 +61,15 @@ def parse_access_manifest_rules(
             )
         )
     return tuple(rules)
+
+
+def _resolve_manifest_target(*, resource_type: str, target: str) -> str:
+    if str(resource_type or "").strip().lower() != "filesystem":
+        return target
+    resolved = target
+    for key, resolver in _FILESYSTEM_TARGET_TOKENS.items():
+        resolved = resolved.replace("{" + key + "}", resolver())
+    return resolved
 
 
 def _required_string(item: dict[str, Any], key: str, index: int) -> str:

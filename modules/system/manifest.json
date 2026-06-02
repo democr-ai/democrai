@@ -76,22 +76,17 @@
     {
       "resource_type": "filesystem",
       "operation": "read",
-      "target": "~/.local/share"
+      "target": "{data_dir}"
     },
     {
       "resource_type": "filesystem",
       "operation": "create",
-      "target": "~/.local/share/democrai"
+      "target": "{data_dir}"
     },
     {
       "resource_type": "filesystem",
       "operation": "modify",
-      "target": "~/.local/share/democrai"
-    },
-    {
-      "resource_type": "filesystem",
-      "operation": "delete",
-      "target": "~/.local/share/democrai"
+      "target": "{data_dir}"
     }
   ]
 }

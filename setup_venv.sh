@@ -17,6 +17,9 @@ python3 -m pip install --upgrade pip setuptools wheel
 echo "Installing lightweight base requirements..."
 python3 -m pip install -r requirements.txt -c constraints.txt
 
+echo "Checking sqlite-vec runtime..."
+python3 scripts/check_sqlite_vec_runtime.py
+
 echo "Setup complete. To run the app:"
 echo "source .venv/bin/activate"
 echo "python main.py"

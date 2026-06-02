@@ -1,5 +1,6 @@
 import importlib
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,7 @@ import democrai.core.runtime.cli.commands as cli_commands_mod
 import democrai.core.runtime.cli.migration as migration_mod
 import democrai.core.runtime.cli.parsing as cli_parsing_mod
 import democrai.core.runtime.cli.reset_install as reset_install_mod
+import scripts.check_sqlite_vec_runtime as sqlite_vec_check_mod
 
 
 def test_cli_parsing_helpers():
@@ -216,6 +218,71 @@ def test_installer_helpers_and_catalog(monkeypatch, tmp_path: Path):
     assert installer_mod._import_any(["missing", "ok"]) is True
     monkeypatch.setattr(installer_mod.importlib, "import_module", lambda m: object() if m == "ok" else (_ for _ in ()).throw(ImportError("x")))
     assert installer_mod._verify_imports(["missing", "ok"])[0] is True
+
+
+def test_sqlite_vec_runtime_check_uses_apsw_load_extension(monkeypatch):
+    calls = []
+
+    class _Conn:
+        def __init__(self, path):
+            calls.append(("connect", path))
+
+        def enable_load_extension(self, value):
+            calls.append(("enable", value))
+
+        def load_extension(self, path):
+            calls.append(("load", path))
+
+        def close(self):
+            calls.append(("close",))
+
+    monkeypatch.setitem(
+        sys.modules,
+        "apsw",
+        SimpleNamespace(Connection=_Conn, __file__="/apsw.py"),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "sqlite_vec",
+        SimpleNamespace(loadable_path=lambda: "/vec0", __file__="/sqlite_vec.py"),
+    )
+
+    assert sqlite_vec_check_mod.main() == 0
+    assert calls == [
+        ("connect", ":memory:"),
+        ("enable", True),
+        ("load", "/vec0"),
+        ("enable", False),
+        ("close",),
+    ]
+
+
+def test_sqlite_vec_runtime_check_fails_on_load_error(monkeypatch):
+    class _Conn:
+        def __init__(self, path):
+            self.path = path
+
+        def enable_load_extension(self, value):
+            return None
+
+        def load_extension(self, path):
+            raise RuntimeError(f"cannot load {path}")
+
+        def close(self):
+            return None
+
+    monkeypatch.setitem(
+        sys.modules,
+        "apsw",
+        SimpleNamespace(Connection=_Conn, __file__="/apsw.py"),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "sqlite_vec",
+        SimpleNamespace(loadable_path=lambda: "/vec0", __file__="/sqlite_vec.py"),
+    )
+
+    assert sqlite_vec_check_mod.main() == 1
 
 
 def test_import_any_search_path_requires_complete_dotted_module(tmp_path: Path):

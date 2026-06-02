@@ -6,6 +6,7 @@ from democrai.core.application.access_policy import AccessOperation
 from democrai.core.application.access_policy import ResourceType
 from democrai.core.application.access_policy import parse_access_manifest_rules
 from democrai.core.application.access_policy.keys import access_fingerprint
+import democrai.core.application.access_policy.manifest as manifest_mod
 
 
 def test_parse_access_manifest_rules_accepts_canonical_access_list():
@@ -47,6 +48,30 @@ def test_parse_access_manifest_rules_missing_access_means_no_rules():
         )
         == ()
     )
+
+
+def test_parse_access_manifest_rules_resolves_data_dir_token(monkeypatch, tmp_path):
+    data_root = tmp_path / "Library" / "Application Support" / "democrai"
+    data_root.mkdir(parents=True)
+    monkeypatch.setattr(manifest_mod, "data_dir", lambda: data_root)
+
+    rules = parse_access_manifest_rules(
+        {
+            "access": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "create",
+                    "target": "{data_dir}",
+                },
+            ],
+        },
+        subject_type="module",
+        subject_name="system",
+    )
+
+    assert len(rules) == 1
+    assert rules[0].resource.target == str(data_root.resolve())
+    assert rules[0].resource.normalized_target == str(data_root.resolve())
 
 
 def test_parse_access_manifest_rules_rejects_non_canonical_shapes():
