@@ -1,0 +1,291 @@
+- kind: Column
+  id: components_media_image_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_media_image_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_media_image_eyebrow
+      text: '@t/components.media.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_media_image_title
+      text: '@t/components.media.image.title'
+      level: 1
+    - kind: Text
+      id: components_media_image_description
+      text: '@t/components.media.image.description'
+      muted: true
+  - kind: Card
+    id: components_media_image_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_media_image_preview_title
+      text: '@t/components.media.preview.title'
+      level: 3
+    - kind: Row
+      id: components_media_image_static_row
+      spacing: 16
+      align: fill
+      children:
+      - kind: Image
+        id: components_media_image_static
+        alt: '@t/components.media.image.preview.alt'
+        url: assets/demo-image.png
+        width: 280
+        height: 180
+      - kind: Image
+        id: components_media_image_fit
+        alt: '@t/components.media.image.preview.fit_alt'
+        url: assets/demo_img.png
+        width: 220
+        height: 140
+        fit: container
+      - kind: Image
+        id: components_media_image_external
+        alt: '@t/components.media.image.preview.external_alt'
+        url: https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=900
+        width: 280
+        height: 180
+    - kind: Text
+      id: components_media_image_preview_note
+      text: '@t/components.media.image.preview.note'
+      muted: true
+  - kind: Card
+    id: components_media_image_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_media_image_runtime_title
+      text: '@t/components.media.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_media_image_runtime_description
+      text: '@t/components.media.image.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_media_image_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_media_image_runtime_left
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_media_image_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Image
+            id: components_media_image_page
+            alt:
+              type: store
+              scope: page
+              path: /components_media/image/alt
+              default: Mountain lake
+            url:
+              type: store
+              scope: page
+              path: /components_media/image/url
+              default: assets/demo-image.png
+            width:
+              type: store
+              scope: page
+              path: /components_media/image/width
+              default: 280
+            height:
+              type: store
+              scope: page
+              path: /components_media/image/height
+              default: 180
+          - kind: Button
+            id: components_media_image_page_button
+            label: '@t/components.media.usage.page_store_button'
+            variant: default
+            action:
+              name: components.image_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_media_image_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Image
+            id: components_media_image_data
+            alt: '@data/components_media/image_model/alt'
+            url: '@data/components_media/image_model/url'
+            width: '@data/components_media/image_model/width'
+            height: '@data/components_media/image_model/height'
+          - kind: Button
+            id: components_media_image_data_button
+            label: '@t/components.media.usage.data_button'
+            variant: default
+            action:
+              name: components.image_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_media_image_runtime_right
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_media_image_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Image
+            id: components_media_image_global
+            alt:
+              type: store
+              scope: global
+              path: /components_media/image/alt
+              default: Global mountain lake
+            url:
+              type: store
+              scope: global
+              path: /components_media/image/url
+              default: assets/demo-image.png
+            width:
+              type: store
+              scope: global
+              path: /components_media/image/width
+              default: 280
+            height:
+              type: store
+              scope: global
+              path: /components_media/image/height
+              default: 180
+          - kind: Button
+            id: components_media_image_global_button
+            label: '@t/components.media.usage.global_store_button'
+            variant: default
+            action:
+              name: components.image_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_media_image_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Image
+            id: components_media_image_direct
+            alt: '@t/components.media.image.direct.alt'
+            url: assets/demo-image.png
+            width: 280
+            height: 180
+            capabilities:
+            - url.set
+            - alt.set
+            - width.set
+            - height.set
+          - kind: Button
+            id: components_media_image_direct_button
+            label: '@t/components.media.usage.direct_button'
+            variant: default
+            action:
+              name: components.image_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_media_image_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_media_image_definition_title
+      text: '@t/components.media.definition.title'
+      level: 3
+    - kind: Row
+      id: components_media_image_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_media_image_python_code
+        text: '@t/components.media.image.definition.python'
+      - kind: Markdown
+        id: components_media_image_yaml_code
+        text: '@t/components.media.image.definition.yaml'
+  - kind: Card
+    id: components_media_image_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_media_image_binding_title
+      text: '@t/components.media.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_media_image_binding_table
+      paginated: false
+      pagination: false
+      total_rows: 4
+      rows: '@data/components_media/image_bindings'
+      model:
+      - field: binding
+        header: '@t/components.media.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.media.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.media.table.source'
+        type: str
+  - kind: Card
+    id: components_media_image_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_media_image_properties_title
+      text: '@t/components.media.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_media_image_properties_table
+      paginated: false
+      pagination: false
+      total_rows: 5
+      rows: '@data/components_media/image_properties'
+      model:
+      - field: property
+        header: '@t/components.media.table.property'
+        type: str
+      - field: type
+        header: '@t/components.media.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.media.table.usage'
+        type: str

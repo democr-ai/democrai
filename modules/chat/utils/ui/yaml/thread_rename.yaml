@@ -1,0 +1,23 @@
+- kind: Column
+  id: chat_thread_rename_page
+  spacing: 14
+  children:
+    - kind: Title
+      id: chat_thread_rename_title
+      text: "@t/chat.thread.rename.title"
+      level: 3
+    - kind: Form
+      id: chat_thread_rename_form
+      submit_label: "@t/chat.thread.rename.submit"
+      values: "@data/chat/thread_rename/values"
+      action:
+        name: chat.rename_thread
+        context:
+          conversation_id: "@data/chat/thread_rename/conversation_id"
+      model:
+        - name: title
+          label: "@t/chat.thread.rename.field.title"
+          type: text
+          validations:
+            - rule: required
+              message: "@t/chat.thread.rename.validation.title_required"

@@ -1,0 +1,33 @@
+- kind: Column
+  id: knowledge_extractor_list_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: knowledge_extractor_list_breadcrumb
+      segments:
+        - label: "@t/system.index.title"
+          path: /system/index
+        - label: "@t/system.knowledge.common.breadcrumb.knowledge"
+          current: false
+        - label: "@t/system.knowledge.extractors.title"
+          current: true
+    - kind: Column
+      id: knowledge_extractor_list_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: knowledge_extractor_list_title
+          text: "@t/system.knowledge.extractors.title"
+          level: 2
+        - kind: Text
+          id: knowledge_extractor_list_subtitle
+          text: "@t/system.knowledge.extractors.subtitle"
+          style: "font-size: 13px;"
+    - kind: Column
+      id: knowledge_extractor_cards_mount
+      spacing: 16
+      children: []
+    - kind: Column
+      id: knowledge_extractor_install_task_mount
+      spacing: 8
+      children: []

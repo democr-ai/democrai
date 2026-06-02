@@ -1,0 +1,28 @@
+- kind: Column
+  id: engine_model_catalog_resource_warning_modal
+  spacing: 14
+  style: "min-width: 460px;"
+  children:
+    - kind: Title
+      id: engine_model_catalog_resource_warning_title
+      text: "@data/engine/model/catalog/resource_warning/title"
+      level: 4
+    - kind: Text
+      id: engine_model_catalog_resource_warning_text
+      text: "@data/engine/model/catalog/resource_warning/text"
+    - kind: Row
+      id: engine_model_catalog_resource_warning_footer
+      align: fill
+      spacing: 8
+      children:
+        - kind: Button
+          id: engine_model_catalog_resource_warning_confirm
+          label: "@t/system.model.catalog.resource_warning.confirm"
+          variant: primary
+          action:
+            name: system.download_engine_model_catalog
+            context: {}
+        - kind: Button
+          id: engine_model_catalog_resource_warning_cancel
+          label: "@t/system.common.cancel"
+          action: close_modal

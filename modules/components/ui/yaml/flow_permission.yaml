@@ -1,0 +1,103 @@
+- kind: Column
+  id: components_flow_permission_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_permission_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_permission_eyebrow
+      text: '@t/components.flow.external.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_permission_title
+      text: '@t/components.flow.permission.title'
+      level: 1
+    - kind: Text
+      id: components_flow_permission_description
+      text: '@t/components.flow.permission.description'
+      muted: true
+  - kind: Card
+    id: components_flow_permission_overview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_permission_overview_title
+      text: '@t/components.flow.state.overview.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_permission_overview_text
+      text: '@t/components.flow.permission.overview'
+    - kind: DataTable
+      id: components_flow_permission_layers_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/permission/layers'
+      model:
+      - field: layer
+        header: '@t/components.flow.permission.table.layer'
+        type: str
+      - field: api
+        header: '@t/components.flow.table.api'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str
+  - kind: Card
+    id: components_flow_permission_action_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_permission_action_title
+      text: '@t/components.flow.permission.action.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_permission_action_text
+      text: '@t/components.flow.permission.action'
+  - kind: Card
+    id: components_flow_permission_ui_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_permission_ui_title
+      text: '@t/components.flow.permission.ui.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_permission_ui_text
+      text: '@t/components.flow.permission.ui'
+  - kind: Card
+    id: components_flow_permission_pages_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_permission_pages_title
+      text: '@t/components.flow.permission.pages.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_permission_pages_text
+      text: '@t/components.flow.permission.pages'

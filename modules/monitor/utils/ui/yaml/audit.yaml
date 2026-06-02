@@ -1,0 +1,33 @@
+- kind: Column
+  stretch: False
+  align: top
+  spacing: 16
+  children:
+    - kind: Title
+      id: monitor_audit_title
+      text: "@t/monitor.audit.title"
+      level: 2
+    - kind: Text
+      id: monitor_audit_description
+      text: "@t/monitor.audit.description"
+      muted: true
+    - kind: DataTable
+      id: monitor_audit_table
+      model: [
+          {"field": "timestamp", "header": "@t/monitor.table.when", "type": "str", "editable": False},
+          {"field": "event_type", "header": "@t/monitor.table.event", "type": "str", "editable": False},
+          {"field": "actor_user_id", "header": "@t/monitor.table.actor", "type": "int", "editable": False},
+          {"field": "entity_type", "header": "@t/monitor.table.entity", "type": "str", "editable": False},
+          {"field": "entity_id", "header": "@t/monitor.table.entity_id", "type": "str", "editable": False},
+          {"field": "operation", "header": "@t/monitor.table.operation", "type": "str", "editable": False},
+          {"field": "status", "header": "@t/monitor.table.status", "type": "str", "editable": False}
+      ]
+      page: 0
+      page_size: 40
+      total_rows: 0
+      remote_service: "monitor.list_audit"
+      pagination: true
+      sort:
+        field: timestamp
+        direction: desc
+      auto_refresh: 30

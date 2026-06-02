@@ -1,0 +1,264 @@
+- kind: Column
+  id: components_complex_grid_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_grid_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_grid_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_grid_title
+      text: '@t/components.complex.grid.title'
+      level: 1
+    - kind: Text
+      id: components_complex_grid_description
+      text: '@t/components.complex.grid.description'
+      muted: true
+  - kind: Card
+    id: components_complex_grid_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_grid_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_grid_controls
+      spacing: 10
+      align: center
+      children:
+      - kind: Toggle
+        id: components_complex_grid_edit_toggle
+        label: '@t/components.complex.grid.edit_mode'
+        checked: true
+        action:
+          name: components.toggle_edit_mode
+          context:
+            grid_id: components_complex_grid_zone
+            toggle_id: components_complex_grid_edit_toggle
+      - kind: Button
+        id: components_complex_grid_add_square
+        label: '@t/components.complex.grid.add_square'
+        variant: secondary
+        action:
+          name: components.add_widget
+          context:
+            grid_id: components_complex_grid_zone
+            size: square
+      - kind: Button
+        id: components_complex_grid_add_horizontal
+        label: '@t/components.complex.grid.add_horizontal'
+        variant: secondary
+        action:
+          name: components.add_widget
+          context:
+            grid_id: components_complex_grid_zone
+            size: rect_h
+      - kind: Button
+        id: components_complex_grid_add_vertical
+        label: '@t/components.complex.grid.add_vertical'
+        variant: secondary
+        action:
+          name: components.add_widget
+          context:
+            grid_id: components_complex_grid_zone
+            size: rect_v
+      - kind: Button
+        id: components_complex_grid_reset
+        label: '@t/components.complex.grid.reset'
+        variant: default
+        action:
+          name: components.reset_grid
+          context:
+            grid_id: components_complex_grid_zone
+            toggle_id: components_complex_grid_edit_toggle
+    - kind: GridDropZone
+      id: components_complex_grid_zone
+      columns: 6
+      rows: 5
+      edit_mode: true
+      add_action: components.add_widget
+      move_action: components.move_widget
+      style: 'min-height: 520px;'
+      insertable_items:
+      - label: '@t/components.complex.grid.insert.square'
+        size: square
+      - label: '@t/components.complex.grid.insert.horizontal'
+        size: rect_h
+      - label: '@t/components.complex.grid.insert.vertical'
+        size: rect_v
+      - label: '@t/components.complex.grid.insert.large'
+        size: large
+      children:
+      - kind: DashboardWidget
+        id: components_complex_grid_widget_1
+        size: square
+        title: '@t/components.complex.grid.widget.capacity'
+        coords:
+        - 0
+        - 0
+        edit_mode: true
+        children:
+        - kind: Row
+          id: components_complex_grid_widget_1_body
+          spacing: 8
+          align: center
+          children:
+          - kind: Text
+            id: components_complex_grid_widget_1_text
+            text: '@t/components.complex.grid.widget.capacity_text'
+          - kind: Button
+            id: components_complex_grid_widget_1_remove
+            label: '@t/components.complex.grid.remove'
+            variant: destructive
+            btnsize: sm
+            action:
+              name: components.remove_widget
+              context:
+                widget_id: components_complex_grid_widget_1
+                grid_id: components_complex_grid_zone
+      - kind: DashboardWidget
+        id: components_complex_grid_widget_2
+        size: rect_h
+        title: '@t/components.complex.grid.widget.queue'
+        coords:
+        - 0
+        - 1
+        edit_mode: true
+        children:
+        - kind: Column
+          id: components_complex_grid_widget_2_body
+          spacing: 8
+          children:
+          - kind: Text
+            id: components_complex_grid_widget_2_text
+            text: '@t/components.complex.grid.widget.queue_text'
+          - kind: Button
+            id: components_complex_grid_widget_2_remove
+            label: '@t/components.complex.grid.remove'
+            variant: destructive
+            btnsize: sm
+            action:
+              name: components.remove_widget
+              context:
+                widget_id: components_complex_grid_widget_2
+                grid_id: components_complex_grid_zone
+      - kind: DashboardWidget
+        id: components_complex_grid_widget_3
+        size: rect_v
+        title: '@t/components.complex.grid.widget.alerts'
+        coords:
+        - 1
+        - 0
+        edit_mode: true
+        children:
+        - kind: Column
+          id: components_complex_grid_widget_3_body
+          spacing: 8
+          children:
+          - kind: Text
+            id: components_complex_grid_widget_3_text
+            text: '@t/components.complex.grid.widget.alerts_text'
+          - kind: Button
+            id: components_complex_grid_widget_3_remove
+            label: '@t/components.complex.grid.remove'
+            variant: destructive
+            btnsize: sm
+            action:
+              name: components.remove_widget
+              context:
+                widget_id: components_complex_grid_widget_3
+                grid_id: components_complex_grid_zone
+  - kind: Card
+    id: components_complex_grid_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_grid_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_grid_definition_row
+      spacing: 16
+      align: top
+      children:
+      - kind: Markdown
+        id: components_complex_grid_python
+        text: '@t/components.complex.grid.definition.python'
+      - kind: Markdown
+        id: components_complex_grid_yaml
+        text: '@t/components.complex.grid.definition.yaml'
+  - kind: Card
+    id: components_complex_grid_actions_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_grid_actions_title
+      text: '@t/components.complex.grid.actions.title'
+      level: 3
+    - kind: Text
+      id: components_complex_grid_actions_description
+      text: '@t/components.complex.grid.actions.description'
+      muted: true
+    - kind: DataTable
+      id: components_complex_grid_actions_table
+      model:
+      - field: action
+        header: Action
+        type: str
+      - field: payload
+        header: Payload
+        type: str
+      - field: usage
+        header: Usage
+        type: str
+      rows: '@data/components_complex/grid_actions'
+  - kind: Card
+    id: components_complex_grid_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_grid_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_grid_properties_table
+      model:
+      - field: property
+        header: Property
+        type: str
+      - field: type
+        header: Type
+        type: str
+      - field: usage
+        header: Usage
+        type: str
+      rows: '@data/components_complex/grid_properties'

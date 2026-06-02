@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "YOLO custom model definition",
+  "type": "object",
+  "required": ["id", "label", "capabilities"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "label": {"type": "string", "minLength": 1},
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["detection"]},
+      "minItems": 1
+    },
+    "runtime": {"type": "object"}
+  },
+  "additionalProperties": true
+}

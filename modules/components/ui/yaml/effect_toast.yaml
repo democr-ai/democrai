@@ -1,0 +1,137 @@
+- kind: Column
+  id: components_effect_toast_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_toast_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_toast_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_toast_title
+      text: '@t/components.effects.toast.title'
+      level: 1
+    - kind: Text
+      id: components_effect_toast_description
+      text: '@t/components.effects.toast.description'
+      muted: true
+  - kind: Card
+    id: components_effect_toast_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_toast_preview_title
+      text: '@t/components.effects.preview.title'
+      level: 3
+    - kind: Row
+      id: components_effect_toast_buttons
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: components_effect_toast_success
+        label: '@t/components.effects.toast.success'
+        action: components.show_overlay_toast
+        params:
+          variant: success
+        variant: success
+        icon: ric.checkbox-circle-line
+      - kind: Button
+        id: components_effect_toast_error
+        label: '@t/components.effects.toast.error'
+        action: components.show_overlay_toast
+        params:
+          variant: error
+        variant: danger
+        icon: ric.close-circle-line
+      - kind: Button
+        id: components_effect_toast_warning
+        label: '@t/components.effects.toast.warning'
+        action: components.show_overlay_toast
+        params:
+          variant: warning
+        variant: warning
+        icon: ric.alert-line
+      - kind: Button
+        id: components_effect_toast_info
+        label: '@t/components.effects.toast.info'
+        action: components.show_overlay_toast
+        params:
+          variant: info
+        variant: info
+        icon: ric.information-line
+  - kind: Card
+    id: components_effect_toast_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_toast_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_toast_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_toast_python
+        text: '@t/components.effects.toast.definition.python'
+      - kind: Markdown
+        id: components_effect_toast_yaml
+        text: '@t/components.effects.toast.definition.yaml'
+  - kind: Card
+    id: components_effect_toast_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_toast_properties_title
+      text: '@t/components.effects.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_effect_toast_properties_table
+      paginated: false
+      pagination: false
+      rows:
+      - field: title
+        type: str
+        usage: '@t/components.effects.toast.property.title'
+      - field: text
+        type: str
+        usage: '@t/components.effects.toast.property.text'
+      - field: variant
+        type: str
+        usage: '@t/components.effects.toast.property.variant'
+      - field: duration
+        type: int
+        usage: '@t/components.effects.toast.property.duration'
+      model:
+      - field: field
+        header: '@t/components.effects.table.field'
+        type: str
+      - field: type
+        header: '@t/components.effects.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.effects.table.usage'
+        type: str

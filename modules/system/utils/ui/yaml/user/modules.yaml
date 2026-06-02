@@ -1,0 +1,59 @@
+- kind: Column
+  id: user_modules_section
+  spacing: 10
+  children:
+    - kind: Title
+      id: user_modules_title
+      text: "@t/system.user.modules.title"
+      level: 3
+    - kind: Text
+      id: user_modules_subtitle
+      text: "@t/system.user.modules.subtitle"
+      style: "margin-bottom: 12px;"
+    - kind: DataTable
+      id: user_modules_table
+      show_row_numbers: true
+      paginated: false
+      model:
+        - field: module_name
+          header: "@t/system.user.modules.field.module_name"
+          type: str
+          editable: false
+          filterable: true
+          filter_type: text
+        - field: label
+          header: "@t/system.user.modules.field.label"
+          type: str
+          editable: false
+        - field: version
+          header: "@t/system.user.modules.field.version"
+          type: str
+          editable: false
+        - field: locked
+          header: "@t/system.user.modules.field.locked"
+          type: bool
+          editable: false
+      rows: []
+      row_actions:
+        - label: "@t/system.user.modules.action.disable"
+          icon: ric.lock-line
+          required_permissions:
+            - system.user.module.lock
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: false
+          action:
+            name: system.disable_module
+            context: {}
+        - label: "@t/system.user.modules.action.enable"
+          icon: ric.lock-unlock-line
+          required_permissions:
+            - system.user.module.unlock
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: true
+          action:
+            name: system.enable_module
+            context: {}

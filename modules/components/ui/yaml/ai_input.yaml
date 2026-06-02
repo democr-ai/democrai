@@ -1,0 +1,266 @@
+- kind: Column
+  id: components_ai_input_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_ai_input_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_ai_input_eyebrow
+      text: '@t/components.ai.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_ai_input_title
+      text: '@t/components.ai.input.title'
+      level: 1
+    - kind: Text
+      id: components_ai_input_description
+      text: '@t/components.ai.input.description'
+      muted: true
+  - kind: Card
+    id: components_ai_input_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_ai_input_preview_title
+      text: '@t/components.ai.preview.title'
+      level: 3
+    - kind: Composer
+      id: components_ai_input_preview
+      placeholder: '@t/components.ai.input.placeholder'
+      value:
+        type: store
+        scope: page
+        path: /components_ai/input/value
+      send_action:
+        name: components.ai_input_demo_action
+        context:
+          source: components_ai_input_preview
+      cancel_action:
+        name: components.ai_input_demo_action
+        context:
+          source: components_ai_input_preview
+      action:
+        name: components.ai_input_demo_action
+        context:
+          source: components_ai_input_preview
+      on_submit:
+        name: components.ai_input_demo_action
+        context:
+          source: components_ai_input_preview
+      on_stop_enabled:
+        name: components.ai_input_demo_action
+        context:
+          source: components_ai_input_preview
+      models:
+      - id: gpt-5.4
+        name: GPT-5.4
+      - id: gpt-5.4-mini
+        name: GPT-5.4 Mini
+      - id: gpt-5.2
+        name: GPT-5.2
+      model:
+        type: store
+        scope: page
+        path: /components_ai/input/model
+      tools:
+      - web.search
+      - files.read
+      - calendar.lookup
+      skills:
+      - summarize
+      - translate
+      - extract_tasks
+      model_capabilities:
+        type: store
+        scope: page
+        path: /components_ai/input/model_capabilities
+      show_capabilities: true
+      enable_attachment: true
+      voice: true
+      stop_enabled: true
+      capabilities:
+      - value.set
+      - disabled.set
+      - model.set
+      - model_capabilities.set
+  - kind: Card
+    id: components_ai_input_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_ai_input_runtime_title
+      text: '@t/components.ai.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_ai_input_runtime_description
+      text: '@t/components.ai.input.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_ai_input_model_row
+      spacing: 10
+      align: left
+      style: 'margin-top: 6px; margin-bottom: 10px;'
+      children:
+      - kind: Button
+        id: components_ai_input_model_gpt54
+        label: GPT-5.4
+        variant: default
+        action:
+          name: components.ai_input_set_model
+          context:
+            target: components_ai_input_preview
+            model: gpt-5.4
+      - kind: Button
+        id: components_ai_input_model_gpt54mini
+        label: GPT-5.4 Mini
+        variant: default
+        action:
+          name: components.ai_input_set_model
+          context:
+            target: components_ai_input_preview
+            model: gpt-5.4-mini
+      - kind: Button
+        id: components_ai_input_model_gpt52
+        label: GPT-5.2
+        variant: default
+        action:
+          name: components.ai_input_set_model
+          context:
+            target: components_ai_input_preview
+            model: gpt-5.2
+    - kind: Row
+      id: components_ai_input_caps_row
+      spacing: 10
+      align: left
+      style: 'margin-top: 6px; margin-bottom: 10px;'
+      children:
+      - kind: Button
+        id: components_ai_input_caps_reasoning
+        label: '@t/components.ai.input.button.reasoning'
+        variant: default
+        action:
+          name: components.ai_input_set_capabilities
+          context:
+            target: components_ai_input_preview
+            model_capabilities:
+            - reasoning
+      - kind: Button
+        id: components_ai_input_caps_audio_video
+        label: '@t/components.ai.input.button.audio_video'
+        variant: default
+        action:
+          name: components.ai_input_set_capabilities
+          context:
+            target: components_ai_input_preview
+            model_capabilities:
+            - audio
+            - video
+      - kind: Button
+        id: components_ai_input_caps_all
+        label: '@t/components.ai.input.button.all'
+        variant: default
+        action:
+          name: components.ai_input_set_capabilities
+          context:
+            target: components_ai_input_preview
+            model_capabilities:
+            - reasoning
+            - video
+            - audio
+            - ingestion
+  - kind: Card
+    id: components_ai_input_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_input_definition_title
+      text: '@t/components.ai.definition.title'
+      level: 3
+    - kind: Column
+      id: components_ai_input_definition_grid
+      spacing: 16
+      children:
+      - kind: Markdown
+        id: components_ai_input_python_code
+        text: '@t/components.ai.input.definition.python'
+      - kind: Markdown
+        id: components_ai_input_yaml_code
+        text: '@t/components.ai.input.definition.yaml'
+  - kind: Card
+    id: components_ai_input_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_input_binding_title
+      text: '@t/components.ai.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_ai_input_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_ai/input_bindings'
+      model:
+      - field: binding
+        header: '@t/components.ai.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.ai.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.ai.table.source'
+        type: str
+  - kind: Card
+    id: components_ai_input_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_input_properties_title
+      text: '@t/components.ai.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_ai_input_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_ai/input_properties'
+      model:
+      - field: property
+        header: '@t/components.ai.table.property'
+        type: str
+      - field: type
+        header: '@t/components.ai.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.ai.table.usage'
+        type: str

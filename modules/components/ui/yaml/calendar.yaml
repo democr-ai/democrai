@@ -1,0 +1,578 @@
+- kind: Column
+  id: components_complex_calendar_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_calendar_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_calendar_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_calendar_title
+      text: '@t/components.complex.calendar.title'
+      level: 1
+    - kind: Text
+      id: components_complex_calendar_description
+      text: '@t/components.complex.calendar.description'
+      muted: true
+  - kind: Card
+    id: components_complex_calendar_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_calendar_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Calendar
+      id: components_complex_calendar_preview
+      label: Planning calendar
+      value: '2026-03-01'
+      min_date: '2026-03-01'
+      max_date: '2026-04-30'
+      date_format: yyyy-MM-dd
+      input_mask: '0000-00-00'
+      show_input: true
+      view: month
+      current_date: '2026-03-01'
+      selected_dates:
+      - '2026-03-18'
+      selected_slots: []
+      time_from: 8
+      time_to: 18
+      action:
+        name: components.calendar_interaction
+        context:
+          source: preview
+      on_event_click:
+        name: components.calendar_event_click
+        context:
+          source: preview_event
+      buttons:
+      - label: Add event
+        variant: primary
+        action:
+          name: components.calendar_selection_action
+          context:
+            source: preview_add
+      - label: Inspect selection
+        variant: default
+        action:
+          name: components.calendar_selection_action
+          context:
+            source: preview_inspect
+      events:
+      - _id: cal_evt_standup
+        date: '2026-03-05'
+        time: 09:00
+        title: Team standup
+        duration: 30
+        description: Daily runtime sync.
+        color: '#2563eb'
+      - _id: cal_evt_demo
+        date: '2026-03-10'
+        time: '14:00'
+        title: Product demo
+        duration: 60
+        description: Component walkthrough.
+        color: '#16a34a'
+      - _id: cal_evt_board
+        date: '2026-03-18'
+        time: '11:00'
+        title: Board review
+        duration: 120
+        description: Quarterly planning session.
+        color: '#7c3aed'
+      - _id: cal_evt_release
+        date: '2026-03-26'
+        time: '15:30'
+        title: Release v2.4
+        duration: 45
+        description: Production release window.
+        color: '#dc2626'
+  - kind: Card
+    id: components_complex_calendar_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_calendar_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_calendar_runtime_description
+      text: '@t/components.complex.calendar.runtime.description'
+      muted: true
+    - kind: Column
+      id: components_complex_calendar_runtime_examples
+      spacing: 18
+      children:
+      - kind: Column
+        id: components_complex_calendar_page_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Calendar
+          id: components_complex_calendar_page
+          label: Page store calendar
+          value:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/value
+          view:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/view
+          current_date:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/current_date
+          events:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/events
+          selected_dates:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/selected_dates
+          selected_slots:
+            type: store
+            scope: page
+            path: /components_complex/calendar/page/selected_slots
+          buttons:
+          - label: Add event
+            variant: primary
+            action:
+              name: components.calendar_selection_action
+              context:
+                source: page_store_add
+          time_from: 8
+          time_to: 18
+          action:
+            name: components.calendar_interaction
+            context:
+              source: page_store
+          on_event_click:
+            name: components.calendar_event_click
+            context:
+              source: page_store_event
+        - kind: Button
+          id: components_complex_calendar_page_button
+          label: '@t/components.complex.usage.page_store_button'
+          variant: default
+          action:
+            name: components.calendar_update
+            context:
+              mode: page_store
+      - kind: Column
+        id: components_complex_calendar_global_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Calendar
+          id: components_complex_calendar_global
+          label: Global store calendar
+          value:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/value
+          view:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/view
+          current_date:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/current_date
+          events:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/events
+          selected_dates:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/selected_dates
+          selected_slots:
+            type: store
+            scope: global
+            path: /components_complex/calendar/global/selected_slots
+          buttons:
+          - label: Add event
+            variant: primary
+            action:
+              name: components.calendar_selection_action
+              context:
+                source: global_store_add
+          time_from: 8
+          time_to: 18
+          action:
+            name: components.calendar_interaction
+            context:
+              source: global_store
+          on_event_click:
+            name: components.calendar_event_click
+            context:
+              source: global_store_event
+        - kind: Button
+          id: components_complex_calendar_global_button
+          label: '@t/components.complex.usage.global_store_button'
+          variant: default
+          action:
+            name: components.calendar_update
+            context:
+              mode: global_store
+      - kind: Column
+        id: components_complex_calendar_data_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Calendar
+          id: components_complex_calendar_data
+          label: Data model calendar
+          value: '@data/components_complex/calendar_model/value'
+          view: '@data/components_complex/calendar_model/view'
+          current_date: '@data/components_complex/calendar_model/current_date'
+          events: '@data/components_complex/calendar_model/events'
+          selected_dates: '@data/components_complex/calendar_model/selected_dates'
+          selected_slots: '@data/components_complex/calendar_model/selected_slots'
+          buttons:
+          - label: Add event
+            variant: primary
+            action:
+              name: components.calendar_selection_action
+              context:
+                source: data_model_add
+          time_from: 8
+          time_to: 18
+          action:
+            name: components.calendar_interaction
+            context:
+              source: data_model
+          on_event_click:
+            name: components.calendar_event_click
+            context:
+              source: data_model_event
+        - kind: Button
+          id: components_complex_calendar_data_button
+          label: '@t/components.complex.usage.data_button'
+          variant: default
+          action:
+            name: components.calendar_update
+            context:
+              mode: data
+      - kind: Column
+        id: components_complex_calendar_direct_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Calendar
+          id: components_complex_calendar_direct
+          label: Direct calendar
+          value: '2026-03-01'
+          view: month
+          current_date: '2026-03-01'
+          selected_dates:
+          - '2026-03-18'
+          selected_slots: []
+          time_from: 8
+          time_to: 18
+          capabilities:
+          - label.set
+          - value.set
+          - current_date.set
+          - view.set
+          - events.set
+          - events.append
+          - selected_dates.set
+          - selected_slots.set
+          - buttons.set
+          - time_from.set
+          - time_to.set
+          action:
+            name: components.calendar_interaction
+            context:
+              source: direct
+          on_event_click:
+            name: components.calendar_event_click
+            context:
+              source: direct_event
+          buttons:
+          - label: Add event
+            variant: primary
+            action:
+              name: components.calendar_selection_action
+              context:
+                source: direct_add
+          events:
+          - _id: cal_evt_standup
+            date: '2026-03-05'
+            time: 09:00
+            title: Team standup
+            duration: 30
+            color: '#2563eb'
+          - _id: cal_evt_board
+            date: '2026-03-18'
+            time: '11:00'
+            title: Board review
+            duration: 120
+            color: '#7c3aed'
+        - kind: Row
+          id: components_complex_calendar_direct_buttons
+          spacing: 8
+          children:
+          - kind: Button
+            id: components_complex_calendar_direct_update
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.calendar_update
+              context:
+                mode: direct
+          - kind: Button
+            id: components_complex_calendar_direct_append
+            label: '@t/components.complex.calendar.append_button'
+            variant: default
+            action: components.calendar_append_direct
+  - kind: Card
+    id: components_complex_calendar_hooks_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_hooks_title
+      text: '@t/components.complex.calendar.hooks.title'
+      level: 3
+    - kind: Text
+      id: components_complex_calendar_hooks_description
+      text: '@t/components.complex.calendar.hooks.description'
+      muted: true
+    - kind: Calendar
+      id: components_complex_calendar_hooks
+      label: Confirmable hooks
+      view: month
+      current_date: '2026-04-29'
+      selected_dates:
+      - '2026-04-29'
+      selected_slots: []
+      time_from: 8
+      time_to: 18
+      action:
+        name: components.calendar_interaction
+        context:
+          source: confirmed_primary
+        confirm:
+          text: '@t/components.calendar.confirm.primary_prompt'
+          confirm_text: '@t/components.calendar.confirm.accept'
+          cancel_text: '@t/components.calendar.confirm.cancel'
+      on_event_click:
+        name: components.calendar_event_click
+        context:
+          source: confirmed_event
+        confirm:
+          text: '@t/components.calendar.confirm.event_prompt'
+          confirm_text: '@t/components.calendar.confirm.accept'
+          cancel_text: '@t/components.calendar.confirm.cancel'
+      buttons:
+      - label: Confirm selection
+        variant: primary
+        action:
+          name: components.calendar_selection_action
+          context:
+            source: confirm_button
+          confirm:
+            text: '@t/components.calendar.confirm.button_prompt'
+            confirm_text: '@t/components.calendar.confirm.accept'
+            cancel_text: '@t/components.calendar.confirm.cancel'
+      events:
+      - _id: cal_evt_confirm
+        date: '2026-04-29'
+        time: 09:00
+        title: Confirmable event
+        duration: 60
+        description: Click this event to confirm the on_event_click action.
+        color: '#0f766e'
+  - kind: Card
+    id: components_complex_calendar_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_calendar_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_calendar_python_code
+        text: '@t/components.complex.calendar.definition.python'
+      - kind: Markdown
+        id: components_complex_calendar_yaml_code
+        text: '@t/components.complex.calendar.definition.yaml'
+  - kind: Card
+    id: components_complex_calendar_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_calendar_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/calendar_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_calendar_event_schema_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_event_schema_title
+      text: '@t/components.complex.calendar.event_schema.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_calendar_event_schema_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/calendar_event_schema'
+      model:
+      - field: field
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+  - kind: Card
+    id: components_complex_calendar_intents_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_intents_title
+      text: '@t/components.complex.calendar.intents.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_calendar_intents_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/calendar_intents'
+      model:
+      - field: intent
+        header: '@t/components.complex.calendar.table.intent'
+        type: str
+      - field: clients
+        header: '@t/components.complex.calendar.table.clients'
+        type: str
+      - field: payload
+        header: '@t/components.complex.calendar.table.payload'
+        type: str
+  - kind: Card
+    id: components_complex_calendar_capabilities_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_capabilities_title
+      text: '@t/components.complex.calendar.capabilities.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_calendar_capabilities_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/calendar_capabilities'
+      model:
+      - field: capability
+        header: '@t/components.complex.calendar.table.capability'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+  - kind: Card
+    id: components_complex_calendar_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_calendar_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_calendar_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/calendar_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

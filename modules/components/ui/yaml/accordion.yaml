@@ -1,0 +1,302 @@
+- kind: Column
+  id: components_complex_accordion_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_accordion_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_accordion_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_accordion_title
+      text: '@t/components.complex.accordion.title'
+      level: 1
+    - kind: Text
+      id: components_complex_accordion_description
+      text: '@t/components.complex.accordion.description'
+      muted: true
+  - kind: Card
+    id: components_complex_accordion_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_accordion_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_accordion_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Accordion
+        id: components_complex_accordion_single
+        multiple: false
+        collapsible: true
+        items:
+        - title: Realtime logs
+          content: Open by default and updated from runtime state.
+          meta: High priority
+          open: true
+        - title: Audit notes
+          content: Collapsed until the user opens it.
+          open: false
+        - title: Context details
+          content: Useful for detail panes that should not dominate the page.
+          open: false
+      - kind: Accordion
+        id: components_complex_accordion_children
+        multiple: true
+        collapsible: true
+        items:
+        - title: Nested metric
+          content: ''
+          open: true
+        - title: Nested checklist
+          content: ''
+          open: true
+        children:
+        - kind: Card
+          id: components_complex_accordion_child_metric
+          variant: outlined
+          padding:
+          - 14
+          - 14
+          - 14
+          - 14
+          children:
+          - kind: Text
+            id: components_complex_accordion_child_metric_text
+            text: 'Runtime queue: 18 pending / 42 completed'
+        - kind: Column
+          id: components_complex_accordion_child_list
+          spacing: 6
+          children:
+          - kind: Text
+            id: components_complex_accordion_child_item_1
+            text: Review policy outcome
+          - kind: Text
+            id: components_complex_accordion_child_item_2
+            text: Attach evidence payload
+  - kind: Card
+    id: components_complex_accordion_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_accordion_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_accordion_runtime_description
+      text: '@t/components.complex.accordion.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_accordion_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_accordion_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_accordion_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Accordion
+            id: components_complex_accordion_page
+            items:
+              type: store
+              scope: page
+              path: /components_complex/accordion/items
+            multiple:
+              type: store
+              scope: page
+              path: /components_complex/accordion/multiple
+            collapsible:
+              type: store
+              scope: page
+              path: /components_complex/accordion/collapsible
+          - kind: Button
+            id: components_complex_accordion_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.accordion_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_accordion_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Accordion
+            id: components_complex_accordion_data
+            items: '@data/components_complex/accordion_model/items'
+            multiple: '@data/components_complex/accordion_model/multiple'
+            collapsible: '@data/components_complex/accordion_model/collapsible'
+          - kind: Button
+            id: components_complex_accordion_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.accordion_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_accordion_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_accordion_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Accordion
+            id: components_complex_accordion_global
+            items:
+              type: store
+              scope: global
+              path: /components_complex/accordion/items
+            multiple:
+              type: store
+              scope: global
+              path: /components_complex/accordion/multiple
+            collapsible:
+              type: store
+              scope: global
+              path: /components_complex/accordion/collapsible
+          - kind: Button
+            id: components_complex_accordion_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.accordion_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_accordion_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Accordion
+            id: components_complex_accordion_direct
+            multiple: false
+            collapsible: true
+            capabilities:
+            - items.set
+            - multiple.set
+            - collapsible.set
+            items:
+            - title: Direct item
+              content: Default direct accordion item.
+              open: true
+            - title: Secondary item
+              content: Updated through propertyUpdate.
+              open: false
+          - kind: Button
+            id: components_complex_accordion_direct_button
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.accordion_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_complex_accordion_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_accordion_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_accordion_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_accordion_python_code
+        text: '@t/components.complex.accordion.definition.python'
+      - kind: Markdown
+        id: components_complex_accordion_yaml_code
+        text: '@t/components.complex.accordion.definition.yaml'
+  - kind: Card
+    id: components_complex_accordion_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_accordion_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_accordion_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/accordion_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_accordion_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_accordion_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_accordion_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/accordion_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

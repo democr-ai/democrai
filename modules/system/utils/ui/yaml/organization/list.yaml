@@ -1,0 +1,71 @@
+- kind: Column
+  id: organization_list_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: organization_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: System
+          type: nav
+          path: /system/index
+        - label: "@t/system.organization.list.title"
+          current: true
+    - kind: Row
+      id: organization_list_header
+      spacing: 12
+      align: left
+      children:
+        - kind: Title
+          id: organization_list_title
+          text: "@t/system.organization.list.title"
+          level: 2
+        - kind: Button
+          id: organization_new_btn
+          label: "@t/system.organization.list.new"
+          icon: ric.add-line
+          variant: success
+          mode: ghost
+          required_permissions:
+            - system.organization.create
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/organization/create
+    - kind: DataTable
+      id: organization_list_table
+      show_row_numbers: true
+      paginated: true
+      page: "@data/system/organization/list/page"
+      page_size: "@data/system/organization/list/page_size"
+      total_rows: "@data/system/organization/list/total_rows"
+      remote_service: system.list_organization
+      model: "@data/system/organization/list/model"
+      rows: "@data/system/organization/list/rows"
+      row_actions:
+        - label: "@t/system.organization.list.action.view"
+          icon: ric.eye-line
+          required_permissions:
+            - system.organization.view
+          action:
+            name: system.view_organization
+            context:
+              op: open
+        - label: "@t/system.organization.list.action.edit"
+          icon: ric.edit-line
+          required_permissions:
+            - system.organization.update
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/organization/$item.id/update
+        - label: "@t/system.organization.list.action.delete"
+          icon: ric.delete-bin-6-line
+          variant: danger
+          required_permissions:
+            - system.organization.delete
+          action:
+            name: system.delete_organization
+            context: {}

@@ -1,0 +1,50 @@
+- kind: Column
+  id: environment_list_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: environment_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: System
+          type: nav
+          path: /system/index
+        - label: "@t/system.environment.list.title"
+          current: true
+    - kind: Row
+      id: environment_list_header
+      spacing: 12
+      align: left
+      children:
+        - kind: Title
+          id: environment_list_title
+          text: "@t/system.environment.list.title"
+          level: 2
+    - kind: DataTable
+      id: environment_variable_table
+      show_row_numbers: true
+      paginated: true
+      page: "@data/system/environment/list/page"
+      page_size: "@data/system/environment/list/page_size"
+      total_rows: "@data/system/environment/list/total_rows"
+      remote_service: system.list_environment_variables
+      model: "@data/system/environment/list/model"
+      rows: "@data/system/environment/list/rows"
+      row_actions:
+        - label: "@t/system.environment.action.configure"
+          icon: ric.key-2-line
+          action:
+            name: open_drawer
+            context:
+              path: "/system/environment/value/$item.subject_kind/$item.subject/$item.name"
+              position: right
+              dim: 760
+        - label: "@t/system.environment.action.delete"
+          icon: ric.delete-bin-line
+          show_if: "$item.configured"
+          action:
+            name: system.delete_environment_variable
+            confirm:
+              text: "@t/system.environment.delete.confirm.text"
+              confirm_text: "@t/system.environment.delete.confirm.accept"
+              cancel_text: "@t/system.environment.delete.confirm.cancel"

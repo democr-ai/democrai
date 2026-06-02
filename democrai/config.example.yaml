@@ -1,0 +1,200 @@
+app:
+  # Local setup writes the detected system timezone here.
+  timezone: UTC
+  # Key for database sensitive data encryption
+  engine_config_encryption_key: local-encryption-key
+
+logging:
+  provider: local
+  # provider: http
+  # url: https://logs.example.com/ingest
+  # method: POST
+
+sandbox:
+  os:
+    # Linux-only OS-level network enforcement.
+    # When enabled, the app can open direct TCP connections only to:
+    # - infrastructure endpoints declared in config
+    # - allowed targets declared in module/engine/extractor manifests
+    # - approved external targets stored in DB/session approvals
+    # Everything else is blocked at kernel level.
+    # This requires the Linux enforcer prerequisites (cgroup v2 + iptables/ip6tables + privileges).
+    enabled: false
+    # Optional Unix socket used by the privileged OS sandbox helper process.
+    # If omitted, the helper listens on the default runtime state path.
+    # helper_socket: /tmp/democrai_os_sandbox_helper.sock
+    # Optional JSON file written by the app and consumed by the privileged helper.
+    # If omitted, it is stored under the application data directory.
+    # policy_file: ~/.local/share/democrai/os_sandbox_allowlist.json
+    # Optional JSON file that stores concrete hosts observed at runtime from wildcard/pattern allows.
+    # observed_file: ~/.local/share/democrai/os_sandbox_observed_endpoints.json
+    # How often the helper re-applies the policy file to refresh resolved IPs.
+    refresh_seconds: 60
+
+database:
+  # Core database: users, roles, preferences, session identity/ui_state legacy tables.
+  type: sqlite
+  # url: postgresql://democrai:secret@localhost:5432/democrai_core
+
+  # Main application data database.
+  data_type: sqlite
+  # data_url: postgresql://democrai:secret@localhost:5432/democrai_data
+  # data_url: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+storage:
+  media:
+    type: local
+    path: ~/.local/share/democrai/assets
+    remote_cache:
+      ttl_seconds: 3600
+    # bucket: democrai-assets
+    # region: us-east-1
+    # access_key: your-access-key
+    # secret_key: your-secret-key
+    # session_token: ""
+    # endpoint_url: https://s3.amazonaws.com
+    # public_base_url: https://cdn.example.com/assets
+    # key_prefix: media
+    # use_path_style: false
+  kg:
+    type: sqlite
+    # db_path: ~/.local/share/democrai/kg.sqlite
+    # uri: bolt://localhost:7687
+    # user: neo4j
+    # password: secret
+  vector:
+    type: sqlite-vec
+    # host: localhost
+    # port: 19530
+    # user: ""
+    # password: ""
+    # api_key: ${PINECONE_API_KEY}
+    # cloud: aws
+    # region: us-east-1
+    # index_prefix: democrai
+  observability:
+    type: sqlite
+    # url: postgresql://democrai:secret@localhost:5432/democrai_observability
+    # url: clickhouse://default:secret@localhost:8123/democrai_observability
+    retention:
+      #prod
+      events_days: 30
+      audit_days: 180
+      llm_usage_days: 90
+      export_outbox_days: 14
+      cleanup_interval_seconds: 86400
+      #dev
+      #events_days: 7
+      #audit_days: 30
+      #llm_usage_days: 14
+      #export_outbox_days: 3
+      #cleanup_interval_seconds: 86400
+    exporters:
+      outbox:
+        flush_interval_seconds: 30
+      otlp:
+        enabled: false
+        # endpoint: http://localhost:4317
+        insecure: true
+        service_name: democrai
+
+network:
+  # Optional stable node identifier used by RedisBusProvider in distributed setups.
+  # node_id: democrai-node-1
+  redis:
+    enabled: false
+    url: redis://localhost:6379/0
+  ws:
+    codec: json
+    allow_client_codec_override: true
+
+ai:
+  engine_orchestrator:
+    enabled: true
+    # unix on Linux/macOS, tcp on Windows when omitted.
+    # transport: unix
+    # socket_path: ~/.local/state/democrai/engine-orchestrator.sock
+    host: 127.0.0.1
+    port: 50151
+    startup_timeout_seconds: 30
+    # 0 disables per-invocation gRPC deadline. Model loads can be long.
+    invoke_timeout_seconds: 0
+    registry_reconcile_seconds: 5
+    max_message_mb: 128
+    job_terminal_ttl_seconds: 300
+    job_output_queue_size: 256
+    scheduler_max_queue_depth: 100
+    scheduler_submit_timeout_seconds: 0
+    scheduler_worker_count: 4
+    scheduler_graceful_shutdown_seconds: 30
+    batch_wait_seconds: 0.05
+    batch_queue_size: 256
+    runtime_transition_worker_count: 1
+    invocation_worker_count: 4
+
+modules:
+  # all | trusted_only
+  trust_mode: all
+  # If false, user module directory discovery is skipped.
+  allow_user_modules: true
+  # Optional additional roots for module discovery/hot-reload.
+  # If omitted or empty, only built-in + user module dirs are used.
+  # extra_paths:
+  #   - /home/you/dev/democrai-modules
+  # Used when trust_mode=trusted_only and allow_user_modules=true.
+  trusted_modules: []
+  sdk_boundary:
+    # If true, applies fail-closed policy on dynamic imports in user modules:
+    # importlib.import_module(...) / __import__(...) are blocked unless statically safe.
+    fail_closed_dynamic_imports: false
+
+engines:
+  # Optional additional roots for engine manifest discovery/hot-reload.
+  # If omitted or empty, only built-in `engines/` is used.
+  # extra_paths:
+  #   - /home/you/dev/democrai-engines
+
+extractors:
+  # Optional additional roots for extractor manifest discovery/hot-reload.
+  # If omitted or empty, only built-in `extractors/` is used.
+  # extra_paths:
+  #   - /home/you/dev/democrai-extractors
+
+session:
+  idle_ttl_seconds: 3600
+  cookie_name: democrai_sid
+  redis:
+    url: redis://localhost:6379/0
+  identity:
+    # sqlite | redis
+    provider: sqlite
+  ui_state:
+    # sqlite | postgres | redis
+    provider: sqlite
+    # url: postgresql://democrai:secret@localhost:5432/democrai_ui_state
+  cache:
+    # memory | redis
+    provider: memory
+    ttl_seconds: 300
+
+auth:
+  jwt_secret: change-me-with-a-long-random-secret
+  jwt_issuer: democrai
+  jwt_access_ttl_seconds: 900
+  # jwt_audience: democrai-web
+  # jwt_tid: tenant-default
+  cookie_name: session
+  cookie_secure: false
+  cookie_http_only: true
+  cookie_samesite: lax
+
+http:
+  cors:
+    enabled: true
+    allow_origins:
+      - http://localhost:5173
+    allow_credentials: true
+    allow_methods:
+      - "*"
+    allow_headers:
+      - "*"

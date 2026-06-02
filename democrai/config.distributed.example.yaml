@@ -1,0 +1,169 @@
+app:
+  timezone: UTC
+  engine_config_encryption_key: local-encryption-key
+
+logging:
+  provider: local
+  # provider: http
+  # url: https://logs.example.com/ingest
+  # method: POST
+
+sandbox:
+  os:
+    enabled: false
+    # helper_socket: /tmp/democrai_os_sandbox_helper.sock
+    # policy_file: /srv/democrai/data/os_sandbox_allowlist.json
+    # observed_file: /srv/democrai/data/os_sandbox_observed_endpoints.json
+    refresh_seconds: 60
+
+database:
+  type: postgres
+  url: postgresql://democrai:secret@localhost:5432/democrai_core
+
+  data_type: postgres
+  data_url: postgresql://democrai:secret@localhost:5432/democrai_data
+  # data_type: supabase
+  # data_url: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+storage:
+  media:
+    type: local
+    path: /srv/democrai/assets
+    remote_cache:
+      ttl_seconds: 3600
+    # bucket: democrai-assets
+    # region: us-east-1
+    # access_key: your-access-key
+    # secret_key: your-secret-key
+    # session_token: ""
+    # endpoint_url: https://s3.amazonaws.com
+    # public_base_url: https://cdn.example.com/assets
+    # key_prefix: media
+    # use_path_style: false
+  kg:
+    type: neo4j
+    uri: bolt://localhost:7687
+    user: neo4j
+    password: secret
+  vector:
+    type: milvus
+    host: localhost
+    port: 19530
+    user: ""
+    password: ""
+    # api_key: ${PINECONE_API_KEY}
+    # cloud: aws
+    # region: us-east-1
+    # index_prefix: democrai
+  observability:
+    type: sqlite
+    # url: postgresql://democrai:secret@localhost:5432/democrai_observability
+    # url: clickhouse://default:secret@localhost:8123/democrai_observability
+    retention:
+      events_days: 30
+      audit_days: 180
+      llm_usage_days: 90
+      export_outbox_days: 14
+      cleanup_interval_seconds: 3600
+    exporters:
+      outbox:
+        flush_interval_seconds: 30
+      otlp:
+        enabled: false
+        # endpoint: http://otel-collector:4317
+        insecure: true
+        service_name: democrai
+
+network:
+  # Optional stable node identifier used for cross-node Redis bus routing.
+  # node_id: democrai-node-a
+  redis:
+    enabled: true
+    url: redis://localhost:6379/0
+  ws:
+    codec: json
+    allow_client_codec_override: true
+
+ai:
+  engine_orchestrator:
+    enabled: true
+    transport: tcp
+    host: 127.0.0.1
+    port: 50151
+    startup_timeout_seconds: 30
+    invoke_timeout_seconds: 0
+    registry_reconcile_seconds: 5
+    max_message_mb: 128
+    job_terminal_ttl_seconds: 300
+    job_output_queue_size: 256
+    scheduler_max_queue_depth: 100
+    scheduler_submit_timeout_seconds: 0
+    scheduler_worker_count: 4
+    scheduler_graceful_shutdown_seconds: 30
+    batch_wait_seconds: 0.05
+    batch_queue_size: 256
+    runtime_transition_worker_count: 1
+    invocation_worker_count: 4
+
+plugins:
+  # all | trusted_only
+  trust_mode: trusted_only
+  # In production usually false unless specific user plugins are allowlisted.
+  allow_user_plugins: false
+  trusted_plugins: []
+
+modules:
+  # Optional additional roots for module discovery/hot-reload.
+  # If omitted or empty, only built-in + user module dirs are used.
+  # extra_paths:
+  #   - /srv/democrai/external-modules
+  sdk_boundary:
+    # Recommended in production/distributed: fail-closed dynamic imports in user modules.
+    # Blocks dynamic import patterns (importlib.import_module / __import__) unless statically safe.
+    fail_closed_dynamic_imports: true
+
+engines:
+  # Optional additional roots for engine manifest discovery/hot-reload.
+  # If omitted or empty, only built-in `engines/` is used.
+  # extra_paths:
+  #   - /srv/democrai/external-engines
+
+extractors:
+  # Optional additional roots for extractor manifest discovery/hot-reload.
+  # If omitted or empty, only built-in `extractors/` is used.
+  # extra_paths:
+  #   - /srv/democrai/external-extractors
+
+session:
+  cookie_name: democrai_sid
+  redis:
+    url: redis://localhost:6379/0
+  identity:
+    provider: redis
+  ui_state:
+    provider: postgres
+    url: postgresql://democrai:secret@localhost:5432/democrai_ui_state
+  cache:
+    provider: redis
+    ttl_seconds: 300
+
+auth:
+  jwt_secret: change-me-with-a-long-random-secret
+  jwt_issuer: democrai
+  # jwt_audience: democrai-web
+  # jwt_tid: tenant-default
+  cookie_name: session
+  cookie_secure: true
+  cookie_http_only: true
+  cookie_samesite: lax
+
+http:
+  cors:
+    enabled: true
+    allow_origins:
+      - http://localhost:5173
+    allow_credentials: true
+    allow_methods:
+      - "*"
+    allow_headers:
+      - "*"

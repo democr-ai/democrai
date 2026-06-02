@@ -1,0 +1,237 @@
+{
+  "id": "espeak",
+  "name": "eSpeak",
+  "kind": "tts",
+  "entrypoint": "engines.espeak.engine:EspeakEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+    "install": {
+        "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_bin}/espeak"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_bin}/espeak-ng"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+            {
+                "resource_type": "filesystem",
+                "operation": "modify",
+                "target": "{engine_config}/fsspec"
+            }
+        ],
+        "access_by_os": {
+            "linux": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/bin/espeak"
+                }
+            ],
+            "darwin": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/homebrew/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/homebrew/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/local/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak"
+                }
+            ]
+        },
+        "env": {
+            "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+        }
+  },
+  "runtime": {
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_bin}/espeak"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_bin}/espeak-ng"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+            {
+                "resource_type": "filesystem",
+                "operation": "modify",
+                "target": "{engine_config}/fsspec"
+            }
+        ],
+        "access_by_os": {
+            "linux": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/bin/espeak"
+                }
+            ],
+            "darwin": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/homebrew/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/homebrew/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/opt/local/bin/espeak"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak-ng"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/usr/local/bin/espeak"
+                }
+            ]
+        },
+        "env": {
+            "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+        }
+  },
+  "provider": {
+    "id": "espeak",
+    "label": "eSpeak",
+    "kind": "tts",
+    "deployment": "local",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "local_section": "local_audio",
+    "icon_url": "engines/espeak/assets/icon.png",
+    "dependencies": [
+      {
+        "check_type": "command_any",
+        "commands": "espeak-ng,espeak",
+        "label": "espeak"
+      }
+    ],
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Lightweight offline TTS provider based on eSpeak/eSpeak-NG.",
+    "capabilities": [
+      "tts",
+      "cpu_friendly",
+      "offline"
+    ]
+  }
+}

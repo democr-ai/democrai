@@ -1,0 +1,86 @@
+- kind: Column
+  id: organization_view_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: organization_view_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments: "@state/page/organization_view/breadcrumb_segments"
+    - kind: Row
+      id: organization_view_header
+      spacing: 10
+      align: left
+      children:
+        - kind: Title
+          id: organization_view_title
+          text: ""
+          level: 2
+        - kind: Button
+          id: organization_open_update_btn
+          label: "@t/system.organization.view.edit"
+          icon: ric.edit-line
+          variant: info
+    - kind: Card
+      id: organization_info_card
+      variant: outlined
+      style: "margin-bottom: 12px;"
+      children:
+        - kind: Descriptions
+          id: organization_info_descriptions
+          key_header: "@t/system.organization.view.descriptions.key"
+          value_header: "@t/system.organization.view.descriptions.value"
+          borders: true
+          model:
+            - field: id
+              label: "@t/system.organization.view.field.id"
+              type: int
+            - field: name
+              label: "@t/system.organization.view.field.name"
+              type: str
+            - field: description
+              label: "@t/system.organization.view.field.description"
+              type: str
+            - field: created_at
+              label: "@t/system.organization.view.field.created_at"
+              type: date
+              format: "%d/%m/%Y %H:%M"
+          data: {}
+    - kind: Tabs
+      id: organization_view_tabs
+      tabs:
+        - id: organization_users_tab
+          label: "@t/system.organization.tabs.users"
+          icon: ric.user-line
+        - id: organization_modules_tab
+          label: "@t/system.organization.tabs.modules"
+          icon: ric.lock-line
+        - id: organization_agents_tab
+          label: "@t/system.organization.tabs.agents"
+          icon: ric.robot-line
+        - id: organization_tools_tab
+          label: "@t/system.organization.tabs.tools"
+          icon: ric.tools-line
+        - id: organization_mcp_tab
+          label: "@t/system.organization.tabs.mcp"
+          icon: ric.server-line
+      children:
+        - kind: Column
+          id: organization_users_tab
+          children:
+            - organization_users_section
+        - kind: Column
+          id: organization_modules_tab
+          children:
+            - organization_modules_section
+        - kind: Column
+          id: organization_agents_tab
+          children:
+            - organization_agents_section
+        - kind: Column
+          id: organization_tools_tab
+          children:
+            - organization_tools_section
+        - kind: Column
+          id: organization_mcp_tab
+          children:
+            - organization_mcp_section

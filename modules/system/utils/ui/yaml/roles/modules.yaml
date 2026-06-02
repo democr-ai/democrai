@@ -1,0 +1,59 @@
+- kind: Column
+  id: role_modules_section
+  spacing: 10
+  children:
+    - kind: Title
+      id: role_modules_title
+      text: "@t/system.role.modules.title"
+      level: 3
+    - kind: Text
+      id: role_modules_subtitle
+      text: "@t/system.role.modules.subtitle"
+      style: "margin-bottom: 12px;"
+    - kind: DataTable
+      id: role_modules_table
+      show_row_numbers: true
+      paginated: false
+      model:
+        - field: module_name
+          header: "@t/system.role.modules.field.module_name"
+          type: str
+          editable: false
+          filterable: true
+          filter_type: text
+        - field: label
+          header: "@t/system.role.modules.field.label"
+          type: str
+          editable: false
+        - field: version
+          header: "@t/system.role.modules.field.version"
+          type: str
+          editable: false
+        - field: locked
+          header: "@t/system.role.modules.field.locked"
+          type: bool
+          editable: false
+      rows: []
+      row_actions:
+        - label: "@t/system.role.modules.action.disable"
+          icon: ric.lock-line
+          required_permissions:
+            - system.role.update
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: false
+          action:
+            name: system.disable_role_module
+            context: {}
+        - label: "@t/system.role.modules.action.enable"
+          icon: ric.lock-unlock-line
+          required_permissions:
+            - system.role.update
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: true
+          action:
+            name: system.enable_role_module
+            context: {}

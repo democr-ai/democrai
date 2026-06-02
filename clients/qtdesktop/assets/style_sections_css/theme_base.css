@@ -1,0 +1,147 @@
+/* Desktop theme: shadcn-inspired, Qt Widgets compatible. */
+
+QWidget {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #e4e4e7;
+}
+
+QMainWindow,
+QDialog {
+    background-color: #09090b;
+}
+
+#main_layout,
+#root,
+#ui_container,
+QScrollArea,
+QScrollArea > QWidget {
+    background-color: transparent;
+    border: none;
+}
+
+#ui_container {
+    background-color: #000;
+}
+
+#content_area,
+#content_area_host,
+#content_area_host_content,
+QFrame[surface_host_id="main_content"],
+#main_content,
+#main_content_content {
+    background-color: #000;
+}
+
+QFrame[surface_host_id="main_content"] QScrollArea,
+QFrame[surface_host_id="main_content"] QScrollArea > QWidget,
+QFrame[surface_host_id="main_content"] QScrollArea > QWidget > QWidget,
+#main_content QScrollArea,
+#main_content QScrollArea > QWidget,
+#main_content QScrollArea > QWidget > QWidget,
+#main_content_content QScrollArea,
+#main_content_content QScrollArea > QWidget,
+#main_content_content QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+    border: none;
+}
+
+QFrame[surface_host_id="main_content"] QAbstractScrollArea::viewport,
+#main_content QAbstractScrollArea::viewport,
+#main_content_content QAbstractScrollArea::viewport {
+    background-color: transparent;
+}
+
+#comp_list_container,
+#scroll_sidebar_content,
+#scroll_sidebar > QWidget {
+    background-color: #111113;
+    border-right: 1px solid #27272a;
+    height: 100%;
+    padding: 0;
+}
+
+#main_sidebar,
+#main_header {
+    background-color: #111113;
+    border-right: 1px solid #27272a;
+    border-bottom: 1px solid #27272a;
+}
+
+QLabel {
+    color: #fafafa;
+}
+
+QLabel[title="1"] {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fafafa;
+    margin-bottom: 12px;
+}
+
+QLabel[title="2"] {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fafafa;
+    margin-bottom: 10px;
+}
+
+QLabel[title="3"] {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fafafa;
+    margin-bottom: 10px;
+}
+
+QLabel[title="4"],
+QLabel[title="5"] {
+    font-size: 11px;
+    font-weight: 600;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+/* Base controls */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QListWidget {
+    background-color: #09090b;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    color: #fafafa;
+}
+
+QLineEdit,
+QComboBox,
+QListWidget {
+    padding: 10px 14px;
+}
+
+QTextEdit,
+QPlainTextEdit {
+    padding: 10px 14px;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+QListWidget:focus {
+    border: 1px solid #52525b;
+}
+
+QLineEdit::placeholder {
+    color: #71717a;
+}
+
+QComboBox QAbstractItemView,
+QListWidget {
+    background-color: #111113;
+    border: 1px solid #27272a;
+    selection-background-color: #27272a;
+    selection-color: #fafafa;
+}

@@ -1,0 +1,374 @@
+- kind: Column
+  id: components_ai_chat_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_ai_chat_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_ai_chat_eyebrow
+      text: '@t/components.ai.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_ai_chat_title
+      text: '@t/components.ai.chat.title'
+      level: 1
+    - kind: Text
+      id: components_ai_chat_description
+      text: '@t/components.ai.chat.description'
+      muted: true
+  - kind: Card
+    id: components_ai_chat_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_ai_chat_preview_title
+      text: '@t/components.ai.preview.title'
+      level: 3
+    - kind: Row
+      id: components_ai_chat_workspace
+      spacing: 16
+      align: fill
+      children:
+      - kind: Column
+        id: components_ai_chat_sidebar
+        width: 220
+        max_width: 220
+        children:
+        - kind: ThreadList
+          id: components_ai_chat_thread_list
+          threads: '@data/components_ai/chat/threads'
+          active_thread_id: release
+          action:
+            name: components.ai_chat_select_thread
+            context:
+              target: components_ai_chat_thread_list
+      - kind: Column
+        id: components_ai_chat_conversation
+        spacing: 12
+        children:
+        - kind: Row
+          id: components_ai_chat_toolbar
+          spacing: 10
+          align: right
+          children:
+          - kind: Button
+            id: components_ai_chat_download_payload
+            label: '@t/components.ai.chat.button.download'
+            variant: default
+            action:
+              name: components.ai_chat_toolbar_action
+              context:
+                source: components_ai_chat_toolbar
+                command: download
+                target: components_ai_chat_messages
+        - kind: Row
+          id: components_ai_chat_messages_shell
+          height: 430
+          style: 'height: 430px;'
+          children:
+          - kind: ScrollArea
+            id: components_ai_chat_messages_scroll
+            transparent: true
+            scroll_x: false
+            scroll_y: true
+            content_vertical_policy: maximum
+            children:
+            - kind: MessageList
+              id: components_ai_chat_messages
+              messages:
+                type: store
+                scope: page
+                path: /components_ai_chat/messages
+                default: []
+              on_attachment_click:
+                name: components.ai_chat_open_attachment_drawer
+                context:
+                  source: components_ai_chat_messages
+              on_load_more:
+                name: components.ai_chat_prepend_messages
+                context:
+                  target: components_ai_chat_messages
+                  source: scroll_top
+              capabilities:
+              - messages.append
+              - messages.prepend
+              - messages.remove
+              - messages.replace
+              - messages.set
+        - kind: Suggestions
+          id: components_ai_chat_suggestions
+          suggestions: '@data/components_ai/chat/suggestions'
+          action:
+            name: components.ai_chat_apply_suggestion
+            context:
+              target: components_ai_chat_composer
+        - kind: Composer
+          id: components_ai_chat_composer
+          placeholder: '@t/components.ai.chat.placeholder'
+          send_action:
+            name: components.ai_chat_send_message
+            context:
+              target: components_ai_chat_messages
+              composer: components_ai_chat_composer
+          cancel_action:
+            name: components.ai_input_demo_action
+            context:
+              source: components_ai_chat_composer
+          models:
+          - id: gpt-5.4
+            name: GPT-5.4
+          - id: gpt-5.4-mini
+            name: GPT-5.4 Mini
+          model: gpt-5.4
+          tools:
+          - web.search
+          - files.read
+          skills:
+          - summarize
+          - extract_tasks
+          model_capabilities:
+          - reasoning
+          - ingestion
+          show_capabilities: true
+          enable_attachment: true
+          voice: true
+          stop_enabled: true
+          capabilities:
+          - value.set
+          - disabled.set
+          - model.set
+          - model_capabilities.set
+  - kind: Card
+    id: components_ai_chat_cases_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_chat_cases_title
+      text: '@t/components.ai.chat.cases.title'
+      level: 3
+    - kind: Text
+      id: components_ai_chat_cases_description
+      text: '@t/components.ai.chat.cases.description'
+      muted: true
+    - kind: DataTable
+      id: components_ai_chat_cases_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_ai/chat_cases'
+      model:
+      - field: case
+        header: '@t/components.ai.chat.case'
+        type: str
+      - field: role
+        header: '@t/components.ai.chat.role'
+        type: str
+      - field: kind
+        header: '@t/components.ai.chat.kind'
+        type: str
+      - field: content
+        header: '@t/components.ai.chat.content'
+        type: str
+      - field: rendering
+        header: '@t/components.ai.chat.rendering'
+        type: str
+      - field: update
+        header: '@t/components.ai.chat.update'
+        type: str
+  - kind: Card
+    id: components_ai_chat_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_ai_chat_runtime_title
+      text: '@t/components.ai.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_ai_chat_runtime_description
+      text: '@t/components.ai.chat.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_ai_chat_runtime_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Column
+        id: components_ai_chat_surface_controls
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Title
+          id: components_ai_chat_surface_controls_title
+          text: '@t/components.ai.chat.surface.title'
+          level: 4
+        - kind: Row
+          id: components_ai_chat_surface_controls_row
+          spacing: 10
+          align: left
+          children:
+          - kind: Button
+            id: components_ai_chat_append_chart
+            label: '@t/components.ai.chat.button.chart'
+            variant: default
+            action:
+              name: components.ai_chat_append_surface
+              context:
+                target: components_ai_chat_messages
+                kind: chart
+          - kind: Button
+            id: components_ai_chat_append_table
+            label: '@t/components.ai.chat.button.table'
+            variant: default
+            action:
+              name: components.ai_chat_append_surface
+              context:
+                target: components_ai_chat_messages
+                kind: table
+          - kind: Button
+            id: components_ai_chat_append_accordion
+            label: '@t/components.ai.chat.button.accordion'
+            variant: default
+            action:
+              name: components.ai_chat_append_surface
+              context:
+                target: components_ai_chat_messages
+                kind: accordion
+      - kind: Column
+        id: components_ai_chat_message_controls
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Title
+          id: components_ai_chat_message_controls_title
+          text: '@t/components.ai.chat.messages.title'
+          level: 4
+        - kind: Row
+          id: components_ai_chat_message_controls_row
+          spacing: 10
+          align: left
+          children:
+          - kind: Button
+            id: components_ai_chat_append_message
+            label: '@t/components.ai.chat.button.message'
+            variant: default
+            action:
+              name: components.ai_chat_append_message
+              context:
+                target: components_ai_chat_messages
+          - kind: Button
+            id: components_ai_chat_prepend_messages
+            label: '@t/components.ai.chat.button.load_older'
+            variant: default
+            action:
+              name: components.ai_chat_prepend_messages
+              context:
+                target: components_ai_chat_messages
+          - kind: Button
+            id: components_ai_chat_reset_messages
+            label: '@t/components.ai.chat.button.reset'
+            variant: secondary
+            action:
+              name: components.ai_chat_reset_preview
+              context:
+                target: components_ai_chat_messages
+  - kind: Card
+    id: components_ai_chat_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_chat_definition_title
+      text: '@t/components.ai.definition.title'
+      level: 3
+    - kind: Column
+      id: components_ai_chat_definition_grid
+      spacing: 16
+      children:
+      - kind: Markdown
+        id: components_ai_chat_python_code
+        text: '@t/components.ai.chat.definition.python'
+      - kind: Markdown
+        id: components_ai_chat_yaml_code
+        text: '@t/components.ai.chat.definition.yaml'
+  - kind: Card
+    id: components_ai_chat_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_chat_binding_title
+      text: '@t/components.ai.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_ai_chat_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_ai/chat_bindings'
+      model:
+      - field: binding
+        header: '@t/components.ai.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.ai.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.ai.table.source'
+        type: str
+  - kind: Card
+    id: components_ai_chat_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_ai_chat_properties_title
+      text: '@t/components.ai.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_ai_chat_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_ai/chat_properties'
+      model:
+      - field: property
+        header: '@t/components.ai.table.property'
+        type: str
+      - field: type
+        header: '@t/components.ai.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.ai.table.usage'
+        type: str

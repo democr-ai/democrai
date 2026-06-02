@@ -1,0 +1,20 @@
+- kind: Column
+  id: overlay_modal_root
+  spacing: 12
+  padding: [16, 16, 16, 16]
+  children:
+    - kind: Title
+      id: overlay_modal_title
+      text: "@t/components.effects.modal.sample.title"
+      level: 2
+    - kind: Text
+      id: overlay_modal_text
+      text: "@t/components.effects.modal.sample.text"
+      muted: true
+    - kind: Button
+      id: overlay_modal_close_btn
+      label: "@t/components.effects.modal.sample.close"
+      action: close_modal
+      variant: primary
+      icon: ric.close-line
+      style: "margin-top: 12px;"

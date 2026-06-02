@@ -1,0 +1,50 @@
+- kind: Row
+  id: module_root
+  stretch: true
+  align: fill
+  height: 100%
+  children:
+  - kind: Splitter
+    id: hsplit
+    stretch: true
+    sizes:
+    - 150
+    - 850
+    max_sizes:
+    - 340
+    - 0
+    children:
+    - kind: Column
+      id: comp_list_container
+      stretch: true
+      height: 100%
+      align: fill
+      style: 'min-height: 100vh;'
+      spacing: 8
+      padding:
+      - 18
+      - 16
+      - 18
+      - 16
+      max_width: 340
+      ui_role: navigation-container
+      children:
+      - kind: TreeView
+        id: components_nav_tree
+        nodes: '@data/components_layout/nav_tree'
+        click_action: nav
+        click_mode: single
+        selection_mode: single
+        expand_all: false
+        full_height: true
+        active_as_selection: true
+    - kind: ScrollArea
+      id: scroll_preview
+      stretch: true
+      class: container
+      children:
+      - kind: SurfaceHost
+        id: comp_preview
+        surface_id: components_preview
+        stretch: true
+        ui_role: content-publisher

@@ -1,0 +1,274 @@
+/* =========================
+   Component: FolderSelector
+   ========================= */
+QLabel[ui_role="folder_label"] {
+    color: @text-muted;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+QLineEdit[ui_role="folder_input"] {
+    background-color: @bg;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: @input-padding;
+    color: @text;
+    font-size: 13px;
+    selection-background-color: @border-strong;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+}
+
+QPushButton[ui_role="folder_browse_btn"] {
+    background-color: @surface-muted;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: 10px 16px;
+    color: @text-muted;
+    font-size: 12px;
+    font-weight: 600;
+
+    &:hover {
+        background-color: @surface-active;
+        color: @text;
+        border-color: @border-focus;
+    }
+}
+
+/* =========================
+   Button Variants
+   ========================= */
+QPushButton {
+
+    &[variant="default"] {
+        background-color: transparent;
+        color: @text;
+        border-color: @border-strong;
+
+        &:hover {
+            background-color: @surface-muted;
+            border-color: @border-focus;
+        }
+    }
+
+    &[variant="primary"] {
+        background-color: @color-info;
+        color: #ffffff;
+        border-color: @color-info;
+
+        &:hover {
+            background-color: darken(@color-info, 8%);
+            border-color: darken(@color-info, 8%);
+        }
+    }
+
+    &[variant="secondary"] {
+        background-color: @surface-muted;
+        color: @text;
+        border-color: @border;
+
+        &:hover {
+            background-color: @surface-active;
+            border-color: @border-strong;
+        }
+    }
+
+    &[variant="info"] {
+        background-color: @color-info-bg;
+        color: @color-info;
+        border-color: @color-info-border;
+
+        &:hover {
+            background-color: rgba(59, 130, 246, 0.22);
+        }
+    }
+
+    &[variant="destructive"],
+    &[variant="danger"] {
+        background-color: @color-danger;
+        color: #ffffff;
+        border-color: @color-danger;
+
+        &:hover {
+            background-color: darken(@color-danger, 8%);
+            border-color: darken(@color-danger, 8%);
+        }
+
+        &[appearance="ghost"],
+        &[mode="ghost"],
+        &[appearance="outline"] {
+            background-color: transparent;
+            color: @color-danger;
+            border-color: transparent;
+
+            &:hover {
+                background-color: @color-danger-bg;
+                color: @color-danger;
+            }
+        }
+    }
+
+    &[variant="success"] {
+        background-color: @color-success-bg;
+        color: @color-success;
+        border-color: @color-success-border;
+
+        &:hover {
+            background-color: rgba(34, 197, 94, 0.22);
+        }
+    }
+
+    &[variant="warning"] {
+        background-color: @color-warning-bg;
+        color: @color-warning;
+        border-color: @color-warning-border;
+
+        &:hover {
+            background-color: rgba(245, 158, 11, 0.22);
+        }
+    }
+
+    // Ghost + variant combos (no border, colored text, subtle hover bg — matches web)
+    &[appearance="ghost"][variant="default"],
+    &[mode="ghost"][variant="default"],
+    &[appearance="ghost"][variant="secondary"],
+    &[mode="ghost"][variant="secondary"] {
+        background-color: transparent;
+        border-color: transparent;
+        color: @text;
+
+        &:hover {
+            background-color: @surface-muted;
+        }
+    }
+
+    &[appearance="ghost"][variant="primary"],
+    &[mode="ghost"][variant="primary"] {
+        background-color: transparent;
+        border-color: transparent;
+        color: @color-info;
+
+        &:hover {
+            background-color: @color-info-bg;
+            color: @color-info;
+        }
+    }
+
+    &[appearance="ghost"][variant="info"],
+    &[mode="ghost"][variant="info"] {
+        background-color: transparent;
+        border-color: transparent;
+        color: @color-info;
+
+        &:hover {
+            background-color: @color-info-bg;
+            color: @color-info;
+        }
+    }
+
+    &[appearance="ghost"][variant="success"],
+    &[mode="ghost"][variant="success"] {
+        background-color: transparent;
+        border-color: transparent;
+        color: @color-success;
+
+        &:hover {
+            background-color: @color-success-bg;
+            color: @color-success;
+        }
+    }
+
+    &[appearance="ghost"][variant="warning"],
+    &[mode="ghost"][variant="warning"] {
+        background-color: transparent;
+        border-color: transparent;
+        color: @color-warning;
+
+        &:hover {
+            background-color: @color-warning-bg;
+            color: @color-warning;
+        }
+    }
+
+    &[appearance="link"][variant="primary"],
+    &[mode="link"][variant="primary"] {
+        color: @color-info;
+
+        &:hover {
+            color: darken(@color-info, 8%);
+        }
+    }
+
+    // Sizes
+    &[btnsize="sm"],
+    &[btnsize="small"] {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+
+    &[btnsize="lg"],
+    &[btnsize="large"] {
+        font-size: 15px;
+        padding: 9px 24px;
+    }
+
+    // Shapes
+    &[shape="round"],
+    &[shape="icon"] {
+        padding: 6px;
+        border-radius: 4px;
+
+        &[btnsize="sm"],
+        &[btnsize="small"] {
+            padding: 3px;
+        }
+
+        &[btnsize="lg"],
+        &[btnsize="large"] {
+            padding: 9px;
+        }
+    }
+
+    &[shape="round"][active="true"] {
+        background-color: @white;
+        color: @text-inverse;
+
+        &[appearance="ghost"]:hover,
+        &[mode="ghost"]:hover {
+            background-color: @surface-muted;
+            border-color: @border-focus;
+            color: @text;
+        }
+    }
+}
+
+/* Main sidebar icon-only navigation buttons */
+#main_sidebar QPushButton[shape="round"][appearance="ghost"],
+#main_sidebar QPushButton[shape="round"][mode="ghost"] {
+    background-color: transparent;
+    border-color: transparent;
+    color: @main-sidebar-icon-idle;
+
+    &:hover {
+        background-color: darken(@main-sidebar-bg, 6%);
+        border-color: transparent;
+        color: @main-sidebar-icon-active;
+    }
+
+    &[active="true"] {
+        background-color: darken(@main-sidebar-bg, 10%);
+        border-color: lighten(@main-sidebar-bg, 8%);
+        color: @main-sidebar-icon-active;
+    }
+
+    &[active="true"]:hover {
+        background-color: darken(@main-sidebar-bg, 10%);
+        border-color: lighten(@main-sidebar-bg, 8%);
+        color: @main-sidebar-icon-active;
+    }
+}

@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "democrai://engines/schemas/model-definition.schema.json",
+  "title": "Democr.ai Engine Model Definition",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "engine_id",
+    "capabilities",
+    "interfaces",
+    "provisioning",
+    "runtime"
+  ],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "label": {"type": "string", "minLength": 1},
+    "engine_id": {"type": "string", "minLength": 1},
+    "family": {"type": "string"},
+    "summary": {"type": "string"},
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "extended_capabilities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "compatible_engines": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "ram_gb": {"type": "number", "minimum": 0},
+        "vram_gb": {"type": "number", "minimum": 0},
+        "storage_gb": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "provisioning": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["catalog", "definition", "artifact"]
+        },
+        "download": {
+          "type": "object",
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["none", "huggingface_files", "huggingface_snapshot", "direct_url_files"]
+            },
+            "artifacts_required": {
+              "type": "array",
+              "items": {"type": "string"},
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "source"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "kind": {"type": "string", "minLength": 1},
+          "format": {"type": "string"},
+          "required": {"type": "boolean"},
+          "target": {"type": "string"},
+          "source": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["huggingface", "url", "local_upload", "engine_managed", "inline"]
+              },
+              "repo": {"type": "string"},
+              "revision": {"type": "string"},
+              "snapshot": {"type": "boolean"},
+              "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "uniqueItems": true
+              },
+              "url": {"type": "string"},
+              "accept": {
+                "type": "array",
+                "items": {"type": "string"},
+                "uniqueItems": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["execution_mode"],
+      "properties": {
+        "execution_mode": {
+          "type": "string",
+          "enum": ["standard", "custom"]
+        },
+        "model_ref": {"type": "string"},
+        "artifact_ref": {"type": "string"},
+        "entrypoint": {"type": "string"},
+        "defaults": {"type": "object"},
+        "options_schema": {
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {"type": "object"}
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["supported"],
+        "properties": {
+          "supported": {"type": "boolean"},
+          "activation": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": ["option_mapping", "extra_param", "native", "custom"]
+              },
+              "param": {"type": "string"},
+              "type": {"type": "string"},
+              "values": {
+                "type": "array",
+                "items": {"type": ["string", "number", "boolean"]},
+                "uniqueItems": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

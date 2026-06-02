@@ -1,0 +1,173 @@
+- kind: Column
+  id: system_mcp_test_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: system_mcp_test_breadcrumb
+      segments: "@state/page/system/mcp/test/breadcrumb_segments"
+    - kind: Card
+      id: system_mcp_test_summary_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      style: "margin-top: 12px;"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_mcp_test_summary_body
+          spacing: 12
+          children:
+            - kind: Row
+              id: system_mcp_test_header_row
+              spacing: 12
+              align: fill
+              children:
+                - kind: Column
+                  id: system_mcp_test_identity_col
+                  spacing: 6
+                  children:
+                    - kind: Title
+                      id: system_mcp_test_title
+                      text: "@state/page/system/mcp/test/name"
+                      level: 3
+                    - kind: Text
+                      id: system_mcp_test_endpoint
+                      text: "@state/page/system/mcp/test/endpoint_url"
+                      style: "font-size: 13px; opacity: 0.78;"
+                - kind: Row
+                  id: system_mcp_test_badges
+                  spacing: 8
+                  align: right
+                  children:
+                    - kind: Badge
+                      id: system_mcp_test_transport_badge
+                      text: "@state/page/system/mcp/test/transport"
+                      variant: info
+                    - kind: Badge
+                      id: system_mcp_test_enabled_badge
+                      text: "@state/page/system/mcp/test/enabled_text"
+                      variant: success
+            - kind: Text
+              id: system_mcp_test_timeout
+              text: "@state/page/system/mcp/test/timeout_ms"
+              style: "font-size: 13px;"
+    - kind: Alert
+      id: system_mcp_test_disabled_alert
+      title: "@t/system.mcp.test.disabled_title"
+      description: "@t/system.mcp.test.disabled_description"
+      variant: warning
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+          - left: {type: store, scope: page, path: /system/mcp/test/enabled, default: false}
+            op: "=="
+            right: false
+    - kind: Alert
+      id: system_mcp_test_no_models_alert
+      title: "@t/system.mcp.test.no_models_title"
+      description: "@t/system.mcp.test.no_models_description"
+      variant: info
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+          - left: {type: store, scope: page, path: /system/mcp/test/models_available, default: false}
+            op: "=="
+            right: false
+    - kind: Card
+      id: system_mcp_test_form_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+          - left: {type: store, scope: page, path: /system/mcp/test/enabled, default: false}
+            op: "=="
+            right: true
+          - left: {type: store, scope: page, path: /system/mcp/test/models_available, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_mcp_test_form_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: system_mcp_test_form_title
+              text: "@t/system.mcp.test.form_title"
+              level: 4
+            - kind: Form
+              id: system_mcp_test_form
+              submit_label: "@t/system.mcp.test.run"
+              action:
+                name: system.test_mcp_with_llm
+                context:
+                  mcp_id: "@state/page/system/mcp/test/id"
+              track_loading: system.test_mcp_with_llm
+              model: "@state/page/system/mcp/test/form"
+    - kind: Card
+      id: system_mcp_test_result_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_mcp_test_result_body
+          spacing: 8
+          children:
+            - kind: Title
+              id: system_mcp_test_result_title
+              text: "@t/system.mcp.test.result_title"
+              level: 4
+            - kind: Text
+              id: system_mcp_test_result_output
+              text: "@state/page/system/mcp/test/last_result/output"
+              style: "white-space: pre-wrap;"
+            - kind: Text
+              id: system_mcp_test_result_metrics
+              text: "@state/page/system/mcp/test/last_result/metrics"
+              style: "font-size: 12px; opacity: 0.72;"
+    - kind: Card
+      id: system_mcp_test_events_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_mcp_test_events_body
+          spacing: 8
+          children:
+            - kind: Title
+              id: system_mcp_test_events_title
+              text: "@t/system.mcp.test.events_title"
+              level: 4
+            - kind: List
+              id: system_mcp_test_events_list
+              template: title_text
+              data_source:
+                type: binding
+                data: {type: store, scope: page, path: /system/mcp/test/trace_events, default: []}
+    - kind: Text
+      id: system_mcp_test_invalid
+      text: "@state/page/system/mcp/test/summary"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/mcp/test/valid, default: false}
+            op: "=="
+            right: false

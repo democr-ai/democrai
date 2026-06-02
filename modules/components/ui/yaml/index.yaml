@@ -1,0 +1,67 @@
+- kind: Column
+  id: components_root
+  spacing: 22
+  align: top
+  children:
+  - kind: Column
+    id: components_header
+    spacing: 8
+    style: 'margin-bottom: 12px'
+    children:
+    - kind: Title
+      id: components_header_eyebrow
+      text: Component Explorer
+      level: 4
+    - kind: Title
+      id: components_header_title
+      text: A smaller, cleaner map of the UI kit
+      level: 1
+    - kind: Text
+      id: components_header_desc
+      text: Use this entry page as an index. Each section groups components by application logic instead of showing an undifferentiated
+        wall of demos.
+  - kind: Alert
+    id: explorer_note
+    title: Component coverage
+    description: This explorer groups the available UI components by usage area. Use the sidebar to inspect focused examples
+      for layouts, content, forms, effects, charts, and AI surfaces.
+    variant: info
+    style: 'margin-bottom: 12px;'
+  - kind: Card
+    id: explorer_navigation
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    style: 'margin-bottom: 12px;'
+    children:
+    - kind: Title
+      id: explorer_navigation_title
+      text: Components
+      level: 3
+    - kind: Text
+      id: explorer_navigation_desc
+      text: List of component's sections
+      style: 'font-size: 13px;'
+    - kind: Column
+      id: explorer_navigation_content
+      spacing: 14
+      children:
+      - kind: List
+        id: component_list
+        selectable: false
+        template: title_text
+        selected_items_action: null
+        data_source:
+          type: binding
+          data: '@data/components_index/sections'
+        item_actions:
+        - label: Open
+          icon: ric.external-link-line
+          action:
+            name: navigate
+            context:
+              path: $item.route

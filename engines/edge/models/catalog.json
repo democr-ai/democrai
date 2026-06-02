@@ -1,0 +1,416 @@
+{
+  "engine_id": "edge",
+  "schema": "engine-model-catalog/v1",
+  "models": [
+    {
+      "id": "en-US-AriaNeural",
+      "label": "Aria Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Default Edge TTS voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "en-US-AriaNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "en-US-AriaNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "en-US-GuyNeural",
+      "label": "Guy Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "English US Edge TTS male neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "en-US-GuyNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "en-US-GuyNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "it-IT-ElsaNeural",
+      "label": "Elsa Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Italian Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "it-IT-ElsaNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "it-IT-ElsaNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "it-IT-IsabellaNeural",
+      "label": "Isabella Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Italian Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "it-IT-IsabellaNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "it-IT-IsabellaNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "it-IT-DiegoNeural",
+      "label": "Diego Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Italian Edge TTS male neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "it-IT-DiegoNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "it-IT-DiegoNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "it-IT-GiuseppeNeural",
+      "label": "Giuseppe Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Italian Edge TTS male neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "it-IT-GiuseppeNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "it-IT-GiuseppeNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "de-DE-KatjaNeural",
+      "label": "Katja Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "German Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "de-DE-KatjaNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "de-DE-KatjaNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fr-FR-DeniseNeural",
+      "label": "Denise Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "French Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "fr-FR-DeniseNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "fr-FR-DeniseNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "es-ES-ElviraNeural",
+      "label": "Elvira Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Spanish Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "es-ES-ElviraNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "es-ES-ElviraNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pt-BR-FranciscaNeural",
+      "label": "Francisca Neural",
+      "engine_id": "edge",
+      "family": "edge-tts",
+      "summary": "Brazilian Portuguese Edge TTS female neural voice.",
+      "capabilities": [
+        "tts"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "pt-BR-FranciscaNeural",
+        "defaults": {
+          "runtime": {
+            "voice": "pt-BR-FranciscaNeural",
+            "rate": "+0%"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "rate",
+              "label": "rate",
+              "type": "text",
+              "value": "+0%"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

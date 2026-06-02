@@ -1,0 +1,355 @@
+- kind: Column
+  id: components_charts_gantt_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_charts_gantt_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_charts_gantt_eyebrow
+      text: '@t/components.charts.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_charts_gantt_title
+      text: '@t/components.charts.gantt.title'
+      level: 1
+    - kind: Text
+      id: components_charts_gantt_description
+      text: '@t/components.charts.gantt.description'
+      muted: true
+  - kind: Card
+    id: components_charts_gantt_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_charts_gantt_preview_title
+      text: '@t/components.charts.preview.title'
+      level: 3
+    - kind: Column
+      id: components_charts_gantt_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Gantt
+        id: components_charts_gantt_structured
+        title: '@t/components.charts.gantt.structured'
+        start: '2026-04-01'
+        end: '2026-04-25'
+        height: 420
+        items:
+        - id: plan
+          label: Planning and alignment
+          group: foundation
+          start: '2026-04-01'
+          end: '2026-04-05'
+          status: done
+          progress: 100
+          expanded: true
+          subtasks:
+          - id: scope
+            label: Scope definition
+            group: foundation
+            start: '2026-04-01'
+            end: '2026-04-02'
+            status: done
+            progress: 100
+          - id: dependencies
+            label: Dependency mapping
+            group: foundation
+            start: '2026-04-03'
+            end: '2026-04-05'
+            status: done
+            progress: 100
+        - id: api
+          label: Backend contract
+          group: delivery
+          start: '2026-04-06'
+          end: '2026-04-11'
+          status: done
+          progress: 100
+        - id: desktop
+          label: Desktop renderer
+          group: delivery
+          start: '2026-04-09'
+          end: '2026-04-16'
+          status: active
+          progress: 65
+        - id: web
+          label: Web renderer
+          group: delivery
+          start: '2026-04-10'
+          end: '2026-04-18'
+          status: active
+          progress: 45
+        - id: docs
+          label: Documentation and examples
+          group: enablement
+          start: '2026-04-17'
+          end: '2026-04-22'
+          status: planned
+          progress: 0
+        - id: launch
+          label: Production release
+          group: release
+          start: '2026-04-23'
+          end: '2026-04-25'
+          status: risk
+          progress: 10
+      - kind: Gantt
+        id: components_charts_gantt_mermaid
+        height: 420
+        mermaid: "gantt\n    title Delivery rollout\n    dateFormat YYYY-MM-DD\n    section Foundation\n    Planning and alignment\
+          \ :done, plan, 2026-04-01, 5d\n    section Delivery\n    Backend contract       :done, api, after plan, 6d\n   \
+          \ Desktop renderer       :active, desktop, after api, 8d\n    Web renderer           :active, web, 2026-04-10, 9d\n\
+          \    section Release\n    Production release     :crit, launch, after web, 3d\n"
+  - kind: Card
+    id: components_charts_gantt_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_charts_gantt_runtime_title
+      text: '@t/components.charts.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_charts_gantt_runtime_description
+      text: '@t/components.charts.gantt.runtime.description'
+      muted: true
+    - kind: Column
+      id: components_charts_gantt_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_charts_gantt_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_gantt_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Gantt
+            id: components_charts_gantt_page
+            title:
+              type: store
+              scope: page
+              path: /components_charts/gantt/title
+            items:
+              type: store
+              scope: page
+              path: /components_charts/gantt/items
+            start:
+              type: store
+              scope: page
+              path: /components_charts/gantt/start
+            end:
+              type: store
+              scope: page
+              path: /components_charts/gantt/end
+            height: 360
+          - kind: Button
+            id: components_charts_gantt_page_button
+            label: '@t/components.charts.usage.page_store_button'
+            variant: default
+            action:
+              name: components.gantt_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_charts_gantt_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Gantt
+            id: components_charts_gantt_data
+            title: '@data/components_charts/gantt_model/title'
+            items: '@data/components_charts/gantt_model/items'
+            start: '@data/components_charts/gantt_model/start'
+            end: '@data/components_charts/gantt_model/end'
+            height: 360
+          - kind: Button
+            id: components_charts_gantt_data_button
+            label: '@t/components.charts.usage.data_button'
+            variant: default
+            action:
+              name: components.gantt_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_charts_gantt_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_gantt_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Gantt
+            id: components_charts_gantt_global
+            title:
+              type: store
+              scope: global
+              path: /components_charts/gantt/title
+            items:
+              type: store
+              scope: global
+              path: /components_charts/gantt/items
+            start:
+              type: store
+              scope: global
+              path: /components_charts/gantt/start
+            end:
+              type: store
+              scope: global
+              path: /components_charts/gantt/end
+            height: 360
+          - kind: Button
+            id: components_charts_gantt_global_button
+            label: '@t/components.charts.usage.global_store_button'
+            variant: default
+            action:
+              name: components.gantt_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_charts_gantt_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Gantt
+            id: components_charts_gantt_direct
+            title: '@t/components.charts.gantt.direct'
+            start: '2026-04-01'
+            end: '2026-04-25'
+            height: 360
+            capabilities:
+            - title.set
+            - items.set
+            - start.set
+            - end.set
+            items:
+            - id: api
+              label: Backend contract
+              group: delivery
+              start: '2026-04-06'
+              end: '2026-04-11'
+              status: done
+              progress: 100
+            - id: desktop
+              label: Desktop renderer
+              group: delivery
+              start: '2026-04-09'
+              end: '2026-04-16'
+              status: active
+              progress: 65
+            - id: web
+              label: Web renderer
+              group: delivery
+              start: '2026-04-10'
+              end: '2026-04-18'
+              status: active
+              progress: 45
+          - kind: Button
+            id: components_charts_gantt_direct_button
+            label: '@t/components.charts.usage.direct_button'
+            variant: default
+            action:
+              name: components.gantt_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_charts_gantt_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_gantt_definition_title
+      text: '@t/components.charts.definition.title'
+      level: 3
+    - kind: Row
+      id: components_charts_gantt_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_charts_gantt_python_code
+        text: '@t/components.charts.gantt.definition.python'
+      - kind: Markdown
+        id: components_charts_gantt_yaml_code
+        text: '@t/components.charts.gantt.definition.yaml'
+  - kind: Card
+    id: components_charts_gantt_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_gantt_binding_title
+      text: '@t/components.charts.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_gantt_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/gantt_bindings'
+      model:
+      - field: binding
+        header: '@t/components.charts.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.charts.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.charts.table.source'
+        type: str
+  - kind: Card
+    id: components_charts_gantt_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_gantt_properties_title
+      text: '@t/components.charts.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_gantt_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/gantt_properties'
+      model:
+      - field: property
+        header: '@t/components.charts.table.property'
+        type: str
+      - field: type
+        header: '@t/components.charts.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.charts.table.usage'
+        type: str

@@ -1,0 +1,96 @@
+{
+  "id": "anthropic",
+  "name": "Anthropic",
+  "kind": "llm",
+  "entrypoint": "engines.anthropic.engine:AnthropicEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+  "runtime": {
+    "access": [
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://api.anthropic.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "send",
+        "target": "https://api.anthropic.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://api.anthropic.com/*"
+      }
+    ]
+  },
+  "provider": {
+    "id": "anthropic",
+    "label": "Anthropic",
+    "kind": "llm",
+    "deployment": "remote",
+    "model_source": "provider_api",
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream"
+    ],
+    "icon_url": "engines/anthropic/assets/icon.svg",
+    "dependencies": [
+      {
+        "dependency_key": "anthropic",
+        "module": "anthropic",
+        "label": "anthropic",
+        "pip_packages": [
+          "anthropic"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "sk-ant-...",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "API key is required"
+          }
+        ]
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Use Anthropic hosted APIs with account-level configuration.",
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text"
+    ],
+    "capability_option_fields": {
+      "reasoning": [
+        {
+          "name": "reasoning_budget",
+          "label": "Reasoning budget",
+          "type": "number",
+          "default": 4096,
+          "min": 1024,
+          "step": 1
+        }
+      ]
+    },
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text"
+    ]
+  }
+}

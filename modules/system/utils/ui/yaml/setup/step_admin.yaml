@@ -1,0 +1,55 @@
+- kind: Column
+  id: setup_step_admin
+  spacing: 16
+  show_if:
+    conditions:
+      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+        op: "=="
+        right: 3
+  children:
+    - kind: Alert
+      id: admin_intro_alert
+      title: "@t/system.setup.admin.title"
+      description: "@t/system.setup.admin.description"
+      variant: info
+      style: "margin-bottom: 12px;"
+    - kind: Card
+      id: admin_credentials_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      children:
+        - kind: Text
+          id: admin_credentials_title
+          text: "@t/system.setup.admin.credentials"
+          style: "font-size: 16px; font-weight: 700;"
+        - kind: Text
+          id: admin_credentials_hint
+          text: "@t/system.setup.admin.credentials_hint"
+          style: "color: #5f6b7a; margin-bottom: 6px;"
+        - kind: TextField
+          id: admin_user
+          label: "@t/system.user.form.username.label"
+          value: "@state/page/system/setup/admin_user"
+        - kind: TextField
+          id: admin_email
+          label: "@t/system.user.form.email.label"
+          type: email
+          value: "@state/page/system/setup/admin_email"
+        - kind: TextField
+          id: admin_pass
+          label: "@t/system.user.form.password.label"
+          password: true
+          value: ""
+    - kind: Card
+      id: admin_mode_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      children:
+        - kind: Text
+          id: admin_mode_title
+          text: "@t/system.setup.admin.profile"
+          style: "font-size: 16px; font-weight: 700;"
+        - kind: Text
+          id: admin_mode_summary
+          text: "@state/page/system/setup/mode_summary"
+          style: "color: #5f6b7a;"

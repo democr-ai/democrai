@@ -1,0 +1,33 @@
+[run]
+branch = True
+relative_files = True
+data_file = tests/.coverage
+source =
+    democrai/core
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 2
+omit =
+    democrai/core/application/knowledge/extractors/docling/backend.py
+    democrai/core/application/knowledge/extractors/unstructured/backend.py
+    democrai/core/application/knowledge/extractors/vision/backend.py
+    democrai/core/platform/sdk/components/domains/*
+    democrai/core/application/knowledge/extractors/document.py
+    democrai/core/application/knowledge/extractors/tabular.py
+    democrai/core/platform/pipeline/chat.py
+    democrai/core/platform/ui/yaml_builder.py
+    democrai/core/application/handler/services/runtime/media_serving.py
+    democrai/core/application/handler/services/runtime/session_events.py
+    democrai/core/application/handler/services/runtime/uploads.py
+    democrai/core/application/knowledge/ingestion.py
+    democrai/core/application/knowledge/service_helper/retrieval.py
+    democrai/core/platform/ai/orchestrator.py
+    democrai/core/platform/ai/batching.py
+    democrai/core/application/knowledge/runtime_hooks.py
+    democrai/core/runtime/lifecycle/service_manager.py
+    democrai/core/runtime/exceptions.py
+
+[html]
+directory = tests/cov_html

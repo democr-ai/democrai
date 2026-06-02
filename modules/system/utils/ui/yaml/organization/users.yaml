@@ -1,0 +1,49 @@
+- kind: Column
+  id: organization_users_section
+  spacing: 10
+  children:
+    - kind: Row
+      id: organization_users_header
+      spacing: 12
+      align: left
+      children:
+        - kind: Title
+          id: organization_users_title
+          text: "@t/system.organization.users.title"
+          level: 3
+        - kind: Button
+          id: organization_user_new_btn
+          label: "@t/system.organization.users.action.add"
+          icon: ric.add-line
+          variant: success
+          mode: ghost
+          action:
+            name: open_drawer
+    - kind: DataTable
+      id: organization_users_table
+      show_row_numbers: true
+      paginated: false
+      model: []
+      rows: []
+      row_actions:
+        - label: "@t/system.organization.users.action.edit"
+          icon: ric.edit-line
+          required_permissions:
+            - system.user.update
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/user/$item.id/update
+        - label: "@t/system.organization.users.action.delete"
+          icon: ric.delete-bin-6-line
+          variant: danger
+          required_permissions:
+            - system.user.delete
+          action:
+            name: system.delete_user
+            context: {}
+            confirm:
+              text: "@t/system.user.delete.confirm.text"
+              confirm_text: "@t/system.user.delete.confirm.accept"
+              cancel_text: "@t/system.user.delete.confirm.cancel"

@@ -1,0 +1,70 @@
+- kind: Column
+  id: monitor_task_detail_drawer
+  spacing: 14
+  style: "min-width: 720px;"
+  children:
+    - kind: Row
+      id: monitor_task_detail_header
+      spacing: 10
+      align: left
+      children:
+        - kind: Title
+          id: monitor_task_detail_title
+          text: "@data/task/title"
+          level: 3
+        - kind: Button
+          id: monitor_task_detail_close
+          label: "@t/monitor.common.close"
+          icon: ric.close-line
+          variant: danger
+          action: close_drawer
+    - kind: Descriptions
+      id: monitor_task_detail_overview
+      borders: true
+      key_header: "@t/monitor.detail.field"
+      value_header: "@t/monitor.detail.value"
+      model:
+        - field: id
+          label: "@t/monitor.table.id"
+          type: str
+        - field: module
+          label: "@t/monitor.table.module"
+          type: str
+        - field: label
+          label: "@t/monitor.table.label"
+          type: str
+        - field: status
+          label: "@t/monitor.table.status"
+          type: str
+        - field: progress
+          label: "@t/monitor.table.progress"
+          type: float
+        - field: task_key
+          label: "@t/monitor.task.detail.task_key"
+          type: str
+        - field: created_at
+          label: "@t/monitor.task.detail.created"
+          type: str
+        - field: updated_at
+          label: "@t/monitor.task.detail.updated"
+          type: str
+      data: "@data/task/overview"
+    - kind: Alert
+      id: monitor_task_detail_error_alert
+      title: "@t/monitor.task.detail.failure_reason"
+      description: "@data/task/error_description"
+      variant: "@data/task/error_variant"
+    - kind: Title
+      id: monitor_task_detail_checkpoint_title
+      text: "@t/monitor.task.detail.checkpoint"
+      level: 4
+    - kind: Markdown
+      id: monitor_task_detail_checkpoint
+      text: "@data/task/checkpoint_text"
+    - kind: Title
+      id: monitor_task_detail_result_title
+      text: "@t/monitor.task.detail.result"
+      level: 4
+    - kind: Markdown
+      id: monitor_task_detail_result
+      text: "@data/task/result_text"

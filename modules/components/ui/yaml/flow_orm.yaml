@@ -1,0 +1,126 @@
+- kind: Column
+  id: components_flow_orm_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_orm_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_orm_eyebrow
+      text: '@t/components.flow.state.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_orm_title
+      text: '@t/components.flow.orm.title'
+      level: 1
+    - kind: Text
+      id: components_flow_orm_description
+      text: '@t/components.flow.orm.description'
+      muted: true
+  - kind: Card
+    id: components_flow_orm_overview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_orm_overview_title
+      text: '@t/components.flow.state.overview.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_orm_overview_text
+      text: '@t/components.flow.orm.overview'
+    - kind: DataTable
+      id: components_flow_orm_boundaries_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/orm/boundaries'
+      model:
+      - field: rule
+        header: '@t/components.flow.orm.table.rule'
+        type: str
+      - field: reason
+        header: '@t/components.flow.orm.table.reason'
+        type: str
+  - kind: Card
+    id: components_flow_orm_model_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_orm_model_title
+      text: '@t/components.flow.orm.model.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_orm_model_text
+      text: '@t/components.flow.orm.model'
+  - kind: Card
+    id: components_flow_orm_crud_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_orm_crud_title
+      text: '@t/components.flow.orm.crud.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_orm_crud_text
+      text: '@t/components.flow.orm.crud'
+  - kind: Card
+    id: components_flow_orm_scope_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_orm_scope_title
+      text: '@t/components.flow.orm.scope.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_orm_scope_text
+      text: '@t/components.flow.orm.scope'
+  - kind: Card
+    id: components_flow_orm_api_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_orm_api_title
+      text: '@t/components.flow.state.api.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_orm_api_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/orm/api'
+      model:
+      - field: operation
+        header: '@t/components.flow.state.table.operation'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str

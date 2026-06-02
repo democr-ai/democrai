@@ -1,0 +1,262 @@
+- kind: Column
+  id: components_forms_datepicker_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_datepicker_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_datepicker_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_datepicker_title
+      text: '@t/components.forms.datepicker.title'
+      level: 1
+    - kind: Text
+      id: components_forms_datepicker_description
+      text: '@t/components.forms.datepicker.description'
+      muted: true
+  - kind: Card
+    id: components_forms_datepicker_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_datepicker_preview_title
+      text: '@t/components.forms.preview.title'
+      level: 3
+    - kind: DatePicker
+      id: components_forms_datepicker_basic
+      label: '@t/components.forms.datepicker.preview.date'
+      value: '2026-04-24'
+      min_date: '2026-01-01'
+      max_date: '2026-12-31'
+      format: yyyy-MM-dd
+    - kind: DatePicker
+      id: components_forms_datepicker_datetime
+      label: '@t/components.forms.datepicker.preview.datetime'
+      value: 2026-04-24 14:30
+      min_date: 2026-01-01 00:00
+      max_date: 2026-12-31 23:59
+      format: yyyy-MM-dd HH:mm
+    - kind: Button
+      id: components_forms_datepicker_read_button
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        input_id: components_forms_datepicker_basic
+        label: datepicker
+      collect_input_ids:
+      - components_forms_datepicker_basic
+  - kind: Card
+    id: components_forms_datepicker_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_datepicker_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_datepicker_runtime_description
+      text: '@t/components.forms.datepicker.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_datepicker_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_datepicker_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_datepicker_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: DatePicker
+            id: components_forms_datepicker_page
+            label: '@t/components.forms.usage.page_store'
+            value:
+              type: store
+              scope: page
+              path: /components_forms/datepicker/value
+              default: '2026-04-24'
+            min_date: '2026-01-01'
+            max_date: '2026-12-31'
+          - kind: Button
+            id: components_forms_datepicker_page_button
+            label: '@t/components.forms.usage.page_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: datepicker
+                mode: page_store
+        - kind: Column
+          id: components_forms_datepicker_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: DatePicker
+            id: components_forms_datepicker_data
+            label: '@t/components.forms.usage.data_model'
+            value: '@data/components_forms/datepicker_model/value'
+            min_date: '2026-01-01'
+            max_date: '2026-12-31'
+          - kind: Button
+            id: components_forms_datepicker_data_button
+            label: '@t/components.forms.usage.data_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: datepicker
+                mode: data
+      - kind: Column
+        id: components_forms_datepicker_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_datepicker_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: DatePicker
+            id: components_forms_datepicker_global
+            label: '@t/components.forms.usage.global_store'
+            value:
+              type: store
+              scope: global
+              path: /components_forms/datepicker/value
+              default: '2026-04-24'
+            min_date: '2026-01-01'
+            max_date: '2026-12-31'
+          - kind: Button
+            id: components_forms_datepicker_global_button
+            label: '@t/components.forms.usage.global_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: datepicker
+                mode: global_store
+        - kind: Column
+          id: components_forms_datepicker_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: DatePicker
+            id: components_forms_datepicker_direct
+            label: '@t/components.forms.usage.direct'
+            value: '2026-04-24'
+            min_date: '2026-01-01'
+            max_date: '2026-12-31'
+            capabilities:
+            - value.set
+          - kind: Button
+            id: components_forms_datepicker_direct_button
+            label: '@t/components.forms.usage.direct_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: datepicker
+                mode: direct
+  - kind: Card
+    id: components_forms_datepicker_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_datepicker_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_datepicker_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_datepicker_python_code
+        text: '@t/components.forms.datepicker.definition.python'
+      - kind: Markdown
+        id: components_forms_datepicker_yaml_code
+        text: '@t/components.forms.datepicker.definition.yaml'
+  - kind: Card
+    id: components_forms_datepicker_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_datepicker_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_datepicker_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/datepicker_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_datepicker_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_datepicker_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_datepicker_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/datepicker_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

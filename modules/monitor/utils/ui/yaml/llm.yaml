@@ -1,0 +1,34 @@
+- kind: Column
+  stretch: False
+  align: top
+  spacing: 16
+  children:
+    - kind: Title
+      id: monitor_models_usage_title
+      text: "@t/monitor.models_usage.title"
+      level: 2
+    - kind: Text
+      id: monitor_models_usage_description
+      text: "@t/monitor.models_usage.description"
+      muted: true
+    - kind: DataTable
+      id: monitor_llm_table
+      model: [
+          {"field": "timestamp", "header": "@t/monitor.table.when", "type": "str", "editable": False},
+          {"field": "provider", "header": "@t/monitor.table.provider", "type": "str", "editable": False},
+          {"field": "model_name", "header": "@t/monitor.table.model", "type": "str", "editable": False},
+          {"field": "objective", "header": "@t/monitor.table.objective", "type": "str", "editable": False},
+          {"field": "request_kind", "header": "@t/monitor.table.request_kind", "type": "str", "editable": False},
+          {"field": "total_tokens", "header": "@t/monitor.table.tokens", "type": "int", "editable": False},
+          {"field": "duration_ms", "header": "@t/monitor.table.duration_ms", "type": "float", "editable": False},
+          {"field": "success", "header": "@t/monitor.table.success", "type": "bool", "editable": False}
+      ]
+      page: 0
+      page_size: 40
+      total_rows: 0
+      remote_service: "monitor.list_llm"
+      pagination: true
+      sort:
+        field: timestamp
+        direction: desc
+      auto_refresh: 30

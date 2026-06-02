@@ -1,0 +1,245 @@
+- kind: Column
+  id: components_layout_flex_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_layout_flex_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_layout_flex_eyebrow
+      text: '@t/components.layout.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_layout_flex_title
+      text: '@t/components.layout.flex.title'
+      level: 1
+    - kind: Text
+      id: components_layout_flex_description
+      text: '@t/components.layout.flex.description'
+      muted: true
+  - kind: Card
+    id: components_layout_flex_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_flex_preview_title
+      text: '@t/components.layout.preview.title'
+      level: 3
+    - kind: Row
+      id: components_layout_flex_spacer_row
+      spacing: 8
+      align: fill
+      style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+      children:
+      - kind: Badge
+        id: components_layout_flex_left
+        text: '@t/components.layout.item.left'
+        variant: info
+      - kind: FlexContainer
+        id: components_layout_flex_spacer
+      - kind: Badge
+        id: components_layout_flex_right
+        text: '@t/components.layout.item.right'
+        variant: success
+    - kind: Row
+      id: components_layout_flex_variants
+      spacing: 14
+      align: fill
+      children:
+      - kind: FlexContainer
+        id: components_layout_flex_store
+        style:
+          type: store
+          scope: page
+          path: /components_layout/flex_style
+          default: 'padding: 10px;'
+        children:
+        - kind: Badge
+          id: components_layout_flex_store_badge
+          text: '@t/components.layout.item.store_a'
+          variant: info
+        - kind: Button
+          id: components_layout_flex_update_store
+          label: '@t/components.layout.usage.store_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: flex
+              mode: store
+      - kind: FlexContainer
+        id: components_layout_flex_global
+        style:
+          type: store
+          scope: global
+          path: /components_layout/flex_style
+          default: 'padding: 10px;'
+        children:
+        - kind: Badge
+          id: components_layout_flex_global_badge
+          text: '@t/components.layout.item.global_a'
+          variant: info
+        - kind: Button
+          id: components_layout_flex_update_global
+          label: '@t/components.layout.usage.global_store_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: flex
+              mode: global_store
+      - kind: FlexContainer
+        id: components_layout_flex_data
+        style: '@data/components_layout/flex_model/style'
+        children:
+        - kind: Badge
+          id: components_layout_flex_data_badge
+          text: '@t/components.layout.item.data_a'
+          variant: success
+        - kind: Button
+          id: components_layout_flex_update_data
+          label: '@t/components.layout.usage.data_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: flex
+              mode: data
+      - kind: FlexContainer
+        id: components_layout_flex_direct
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        capabilities:
+        - style.set
+        children:
+        - kind: Badge
+          id: components_layout_flex_direct_badge
+          text: '@t/components.layout.item.direct_a'
+          variant: warning
+        - kind: Button
+          id: components_layout_flex_update_direct
+          label: '@t/components.layout.usage.direct_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: flex
+              mode: direct
+    - kind: Row
+      id: components_layout_flex_children_direct_line
+      spacing: 12
+      align: fill
+      style: 'margin-top: 6px; margin-bottom: 10px;'
+      children:
+      - kind: FlexContainer
+        id: components_layout_flex_children_direct
+        capabilities:
+        - children.append
+        - children.remove
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        children:
+        - kind: Badge
+          id: components_layout_flex_children_direct_initial
+          text: '@t/components.layout.item.direct_a'
+          variant: info
+      - kind: Button
+        id: components_layout_flex_children_direct_button
+        label: '@t/components.layout.usage.direct_children_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: flex
+            prop: children
+            mode: direct
+  - kind: Card
+    id: components_layout_flex_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_flex_definition_title
+      text: '@t/components.layout.definition.title'
+      level: 3
+    - kind: Row
+      id: components_layout_flex_definition_codes
+      spacing: 14
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_layout_flex_python
+        text: '@t/components.layout.flex.definition.python'
+      - kind: Markdown
+        id: components_layout_flex_yaml
+        text: '@t/components.layout.flex.definition.yaml'
+  - kind: Card
+    id: components_layout_flex_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_flex_binding_title
+      text: '@t/components.layout.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_flex_binding_table
+      rows: '@data/components_layout/flex_bindings'
+      paginated: false
+      pagination: false
+      total_rows: 3
+      model:
+      - field: binding
+        header: '@t/components.layout.table.binding'
+      - field: yaml
+        header: '@t/components.layout.table.yaml'
+      - field: source
+        header: '@t/components.layout.table.source'
+  - kind: Card
+    id: components_layout_flex_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_flex_properties_title
+      text: '@t/components.layout.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_flex_properties_table
+      rows: '@data/components_layout/flex_properties'
+      paginated: false
+      pagination: false
+      total_rows: 4
+      model:
+      - field: property
+        header: '@t/components.layout.table.property'
+      - field: type
+        header: '@t/components.layout.table.type'
+      - field: page_store
+        header: '@t/components.layout.table.page_store'
+      - field: global_store
+        header: '@t/components.layout.table.global_store'
+      - field: data
+        header: '@t/components.layout.table.data'
+      - field: direct
+        header: '@t/components.layout.table.direct'

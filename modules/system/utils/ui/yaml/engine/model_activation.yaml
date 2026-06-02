@@ -1,0 +1,17 @@
+- kind: Column
+  id: engine_model_activation_drawer
+  spacing: 14
+  align: top
+  style: "min-width: 420px;"
+  children:
+    - kind: Title
+      id: engine_model_activation_title
+      text: ""
+      level: 3
+    - kind: Form
+      id: engine_model_activation_form
+      submit_label: "@t/system.engine.models.config.activate"
+      action: {}
+      params: {}
+      track_loading: "system.activate_available_model_for_engine"
+      model: []

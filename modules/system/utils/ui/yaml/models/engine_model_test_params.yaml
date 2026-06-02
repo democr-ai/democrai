@@ -1,0 +1,22 @@
+- kind: Column
+  id: engine_model_test_params_page
+  spacing: 16
+  style: "min-width: 420px;"
+  children:
+    - kind: Title
+      id: engine_model_test_params_defaults_title
+      text: "@t/system.engine.model.test.runtime_params_title"
+      level: 5
+    - kind: Text
+      id: engine_model_test_params_defaults_hint
+      text: "@t/system.engine.model.test.runtime_params_hint"
+      style: "font-size: 13px; color: #5f6b7a;"
+    - kind: Form
+      id: engine_model_test_params_form
+      submit_label: "@t/system.engine.model.test.save_config"
+      action:
+        name: system.save_engine_model_generate_completion_params
+        context:
+          model_row_id: "@state/page/engine_model_test_params/model_row_id"
+      track_loading: system.save_engine_model_generate_completion_params
+      model: "@state/page/engine_model_test_params/form_model"

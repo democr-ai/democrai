@@ -1,0 +1,144 @@
+- kind: Column
+  id: engine_model_catalog_detail_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: engine_model_catalog_detail_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments: []
+    - kind: Row
+      id: engine_model_catalog_detail_columns
+      spacing: 18
+      align: top
+      children:
+        - kind: Column
+          id: engine_model_catalog_detail_info_col
+          spacing: 14
+          align: top
+          style: "flex: 1 1 58%; min-width: 0;"
+          children:
+            - kind: Title
+              id: engine_model_catalog_detail_title
+              text: ""
+              level: 2
+            - kind: Text
+              id: engine_model_catalog_detail_summary
+              text: ""
+              style: "font-size: 13px;"
+            - kind: Descriptions
+              id: engine_model_catalog_detail_overview
+              borders: true
+              key_header: "@t/system.model.detail.property"
+              value_header: "@t/system.model.detail.value"
+              model: []
+              data: {}
+            - kind: Row
+              id: engine_model_catalog_detail_actions
+              spacing: 8
+              align: left
+              style: "margin-top: 10px; margin-bottom: 12px;"
+              children:
+                - kind: Button
+                  id: engine_model_catalog_detail_download
+                  label: "@t/system.model.catalog.action.download"
+                  icon: "ric.download-cloud-2-line"
+                  variant: primary
+                  show_if:
+                    left: {type: store, scope: page, path: /engine/model/catalog_detail/can_download, default: false}
+                    op: "=="
+                    right: true
+                  action: system.download_engine_catalog_detail_model
+                  params:
+                    catalog_id: ""
+                    engine_id: 0
+                    provider: ""
+                    task_mount_id: engine_model_catalog_detail_tasks
+                  required_permissions: [system.engine.model.manage]
+                - kind: Button
+                  id: engine_model_catalog_detail_back
+                  label: "@t/system.model.detail.back"
+                  icon: "ric.arrow-left-line"
+                  variant: secondary
+                  action:
+                    name: nav
+                    context:
+                      type: nav
+                      path: /system/engine/list
+            - kind: Column
+              id: engine_model_catalog_detail_tasks
+              spacing: 10
+              show_if:
+                left: {type: store, scope: page, path: /engine/model/catalog_detail/downloading, default: false}
+                op: "=="
+                right: true
+              children: []
+            - kind: Row
+              id: engine_model_catalog_detail_summary_cards
+              spacing: 12
+              align: left
+              children:
+                - kind: Card
+                  id: engine_model_catalog_detail_ram_card
+                  variant: outlined
+                  style: "width: 320px; max-width: 320px;"
+                  children:
+                    - kind: Text
+                      id: engine_model_catalog_detail_ram_value
+                      text: "-"
+                      style: "font-size: 30px; font-weight: 700;"
+                    - kind: Title
+                      id: engine_model_catalog_detail_ram_title
+                      text: "@t/system.model.detail.ram"
+                      level: 4
+                - kind: Card
+                  id: engine_model_catalog_detail_storage_card
+                  variant: outlined
+                  style: "width: 320px; max-width: 320px;"
+                  children:
+                    - kind: Text
+                      id: engine_model_catalog_detail_storage_value
+                      text: "-"
+                      style: "font-size: 30px; font-weight: 700;"
+                    - kind: Title
+                      id: engine_model_catalog_detail_storage_title
+                      text: "@t/system.model.detail.storage"
+                      level: 4
+            - kind: Title
+              id: engine_model_catalog_detail_metadata_title
+              text: "@t/system.model.detail.metadata"
+              level: 4
+            - kind: Text
+              id: engine_model_catalog_detail_metadata
+              text: ""
+              style: "font-size: 13px;"
+            - kind: Markdown
+              id: engine_model_catalog_detail_artifacts
+              text: ""
+        - kind: Column
+          id: engine_model_catalog_detail_config_col
+          spacing: 12
+          align: top
+          style: "flex: 1 1 42%; min-width: 340px; align-self: flex-start;"
+          children:
+            - kind: Card
+              id: engine_model_catalog_detail_config_card
+              variant: outlined
+              show_if:
+                left: {type: store, scope: page, path: /engine/model/catalog_detail/imported, default: false}
+                op: "=="
+                right: true
+              children:
+                - kind: Title
+                  id: engine_model_catalog_detail_config_title
+                  text: "@t/system.model.detail.configuration"
+                  level: 3
+                - kind: Form
+                  id: engine_model_catalog_detail_config_form
+                  submit_label: "@t/system.model.detail.configuration.save"
+                  model: "@state/page/engine/model/catalog_detail/config_form"
+                  action:
+                    name: system.update_engine_catalog_model_configuration
+                    context:
+                      available_model_id: {type: store, scope: page, path: /engine/model/catalog_detail/available_model_id, default: null}
+                  track_loading: system.update_engine_catalog_model_configuration
+                  required_permissions: [system.engine.model.manage]

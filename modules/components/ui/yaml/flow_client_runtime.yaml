@@ -1,0 +1,196 @@
+- kind: Column
+  id: components_flow_client_runtime_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_client_runtime_header
+    spacing: 8
+    style: 'margin-bottom: 12px'
+    children:
+    - kind: Title
+      id: components_flow_client_runtime_eyebrow
+      text: '@t/components.flow.client_runtime.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_client_runtime_title
+      text: '@t/components.flow.client_runtime.title'
+      level: 1
+    - kind: Text
+      id: components_flow_client_runtime_description
+      text: '@t/components.flow.client_runtime.description'
+      muted: true
+  - kind: Card
+    id: components_flow_client_runtime_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_flow_client_runtime_preview_title
+      text: '@t/components.flow.client_runtime.preview.title'
+      level: 3
+    - kind: Text
+      id: components_flow_client_runtime_preview_description
+      text: '@t/components.flow.client_runtime.preview.description'
+      muted: true
+    - kind: Column
+      id: components_flow_client_runtime_targets
+      spacing: 14
+      children:
+      - kind: Row
+        id: components_flow_client_runtime_store_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Text
+          id: components_flow_client_runtime_store_value
+          text: '@state/page/components_flow/client_runtime/store_label'
+        - kind: Button
+          id: components_flow_client_runtime_update_store
+          label: '@t/components.flow.client_runtime.update.store'
+          variant: default
+          action:
+            name: components.client_runtime_update
+            context:
+              target: store
+        - kind: Button
+          id: components_flow_client_runtime_read_store
+          label: '@t/components.flow.client_runtime.read.store'
+          variant: default
+          action:
+            name: components.client_runtime_query
+            context:
+              target: store
+      - kind: Row
+        id: components_flow_client_runtime_data_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Text
+          id: components_flow_client_runtime_data_value
+          text: '@data/components_flow/client_runtime/data_label'
+        - kind: Button
+          id: components_flow_client_runtime_update_data
+          label: '@t/components.flow.client_runtime.update.data'
+          variant: default
+          action:
+            name: components.client_runtime_update
+            context:
+              target: data
+        - kind: Button
+          id: components_flow_client_runtime_read_data
+          label: '@t/components.flow.client_runtime.read.data'
+          variant: default
+          action:
+            name: components.client_runtime_query
+            context:
+              target: data
+      - kind: Row
+        id: components_flow_client_runtime_direct_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Text
+          id: components_flow_client_runtime_direct_value
+          text: '@t/components.flow.client_runtime.seed.direct'
+          capabilities:
+          - text.set
+        - kind: Button
+          id: components_flow_client_runtime_update_direct
+          label: '@t/components.flow.client_runtime.update.direct'
+          variant: default
+          action:
+            name: components.client_runtime_update
+            context:
+              target: direct
+        - kind: Button
+          id: components_flow_client_runtime_read_props
+          label: '@t/components.flow.client_runtime.read.props'
+          variant: default
+          action:
+            name: components.client_runtime_query
+            context:
+              target: props
+    - kind: Row
+      id: components_flow_client_runtime_surface_row
+      spacing: 12
+      align: fill
+      children:
+      - kind: Text
+        id: components_flow_client_runtime_surface_hint
+        text: '@t/components.flow.client_runtime.surface.hint'
+        muted: true
+      - kind: Button
+        id: components_flow_client_runtime_read_tree
+        label: '@t/components.flow.client_runtime.read.tree'
+        variant: default
+        action:
+          name: components.client_runtime_query
+          context:
+            target: tree
+    - kind: Markdown
+      id: components_flow_client_runtime_result
+      text: '@state/page/components_flow/client_runtime/result'
+  - kind: Card
+    id: components_flow_client_runtime_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_client_runtime_definition_title
+      text: '@t/components.flow.client_runtime.definition.title'
+      level: 3
+    - kind: Text
+      id: components_flow_client_runtime_definition_description
+      text: '@t/components.flow.client_runtime.definition.description'
+      muted: true
+    - kind: Row
+      id: components_flow_client_runtime_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_flow_client_runtime_python_code
+        text: '@t/components.flow.client_runtime.definition.python'
+      - kind: Markdown
+        id: components_flow_client_runtime_yaml_code
+        text: '@t/components.flow.client_runtime.definition.yaml'
+  - kind: Card
+    id: components_flow_client_runtime_methods_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_client_runtime_methods_title
+      text: '@t/components.flow.client_runtime.methods.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_client_runtime_methods_table
+      paginated: false
+      pagination: false
+      total_rows: 4
+      rows: '@data/components_flow/client_runtime/method_rows'
+      model:
+      - field: method
+        header: '@t/components.flow.client_runtime.methods.table.method'
+        type: str
+      - field: target
+        header: '@t/components.flow.client_runtime.methods.table.target'
+        type: str
+      - field: returns
+        header: '@t/components.flow.client_runtime.methods.table.returns'
+        type: str

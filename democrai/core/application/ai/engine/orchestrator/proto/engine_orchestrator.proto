@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package democrai.ai.engine.orchestrator.v1;
+
+service EngineOrchestrator {
+  rpc Status(EngineStatusRequest) returns (EngineStatusResponse);
+  rpc Invoke(EngineInvokeRequest) returns (EngineInvokeResponse);
+  rpc InvokeStream(EngineInvokeRequest) returns (stream EngineStreamChunk);
+  rpc Cancel(EngineCancelRequest) returns (EngineCancelResponse);
+  rpc RefreshRegistries(RefreshRegistriesRequest) returns (RefreshRegistriesResponse);
+  rpc SyncActiveEngines(SyncActiveEnginesRequest) returns (SyncActiveEnginesResponse);
+  rpc UnloadModel(UnloadModelRequest) returns (UnloadModelResponse);
+  rpc StopEngine(StopEngineRequest) returns (StopEngineResponse);
+  rpc InvokeEngineAction(EngineActionRequest) returns (EngineInvokeResponse);
+  rpc InvokeEngineRuntime(EngineRuntimeInvokeRequest) returns (EngineInvokeResponse);
+}
+
+message EngineStatusRequest {}
+
+message EngineStatusResponse {
+  bool ok = 1;
+  string node_id = 2;
+  int32 pid = 3;
+  string started_at = 4;
+  string active_instances_json = 5;
+  string active_jobs_json = 6;
+}
+
+message EngineInvokeRequest {
+  string request_id = 1;
+  string selector_type = 2;
+  int64 model_registry_id = 3;
+  string objective = 4;
+  string capability = 5;
+  string capabilities_json = 6;
+  optional bool prefer_local = 7;
+  bool confirm_swap = 8;
+  string method = 9;
+  string payload_json = 10;
+  string request_context_json = 11;
+  string security_context_json = 12;
+}
+
+message EngineInvokeResponse {
+  string request_id = 1;
+  bool ok = 2;
+  string result_json = 3;
+  string error = 4;
+  string traceback = 5;
+  string metadata_json = 6;
+}
+
+message EngineStreamChunk {
+  string request_id = 1;
+  string kind = 2;
+  string chunk_json = 3;
+  string error = 4;
+  string traceback = 5;
+  string metadata_json = 6;
+}
+
+message EngineCancelRequest {
+  string request_id = 1;
+}
+
+message EngineCancelResponse {
+  string request_id = 1;
+  bool ok = 2;
+  bool cancelled = 3;
+  string error = 4;
+}
+
+message RefreshRegistriesRequest {
+  string reason = 1;
+}
+
+message RefreshRegistriesResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message SyncActiveEnginesRequest {}
+
+message SyncActiveEnginesResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message UnloadModelRequest {
+  int64 engine_registry_id = 1;
+  int64 model_registry_id = 2;
+}
+
+message UnloadModelResponse {
+  bool ok = 1;
+  bool unloaded = 2;
+  string error = 3;
+}
+
+message StopEngineRequest {
+  int64 engine_registry_id = 1;
+}
+
+message StopEngineResponse {
+  bool ok = 1;
+  bool stopped = 2;
+  string error = 3;
+}
+
+message EngineActionRequest {
+  string request_id = 1;
+  int64 engine_registry_id = 2;
+  string engine_id = 3;
+  string config_json = 4;
+  string method = 5;
+  string payload_json = 6;
+  string request_context_json = 7;
+}
+
+message EngineRuntimeInvokeRequest {
+  string request_id = 1;
+  int64 engine_registry_id = 2;
+  string engine_id = 3;
+  int64 model_registry_id = 4;
+  string config_json = 5;
+  string method = 6;
+  string payload_json = 7;
+  string request_context_json = 8;
+}

@@ -1,0 +1,96 @@
+{
+  "id": "gemini",
+  "name": "Gemini",
+  "kind": "llm",
+  "entrypoint": "engines.gemini.engine:GeminiEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+  "runtime": {
+    "access": [
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://generativelanguage.googleapis.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "send",
+        "target": "https://generativelanguage.googleapis.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://generativelanguage.googleapis.com/*"
+      }
+    ]
+  },
+  "provider": {
+    "id": "gemini",
+    "label": "Gemini",
+    "kind": "llm",
+    "deployment": "remote",
+    "model_source": "provider_api",
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream"
+    ],
+    "icon_url": "engines/gemini/assets/icon.svg",
+    "dependencies": [
+      {
+        "dependency_key": "google_genai",
+        "module": "google.genai",
+        "label": "google-genai",
+        "pip_packages": [
+          "google-genai"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "AIza...",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "API key is required"
+          }
+        ]
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Use Google Gemini APIs with dedicated API key.",
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text"
+    ],
+    "capability_option_fields": {
+      "reasoning": [
+        {
+          "name": "reasoning_budget",
+          "label": "Reasoning budget",
+          "type": "number",
+          "default": 4096,
+          "min": 0,
+          "step": 1
+        }
+      ]
+    },
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text"
+    ]
+  }
+}

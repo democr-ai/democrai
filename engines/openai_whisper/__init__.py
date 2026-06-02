@@ -1,0 +1,1 @@
+"""OpenAI Whisper engine package."""

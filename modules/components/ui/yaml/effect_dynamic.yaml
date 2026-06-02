@@ -1,0 +1,183 @@
+- kind: Column
+  id: components_effect_dynamic_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_dynamic_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_dynamic_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_dynamic_title
+      text: '@t/components.effects.dynamic.title'
+      level: 1
+    - kind: Text
+      id: components_effect_dynamic_description
+      text: '@t/components.effects.dynamic.description'
+      muted: true
+  - kind: Card
+    id: components_effect_dynamic_append_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_dynamic_append_title
+      text: '@t/components.effects.dynamic.append.title'
+      level: 3
+    - kind: Text
+      id: components_effect_dynamic_append_description
+      text: '@t/components.effects.dynamic.append.description'
+      muted: true
+    - kind: Button
+      id: dynamic_append_btn
+      label: '@t/components.effects.dynamic.append.button'
+      action: components.dynamic_append_item
+      variant: primary
+      icon: ric.add-line
+    - kind: Column
+      id: dynamic_append_container
+      spacing: 8
+      padding:
+      - 12
+      - 12
+      - 12
+      - 12
+      style: 'border-radius: 8px;'
+      capabilities:
+      - children.append
+      - children.remove
+      - children.replace
+      children:
+      - kind: Row
+        id: dynamic_seed_row
+        spacing: 10
+        align: left
+        style: 'margin-bottom: 4px;'
+        children:
+        - kind: Text
+          id: dynamic_seed_text
+          text: '@t/components.effects.dynamic.seed'
+        - kind: Button
+          id: dynamic_seed_remove
+          label: '@t/components.effects.dynamic.remove'
+          action: components.dynamic_remove_item
+          params:
+            item_id: seed
+          variant: danger
+  - kind: Card
+    id: components_effect_dynamic_ops_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_dynamic_ops_title
+      text: '@t/components.effects.dynamic.ops.title'
+      level: 3
+    - kind: Text
+      id: components_effect_dynamic_ops_description
+      text: '@t/components.effects.dynamic.ops.description'
+      muted: true
+    - kind: Row
+      id: components_effect_dynamic_ops_row_1
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: dynamic_replace_same_id_btn
+        label: '@t/components.effects.dynamic.same_id'
+        action: components.dynamic_replace_same_id
+        variant: default
+      - kind: Button
+        id: dynamic_replace_new_id_btn
+        label: '@t/components.effects.dynamic.new_id'
+        action: components.dynamic_replace_new_id
+        variant: default
+    - kind: Row
+      id: components_effect_dynamic_ops_row_2
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: dynamic_set_children_btn
+        label: '@t/components.effects.dynamic.set_children'
+        action: components.dynamic_set_children
+        variant: warning
+      - kind: Button
+        id: dynamic_remove_index_btn
+        label: '@t/components.effects.dynamic.remove_index'
+        action: components.dynamic_remove_first_by_index
+        variant: danger
+  - kind: Card
+    id: components_effect_dynamic_replace_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_dynamic_replace_title
+      text: '@t/components.effects.dynamic.replace.title'
+      level: 3
+    - kind: Text
+      id: components_effect_dynamic_replace_description
+      text: '@t/components.effects.dynamic.replace.description'
+      muted: true
+    - kind: Button
+      id: dynamic_replace_btn
+      label: '@t/components.effects.dynamic.replace.button'
+      action: components.dynamic_replace_content
+      variant: default
+    - kind: Column
+      id: dynamic_replace_container
+      spacing: 8
+      padding:
+      - 12
+      - 12
+      - 12
+      - 12
+      style: 'border-radius: 8px;'
+      capabilities:
+      - children.append
+      - children.remove
+      children: []
+  - kind: Card
+    id: components_effect_dynamic_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_dynamic_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_dynamic_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_dynamic_python
+        text: '@t/components.effects.dynamic.definition.python'
+      - kind: Markdown
+        id: components_effect_dynamic_yaml
+        text: '@t/components.effects.dynamic.definition.yaml'

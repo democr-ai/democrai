@@ -1,0 +1,97 @@
+{
+  "name": "system",
+  "label": "System Services",
+  "version": "1.0.0",
+  "icon": "ric.settings-2-line",
+  "description": "Manages system-level services like Postgres, Milvus, and Ollama.",
+  "priority": 50,
+  "environment": [
+    {
+      "name": "HF_TOKEN",
+      "label": "Hugging Face token",
+      "description": "Token used by System model downloads for gated Hugging Face assets.",
+      "secret": true,
+      "required": false
+    },
+    {
+      "name": "HUGGING_FACE_HUB_TOKEN",
+      "label": "Hugging Face Hub token",
+      "description": "Alternative token name consumed by huggingface_hub and transformers during System model downloads.",
+      "secret": true,
+      "required": false
+    }
+  ],
+  "allowed_imports": [],
+  "access": [
+    {
+      "resource_type": "network",
+      "operation": "receive",
+      "target": "https://cas-bridge.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "connect",
+      "target": "https://cas-bridge.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "receive",
+      "target": "https://cas-server.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "connect",
+      "target": "https://cas-server.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "receive",
+      "target": "https://transfer.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "connect",
+      "target": "https://transfer.xethub.hf.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "receive",
+      "target": "https://cdn-lfs.huggingface.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "connect",
+      "target": "https://cdn-lfs.huggingface.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "receive",
+      "target": "https://huggingface.co/*"
+    },
+    {
+      "resource_type": "network",
+      "operation": "connect",
+      "target": "https://huggingface.co/*"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "read",
+      "target": "~/.local/share"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "create",
+      "target": "~/.local/share/democrai"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "modify",
+      "target": "~/.local/share/democrai"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "delete",
+      "target": "~/.local/share/democrai"
+    }
+  ]
+}

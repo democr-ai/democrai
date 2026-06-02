@@ -1,0 +1,80 @@
+- kind: Column
+  id: role_view_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: role_view_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments: "@state/page/role_view/breadcrumb_segments"
+    - kind: Row
+      id: role_view_header
+      spacing: 10
+      align: "left"
+      children:
+        - kind: Title
+          id: role_view_title
+          text: ""
+          level: 2
+        - kind: Button
+          id: role_open_update_btn
+          label: "@t/system.role.view.edit_role"
+          icon: ric.edit-line
+          variant: info
+    - kind: Card
+      id: role_info_card
+      variant: outlined
+      style: "margin-bottom: 12px;"
+      children:
+        - kind: Descriptions
+          id: role_info_descriptions
+          key_header: "@t/system.role.view.descriptions.key"
+          value_header: "@t/system.role.view.descriptions.value"
+          borders: true
+          model:
+            - field: id
+              label: "@t/system.role.view.field.id"
+              type: int
+            - field: name
+              label: "@t/system.role.view.field.name"
+              type: str
+            - field: description
+              label: "@t/system.role.view.field.description"
+              type: str
+            - field: permissions_count
+              label: "@t/system.role.view.field.permissions_count"
+              type: int
+          data: {}
+    - kind: Tabs
+      id: role_view_tabs
+      tabs:
+        - id: role_permissions_tab
+          label: "@t/system.role.tabs.permissions"
+          icon: ric.shield-keyhole-line
+        - id: role_modules_tab
+          label: "@t/system.role.tabs.modules"
+          icon: ric.lock-line
+      children:
+        - kind: Column
+          id: role_permissions_tab
+          children:
+            - kind: Card
+              id: role_permissions_card
+              variant: outlined
+              style: "padding: 8px;"
+              children:
+                - kind: Column
+                  id: role_permissions_mount
+                  spacing: 10
+                  children:
+                    - kind: Title
+                      id: role_permissions_title
+                      text: "@t/system.role.permissions.title"
+                      level: 3
+                    - kind: Text
+                      id: role_permissions_subtitle
+                      text: "@t/system.role.permissions.subtitle"
+                      style: "margin-bottom: 12px;"
+        - kind: Column
+          id: role_modules_tab
+          children:
+            - role_modules_section

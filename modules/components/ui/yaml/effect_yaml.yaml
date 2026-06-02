@@ -1,0 +1,161 @@
+- kind: Column
+  id: components_effect_yaml_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_yaml_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_yaml_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_yaml_title
+      text: '@t/components.effects.yaml.title'
+      level: 1
+    - kind: Text
+      id: components_effect_yaml_description
+      text: '@t/components.effects.yaml.description'
+      muted: true
+  - kind: Card
+    id: components_effect_yaml_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_yaml_preview_title
+      text: '@t/components.effects.preview.title'
+      level: 3
+    - kind: Text
+      id: components_effect_yaml_preview_text
+      text: '@t/components.effects.yaml.preview.description'
+      muted: true
+    - kind: Row
+      id: components_effect_yaml_counter_row
+      spacing: 16
+      align: left
+      children:
+      - kind: Card
+        id: components_effect_yaml_page_counter_card
+        variant: outlined
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 10
+        children:
+        - kind: Title
+          id: components_effect_yaml_page_counter_title
+          text: '@t/components.effects.yaml.page_scope'
+          level: 4
+        - kind: Text
+          id: components_effect_yaml_page_counter_value
+          text: '@state/page/components_effects/yaml/local_counter'
+        - kind: Button
+          id: components_effect_yaml_page_counter_button
+          label: '@t/components.effects.yaml.increment_page'
+          action: components.yaml_demo_increment
+          params:
+            scope: page
+            key: /components_effects/yaml/local_counter
+            current_value: '@state/page/components_effects/yaml/local_counter'
+          variant: default
+      - kind: Card
+        id: components_effect_yaml_global_counter_card
+        variant: outlined
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 10
+        children:
+        - kind: Title
+          id: components_effect_yaml_global_counter_title
+          text: '@t/components.effects.yaml.global_scope'
+          level: 4
+        - kind: Text
+          id: components_effect_yaml_global_counter_value
+          text: '@state/global/components_effects/yaml/global_counter'
+        - kind: Button
+          id: components_effect_yaml_global_counter_button
+          label: '@t/components.effects.yaml.increment_global'
+          action: components.yaml_demo_increment
+          params:
+            scope: global
+            key: /components_effects/yaml/global_counter
+            current_value: '@state/global/components_effects/yaml/global_counter'
+          variant: default
+    - kind: Row
+      id: components_effect_yaml_include_row
+      spacing: 16
+      align: fill
+      children:
+      - kind: Card
+        id: components_effect_yaml_include_uptime
+        variant: outlined
+        padding:
+        - 14
+        - 14
+        - 14
+        - 14
+        spacing: 6
+        children:
+        - kind: Text
+          id: components_effect_yaml_include_uptime_label
+          text: '@t/components.effects.yaml.include.uptime'
+          muted: true
+        - kind: Title
+          id: components_effect_yaml_include_uptime_value
+          text: 99.9%
+          level: 3
+      - kind: Card
+        id: components_effect_yaml_include_status
+        variant: outlined
+        padding:
+        - 14
+        - 14
+        - 14
+        - 14
+        spacing: 6
+        children:
+        - kind: Text
+          id: components_effect_yaml_include_status_label
+          text: '@t/components.effects.yaml.include.status'
+          muted: true
+        - kind: Title
+          id: components_effect_yaml_include_status_value
+          text: '@t/components.effects.yaml.include.active'
+          level: 3
+  - kind: Card
+    id: components_effect_yaml_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_yaml_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_yaml_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_yaml_python
+        text: '@t/components.effects.yaml.definition.python'
+      - kind: Markdown
+        id: components_effect_yaml_yaml
+        text: '@t/components.effects.yaml.definition.yaml'

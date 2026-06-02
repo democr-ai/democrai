@@ -1,0 +1,72 @@
+- kind: Row
+  id: login_container
+  align: center
+  padding: [12,12,12,12]
+  children:
+    - kind: Column
+      id: spacer_1
+      stretch: True
+    - kind: Column
+      id: login_card
+      align: "top"
+      width: 300
+      spacing: 12
+      stretch: False
+      style: "width: 300px;"
+      children:
+        - kind: Row
+          children:  
+            - kind: Column
+              align: center
+              children:
+                - kind: Image
+                  alt: "logo"
+                  url: assets/logo_full.svg
+                  width: 300
+                  height: 150
+                - kind: Text
+                  id: welcome_text
+                  text: "@t/auth.welcome"
+                  style: "text-align: center; margin-bottom: 12px;"
+                - kind: Card 
+                  id: form_card
+                  style: "width: 300px;"
+                  children:
+                    - kind: Form
+                      id: login_form
+                      model: [
+                        {
+                            "name": "username",
+                            "label": "Username",
+                            "type": "text",
+                            "placeholder": "username",
+                            "stretch": 1,
+                            "validations": [
+                                {"rule": "required", "message": "@t/auth.required"},
+                                {"rule": "min_length", "value": 2, "message": "At least 2 characters"},
+                            ],
+                        },        
+                        {
+                            "name": "password",
+                            "label": "Password",
+                            "type": "password",
+                            "placeholder": "****",
+                            "stretch": 1,
+                            "validations": [
+                                {"rule": "required", "message": "@t/auth.required"},
+                                {"rule": "min_length", "value": 4, "message": "At least 4 characters"},
+                            ],
+                        }
+                      ]
+                      submit_label: "@t/auth.access"
+                      action: "auth.login_submit"
+                      track_loading: "auth.login_submit"
+                    - kind: Text
+                      id: login_error
+                - kind: Text
+                  id: version_text
+                  text: "Version 0.0.1 Beta"
+                  style: "margin: 12px;"
+    - kind: Column
+      id: spacer_2
+      stretch: True

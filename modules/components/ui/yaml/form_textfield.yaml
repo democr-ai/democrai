@@ -1,0 +1,216 @@
+- kind: Column
+  id: components_forms_textfield_root
+  spacing: 22
+  children:
+    - kind: Column
+      id: components_forms_textfield_header
+      spacing: 8
+      children:
+        - kind: Title
+          id: components_forms_textfield_eyebrow
+          text: "@t/components.forms.eyebrow"
+          level: 4
+        - kind: Title
+          id: components_forms_textfield_title
+          text: "@t/components.forms.textfield.title"
+          level: 1
+        - kind: Text
+          id: components_forms_textfield_description
+          text: "@t/components.forms.textfield.description"
+          muted: true
+
+    - kind: Card
+      id: components_forms_textfield_preview_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_textfield_preview_title
+          text: "@t/components.forms.preview.title"
+          level: 3
+        - kind: TextField
+          id: components_forms_textfield_basic
+          label: "@t/components.forms.textfield.preview.label"
+          value: "Draft title"
+          placeholder: "@t/components.forms.textfield.preview.placeholder"
+        - kind: TextField
+          id: components_forms_textfield_password
+          label: "@t/components.forms.textfield.preview.password"
+          value: "secret"
+          placeholder: "@t/components.forms.textfield.preview.password_placeholder"
+          password: true
+        - kind: Button
+          id: components_forms_textfield_read_button
+          label: "@t/components.forms.usage.read_button"
+          variant: default
+          action: components.form_preview_show_value
+          params: {input_id: components_forms_textfield_basic, label: textfield}
+          collect_input_ids: [components_forms_textfield_basic]
+
+    - kind: Card
+      id: components_forms_textfield_runtime_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 18
+      children:
+        - kind: Title
+          id: components_forms_textfield_runtime_title
+          text: "@t/components.forms.runtime.title"
+          level: 3
+        - kind: Text
+          id: components_forms_textfield_runtime_description
+          text: "@t/components.forms.textfield.runtime.description"
+          muted: true
+        - kind: Row
+          id: components_forms_textfield_runtime_grid
+          spacing: 18
+          align: fill
+          children:
+            - kind: Column
+              id: components_forms_textfield_runtime_left
+              spacing: 16
+              children:
+                - kind: Column
+                  id: components_forms_textfield_page_line
+                  spacing: 10
+                  style: "margin-top: 6px; margin-bottom: 10px;"
+                  children:
+                    - kind: TextField
+                      id: components_forms_textfield_page
+                      label: "@t/components.forms.usage.page_store"
+                      value: {type: store, scope: page, path: /components_forms/textfield/value, default: "Page text"}
+                    - kind: Button
+                      id: components_forms_textfield_page_button
+                      label: "@t/components.forms.usage.page_store_button"
+                      variant: default
+                      action:
+                        name: components.form_input_update
+                        context: {component: textfield, mode: page_store}
+                - kind: Column
+                  id: components_forms_textfield_data_line
+                  spacing: 10
+                  style: "margin-top: 6px; margin-bottom: 10px;"
+                  children:
+                    - kind: TextField
+                      id: components_forms_textfield_data
+                      label: "@t/components.forms.usage.data_model"
+                      value: "@data/components_forms/textfield_model/value"
+                    - kind: Button
+                      id: components_forms_textfield_data_button
+                      label: "@t/components.forms.usage.data_button"
+                      variant: default
+                      action:
+                        name: components.form_input_update
+                        context: {component: textfield, mode: data}
+            - kind: Column
+              id: components_forms_textfield_runtime_right
+              spacing: 16
+              children:
+                - kind: Column
+                  id: components_forms_textfield_global_line
+                  spacing: 10
+                  style: "margin-top: 6px; margin-bottom: 10px;"
+                  children:
+                    - kind: TextField
+                      id: components_forms_textfield_global
+                      label: "@t/components.forms.usage.global_store"
+                      value: {type: store, scope: global, path: /components_forms/textfield/value, default: "Global text"}
+                    - kind: Button
+                      id: components_forms_textfield_global_button
+                      label: "@t/components.forms.usage.global_store_button"
+                      variant: default
+                      action:
+                        name: components.form_input_update
+                        context: {component: textfield, mode: global_store}
+                - kind: Column
+                  id: components_forms_textfield_direct_line
+                  spacing: 10
+                  style: "margin-top: 6px; margin-bottom: 10px;"
+                  children:
+                    - kind: TextField
+                      id: components_forms_textfield_direct
+                      label: "@t/components.forms.usage.direct"
+                      value: "Direct text"
+                      capabilities: [value.set]
+                    - kind: Button
+                      id: components_forms_textfield_direct_button
+                      label: "@t/components.forms.usage.direct_button"
+                      variant: default
+                      action:
+                        name: components.form_input_update
+                        context: {component: textfield, mode: direct}
+
+    - kind: Card
+      id: components_forms_textfield_definition_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_textfield_definition_title
+          text: "@t/components.forms.definition.title"
+          level: 3
+        - kind: Row
+          id: components_forms_textfield_definition_grid
+          spacing: 16
+          align: fill
+          children:
+            - kind: Markdown
+              id: components_forms_textfield_python_code
+              text: "@t/components.forms.textfield.definition.python"
+            - kind: Markdown
+              id: components_forms_textfield_yaml_code
+              text: "@t/components.forms.textfield.definition.yaml"
+
+    - kind: Card
+      id: components_forms_textfield_binding_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_textfield_binding_title
+          text: "@t/components.forms.binding.title"
+          level: 3
+        - kind: DataTable
+          id: components_forms_textfield_binding_table
+          paginated: false
+          pagination: false
+          rows: "@data/components_forms/textfield_bindings"
+          model:
+            - field: binding
+              header: "@t/components.forms.table.binding"
+              type: str
+            - field: yaml
+              header: "@t/components.forms.table.yaml"
+              type: str
+            - field: source
+              header: "@t/components.forms.table.source"
+              type: str
+
+    - kind: Card
+      id: components_forms_textfield_properties_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_textfield_properties_title
+          text: "@t/components.forms.properties.title"
+          level: 3
+        - kind: DataTable
+          id: components_forms_textfield_properties_table
+          paginated: false
+          pagination: false
+          rows: "@data/components_forms/textfield_properties"
+          model:
+            - field: property
+              header: "@t/components.forms.table.property"
+              type: str
+            - field: type
+              header: "@t/components.forms.table.type"
+              type: str
+            - field: usage
+              header: "@t/components.forms.table.usage"
+              type: str

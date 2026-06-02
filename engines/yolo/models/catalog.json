@@ -1,0 +1,2085 @@
+{
+  "engine_id": "yolo",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "yolo11n",
+      "label": "YOLO11n",
+      "engine_id": "yolo",
+      "family": "yolo11",
+      "summary": "Default detection checkpoint for Ultralytics runtime.",
+      "tags": [
+        "detection",
+        "tracking",
+        "pt"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "tracking",
+        "bytetrack"
+      ],
+      "interfaces": [
+        "image_to_boxes",
+        "video_to_tracks"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "vram_gb": 2,
+        "storage_gb": 1
+      },
+      "provisioning": {
+        "mode": "artifact"
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "source": {
+            "type": "local_upload",
+            "accept": [
+              ".pt"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "features": {
+        "sahi": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "with_sahi",
+            "type": "boolean"
+          }
+        },
+        "tracking": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "mode",
+            "type": "string",
+            "values": [
+              "track"
+            ]
+          }
+        },
+        "bytetrack": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "tracker",
+            "type": "string",
+            "values": [
+              "bytetrack.yaml"
+            ]
+          }
+        },
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "video/mp4",
+            "video/webm"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo11s",
+      "label": "YOLO11s",
+      "engine_id": "yolo",
+      "family": "yolo11",
+      "summary": "Small Ultralytics YOLO11 detection checkpoint.",
+      "tags": [
+        "detection",
+        "tracking",
+        "pt"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "tracking",
+        "bytetrack"
+      ],
+      "interfaces": [
+        "image_to_boxes",
+        "video_to_tracks"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 4,
+        "storage_gb": 1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo11s.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "features": {
+        "sahi": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "with_sahi",
+            "type": "boolean"
+          }
+        },
+        "tracking": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "mode",
+            "type": "string",
+            "values": [
+              "track"
+            ]
+          }
+        },
+        "bytetrack": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "tracker",
+            "type": "string",
+            "values": [
+              "bytetrack.yaml"
+            ]
+          }
+        },
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "video/mp4",
+            "video/webm"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo11m",
+      "label": "YOLO11m",
+      "engine_id": "yolo",
+      "family": "yolo11",
+      "summary": "Medium Ultralytics YOLO11 detection checkpoint.",
+      "tags": [
+        "detection",
+        "tracking",
+        "pt"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "tracking",
+        "bytetrack"
+      ],
+      "interfaces": [
+        "image_to_boxes",
+        "video_to_tracks"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "vram_gb": 6,
+        "storage_gb": 1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo11m.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "features": {
+        "sahi": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "with_sahi",
+            "type": "boolean"
+          }
+        },
+        "tracking": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "mode",
+            "type": "string",
+            "values": [
+              "track"
+            ]
+          }
+        },
+        "bytetrack": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "tracker",
+            "type": "string",
+            "values": [
+              "bytetrack.yaml"
+            ]
+          }
+        },
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "video/mp4",
+            "video/webm"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo11l",
+      "label": "YOLO11l",
+      "engine_id": "yolo",
+      "family": "yolo11",
+      "summary": "Large Ultralytics YOLO11 detection checkpoint.",
+      "tags": [
+        "detection",
+        "tracking",
+        "pt"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "tracking",
+        "bytetrack"
+      ],
+      "interfaces": [
+        "image_to_boxes",
+        "video_to_tracks"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "vram_gb": 8,
+        "storage_gb": 1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo11l.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "features": {
+        "sahi": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "with_sahi",
+            "type": "boolean"
+          }
+        },
+        "tracking": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "mode",
+            "type": "string",
+            "values": [
+              "track"
+            ]
+          }
+        },
+        "bytetrack": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "tracker",
+            "type": "string",
+            "values": [
+              "bytetrack.yaml"
+            ]
+          }
+        },
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "video/mp4",
+            "video/webm"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo11x",
+      "label": "YOLO11x",
+      "engine_id": "yolo",
+      "family": "yolo11",
+      "summary": "Extra-large Ultralytics YOLO11 detection checkpoint.",
+      "tags": [
+        "detection",
+        "tracking",
+        "pt"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "tracking",
+        "bytetrack"
+      ],
+      "interfaces": [
+        "image_to_boxes",
+        "video_to_tracks"
+      ],
+      "requirements": {
+        "ram_gb": 12,
+        "vram_gb": 12,
+        "storage_gb": 1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo11x.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11x.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "features": {
+        "sahi": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "with_sahi",
+            "type": "boolean"
+          }
+        },
+        "tracking": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "mode",
+            "type": "string",
+            "values": [
+              "track"
+            ]
+          }
+        },
+        "bytetrack": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "tracker",
+            "type": "string",
+            "values": [
+              "bytetrack.yaml"
+            ]
+          }
+        },
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "video/mp4",
+            "video/webm"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolov8n",
+      "label": "YOLOv8n",
+      "engine_id": "yolo",
+      "family": "yolov8",
+      "summary": "YOLOv8n object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolov8"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "storage_gb": 0.02
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolov8n.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolov8n.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolov8m",
+      "label": "YOLOv8m",
+      "engine_id": "yolo",
+      "family": "yolov8",
+      "summary": "YOLOv8m object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolov8"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "storage_gb": 0.1
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolov8m.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8m.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolov8m.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolov8x",
+      "label": "YOLOv8x",
+      "engine_id": "yolo",
+      "family": "yolov8",
+      "summary": "YOLOv8x object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolov8"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 12,
+        "storage_gb": 0.3
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolov8x.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8x.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolov8x.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo12n",
+      "label": "YOLO12n",
+      "engine_id": "yolo",
+      "family": "yolo12",
+      "summary": "YOLO12n object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolo12"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "storage_gb": 0.02
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo12n.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo12n.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolo12n.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo12m",
+      "label": "YOLO12m",
+      "engine_id": "yolo",
+      "family": "yolo12",
+      "summary": "YOLO12m object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolo12"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "storage_gb": 0.1
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo12m.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo12m.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolo12m.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yolo12x",
+      "label": "YOLO12x",
+      "engine_id": "yolo",
+      "family": "yolo12",
+      "summary": "YOLO12x object detection model for Ultralytics YOLO runtime.",
+      "tags": [
+        "object_detection",
+        "local",
+        "ultralytics",
+        "yolo12"
+      ],
+      "capabilities": [
+        "detection"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "image_to_detections"
+      ],
+      "requirements": {
+        "ram_gb": 12,
+        "storage_gb": 0.3
+      },
+      "compatible_engines": [
+        "yolo"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "direct_url_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "pt",
+          "required": true,
+          "target": "models/yolo12x.pt",
+          "source": {
+            "type": "url",
+            "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo12x.pt"
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "yolo12x.pt",
+        "defaults": {
+          "runtime": {
+            "mode": "detect",
+            "conf": 0.25,
+            "iou": 0.45,
+            "tracker": "bytetrack.yaml",
+            "with_sahi": false,
+            "slice_width": 640,
+            "slice_height": 640,
+            "overlap_height_ratio": 0.25,
+            "overlap_width_ratio": 0.25
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "mode",
+              "label": "Mode",
+              "type": "select",
+              "default": "detect",
+              "options": [
+                {
+                  "label": "detect",
+                  "value": "detect"
+                },
+                {
+                  "label": "track",
+                  "value": "track"
+                }
+              ]
+            },
+            {
+              "name": "tracker",
+              "label": "Tracker",
+              "type": "select",
+              "default": "bytetrack.yaml",
+              "options": [
+                {
+                  "label": "ByteTrack",
+                  "value": "bytetrack.yaml"
+                },
+                {
+                  "label": "BoT-SORT",
+                  "value": "botsort.yaml"
+                }
+              ]
+            },
+            {
+              "name": "classes",
+              "label": "Classes",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "name": "conf",
+              "label": "Confidence",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "iou",
+              "label": "IoU",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.45
+            },
+            {
+              "name": "with_sahi",
+              "label": "Enable SAHI",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "slice_width",
+              "label": "Slice width",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "slice_height",
+              "label": "Slice height",
+              "type": "number",
+              "default": 640
+            },
+            {
+              "name": "overlap_height_ratio",
+              "label": "Overlap height ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            },
+            {
+              "name": "overlap_width_ratio",
+              "label": "Overlap width ratio",
+              "type": "number",
+              "min": 0.0,
+              "max": 1.0,
+              "step": 0.01,
+              "default": 0.25
+            }
+          ]
+        }
+      },
+      "metadata": {
+        "source": "ultralytics",
+        "format": "pt"
+      },
+      "features": {
+        "detection": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+- kind: Column
+  id: knowledge_embedding_model_change_warning_modal
+  spacing: 14
+  style: "min-width: 500px;"
+  children:
+    - kind: Title
+      id: knowledge_embedding_model_change_warning_title
+      text: "@t/system.knowledge.config.embedding_change.title"
+      level: 4
+    - kind: Text
+      id: knowledge_embedding_model_change_warning_text
+      text: "@data/knowledge/embedding_model_change_warning/text"
+    - kind: Row
+      id: knowledge_embedding_model_change_warning_footer
+      align: fill
+      spacing: 8
+      children:
+        - kind: Button
+          id: knowledge_embedding_model_change_warning_confirm
+          label: "@t/system.knowledge.config.embedding_change.confirm"
+          variant: primary
+          action:
+            name: system.save_knowledge_runtime_config
+            context: {}
+          params:
+            config: "@data/knowledge/embedding_model_change_warning/config"
+            confirm_embedding_model_change: true
+        - kind: Button
+          id: knowledge_embedding_model_change_warning_cancel
+          label: "@t/system.common.cancel"
+          variant: secondary
+          action: close_modal

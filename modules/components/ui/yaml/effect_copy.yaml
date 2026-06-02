@@ -1,0 +1,71 @@
+- kind: Column
+  id: components_effect_copy_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_copy_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_copy_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_copy_title
+      text: '@t/components.effects.copy.title'
+      level: 1
+    - kind: Text
+      id: components_effect_copy_description
+      text: '@t/components.effects.copy.description'
+      muted: true
+  - kind: Card
+    id: components_effect_copy_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_copy_preview_title
+      text: '@t/components.effects.preview.title'
+      level: 3
+    - kind: Text
+      id: components_effect_copy_value
+      text: '@t/components.effects.copy.value'
+    - kind: Button
+      id: components_effect_copy_button
+      label: '@t/components.effects.copy.button'
+      action: client.copy_to_clipboard
+      params:
+        title: Components preview
+        text: Lorem ipsum dolor
+      variant: default
+      icon: ric.clipboard-line
+  - kind: Card
+    id: components_effect_copy_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_copy_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_copy_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_copy_python
+        text: '@t/components.effects.copy.definition.python'
+      - kind: Markdown
+        id: components_effect_copy_yaml
+        text: '@t/components.effects.copy.definition.yaml'

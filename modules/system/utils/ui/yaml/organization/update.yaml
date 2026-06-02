@@ -1,0 +1,15 @@
+- kind: Column
+  id: organization_update_page
+  spacing: 14
+  children:
+    - kind: Title
+      id: organization_update_title
+      text: ""
+      level: 3
+    - kind: Form
+      id: organization_update_form
+      submit_label: "@t/system.organization.update.submit"
+      action:
+        name: system.update_organization
+        context: {}
+      model: []

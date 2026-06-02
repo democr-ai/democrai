@@ -1,0 +1,319 @@
+- kind: Column
+  id: components_form_button_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_form_button_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_form_button_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_form_button_title
+      text: '@t/components.forms.button.title'
+      level: 1
+    - kind: Text
+      id: components_form_button_description
+      text: '@t/components.forms.button.description'
+      muted: true
+  - kind: Card
+    id: components_form_button_variants_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_form_button_variants_title
+      text: '@t/components.forms.button.variants.title'
+      level: 3
+    - kind: Text
+      id: components_form_button_variants_description
+      text: '@t/components.forms.button.variants.description'
+      muted: true
+    - kind: Row
+      id: components_form_button_variants_row
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: components_form_button_variant_default
+        label: '@t/components.forms.button.label.default'
+        variant: default
+      - kind: Button
+        id: components_form_button_variant_primary
+        label: '@t/components.forms.button.label.primary'
+        variant: primary
+      - kind: Button
+        id: components_form_button_variant_success
+        label: '@t/components.forms.button.label.success'
+        variant: success
+      - kind: Button
+        id: components_form_button_variant_warning
+        label: '@t/components.forms.button.label.warning'
+        variant: warning
+      - kind: Button
+        id: components_form_button_variant_info
+        label: '@t/components.forms.button.label.info'
+        variant: info
+      - kind: Button
+        id: components_form_button_variant_danger
+        label: '@t/components.forms.button.label.danger'
+        variant: danger
+  - kind: Card
+    id: components_form_button_modes_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_form_button_modes_title
+      text: '@t/components.forms.button.modes.title'
+      level: 3
+    - kind: Text
+      id: components_form_button_modes_description
+      text: '@t/components.forms.button.modes.description'
+      muted: true
+    - kind: Column
+      id: components_form_button_modes_stack
+      spacing: 14
+      children:
+      - kind: Row
+        id: components_form_button_ghost_row
+        spacing: 10
+        align: left
+        children:
+        - kind: Button
+          id: components_form_button_ghost_default
+          label: '@t/components.forms.button.label.default'
+          variant: default
+          mode: ghost
+        - kind: Button
+          id: components_form_button_ghost_primary
+          label: '@t/components.forms.button.label.primary'
+          variant: primary
+          mode: ghost
+        - kind: Button
+          id: components_form_button_ghost_success
+          label: '@t/components.forms.button.label.success'
+          variant: success
+          mode: ghost
+        - kind: Button
+          id: components_form_button_ghost_warning
+          label: '@t/components.forms.button.label.warning'
+          variant: warning
+          mode: ghost
+        - kind: Button
+          id: components_form_button_ghost_info
+          label: '@t/components.forms.button.label.info'
+          variant: info
+          mode: ghost
+        - kind: Button
+          id: components_form_button_ghost_danger
+          label: '@t/components.forms.button.label.danger'
+          variant: danger
+          mode: ghost
+      - kind: Row
+        id: components_form_button_link_row
+        spacing: 10
+        align: left
+        children:
+        - kind: Button
+          id: components_form_button_link_default
+          label: '@t/components.forms.button.label.default'
+          variant: default
+          mode: link
+        - kind: Button
+          id: components_form_button_link_primary
+          label: '@t/components.forms.button.label.primary'
+          variant: primary
+          mode: link
+        - kind: Button
+          id: components_form_button_link_success
+          label: '@t/components.forms.button.label.success'
+          variant: success
+          mode: link
+        - kind: Button
+          id: components_form_button_link_warning
+          label: '@t/components.forms.button.label.warning'
+          variant: warning
+          mode: link
+        - kind: Button
+          id: components_form_button_link_info
+          label: '@t/components.forms.button.label.info'
+          variant: info
+          mode: link
+        - kind: Button
+          id: components_form_button_link_danger
+          label: '@t/components.forms.button.label.danger'
+          variant: danger
+          mode: link
+  - kind: Card
+    id: components_form_button_sizes_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_form_button_sizes_title
+      text: '@t/components.forms.button.sizes.title'
+      level: 3
+    - kind: Row
+      id: components_form_button_sizes_row
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: components_form_button_size_sm
+        label: '@t/components.forms.button.label.small'
+        variant: primary
+        btnsize: sm
+      - kind: Button
+        id: components_form_button_size_default
+        label: '@t/components.forms.button.label.default'
+        variant: primary
+        btnsize: default
+      - kind: Button
+        id: components_form_button_size_lg
+        label: '@t/components.forms.button.label.large'
+        variant: primary
+        btnsize: lg
+      - kind: Button
+        id: components_form_button_size_legacy_small
+        label: '@t/components.forms.button.label.legacy_small'
+        variant: default
+        btnsize: small
+      - kind: Button
+        id: components_form_button_size_legacy_normal
+        label: '@t/components.forms.button.label.legacy_normal'
+        variant: default
+        btnsize: normal
+      - kind: Button
+        id: components_form_button_size_legacy_large
+        label: '@t/components.forms.button.label.legacy_large'
+        variant: default
+        btnsize: large
+  - kind: Card
+    id: components_form_button_icons_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_form_button_icons_title
+      text: '@t/components.forms.button.icons.title'
+      level: 3
+    - kind: Text
+      id: components_form_button_icons_description
+      text: '@t/components.forms.button.icons.description'
+      muted: true
+    - kind: Row
+      id: components_form_button_icons_row
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: components_form_button_icon_plain
+        label: '@t/components.forms.button.label.save'
+        icon: ric.save-line
+      - kind: Button
+        id: components_form_button_icon_primary
+        label: '@t/components.forms.button.label.run'
+        variant: primary
+        icon: ric.play-circle-line
+      - kind: Button
+        id: components_form_button_icon_warning_ghost
+        label: '@t/components.forms.button.label.review'
+        variant: warning
+        mode: ghost
+        icon: ric.alert-line
+      - kind: Button
+        id: components_form_button_icon_link
+        label: '@t/components.forms.button.label.open'
+        variant: info
+        mode: link
+        icon: ric.external-link-line
+      - kind: Button
+        id: components_form_button_icon_round
+        label: ''
+        variant: primary
+        shape: round
+        icon: ric.settings-3-line
+      - kind: Button
+        id: components_form_button_icon_alias
+        label: ''
+        variant: default
+        shape: icon
+        icon: ric.more-line
+  - kind: Card
+    id: components_form_button_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_form_button_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_form_button_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_form_button_python_code
+        text: '@t/components.forms.button.definition.python'
+      - kind: Markdown
+        id: components_form_button_yaml_code
+        text: '@t/components.forms.button.definition.yaml'
+  - kind: Card
+    id: components_form_button_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_form_button_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_form_button_properties_table
+      paginated: false
+      pagination: false
+      total_rows: 14
+      rows: '@data/components_forms/button_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

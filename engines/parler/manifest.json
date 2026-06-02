@@ -1,0 +1,267 @@
+{
+  "id": "parler",
+  "name": "Parler TTS",
+  "kind": "tts",
+  "entrypoint": "engines.parler.engine:ParlerEngine",
+  "install": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "NETRC": "{engine_config}/netrc",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/netrc"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://github.com"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://github.com"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://github.com/huggingface/parler-tts.git/"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://github.com/huggingface/parler-tts.git/"
+      }
+    ],
+    "access_by_os": {
+      "linux": [
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/git"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/lib/git-core"
+        }
+      ],
+      "darwin": [
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/homebrew/bin/git"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/local/bin/git"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/git"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/git"
+        }
+      ]
+    },
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend",
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "runtime": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "NETRC": "{engine_config}/netrc",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/netrc"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend",
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "source_modes": [
+      "catalog",
+      "definition"
+    ],
+    "custom_definition": {
+      "enabled": true,
+      "schema": "models/schemas/add_model.json"
+    },
+    "artifact_upload": {
+      "enabled": false
+    }
+  },
+  "provider": {
+    "id": "parler",
+    "label": "Parler TTS",
+    "kind": "tts",
+    "deployment": "local",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "local_section": "local_audio",
+    "icon_url": "engines/parler/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "parler_tts",
+        "module": "parler_tts",
+        "label": "parler-tts",
+        "pip_packages": [
+          "git+https://github.com/huggingface/parler-tts.git",
+          "transformers>=4.43.3,<4.50",
+          "accelerate",
+          "soundfile"
+        ]
+      },
+      {
+        "dependency_key": "transformers",
+        "module": "transformers",
+        "label": "Transformers",
+        "pip_packages": [
+          "transformers>=4.43.3,<4.50",
+          "accelerate",
+          "safetensors"
+        ]
+      },
+      {
+        "dependency_key": "soundfile",
+        "module": "soundfile",
+        "label": "soundfile",
+        "pip_packages": [
+          "soundfile"
+        ]
+      }
+    ],
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Local text-to-speech engine for controllable voice synthesis.",
+    "capabilities": [
+      "tts",
+      "offline"
+    ]
+  }
+}

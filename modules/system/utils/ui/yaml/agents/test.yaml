@@ -1,0 +1,143 @@
+- kind: Column
+  id: system_agent_test_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: system_agent_test_breadcrumb
+      segments: "@state/page/system/agents/test/breadcrumb_segments"
+    - kind: Card
+      id: system_agent_test_summary_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      style: "margin-top: 12px;"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/agents/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_agent_test_summary_body
+          spacing: 12
+          children:
+            - kind: Row
+              id: system_agent_test_header_row
+              spacing: 12
+              align: fill
+              children:
+                - kind: Column
+                  id: system_agent_test_identity_col
+                  spacing: 6
+                  children:
+                    - kind: Title
+                      id: system_agent_test_title
+                      text: "@state/page/system/agents/test/title"
+                      level: 3
+                    - kind: Text
+                      id: system_agent_test_description
+                      text: "@state/page/system/agents/test/description"
+                      style: "font-size: 13px; opacity: 0.78;"
+                - kind: Row
+                  id: system_agent_test_badges
+                  spacing: 8
+                  align: right
+                  children:
+                    - kind: Badge
+                      id: system_agent_test_module_badge
+                      text: "@state/page/system/agents/test/module_name"
+                      variant: info
+                    - kind: Badge
+                      id: system_agent_test_configured_badge
+                      text: "@state/page/system/agents/test/configured_text"
+                      variant: secondary
+            - kind: List
+              id: system_agent_test_detail_list
+              template: title_text
+              data_source:
+                type: binding
+                data: {type: store, scope: page, path: /system/agents/test/detail_items, default: []}
+    - kind: Card
+      id: system_agent_test_form_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/agents/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_agent_test_form_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: system_agent_test_form_title
+              text: "@t/system.agents.test.form_title"
+              level: 4
+            - kind: Form
+              id: system_agent_test_form
+              submit_label: "@t/system.agents.test.run"
+              action:
+                name: system.test_agent
+                context:
+                  agent_name: "@state/page/system/agents/test/name"
+              track_loading: system.test_agent
+              model: "@state/page/system/agents/test/form"
+    - kind: Card
+      id: system_agent_test_result_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/agents/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_agent_test_result_body
+          spacing: 8
+          children:
+            - kind: Title
+              id: system_agent_test_result_title
+              text: "@t/system.agents.test.result_title"
+              level: 4
+            - kind: Text
+              id: system_agent_test_result_output
+              text: "@state/page/system/agents/test/last_result/output"
+              style: "white-space: pre-wrap;"
+            - kind: Text
+              id: system_agent_test_result_metrics
+              text: "@state/page/system/agents/test/last_result/metrics"
+              style: "font-size: 12px; opacity: 0.72;"
+    - kind: Card
+      id: system_agent_test_events_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/agents/test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: system_agent_test_events_body
+          spacing: 8
+          children:
+            - kind: Title
+              id: system_agent_test_events_title
+              text: "@t/system.agents.test.events_title"
+              level: 4
+            - kind: List
+              id: system_agent_test_events_list
+              template: title_text
+              data_source:
+                type: binding
+                data: {type: store, scope: page, path: /system/agents/test/listener_events, default: []}
+    - kind: Text
+      id: system_agent_test_invalid
+      text: "@t/system.agents.test.not_found"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/agents/test/valid, default: false}
+            op: "=="
+            right: false

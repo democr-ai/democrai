@@ -1,0 +1,343 @@
+/* =========================
+   Theme Foundation (Light)
+   Light palette — single source of truth for all tokens.
+   Every component file must use these variables ONLY.
+   ========================= */
+
+@import "theme_tokens_light.less";
+
+// ── Base backgrounds ────────────────────────────────────────────────────────
+@bg: @token__surface__window; // app background
+@bg-deep: #eef2f7; // deepest surfaces (video, code bg)
+@primary-color: @token__color__info;
+@surface: @token__surface__sidebar; // cards, sidebar, panels
+@surface-raised: @token__surface__main; // elevated cards, dialogs
+@surface-muted: @token__surface__header; // inputs, secondary surfaces
+@surface-active: #e2e8f0; // hover/active state on surfaces
+@main-content-bg: @token__surface__header; // global page background for main content surface
+
+// ── Borders ─────────────────────────────────────────────────────────────────
+@border: @token__border__drawer; // default border
+@border-strong: @token__border__hover; // stronger border (focus ring, dividers)
+@border-focus: @token__border__hover; // input focus border
+@border-subtle: #e2e8f0; // very subtle separators
+
+// ── Text ────────────────────────────────────────────────────────────────────
+@text: @token__text__primary; // primary text
+@text-soft: @token__text__soft; // secondary text
+@text-muted: @token__text__muted; // muted/placeholder labels
+@text-disabled: #94a3b8; // disabled state text
+@text-inverse: @token__text__inverse; // text on light backgrounds
+
+// ── Semantic colors ──────────────────────────────────────────────────────────
+@color-danger: @token__color__danger;
+@color-danger-bg: rgba(220, 38, 38, 0.10);
+@color-danger-border: rgba(220, 38, 38, 0.30);
+@color-danger-text: #b91c1c;
+
+@color-success: @token__color__success;
+@color-success-bg: rgba(22, 163, 74, 0.10);
+@color-success-border: rgba(22, 163, 74, 0.30);
+@color-success-text: #166534;
+
+@color-warning: @token__color__warning;
+@color-warning-bg: rgba(217, 119, 6, 0.10);
+@color-warning-border: rgba(217, 119, 6, 0.30);
+@color-warning-text: #92400e;
+
+@color-info: @token__color__info;
+@color-info-bg: rgba(11, 78, 162, 0.10);
+@color-info-border: rgba(11, 78, 162, 0.30);
+@color-info-text: #0b4ea2;
+
+// ── Component-level tokens ───────────────────────────────────────────────────
+@card-bg: @surface-raised;
+@card-radius: 6px;
+@card-border: @border;
+
+@input-bg: @surface-muted;
+@input-radius: 8px;
+@input-padding: 10px 14px;
+
+@main-sidebar-bg: @primary-color;
+@main-sidebar-border: darken(@primary-color, 8%);
+@main-sidebar-icon-active: @token__icon__sidebar__active;
+@main-sidebar-icon-idle: @token__icon__sidebar__idle;
+@main-sidebar-active-marker: @token__icon__sidebar__active;
+@sidebar-bg: @token__surface__main;
+@sidebar-border: @token__border__sidebar;
+
+@badge-radius: 8px;
+@drawer-close-border: @token__border__drawer;
+@drawer-close-border-hover: @token__border__hover;
+@drawer-close-text: @token__text__drawer_close;
+@drawer-close-text-hover: @token__text__drawer_close_hover;
+@notification-badge-bg: @token__badge__notification__bg;
+@notification-badge-text: @token__badge__notification__text;
+
+// ── Descriptions component tokens ───────────────────────────────────────────
+@descriptions-header-bg: @surface-active;
+@descriptions-key-bg: @surface-muted;
+@descriptions-key-text: @text-soft;
+
+// ── Legacy aliases (keep for backward compat) ────────────────────────────────
+@black: @bg;
+@white: #ffffff;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+#app_global_drawer_host{
+    background-color: @token__surface__drawer;
+    border-left: none;
+    padding-top: 20px;
+    #global_drawer_shell, #global_drawer_scroll, #global_drawer_scroll_content{
+        background: @token__surface__drawer;
+    }
+}
+[class="container"] {
+    background-color: @bg;
+}
+#bottom_nav_language__input{
+    padding: 0;
+    border: none;
+    margin-left: 18px;
+    background: transparent;
+    color: #ffffff;
+}
+
+#drawer_close_btn {
+    background: @bg;
+    border: 1px solid @drawer-close-border;
+    border-radius: 999px;
+    color: @drawer-close-text;
+    font-size: 11px;
+    font-weight: bold;
+}
+#drawer_close_btn:hover {
+    color: @drawer-close-text-hover;
+    border-color: @drawer-close-border-hover;
+}
+
+QLabel[ui_role="notification_badge"] {
+    background-color: @notification-badge-bg;
+    color: @notification-badge-text;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 0 2px;
+}
+QWidget {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: @text-soft;
+}
+
+QMainWindow {
+    background-color: @bg;
+}
+
+#toast_viewport {
+    background: transparent;
+}
+
+QFrame#toast_chip {
+    background-color: @bg;
+    border: 1px solid @border;
+    border-radius: 14px;
+}
+
+QLabel#toast_title {
+    color: @color-warning-text;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#toast_body {
+    color: @text-soft;
+    font-size: 12px;
+}
+
+QFrame#toast_chip[toast_variant="success"] {
+    background-color: @color-success-bg;
+    border-color: @color-success-border;
+}
+
+QFrame#toast_chip[toast_variant="warning"] {
+    background-color: @color-warning-bg;
+    border-color: @color-warning-border;
+}
+
+QFrame#toast_chip[toast_variant="error"],
+QFrame#toast_chip[toast_variant="destructive"] {
+    background-color: @color-danger-bg;
+    border-color: @color-danger-border;
+}
+
+QFrame#toast_chip[toast_variant="info"] {
+    background-color: @color-info-bg;
+    border-color: @color-info-border;
+}
+
+QDialog {
+    background-color: @surface-raised;
+}
+
+#main_layout,
+#root,
+#ui_container,
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+#ui_container {
+    background-color: @main-content-bg;
+}
+
+#scroll_sidebar_content,
+QScrollArea#scroll_sidebar,
+QScrollArea#scroll_sidebar > QWidget,
+QScrollArea#scroll_sidebar QWidget#qt_scrollarea_viewport {
+    background-color: @sidebar-bg;
+}
+
+#scroll_sidebar_content {
+    background-color: @sidebar-bg;
+    border-right: 1px solid @sidebar-border;
+    height: 100%;
+    padding: 0;
+}
+
+#main_sidebar {
+    background-color: @main-sidebar-bg;
+    border-right: 1px solid @main-sidebar-border;
+}
+
+#main_header {
+    background-color: @main-sidebar-bg;
+    border-bottom: 1px solid @main-sidebar-border;
+}
+
+QFrame[ui_role="header"] {
+    background-color: @main-sidebar-bg;
+    border-bottom: 1px solid @main-sidebar-border;
+    padding: 2px;
+}
+
+QFrame[ui_role="layout_preview_box"] {
+    border: 1px dashed @border-strong;
+}
+
+QFrame[ui_role="sidebar_panel"] {
+    background-color: @sidebar-bg;
+    border-right: 1px solid @sidebar-border;
+}
+
+QWidget[ui_role="navigation-container"],
+QFrame[ui_role="navigation-container"] {
+    background-color: #ffffff;
+}
+
+QFrame[type="card"] {
+    background-color: @token__surface__main;
+}
+
+// ── Container ───────────────────────────────────────────────────────────────
+
+/*
+#components_preview_content {
+    background-color: @surface;
+}
+
+#scroll_preview_content{
+    background-color: @bg;
+}
+*/
+
+// ── Typography ───────────────────────────────────────────────────────────────
+QLabel {
+    color: @text;
+
+    &[title="1"] {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    &[title="2"] {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    &[title="3"] {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    &[title="4"],
+    &[title="5"] {
+        font-weight: 600;
+        color: @text-muted;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+    }
+
+    &[title="5"] {
+        font-size: 9px;
+    }
+}
+
+// ── Base controls ────────────────────────────────────────────────────────────
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QListWidget {
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    color: @text;
+    padding: @input-padding;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+}
+
+QLineEdit {
+    &::placeholder {
+        color: @text-disabled;
+    }
+}
+
+QComboBox::drop-down {
+    border: none;
+    background: transparent;
+    width: 20px;
+}
+
+QComboBox QAbstractItemView,
+QListWidget {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border;
+    padding: 2px;
+    margin: 0;
+    outline: none;
+    selection-background-color: @border;
+    selection-color: @text;
+}
+
+QComboBox QAbstractItemView::item {
+    background: transparent;
+    color: @text;
+    padding: 4px 8px;
+    border: none;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background: @surface-active;
+    color: @text;
+}

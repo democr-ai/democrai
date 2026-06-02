@@ -1,0 +1,15 @@
+- kind: Column
+  id: environment_value_page
+  spacing: 14
+  align: top
+  children:
+    - kind: Title
+      id: environment_value_title
+      text: "@t/system.environment.value.title"
+      level: 3
+    - kind: Form
+      id: environment_value_form
+      submit_label: "@t/system.environment.value.submit"
+      action:
+        name: system.save_environment_variable
+      model: []

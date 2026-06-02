@@ -1,0 +1,37 @@
+- kind: Column
+  id: knowledge_config_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: knowledge_config_breadcrumb
+      segments:
+        - label: "@t/system.index.title"
+          path: /system/index
+        - label: "@t/system.knowledge.common.breadcrumb.knowledge"
+          current: false
+        - label: "@t/system.knowledge.config.breadcrumb"
+          current: true
+    - kind: Column
+      id: knowledge_config_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: knowledge_config_title
+          text: "@t/system.knowledge.config.title"
+          level: 2
+        - kind: Text
+          id: knowledge_config_subtitle
+          text: "@t/system.knowledge.config.subtitle"
+          style: "font-size: 13px;"
+    - kind: Card
+      id: knowledge_config_card
+      variant: elevated
+      padding: [16, 16, 16, 16]
+      children:
+        - kind: Form
+          id: knowledge_runtime_config_form
+          submit_label: "@t/system.knowledge.config.save"
+          action:
+            name: system.save_knowledge_runtime_config
+          track_loading: system.save_knowledge_runtime_config
+          model: "@data/knowledge/config/form_model"

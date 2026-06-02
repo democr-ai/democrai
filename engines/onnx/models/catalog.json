@@ -1,0 +1,377 @@
+{
+  "engine_id": "onnx",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "bge-small-en-v1.5-onnx",
+      "label": "BGE Small EN v1.5 ONNX",
+      "engine_id": "onnx",
+      "family": "bge",
+      "summary": "Small English embedding model with ONNX weights for local semantic search.",
+      "tags": ["onnx", "embedding", "local", "huggingface", "cpu"],
+      "capabilities": ["embedding"],
+      "extended_capabilities": ["offline", "cpu_friendly"],
+      "interfaces": ["text_embedding"],
+      "requirements": {"ram_gb": 1, "storage_gb": 0.317},
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "onnx",
+          "required": true,
+          "target": "models/bge-small-en-v1.5-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "onnx-community/bge-small-en-v1.5-ONNX",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "onnx-community/bge-small-en-v1.5-ONNX",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "embedding",
+            "loader": "optimum_feature_extraction",
+            "subfolder": "onnx",
+            "file_name": "model_quantized.onnx",
+            "dim": 384,
+            "normalize": true,
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "BAAI/bge-small-en-v1.5",
+        "onnx": true,
+        "architecture": "BertModel",
+        "model_type": "bert",
+        "hidden_size": 384,
+        "max_position_embeddings": 512,
+        "num_hidden_layers": 12
+      }
+    },
+    {
+      "id": "bge-m3-onnx",
+      "label": "BGE-M3 ONNX",
+      "engine_id": "onnx",
+      "family": "bge",
+      "summary": "Multilingual BGE-M3 embedding model with ONNX weights for local semantic search.",
+      "tags": ["onnx", "embedding", "multilingual", "local", "huggingface", "cpu"],
+      "capabilities": ["embedding"],
+      "extended_capabilities": ["offline", "cpu_friendly", "multilingual"],
+      "interfaces": ["text_embedding"],
+      "requirements": {"ram_gb": 2, "storage_gb": 6.7},
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "onnx",
+          "required": true,
+          "target": "models/bge-m3-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "onnx-community/bge-m3-ONNX",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "onnx-community/bge-m3-ONNX",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "embedding",
+            "loader": "optimum_feature_extraction",
+            "subfolder": "onnx",
+            "file_name": "model_quantized.onnx",
+            "dim": 1024,
+            "normalize": true,
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "BAAI/bge-m3", 
+        "onnx": true,
+        "architecture": "XLMRobertaModel",
+        "model_type": "xlm-roberta",
+        "hidden_size": 1024,
+        "max_position_embeddings": 8194,
+        "num_hidden_layers": 24
+      }
+    },
+    {
+      "id": "all-minilm-l6-v2-onnx",
+      "label": "All-MiniLM-L6-v2 ONNX",
+      "engine_id": "onnx",
+      "family": "minilm",
+      "summary": "Ultra-small English sentence embedding model with ONNX weights.",
+      "tags": ["onnx", "embedding", "local", "huggingface", "cpu"],
+      "capabilities": ["embedding"],
+      "extended_capabilities": ["offline", "cpu_friendly"],
+      "interfaces": ["text_embedding"],
+      "requirements": {
+        "ram_gb": 1,
+        "vram_gb": 0,
+        "storage_gb": 0.211
+      },
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "onnx",
+          "required": true,
+          "target": "models/all-minilm-l6-v2-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "onnx-community/all-MiniLM-L6-v2-ONNX",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "onnx-community/all-MiniLM-L6-v2-ONNX",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "embedding",
+            "loader": "optimum_feature_extraction",
+            "subfolder": "onnx",
+            "file_name": "model.onnx",
+            "dim": 384,
+            "normalize": true,
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "sentence-transformers/all-MiniLM-L6-v2",
+        "onnx": true,
+        "architecture": "BertModel",
+        "model_type": "bert",
+        "max_position_embeddings": 512
+      }
+    },
+    {
+      "id": "msmarco-minilm-l6-reranker-onnx",
+      "label": "MS MARCO MiniLM L6 Reranker ONNX",
+      "engine_id": "onnx",
+      "family": "minilm",
+      "summary": "Small cross-encoder reranker using the Sentence Transformers ONNX backend.",
+      "tags": ["onnx", "reranking", "local", "huggingface", "cpu"],
+      "capabilities": ["reranking"],
+      "extended_capabilities": ["offline", "cpu_friendly"],
+      "interfaces": ["text_reranking"],
+      "requirements": {"ram_gb": 1.1, "vram_gb": 0, "storage_gb": 0.890},
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/msmarco-minilm-l6-reranker-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "cross-encoder/ms-marco-MiniLM-L6-v2",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "rerank",
+            "loader": "sentence_transformers_cross_encoder",
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "onnx": true,
+        "architecture": "BertForSequenceClassification",
+        "model_type": "bert",
+        "hidden_size": 384,
+        "max_position_embeddings": 512,
+        "num_hidden_layers": 6,
+        "num_attention_heads": 12,
+        "intermediate_size": 1536,
+        "labels": ["LABEL_0"],
+        "activation": "Identity"
+      }
+    },
+    {
+      "id": "distilbert-sst2-onnx",
+      "label": "DistilBERT SST-2 ONNX",
+      "engine_id": "onnx",
+      "family": "distilbert",
+      "summary": "Small ONNX sentiment classifier for local text classification tests.",
+      "tags": ["onnx", "classification", "local", "huggingface", "cpu"],
+      "capabilities": ["classification"],
+      "extended_capabilities": ["offline", "cpu_friendly"],
+      "interfaces": ["text_classification"],
+      "requirements": {
+        "ram_gb": 1,
+        "vram_gb": 0,
+        "storage_gb": 0.883
+      },
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "onnx",
+          "required": true,
+          "target": "models/distilbert-sst2-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "onnx-community/distilbert-base-uncased-finetuned-sst-2-english-ONNX",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "onnx-community/distilbert-base-uncased-finetuned-sst-2-english-ONNX",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "classification",
+            "loader": "optimum_sequence_classification",
+            "subfolder": "onnx",
+            "file_name": "model_quantized.onnx",
+            "top_k": 1,
+            "function_to_apply": "softmax",
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+        "onnx": true,
+        "architecture": "DistilBertForSequenceClassification",
+        "model_type": "distilbert",
+        "hidden_size": 768,
+        "max_position_embeddings": 512,
+        "num_hidden_layers": 6,
+        "num_attention_heads": 12,
+        "intermediate_size": 3072,
+        "labels": ["NEGATIVE", "POSITIVE"]
+      }
+    },
+    {
+      "id": "bert-base-ner-onnx",
+      "label": "BERT Base NER ONNX",
+      "engine_id": "onnx",
+      "family": "bert",
+      "summary": "ONNX token classification model for local named-entity extraction.",
+      "tags": ["onnx", "token_extraction", "ner", "local", "huggingface", "cpu"],
+      "capabilities": ["token_extraction"],
+      "extended_capabilities": ["offline", "cpu_friendly"],
+      "interfaces": ["token_classification"],
+      "requirements": {
+        "ram_gb": 1.1,
+        "vram_gb": 0,
+        "storage_gb": 1.3
+      },
+      "compatible_engines": ["onnx"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "onnx",
+          "required": true,
+          "target": "models/bert-base-ner-onnx",
+          "source": {
+            "type": "huggingface",
+            "repo": "onnx-community/bert-base-NER-ONNX",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "onnx-community/bert-base-NER-ONNX",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "task": "token_extraction",
+            "loader": "optimum_token_classification",
+            "subfolder": "onnx",
+            "file_name": "model_quantized.onnx",
+            "execution_provider": "CPUExecutionProvider"
+          }
+        }
+      },
+      "metadata": {
+        "source": "dslim/bert-base-NER",
+        "onnx": true,
+        "architecture": "BertForTokenClassification",
+        "model_type": "bert",
+        "hidden_size": 768,
+        "max_position_embeddings": 512,
+        "num_hidden_layers": 12
+      }
+    }
+  ]
+}

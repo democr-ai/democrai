@@ -1,0 +1,256 @@
+- kind: Column
+  id: components_forms_textarea_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_textarea_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_textarea_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_textarea_title
+      text: '@t/components.forms.textarea.title'
+      level: 1
+    - kind: Text
+      id: components_forms_textarea_description
+      text: '@t/components.forms.textarea.description'
+      muted: true
+  - kind: Card
+    id: components_forms_textarea_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_textarea_preview_title
+      text: '@t/components.forms.preview.title'
+      level: 3
+    - kind: TextArea
+      id: components_forms_textarea_basic
+      label: '@t/components.forms.textarea.preview.label'
+      value: Initial notes
+      placeholder: '@t/components.forms.textarea.preview.placeholder'
+      rows: 3
+    - kind: TextArea
+      id: components_forms_textarea_resize
+      label: '@t/components.forms.textarea.preview.resize'
+      placeholder: '@t/components.forms.textarea.preview.resize_placeholder'
+      auto_resize: true
+      rows: 2
+    - kind: Button
+      id: components_forms_textarea_read_button
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        input_id: components_forms_textarea_basic
+        label: textarea
+      collect_input_ids:
+      - components_forms_textarea_basic
+  - kind: Card
+    id: components_forms_textarea_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_textarea_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_textarea_runtime_description
+      text: '@t/components.forms.textarea.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_textarea_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_textarea_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_textarea_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TextArea
+            id: components_forms_textarea_page
+            label: '@t/components.forms.usage.page_store'
+            value:
+              type: store
+              scope: page
+              path: /components_forms/textarea/value
+              default: Page notes
+            rows: 2
+          - kind: Button
+            id: components_forms_textarea_page_button
+            label: '@t/components.forms.usage.page_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: textarea
+                mode: page_store
+        - kind: Column
+          id: components_forms_textarea_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TextArea
+            id: components_forms_textarea_data
+            label: '@t/components.forms.usage.data_model'
+            value: '@data/components_forms/textarea_model/value'
+            rows: 2
+          - kind: Button
+            id: components_forms_textarea_data_button
+            label: '@t/components.forms.usage.data_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: textarea
+                mode: data
+      - kind: Column
+        id: components_forms_textarea_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_textarea_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TextArea
+            id: components_forms_textarea_global
+            label: '@t/components.forms.usage.global_store'
+            value:
+              type: store
+              scope: global
+              path: /components_forms/textarea/value
+              default: Global notes
+            rows: 2
+          - kind: Button
+            id: components_forms_textarea_global_button
+            label: '@t/components.forms.usage.global_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: textarea
+                mode: global_store
+        - kind: Column
+          id: components_forms_textarea_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TextArea
+            id: components_forms_textarea_direct
+            label: '@t/components.forms.usage.direct'
+            value: Direct notes
+            rows: 2
+            capabilities:
+            - value.set
+          - kind: Button
+            id: components_forms_textarea_direct_button
+            label: '@t/components.forms.usage.direct_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: textarea
+                mode: direct
+  - kind: Card
+    id: components_forms_textarea_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_textarea_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_textarea_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_textarea_python_code
+        text: '@t/components.forms.textarea.definition.python'
+      - kind: Markdown
+        id: components_forms_textarea_yaml_code
+        text: '@t/components.forms.textarea.definition.yaml'
+  - kind: Card
+    id: components_forms_textarea_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_textarea_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_textarea_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/textarea_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_textarea_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_textarea_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_textarea_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/textarea_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

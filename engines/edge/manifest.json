@@ -1,0 +1,67 @@
+{
+  "id": "edge",
+  "name": "Edge TTS",
+  "kind": "tts",
+  "entrypoint": "engines.edge.engine:EdgeEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+  "runtime": {
+    "access": [
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "wss://speech.platform.bing.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "send",
+        "target": "wss://speech.platform.bing.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "wss://speech.platform.bing.com/*"
+      }
+    ]
+  },
+  "provider": {
+    "id": "edge",
+    "label": "Edge TTS",
+    "kind": "tts",
+    "deployment": "remote",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "icon_url": "engines/edge/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "edge_tts",
+        "module": "edge_tts",
+        "label": "edge-tts",
+        "pip_packages": [
+          "edge-tts"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "rate",
+        "label": "Rate",
+        "type": "text",
+        "value": "+0%"
+      }
+    ],
+    "encrypted_keys": [],
+    "description": "Remote TTS provider based on edge-tts voices.",
+    "capabilities": [
+      "tts"
+    ]
+  }
+}

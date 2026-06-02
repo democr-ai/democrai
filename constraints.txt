@@ -1,0 +1,4 @@
+# Lightweight base environment constraints.
+# Heavy AI/runtime-specific constraints now belong to engine installation flows.
+
+numpy<2.3

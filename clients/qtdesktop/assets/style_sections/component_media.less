@@ -1,0 +1,93 @@
+/* =========================
+   Component: Media
+   ========================= */
+QLabel[ui_role="media_title"] {
+    color: @text;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+QLabel[ui_role="media_status"],
+QLabel[ui_role="media_time"] {
+    color: @text-muted;
+    font-size: 12px;
+}
+
+QLabel[ui_role="media_video_frame"] {
+    background: @bg-deep;
+    border: 1px solid @border;
+    border-radius: 0px;
+    color: @text-muted;
+}
+
+/* --- Improved Video Player Overlay --- */
+
+QWidget[ui_role="video_player_root"] {
+    background-color: @bg-deep;
+    border: 1px solid @border;
+    border-radius: 0;
+}
+
+QWidget[ui_role="video_controls_overlay"] {
+    background-color: rgba(10, 10, 10, 0.75);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+QPushButton[ui_role="media_control_btn"] {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: @text;
+    font-size: 16px;
+    padding: 4px 8px;
+    min-width: 32px;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    &:pressed {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+}
+
+QSlider[ui_role="media_position_slider"] {
+    height: 24px;
+
+    &::groove:horizontal {
+        border: 1px solid transparent;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        margin: 2px 0;
+        border-radius: 2px;
+    }
+
+    &::handle:horizontal {
+        background: @text;
+        border: none;
+        width: 12px;
+        height: 12px;
+        margin: -4px 0;
+        border-radius: 6px;
+    }
+
+    &::sub-page:horizontal {
+        background: @color-info;
+        border-radius: 2px;
+    }
+}
+
+QLabel[ui_role="media_audio_poster"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: 0;
+}
+
+/* --- Audio Player Root --- */
+
+QWidget[ui_role="audio_player_root"] {
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 0;
+}

@@ -1,0 +1,434 @@
+- kind: Column
+  id: engine_model_detail_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: engine_model_detail_breadcrumb
+      segments: "@state/page/engine_model_test/breadcrumb_segments"
+    - kind: Card
+      id: engine_model_detail_summary_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      style: "margin-top: 12px;"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_model_test/valid, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: engine_model_detail_summary_body
+          spacing: 14
+          children:
+            - kind: Row
+              id: engine_model_detail_header_row
+              spacing: 12
+              align: fill
+              children:
+                - kind: Column
+                  id: engine_model_detail_identity_col
+                  spacing: 6
+                  children:
+                    - kind: Title
+                      id: engine_model_detail_title
+                      text: "@state/page/engine_model_test/title"
+                      level: 3
+                    - kind: Text
+                      id: engine_model_detail_engine_text
+                      text: "@state/page/engine_model_test/engine_name"
+                      style: "font-size: 13px; opacity: 0.78;"
+                - kind: Row
+                  id: engine_model_detail_badges
+                  spacing: 8
+                  align: right
+                  children:
+                    - kind: Button
+                      id: engine_model_detail_runtime_params_btn
+                      label: "@t/system.engine.model.test.runtime_params_button"
+                      icon: "ric.settings-3-line"
+                      variant: secondary
+                      mode: ghost
+                      action: open_drawer
+                      params:
+                        path: "@state/page/engine_model_test/runtime_params_drawer_path"
+                        title: "@t/system.engine.model.test.runtime_params_title"
+                        position: right
+                        dim: 720
+                    - kind: Button
+                      id: engine_model_detail_default_params_btn
+                      label: "@t/system.engine.model.test.model_defaults_button"
+                      icon: "ric.equalizer-line"
+                      variant: secondary
+                      mode: ghost
+                      action: open_drawer
+                      params:
+                        path: "@state/page/engine_model_test/default_params_drawer_path"
+                        title: "@t/system.engine.model.test.model_defaults_title"
+                        position: right
+                        dim: 960
+                    - kind: Badge
+                      id: engine_model_detail_format_badge
+                      text: "@state/page/engine_model_test/format"
+                      variant: info
+                    - kind: Badge
+                      id: engine_model_detail_source_badge
+                      text: "@state/page/engine_model_test/source"
+                      variant: default
+            - kind: Flow
+              id: engine_model_detail_capability_flow
+              spacing: 8
+              children:
+                - kind: Badge
+                  id: engine_model_detail_capabilities_badge
+                  text: "@state/page/engine_model_test/capabilities_text"
+                  variant: success
+                - kind: Badge
+                  id: engine_model_detail_methods_badge
+                  text: "@state/page/engine_model_test/runtime_methods_text"
+                  variant: secondary
+            - kind: List
+              id: engine_model_detail_key_details
+              template: title_text
+              data_source:
+                type: binding
+                data: {type: store, scope: page, path: /engine_model_test/detail_items, default: []}
+    - kind: Alert
+      id: engine_model_test_reset_notice
+      title: "@t/system.engine.model.test.methods_title"
+      description: "@t/system.engine.model.test.input_not_configured"
+      variant: info
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_model_test/valid, default: false}
+            op: "=="
+            right: true
+          - left: {type: store, scope: page, path: /engine_model_test/tests_available, default: false}
+            op: "=="
+            right: false
+    - kind: Card
+      id: engine_model_test_methods_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_model_test/tests_available, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: engine_model_test_methods_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: engine_model_test_methods_title
+              text: "@t/system.engine.model.test.methods_title"
+              level: 4
+            - kind: Tabs
+              id: engine_model_test_method_tabs
+              tabs: "@state/page/engine_model_test/tests"
+              children:
+                - kind: Column
+                  id: engine_model_test_method_tab_generate_completion
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/generate_completion, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Composer
+                      id: engine_model_test_generate_completion_composer
+                      placeholder: "@state/page/engine_model_test/generate_completion_prompt"
+                      value: "@state/page/engine_model_test/generate_completion_prompt"
+                      current_request: "@state/page/engine_model_test/generate_completion_current_request"
+                      model: "@state/page/engine_model_test/current_model_id"
+                      models: "@state/page/engine_model_test/current_models"
+                      model_capabilities: "@state/page/engine_model_test/model_capabilities"
+                      enable_attachment: "@state/page/engine_model_test/supports_attachments"
+                      attachment_accept: "@state/page/engine_model_test/attachment_accept"
+                      ingest: false
+                      voice: "@state/page/engine_model_test/supports_audio_input"
+                      options: "@state/page/engine_model_test/generate_completion_options"
+                      options_schema: "@state/page/engine_model_test/generate_completion_options_schema"
+                      options_editable: "@state/page/engine_model_test/generate_completion_options_editable"
+                      tools: "@state/page/engine_model_test/available_tools"
+                      skills: "@state/page/engine_model_test/available_skills"
+                      mcp: "@state/page/engine_model_test/available_mcp"
+                      selected_tools: "@state/page/engine_model_test/selected_tools"
+                      selected_skills: "@state/page/engine_model_test/selected_skills"
+                      selected_mcp: "@state/page/engine_model_test/selected_mcp"
+                      tools_editable: true
+                      skills_editable: true
+                      mcp_editable: true
+                      stop_enabled: true
+                      on_stop:
+                        name: system.stop_engine_model_generate_completion
+                      on_submit:
+                        name: system.test_engine_model_generate_completion
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                - kind: Column
+                  id: engine_model_test_method_tab_generate_stream
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/generate_stream, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Composer
+                      id: engine_model_test_generate_stream_composer
+                      placeholder: "@state/page/engine_model_test/generate_stream_prompt"
+                      value: "@state/page/engine_model_test/generate_stream_prompt"
+                      current_request: "@state/page/engine_model_test/generate_stream_current_request"
+                      model: "@state/page/engine_model_test/current_model_id"
+                      models: "@state/page/engine_model_test/current_models"
+                      model_capabilities: "@state/page/engine_model_test/model_capabilities"
+                      enable_attachment: "@state/page/engine_model_test/supports_attachments"
+                      attachment_accept: "@state/page/engine_model_test/attachment_accept"
+                      ingest: false
+                      voice: "@state/page/engine_model_test/supports_audio_input"
+                      options: "@state/page/engine_model_test/generate_stream_options"
+                      options_schema: "@state/page/engine_model_test/generate_stream_options_schema"
+                      options_editable: "@state/page/engine_model_test/generate_stream_options_editable"
+                      tools: "@state/page/engine_model_test/available_tools"
+                      skills: "@state/page/engine_model_test/available_skills"
+                      mcp: "@state/page/engine_model_test/available_mcp"
+                      selected_tools: "@state/page/engine_model_test/selected_tools"
+                      selected_skills: "@state/page/engine_model_test/selected_skills"
+                      selected_mcp: "@state/page/engine_model_test/selected_mcp"
+                      tools_editable: true
+                      skills_editable: true
+                      mcp_editable: true
+                      on_submit:
+                        name: system.test_engine_model_generate_stream
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                - kind: Column
+                  id: engine_model_test_method_tab_embed_texts
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/embed_texts, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_embed_texts_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_embed_texts
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_embed_texts
+                      model: "@state/page/engine_model_test/forms/embed_texts"
+                - kind: Column
+                  id: engine_model_test_method_tab_rerank
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/rerank, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_rerank_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_rerank
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_rerank
+                      model: "@state/page/engine_model_test/forms/rerank"
+                - kind: Column
+                  id: engine_model_test_method_tab_classify
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/classify, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_classify_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_classify
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_classify
+                      model: "@state/page/engine_model_test/forms/classify"
+                - kind: Column
+                  id: engine_model_test_method_tab_extract_tokens
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/extract_tokens, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_extract_tokens_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_extract_tokens
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_extract_tokens
+                      model: "@state/page/engine_model_test/forms/extract_tokens"
+                - kind: Column
+                  id: engine_model_test_method_tab_extract_triples
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/extract_triples, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_extract_triples_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_extract_triples
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_extract_triples
+                      model: "@state/page/engine_model_test/forms/extract_triples"
+                - kind: Column
+                  id: engine_model_test_method_tab_synthesize
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/synthesize, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_synthesize_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_synthesize
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_synthesize
+                      model: "@state/page/engine_model_test/forms/synthesize"
+                - kind: Column
+                  id: engine_model_test_method_tab_synthesize_stream
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/synthesize_stream, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_synthesize_stream_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_synthesize_stream
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_synthesize_stream
+                      model: "@state/page/engine_model_test/forms/synthesize_stream"
+                - kind: Column
+                  id: engine_model_test_method_tab_transcribe
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/transcribe, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_transcribe_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_transcribe
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_transcribe
+                      model: "@state/page/engine_model_test/forms/transcribe"
+                - kind: Column
+                  id: engine_model_test_method_tab_detect
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/detect, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_detect_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_detect
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_detect
+                      model: "@state/page/engine_model_test/forms/detect"
+                - kind: Column
+                  id: engine_model_test_method_tab_tool_calling
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/tool_calling, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_tool_calling_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_tool_calling
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_tool_calling
+                      model: "@state/page/engine_model_test/forms/tool_calling"
+                - kind: Column
+                  id: engine_model_test_method_tab_multimodal
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /engine_model_test/available_tests/multimodal, default: false}
+                        op: "=="
+                        right: true
+                  spacing: 12
+                  children:
+                    - kind: Form
+                      id: engine_model_test_multimodal_form
+                      submit_label: "run"
+                      action:
+                        name: system.test_engine_model_multimodal
+                        context:
+                          model_row_id: "@state/page/engine_model_test/model_row_id"
+                      track_loading: system.test_engine_model_multimodal
+                      model: "@state/page/engine_model_test/forms/multimodal"
+    - kind: Card
+      id: engine_model_test_result_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_model_test/tests_available, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: engine_model_test_result_body
+          spacing: 8
+          children:
+            - kind: Title
+              id: engine_model_test_result_title
+              text: "@t/system.engine.model.test.result_title"
+              level: 4
+            - kind: Column
+              id: engine_model_test_generate_completion_result
+              spacing: 8
+              children: []
+    - kind: Text
+      id: engine_model_detail_invalid
+      text: "@state/page/engine_model_test/summary"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_model_test/valid, default: false}
+            op: "=="
+            right: false

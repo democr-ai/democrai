@@ -1,0 +1,853 @@
+/* =========================
+   Component: Advanced — Fields, Inputs, Feedback, Chat
+   ========================= */
+
+// ── Labels ───────────────────────────────────────────────────────────────────
+QLabel[ui_role="advanced_field_label"] {
+    color: @text-muted;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
+QFrame[ui_role="accordion_block"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @card-radius;
+}
+
+QToolButton[ui_role="accordion_trigger"] {
+    color: @text;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+}
+
+QLabel[ui_role="accordion_content"] {
+    color: @text-muted;
+    font-size: 13px;
+}
+
+QLabel[ui_role="accordion_meta"] {
+    color: @text-disabled;
+    font-size: 11px;
+}
+
+// ── Collapsible ───────────────────────────────────────────────────────────────
+QFrame[ui_role="collapsible_block"] {
+    background-color: transparent;
+}
+
+QToolButton[ui_role="collapsible_trigger"] {
+    color: @text;
+    background-color: transparent;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QToolButton[ui_role="collapsible_trigger"]:hover {
+    background-color: @surface-active;
+}
+
+QFrame[ui_role="collapsible_content_panel"] {
+    padding: 2px 0 0 0;
+}
+
+QLabel[ui_role="collapsible_content"] {
+    color: @text-muted;
+    font-size: 13px;
+}
+
+// ── Breadcrumb ────────────────────────────────────────────────────────────────
+QPushButton[ui_role="breadcrumb_btn"] {
+    color: @text-muted;
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    padding: 0;
+
+    &:hover {
+        color: @text;
+    }
+}
+
+QLabel[ui_role="breadcrumb_crumb"] {
+    color: @text-muted;
+    font-size: 12px;
+    font-weight: 500;
+
+    &[current="true"] {
+        color: @text;
+        font-weight: 700;
+    }
+}
+
+QLabel[ui_role="breadcrumb_sep"] {
+    color: @text-disabled;
+    font-size: 12px;
+}
+
+// ── Advanced inputs ───────────────────────────────────────────────────────────
+QListWidget[ui_role="advanced_select_multi"],
+QComboBox[ui_role="advanced_select"],
+QComboBox[ui_role="advanced_combobox"],
+QDateEdit[ui_role="advanced_datepicker"],
+QLineEdit[ui_role="advanced_datepicker"],
+QTextEdit[ui_role="advanced_composer_input"] {
+    background-color: @input-bg;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: 10px 12px;
+    color: @text;
+    font-size: 13px;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+
+    &[invalid="true"] {
+        border-color: @color-danger;
+    }
+}
+
+QListWidget[ui_role="advanced_select_multi"][ui_mode="web_like"] {
+    padding: 4px;
+}
+
+QListWidget[ui_role="advanced_select_multi"][ui_mode="web_like"]::item {
+    border-radius: 6px;
+    padding: 5px 8px;
+    color: @text-muted;
+}
+
+QListWidget[ui_role="advanced_select_multi"][ui_mode="web_like"]::item:hover {
+    background-color: @surface-active;
+    color: @text;
+}
+
+QListWidget[ui_role="advanced_select_multi"][ui_mode="web_like"]::item:selected {
+    background-color: fade(darken(@color-info, 6%), 32%);
+    color: @text;
+}
+
+QListWidget[ui_role="advanced_select_multi"][ui_mode="web_like"]::item:selected:hover {
+    background-color: fade(darken(@color-info, 10%), 42%);
+    color: @text;
+}
+
+QLabel[ui_role="advanced_field_label"][invalid="true"] {
+    color: @color-danger;
+}
+
+// ── Checkbox ──────────────────────────────────────────────────────────────────
+QCheckBox[ui_role="advanced_checkbox"] {
+    color: @text;
+    font-size: 12px;
+    spacing: 8px;
+
+    &::indicator {
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+
+        &:unchecked {
+            background-color: @input-bg;
+            border: 1px solid @border;
+        }
+
+        &:checked {
+            background-color: @color-info;
+            border: 1px solid @color-info;
+            image: url(ric.check-line);
+        }
+    }
+
+    &:hover::indicator:unchecked {
+        border-color: @border-focus;
+    }
+
+    &[invalid="true"],
+    &[error="true"] {
+        color: @color-danger;
+    }
+
+    &[invalid="true"]::indicator:unchecked,
+    &[error="true"]::indicator:unchecked {
+        border: 1px solid @color-danger;
+    }
+
+    &[invalid="true"]::indicator:checked,
+    &[error="true"]::indicator:checked {
+        background-color: @color-danger;
+        border: 1px solid @color-danger;
+        image: url(ric.check-line);
+    }
+}
+
+// ── Switch ────────────────────────────────────────────────────────────────────
+QLabel[ui_role="advanced_switch_label"] {
+    color: @text;
+    font-size: 13px;
+    font-weight: 500;
+    padding-left: 2px;
+
+    &[invalid="true"] {
+        color: @color-danger;
+    }
+}
+
+QCheckBox[ui_role="advanced_switch_input"] {
+    spacing: 0;
+
+    &::indicator {
+        width: 40px;
+        height: 16px;
+        border-radius: 9px;
+
+        &:unchecked {
+            background-color: qradialgradient(
+                cx: 0.27, cy: 0.5, radius: 0.52,
+                fx: 0.27, fy: 0.5,
+                stop: 0 #FFFFFF,
+                stop: 0.38 #FFFFFF,
+                stop: 0.39 @surface-muted,
+                stop: 1 @surface-muted
+            );
+            border: 1px solid @border;
+        }
+
+        &:checked {
+            background-color: qradialgradient(
+                cx: 0.90, cy: 0.5, radius: 0.25,
+                fx: 0.9, fy: 0.5,
+                stop: 0.0 #FFFFFF,
+                stop: 0.30 #FFFFFF,
+                stop: 0.39 @color-info,
+                stop: 1 @color-info
+            );
+            border: 1px solid @color-info;
+        }
+
+        &:unchecked:hover {
+            background-color: qradialgradient(
+                cx: 0.27, cy: 0.5, radius: 0.52,
+                fx: 0.27, fy: 0.5,
+                stop: 0 #FFFFFF,
+                stop: 0.38 #FFFFFF,
+                stop: 0.39 @surface-active,
+                stop: 1 @surface-active
+            );
+            border-color: @border-focus;
+        }
+
+        &:checked:hover {
+            background-color: qradialgradient(
+                cx: 0.73, cy: 0.5, radius: 0.52,
+                fx: 0.73, fy: 0.5,
+                stop: 0 #FFFFFF,
+                stop: 0.38 #FFFFFF,
+                stop: 0.39 darken(@color-info, 6%),
+                stop: 1 darken(@color-info, 6%)
+            );
+            border-color: darken(@color-info, 8%);
+        }
+    }
+
+    &[invalid="true"]::indicator:unchecked,
+    &[error="true"]::indicator:unchecked {
+        border: 1px solid @color-danger;
+    }
+
+    &:disabled::indicator {
+        opacity: 0.6;
+    }
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+QCalendarWidget[ui_role="advanced_calendar"] {
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 12px;
+
+    // View area
+    QAbstractItemView {
+        background-color: @surface;
+        selection-background-color: @color-info;
+        selection-color: @text;
+        color: @text-soft;
+        outline: none;
+        border: none;
+        font-size: 13px;
+    }
+
+    // Top Navigation Header
+    QWidget#qt_calendar_navigationbar {
+        background-color: @surface-raised;
+        border-bottom: 1px solid @border;
+        border-top-left-radius: 11px;
+        border-top-right-radius: 11px;
+        min-height: 42px;
+    }
+
+    // Prev/Next Month buttons
+    QToolButton#qt_calendar_prevmonth,
+    QToolButton#qt_calendar_nextmonth {
+        background: transparent;
+        qproperty-iconSize: 18px 18px;
+        width: 32px;
+        padding: 4px;
+        margin: 4px;
+        border-radius: 6px;
+
+        &:hover {
+            background-color: @surface-active;
+        }
+    }
+
+    // Month/Year menus in header
+    QToolButton#qt_calendar_monthbutton,
+    QToolButton#qt_calendar_yearbutton {
+        color: @text;
+        font-weight: 700;
+        font-size: 14px;
+        background: transparent;
+        padding: 4px 8px;
+        border-radius: 6px;
+
+        &:hover {
+            background-color: @surface-active;
+        }
+
+        &::menu-indicator {
+            image: none;
+        }
+    }
+
+    // Days header (LUN, MAR, etc)
+    //QWidget {
+    //    alternate-background-color: @surface-raised;
+    //    color: @text-muted;
+    //}
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+QLabel[ui_role="advanced_badge"] {
+    border-radius: @badge-radius;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background-color: rgba(161, 161, 170, 0.15);
+    color: @text-soft;
+
+    &[variant="success"] {
+        background-color: @color-success-bg;
+        color: @color-success-text;
+    }
+
+    &[variant="warning"] {
+        background-color: @color-warning-bg;
+        color: @color-warning-text;
+    }
+
+    &[variant="destructive"] {
+        background-color: @color-danger-bg;
+        color: @color-danger-text;
+    }
+
+    &[variant="info"] {
+        background-color: @color-info-bg;
+        color: @color-info-text;
+    }
+}
+
+// ── Tags input chips ─────────────────────────────────────────────────────────
+QFrame[ui_role="tags_input_chip"] {
+    border: 1px solid @color-info-border;
+    border-radius: 999px;
+    background-color: @color-info-bg;
+}
+
+QLabel[ui_role="tags_input_chip_label"] {
+    color: @color-info-text;
+    font-size: 11px;
+    font-weight: 700;
+    background: transparent;
+}
+
+QPushButton[ui_role="tags_input_chip_remove"] {
+    border: none;
+    background: transparent;
+    color: @color-info-text;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 14px;
+    max-width: 14px;
+    min-height: 14px;
+    max-height: 14px;
+    padding: 0;
+}
+
+QPushButton[ui_role="tags_input_chip_remove"]:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 7px;
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+QFrame[ui_role="advanced_skeleton_avatar"] {
+    background-color: @surface-active;
+    border-radius: 21px;
+}
+
+QFrame[ui_role="advanced_skeleton_line"] {
+    background-color: @surface-active;
+    border-radius: 6px;
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+QLabel[ui_role="advanced_progress_label"] {
+    color: @text;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QProgressBar[ui_role="advanced_progress_bar"] {
+    background-color: @input-bg;
+    border: none;
+    border-radius: 0px;
+    max-height: 4px;
+    color: transparent;
+    text-align: center;
+
+    &::chunk {
+        background-color: @color-info;
+        border-radius: 0px;
+    }
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+QToolButton[ui_role="advanced_dropdown_btn"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: 8px 12px;
+    color: @text;
+    font-size: 12px;
+    font-weight: 600;
+
+    &::menu-indicator {
+        image: none;
+    }
+}
+
+QMenu[ui_role="advanced_dropdown_menu"] {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border;
+    padding: 8px;
+
+    &::item {
+        padding: 8px 12px;
+        border-radius: 8px;
+
+        &:selected {
+            background-color: @surface-active;
+        }
+    }
+}
+
+// ── Alert ─────────────────────────────────────────────────────────────────────
+QFrame[ui_role="advanced_alert"] {
+    background-color: rgba(161, 161, 170, 0.12);
+    border: 1px solid @border-strong;
+    border-radius: @card-radius;
+
+    &[variant="info"] {
+        background-color: @color-info-bg;
+        border-color: @color-info-border;
+    }
+
+    &[variant="success"] {
+        background-color: @color-success-bg;
+        border-color: @color-success-border;
+    }
+
+    &[variant="warning"] {
+        background-color: @color-warning-bg;
+        border-color: @color-warning-border;
+    }
+
+    &[variant="destructive"] {
+        background-color: @color-danger-bg;
+        border-color: @color-danger-border;
+    }
+}
+
+QLabel[ui_role="advanced_alert_title"] {
+    color: @text-soft;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QFrame[ui_role="advanced_alert"] {
+    &[variant="info"] QLabel[ui_role="advanced_alert_title"] {
+        color: @color-info-text;
+    }
+
+    &[variant="success"] QLabel[ui_role="advanced_alert_title"] {
+        color: @color-success-text;
+    }
+
+    &[variant="warning"] QLabel[ui_role="advanced_alert_title"] {
+        color: @color-warning-text;
+    }
+
+    &[variant="destructive"] QLabel[ui_role="advanced_alert_title"] {
+        color: @color-danger-text;
+    }
+}
+
+QLabel[ui_role="advanced_alert_body"] {
+    color: @text;
+    font-size: 12px;
+}
+
+// ── Chat thread ───────────────────────────────────────────────────────────────
+QFrame[ui_role="advanced_thread"] {
+    background-color: transparent;
+    border: none;
+}
+
+QFrame[ui_role="advanced_message_bubble"] {
+    background-color: @surface-raised;
+    border: 1px solid darken(@border, 14%);
+    border-radius: 12px;
+
+    &[message_role="user"] {
+        background-color: fade(@surface-raised, 92%);
+        border: 1px solid @border;
+    }
+}
+
+QLabel[ui_role="advanced_message_body"] {
+    color: @text;
+    font-size: 14px;
+    line-height: 1.5;
+    background: transparent;
+    border: none;
+}
+
+QTextBrowser[ui_role="advanced_message_body"] {
+    color: @text;
+    font-size: 14px;
+    background: transparent;
+    border: none;
+}
+
+QLabel[ui_role="advanced_message_meta"] {
+    color: @text-disabled;
+    font-size: 11px;
+}
+
+// Inline icon actions (copy, etc)
+QToolButton[ui_role="message_action_icon_btn"] {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: @text-disabled;
+    font-size: 13px;
+    padding: 2px 4px;
+
+    &:hover {
+        background-color: @surface-active;
+        color: @text-muted;
+    }
+}
+
+QPushButton[ui_role="advanced_message_action"] {
+    background: transparent;
+    border: 1px solid @border;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: @text-muted;
+
+    &:hover {
+        color: @text;
+        border-color: @border-strong;
+    }
+}
+
+QToolButton[ui_role="advanced_message_action"] {
+    background: transparent;
+    border: 1px solid @border;
+    border-radius: 8px;
+    padding: 4px 10px;
+    color: @text-muted;
+    font-size: 12px;
+    font-weight: 500;
+
+    &:hover {
+        color: @text;
+        border-color: @border-strong;
+    }
+}
+
+QFrame[ui_role="advanced_message_component"] {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+QWidget[ui_role="advanced_message_surface"] {
+    background-color: fade(@surface, 80%);
+    border: 1px dashed fade(@border, 75%);
+    border-radius: 10px;
+    padding: 4px;
+}
+
+QFrame[ui_role="advanced_reasoning_wrap"] {
+    background: transparent;
+    border: none;
+}
+
+// ── Composer (icon toolbar) ───────────────────────────────────────────────────
+QFrame[ui_role="composer_outer"] {
+    background-color: transparent;
+}
+
+QFrame[ui_role="composer_attach_strip"] {
+    background-color: transparent;
+}
+
+QFrame[ui_role="advanced_composer"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: 16px;
+
+    &:focus-within {
+        border-color: @border-focus;
+    }
+}
+
+QTextEdit[ui_role="advanced_composer_input"] {
+    background: transparent;
+    border: none;
+    color: @text;
+    font-size: 14px;
+    padding: 2px 4px;
+}
+
+// Icon toolbar buttons (attach, audio)
+QToolButton[ui_role="composer_icon_btn"] {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    color: @text-muted;
+    font-size: 16px;
+
+    &:hover {
+        background-color: @surface-active;
+        color: @text;
+    }
+}
+
+QComboBox[ui_role="composer_model_select"] {
+    background-color: transparent;
+    border: 1px solid @border;
+    border-radius: 8px;
+    color: @text-muted;
+    padding: 4px 10px;
+    min-height: 28px;
+    font-size: 12px;
+
+    &:hover {
+        border-color: @border-strong;
+        color: @text;
+    }
+}
+
+QComboBox[ui_role="composer_model_select"]::drop-down {
+    border: none;
+    width: 18px;
+}
+
+QComboBox[ui_role="composer_model_select"]::down-arrow {
+    image: url(ric.arrow-down-s-line);
+    width: 14px;
+    height: 14px;
+}
+
+QToolButton[ui_role="composer_settings_btn"] {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    color: @text-muted;
+
+    &:hover {
+        background-color: @surface-active;
+        color: @text;
+    }
+}
+
+QMenu[ui_role="composer_settings_menu"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: 10px;
+    padding: 6px;
+}
+
+QMenu[ui_role="composer_settings_menu"]::item {
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+QMenu[ui_role="composer_settings_menu"]::item:selected {
+    background-color: @surface-active;
+}
+
+QFrame[ui_role="composer_capabilities_row"] {
+    background: transparent;
+}
+
+QLabel[ui_role="composer_capability_badge"] {
+    background-color: @surface-active;
+    border: 1px solid @border;
+    border-radius: 999px;
+    padding: 2px 8px;
+    color: @text-muted;
+    font-size: 11px;
+}
+
+// Audio active state
+QToolButton[ui_role="composer_audio_btn_active"] {
+    background-color: @color-danger-bg;
+    border: 1px solid @color-danger-border;
+    border-radius: 8px;
+    color: @color-danger;
+    font-size: 16px;
+}
+
+// Stop button
+QToolButton[ui_role="composer_stop_icon_btn"] {
+    background-color: @surface-active;
+    border: 1px solid @border;
+    border-radius: 8px;
+    color: @text-muted;
+    font-size: 14px;
+
+    &:hover {
+        color: @color-danger;
+        border-color: @color-danger-border;
+    }
+}
+
+// Send button — filled blue circle
+QToolButton[ui_role="composer_send_icon_btn"] {
+    background-color: @color-info;
+    border: none;
+    border-radius: 18px;
+    color: @text;
+    font-size: 18px;
+    font-weight: 700;
+
+    &:hover {
+        background-color: darken(@color-info, 8%);
+    }
+
+    &:disabled {
+        background-color: @surface-active;
+        color: @text-disabled;
+    }
+}
+
+// ── Attachment chip ────────────────────────────────────────────────────────────
+QFrame[ui_role="composer_attach_chip"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: 10px;
+    min-width: 120px;
+    max-width: 200px;
+}
+
+QLabel[ui_role="composer_attach_thumb"] {
+    background-color: @surface-active;
+    border-radius: 6px;
+    color: @text-muted;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+QLabel[ui_role="composer_attach_ext"] {
+    background-color: @surface-active;
+    border-radius: 6px;
+    color: @text-muted;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+QLabel[ui_role="composer_attach_name"] {
+    color: @text;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QLabel[ui_role="composer_attach_size"] {
+    color: @text-disabled;
+    font-size: 10px;
+}
+
+QToolButton[ui_role="composer_attach_remove"] {
+    background: transparent;
+    border: none;
+    color: @text-muted;
+    font-size: 11px;
+
+    &:hover {
+        color: @color-danger;
+    }
+}
+
+// ── Thread list ───────────────────────────────────────────────────────────────
+QListWidget[ui_role="advanced_thread_list"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @card-radius;
+    color: @text;
+    padding: 6px;
+
+    &::item {
+        padding: 10px;
+        border-radius: 10px;
+
+        &:selected {
+            background-color: @color-info-bg;
+        }
+    }
+}
+
+
+// ── Suggestion / scroll buttons ───────────────────────────────────────────────
+QPushButton[ui_role="advanced_suggestion_btn"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @badge-radius;
+    padding: 8px 12px;
+    color: @text;
+
+    &:hover {
+        border-color: @border-strong;
+    }
+}
+
+QPushButton[ui_role="advanced_scroll_bottom_btn"] {
+    background-color: @color-info;
+    border: none;
+    border-radius: @badge-radius;
+    padding: 8px 14px;
+    color: @text;
+    font-weight: 700;
+}

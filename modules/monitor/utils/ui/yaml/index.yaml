@@ -1,0 +1,23 @@
+- kind: Column
+  stretch: True
+  padding: [12,12,12,12]
+  children:
+    - kind: Tabs
+      id: nav_tabs
+      tabs:
+        - id: tasks
+          label: "@t/monitor.nav.tasks"
+          route: "/monitor/task/list"
+        - id: llm
+          label: "@t/monitor.nav.models_usage"
+          route: "/monitor/llm"
+        - id: pipeline
+          label: "@t/monitor.nav.pipelines"
+          route: "/monitor/pipeline"
+        - id: audit
+          label: "@t/monitor.nav.audit"
+          route: "/monitor/audit"
+        - id: stats
+          label: "@t/monitor.nav.stats"
+          route: "/monitor/stats"
+      children: []

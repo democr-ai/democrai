@@ -1,0 +1,73 @@
+{
+  "manifest_version": "1",
+  "id": "ai_image",
+  "name": "AI Image Extractor",
+  "kind": "extractor",
+  "entrypoint": "extractors.ai_image.extractor:AIImageExtractor",
+  "icon_url": "extractors/ai_image/assets/icon.png",
+  "file_extensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".gif",
+    ".tif",
+    ".tiff",
+    ".webp"
+  ],
+  "mime_types": [
+    "image/png",
+    "image/jpeg",
+    "image/bmp",
+    "image/gif",
+    "image/tiff",
+    "image/webp"
+  ],
+  "dependencies": [],
+  "install": {
+    "access": []
+  },
+  "runtime": {
+    "access": [],
+    "config_schema": [
+      {
+        "name": "model_registry_id",
+        "label": "Image-to-text model",
+        "type": "select",
+        "source": {
+          "type": "model_registry",
+          "capability": "image_to_text"
+        },
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Image-to-text model is required"
+          }
+        ]
+      },
+      {
+        "name": "prompt",
+        "label": "Prompt",
+        "type": "textarea",
+        "required": false
+      },
+      {
+        "name": "temperature",
+        "label": "Temperature",
+        "type": "number",
+        "value": 0.0,
+        "min": 0,
+        "max": 2,
+        "step": 0.1
+      },
+      {
+        "name": "max_tokens",
+        "label": "Max tokens",
+        "type": "number",
+        "value": 900,
+        "min": 1,
+        "step": 1
+      }
+    ]
+  }
+}

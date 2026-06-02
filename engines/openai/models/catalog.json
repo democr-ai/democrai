@@ -1,0 +1,143 @@
+{
+  "engine_id": "openai",
+  "models": [
+    {
+      "id": "gpt-5.5",
+      "engine_id": "openai",
+      "label": "GPT-5.5",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "OpenAI flagship reasoning model for complex coding and professional work.",
+      "runtime": {
+        "model_ref": "gpt-5.5",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "hidden",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "select",
+            "default": "medium",
+            "values": ["none", "low", "medium", "high", "xhigh"]
+          }
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4",
+      "engine_id": "openai",
+      "label": "GPT-5.4",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "OpenAI reasoning model for coding and professional work.",
+      "runtime": {
+        "model_ref": "gpt-5.4",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "hidden",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "select",
+            "default": "medium",
+            "values": ["none", "low", "medium", "high", "xhigh"]
+          }
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-chat-latest",
+      "engine_id": "openai",
+      "label": "GPT-5.3 Chat",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "OpenAI GPT-5.3 Instant chat model.",
+      "runtime": {
+        "model_ref": "gpt-5.3-chat-latest",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "text-embedding-3-large",
+      "engine_id": "openai",
+      "label": "Text Embedding 3 Large",
+      "format": "remote",
+      "capabilities": ["embedding"],
+      "extended_capabilities": [],
+      "summary": "OpenAI large embedding model.",
+      "runtime": {
+        "model_ref": "text-embedding-3-large",
+        "defaults": {
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "text-embedding-3-small",
+      "engine_id": "openai",
+      "label": "Text Embedding 3 Small",
+      "format": "remote",
+      "capabilities": ["embedding"],
+      "extended_capabilities": [],
+      "summary": "OpenAI small embedding model.",
+      "runtime": {
+        "model_ref": "text-embedding-3-small",
+        "defaults": {
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    }
+  ]
+}

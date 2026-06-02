@@ -1,0 +1,240 @@
+/* Buttons */
+QPushButton {
+    background-color: #fafafa;
+    color: #09090b;
+    border: 1px solid #fafafa;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    padding: 5px 18px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background-color: #e4e4e7;
+    border-color: #e4e4e7;
+}
+
+QPushButton:pressed {
+    background-color: #d4d4d8;
+    border-color: #d4d4d8;
+}
+
+QPushButton:disabled {
+    background-color: #18181b;
+    border-color: #18181b;
+    color: #71717a;
+}
+
+/* Appearance aliases */
+QPushButton[appearance="default"],
+QPushButton[mode="solid"] {
+    background-color: #fafafa;
+    color: #09090b;
+    border-color: #fafafa;
+}
+
+QPushButton[appearance="secondary"],
+QPushButton[variant="secondary"] {
+    background-color: #18181b;
+    color: #fafafa;
+    border-color: #27272a;
+}
+
+QPushButton[appearance="outline"] {
+    background-color: transparent;
+    color: #fafafa;
+    border: 1px solid #3f3f46;
+}
+
+QPushButton[appearance="outline"]:hover {
+    background-color: #18181b;
+}
+
+QPushButton[appearance="ghost"],
+QPushButton[mode="ghost"],
+QPushButton[variant="ghost"] {
+    background-color: transparent;
+    color: #fafafa;
+    border: 1px solid transparent;
+}
+
+QPushButton[appearance="ghost"]:hover,
+QPushButton[mode="ghost"]:hover,
+QPushButton[variant="ghost"]:hover {
+    background-color: #18181b;
+}
+
+QPushButton[appearance="link"],
+QPushButton[mode="link"],
+QPushButton[variant="link"] {
+    background-color: transparent;
+    border: none;
+    color: #e4e4e7;
+    text-decoration: underline;
+    text-align: left;
+    padding: 4px;
+}
+
+QPushButton[appearance="link"]:hover,
+QPushButton[mode="link"]:hover,
+QPushButton[variant="link"]:hover {
+    color: #fafafa;
+    background-color: transparent;
+}
+
+QPushButton[appearance="link"],
+QPushButton[mode="link"],
+QPushButton[variant="link"],
+QPushButton[appearance="link"]:hover,
+QPushButton[mode="link"]:hover,
+QPushButton[variant="link"]:hover,
+QPushButton[appearance="link"]:pressed,
+QPushButton[mode="link"]:pressed,
+QPushButton[variant="link"]:pressed,
+QPushButton[appearance="link"]:checked,
+QPushButton[mode="link"]:checked,
+QPushButton[variant="link"]:checked {
+    background: transparent;
+    background-color: transparent;
+}
+
+/* Variants (with legacy aliases) */
+QPushButton[variant="default"],
+QPushButton[variant="primary"] {
+    background-color: #fafafa;
+    color: #09090b;
+    border-color: #fafafa;
+}
+
+QPushButton[variant="secondary"],
+QPushButton[variant="info"] {
+    background-color: #18181b;
+    color: #fafafa;
+    border-color: #27272a;
+}
+
+QPushButton[variant="destructive"],
+QPushButton[variant="danger"] {
+    background-color: #ef4444;
+    color: #fafafa;
+    border-color: #ef4444;
+}
+
+QPushButton[variant="destructive"][appearance="ghost"],
+QPushButton[variant="danger"][mode="ghost"],
+QPushButton[variant="destructive"][appearance="outline"],
+QPushButton[variant="danger"][appearance="outline"] {
+    background-color: transparent;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+QPushButton[variant="destructive"][appearance="ghost"]:hover,
+QPushButton[variant="danger"][mode="ghost"]:hover,
+QPushButton[variant="destructive"][appearance="outline"]:hover,
+QPushButton[variant="danger"][appearance="outline"]:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #fafafa;
+}
+
+QPushButton[variant="success"] {
+    background-color: #22c55e;
+    color: #052e16;
+    border-color: #22c55e;
+}
+
+QPushButton[variant="warning"] {
+    background-color: #f59e0b;
+    color: #111827;
+    border-color: #f59e0b;
+}
+
+/* Keep ghost transparent even when variant is default/primary/etc. */
+QPushButton[appearance="ghost"][variant="default"],
+QPushButton[mode="ghost"][variant="default"],
+QPushButton[appearance="ghost"][variant="primary"],
+QPushButton[mode="ghost"][variant="primary"],
+QPushButton[appearance="ghost"][variant="secondary"],
+QPushButton[mode="ghost"][variant="secondary"],
+QPushButton[appearance="ghost"][variant="info"],
+QPushButton[mode="ghost"][variant="info"] {
+    background-color: transparent;
+    border-color: #3f3f46;
+    color: #fafafa;
+}
+
+QPushButton[appearance="ghost"][variant="success"],
+QPushButton[mode="ghost"][variant="success"] {
+    background-color: transparent;
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
+QPushButton[appearance="ghost"][variant="warning"],
+QPushButton[mode="ghost"][variant="warning"] {
+    background-color: transparent;
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+QPushButton[appearance="ghost"][variant="default"]:hover,
+QPushButton[mode="ghost"][variant="default"]:hover,
+QPushButton[appearance="ghost"][variant="primary"]:hover,
+QPushButton[mode="ghost"][variant="primary"]:hover,
+QPushButton[appearance="ghost"][variant="secondary"]:hover,
+QPushButton[mode="ghost"][variant="secondary"]:hover,
+QPushButton[appearance="ghost"][variant="info"]:hover,
+QPushButton[mode="ghost"][variant="info"]:hover,
+QPushButton[appearance="ghost"][variant="success"]:hover,
+QPushButton[mode="ghost"][variant="success"]:hover,
+QPushButton[appearance="ghost"][variant="warning"]:hover,
+QPushButton[mode="ghost"][variant="warning"]:hover {
+    background-color: #18181b;
+    border-color: #52525b;
+    color: #fafafa;
+}
+
+/* Sizes and shape */
+QPushButton[btnsize="sm"],
+QPushButton[btnsize="small"] {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+QPushButton[btnsize="lg"],
+QPushButton[btnsize="large"] {
+    font-size: 15px;
+    padding: 9px 24px;
+}
+
+QPushButton[shape="round"],
+QPushButton[shape="icon"] {
+    padding: 6px;
+}
+
+QPushButton[btnsize="sm"][shape="round"],
+QPushButton[btnsize="small"][shape="round"],
+QPushButton[btnsize="sm"][shape="icon"],
+QPushButton[btnsize="small"][shape="icon"] {
+    padding: 3px;
+}
+
+QPushButton[btnsize="lg"][shape="round"],
+QPushButton[btnsize="large"][shape="round"],
+QPushButton[btnsize="lg"][shape="icon"],
+QPushButton[btnsize="large"][shape="icon"] {
+    padding: 9px;
+}
+
+QPushButton[shape="round"][active="true"] {
+    background-color: #fafafa;
+    color: #09090b;
+}
+
+QPushButton[shape="round"][active="true"][appearance="ghost"]:hover,
+QPushButton[shape="round"][active="true"][mode="ghost"]:hover {
+    background-color: #18181b;
+    border-color: #52525b;
+    color: #fafafa;
+}

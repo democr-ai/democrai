@@ -1,0 +1,293 @@
+- kind: Column
+  id: components_flow_stream_binding_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_stream_binding_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_stream_binding_eyebrow
+      text: '@t/components.flow.stream_binding.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_stream_binding_title
+      text: '@t/components.flow.stream_binding.title'
+      level: 1
+    - kind: Text
+      id: components_flow_stream_binding_description
+      text: '@t/components.flow.stream_binding.description'
+      muted: true
+  - kind: Card
+    id: components_flow_stream_binding_live_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: StreamBinding
+      id: components_flow_stream_binding_latest
+      stream: system.runtime.metrics.events
+      event: runtime.metrics.sample
+      target:
+        store: page
+        path: /components_flow/stream_binding/latest
+        mode: set
+        mappings:
+          cpu: $.cpu_percent
+          ram: $.ram_used_percent
+          vram: $.vram_used_percent
+          label: $.label
+    - kind: StreamBinding
+      id: components_flow_stream_binding_cpu
+      stream: system.runtime.metrics.events
+      event: runtime.metrics.sample
+      target:
+        store: page
+        path: /components_flow/stream_binding/cpu
+        mode: append_window
+        window: 12
+        mappings:
+          data: $.cpu_percent
+    - kind: StreamBinding
+      id: components_flow_stream_binding_ram
+      stream: system.runtime.metrics.events
+      event: runtime.metrics.sample
+      target:
+        store: page
+        path: /components_flow/stream_binding/ram
+        mode: append_window
+        window: 12
+        mappings:
+          data: $.ram_used_percent
+    - kind: StreamBinding
+      id: components_flow_stream_binding_vram
+      stream: system.runtime.metrics.events
+      event: runtime.metrics.sample
+      target:
+        store: page
+        path: /components_flow/stream_binding/vram
+        mode: append_window
+        window: 12
+        mappings:
+          data: $.vram_used_percent
+    - kind: Title
+      id: components_flow_stream_binding_live_title
+      text: '@t/components.flow.stream_binding.live.title'
+      level: 3
+    - kind: Text
+      id: components_flow_stream_binding_live_description
+      text: '@t/components.flow.stream_binding.live.description'
+      muted: true
+    - kind: Text
+      id: components_flow_stream_binding_latest_label
+      text: '@state/page/components_flow/stream_binding/latest/label'
+      muted: true
+    - kind: Column
+      id: components_flow_stream_binding_progress_stack
+      spacing: 14
+      align: fill
+      children:
+      - kind: Column
+        id: components_flow_stream_binding_cpu_metric
+        spacing: 6
+        children:
+        - kind: Row
+          id: components_flow_stream_binding_cpu_value_row
+          spacing: 6
+          children:
+          - kind: Text
+            id: components_flow_stream_binding_cpu_label
+            text: '@t/components.flow.stream_binding.cpu'
+          - kind: Text
+            id: components_flow_stream_binding_cpu_value
+            text: '@state/page/components_flow/stream_binding/latest/cpu'
+          - kind: Text
+            id: components_flow_stream_binding_cpu_percent
+            text: '%'
+        - kind: Progress
+          id: components_flow_stream_binding_cpu_progress
+          value:
+            type: store
+            scope: page
+            path: /components_flow/stream_binding/latest/cpu
+            default: 0
+          maximum: 100
+          label: '@t/components.flow.stream_binding.cpu'
+      - kind: Column
+        id: components_flow_stream_binding_ram_metric
+        spacing: 6
+        children:
+        - kind: Row
+          id: components_flow_stream_binding_ram_value_row
+          spacing: 6
+          children:
+          - kind: Text
+            id: components_flow_stream_binding_ram_label
+            text: '@t/components.flow.stream_binding.ram'
+          - kind: Text
+            id: components_flow_stream_binding_ram_value
+            text: '@state/page/components_flow/stream_binding/latest/ram'
+          - kind: Text
+            id: components_flow_stream_binding_ram_percent
+            text: '%'
+        - kind: Progress
+          id: components_flow_stream_binding_ram_progress
+          value:
+            type: store
+            scope: page
+            path: /components_flow/stream_binding/latest/ram
+            default: 0
+          maximum: 100
+          label: '@t/components.flow.stream_binding.ram'
+      - kind: Column
+        id: components_flow_stream_binding_vram_metric
+        spacing: 6
+        children:
+        - kind: Row
+          id: components_flow_stream_binding_vram_value_row
+          spacing: 6
+          children:
+          - kind: Text
+            id: components_flow_stream_binding_vram_label
+            text: '@t/components.flow.stream_binding.vram'
+          - kind: Text
+            id: components_flow_stream_binding_vram_value
+            text: '@state/page/components_flow/stream_binding/latest/vram'
+          - kind: Text
+            id: components_flow_stream_binding_vram_percent
+            text: '%'
+        - kind: Progress
+          id: components_flow_stream_binding_vram_progress
+          value:
+            type: store
+            scope: page
+            path: /components_flow/stream_binding/latest/vram
+            default: 0
+          maximum: 100
+          label: '@t/components.flow.stream_binding.vram'
+    - kind: Row
+      id: components_flow_stream_binding_chart_row
+      spacing: 18
+      align: fill
+      children:
+      - kind: Chart
+        id: components_flow_stream_binding_cpu_chart
+        chart_type: line
+        data:
+          type: store
+          scope: page
+          path: /components_flow/stream_binding/cpu/data
+        title: '@t/components.flow.stream_binding.cpu_chart'
+        max_height: 240
+      - kind: Chart
+        id: components_flow_stream_binding_ram_chart
+        chart_type: area
+        data:
+          type: store
+          scope: page
+          path: /components_flow/stream_binding/ram/data
+        title: '@t/components.flow.stream_binding.ram_chart'
+        max_height: 240
+      - kind: Chart
+        id: components_flow_stream_binding_vram_chart
+        chart_type: line
+        data:
+          type: store
+          scope: page
+          path: /components_flow/stream_binding/vram/data
+        title: '@t/components.flow.stream_binding.vram_chart'
+        max_height: 240
+  - kind: Card
+    id: components_flow_stream_binding_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_stream_binding_definition_title
+      text: '@t/components.flow.stream_binding.definition.title'
+      level: 3
+    - kind: Text
+      id: components_flow_stream_binding_definition_description
+      text: '@t/components.flow.stream_binding.definition.description'
+      muted: true
+    - kind: Row
+      id: components_flow_stream_binding_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_flow_stream_binding_python_code
+        text: '@t/components.flow.stream_binding.definition.python'
+      - kind: Markdown
+        id: components_flow_stream_binding_yaml_code
+        text: '@t/components.flow.stream_binding.definition.yaml'
+  - kind: Card
+    id: components_flow_stream_binding_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_stream_binding_binding_title
+      text: '@t/components.flow.stream_binding.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_stream_binding_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/stream_binding/bindings'
+      model:
+      - field: binding
+        header: '@t/components.flow.stream_binding.table.binding'
+        type: str
+      - field: stream
+        header: '@t/components.flow.stream_binding.table.stream'
+        type: str
+      - field: mode
+        header: '@t/components.flow.stream_binding.table.mode'
+        type: str
+      - field: target
+        header: '@t/components.flow.stream_binding.table.target'
+        type: str
+  - kind: Card
+    id: components_flow_stream_binding_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_stream_binding_properties_title
+      text: '@t/components.flow.stream_binding.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_stream_binding_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/stream_binding/properties'
+      model:
+      - field: property
+        header: '@t/components.flow.stream_binding.table.property'
+        type: str
+      - field: type
+        header: '@t/components.flow.stream_binding.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.flow.stream_binding.table.usage'
+        type: str

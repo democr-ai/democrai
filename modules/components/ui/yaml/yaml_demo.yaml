@@ -1,0 +1,62 @@
+template: full
+surface_id: yaml_demo_ui
+components:
+  - "@include/ui/yaml/sub_stats"
+  - kind: Card
+    id: yaml_hero_card
+    title: "🚀 Power of YAML UI"
+    children:
+      - kind: Text
+        id: yaml_intro_text
+        text: "This interface was loaded entirely from a YAML file. By modifying the YAML file, the interface will change without touching a single line of Python code."
+      - kind: Row
+        id: yaml_info_row
+        spacing: 20
+        children:
+          - kind: Card
+            id: yaml_page_scope_card
+            variant: "outline"
+            title: "Page Scope"
+            children:
+              - kind: Text
+                text: #"@state/page/local_counter"
+                  type: store
+                  path: local_counter
+                  scope: page
+                  default: 0
+              - kind: Button
+                label: "+1 Local"
+                action: "components.yaml_demo_increment"
+                params: 
+                  scope: "page"
+                  current_value: { type: store, scope: page, path: "/local_counter", default: 0}
+          - kind: Card
+            id: yaml_global_scope_card
+            variant: "outline"
+            title: "Global Scope"
+            children:
+              - kind: Text
+                text: "@state/global/global_counter"
+                  #type: store
+                  #path: global_counter
+                  #scope: global
+                  #default: 0
+              - kind: Button
+                label: "+1 Global"
+                action: "components.yaml_demo_increment"
+                params: 
+                  scope: "global"
+                  #current_value: { type: store, scope: global, path: "/global_counter"}
+                  current_value: "@state/global/global_counter"
+      - kind: Column
+        id: yaml_tags_col
+        spacing: 12
+        children:
+          - kind: Title
+            level: 1
+            text: "@t/components.tag_example"
+          - kind: ClientTag
+            id: demo_sidebar_tag
+            tag: "@tag/APP_MAIN_LIST_TAG"
+          - kind: Text
+            text: "The tag above allows the system to inject components dynamically at this point in the YAML (if configured)."

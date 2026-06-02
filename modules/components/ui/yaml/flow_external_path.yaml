@@ -1,0 +1,114 @@
+- kind: Column
+  id: components_flow_external_path_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_external_path_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_external_path_eyebrow
+      text: '@t/components.flow.external.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_external_path_title
+      text: '@t/components.flow.external_path.title'
+      level: 1
+    - kind: Text
+      id: components_flow_external_path_description
+      text: '@t/components.flow.external_path.description'
+      muted: true
+  - kind: Card
+    id: components_flow_external_path_overview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_external_path_overview_title
+      text: '@t/components.flow.state.overview.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_external_path_overview_text
+      text: '@t/components.flow.external_path.overview'
+  - kind: Card
+    id: components_flow_external_path_check_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_external_path_check_title
+      text: '@t/components.flow.external.check.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_external_path_check_text
+      text: '@t/components.flow.external_path.check'
+  - kind: Card
+    id: components_flow_external_path_require_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_external_path_require_title
+      text: '@t/components.flow.external.require.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_external_path_require_text
+      text: '@t/components.flow.external_path.require'
+  - kind: Card
+    id: components_flow_external_path_admin_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_external_path_admin_title
+      text: '@t/components.flow.external.admin.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_external_path_admin_text
+      text: '@t/components.flow.external_path.admin'
+  - kind: Card
+    id: components_flow_external_path_api_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_external_path_api_title
+      text: '@t/components.flow.state.api.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_external_path_api_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/external_path/api'
+      model:
+      - field: operation
+        header: '@t/components.flow.state.table.operation'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str

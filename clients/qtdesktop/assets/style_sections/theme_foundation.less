@@ -1,0 +1,332 @@
+/* =========================
+   Theme Foundation
+   Zinc-dark palette — single source of truth for all tokens.
+   Every component file must use these variables ONLY.
+   ========================= */
+
+// ── Base backgrounds ────────────────────────────────────────────────────────
+@bg: #0a0a0a; // app background
+@bg-deep: #050505; // deepest surfaces (video, code bg)
+@primary-color: #171717;// #0b172f;
+@surface: #171717; //#171717 // cards, sidebar, panels
+@surface-raised: darken(@surface, 20%); // elevated cards, dialogs
+@surface-muted: darken(@surface, 20%); // inputs, secondary surfaces
+@surface-active: darken(@surface, 20%);//#202020; // hover/active state on surfaces
+@main-content-bg: #000000; // global page background for main content surface
+
+// ── Borders ─────────────────────────────────────────────────────────────────
+@border: #27272a; // default border
+@border-strong: #3f3f46; // stronger border (focus ring, dividers)
+@border-focus: #52525b; // input focus border
+@border-subtle: #1f1f22; // very subtle separators
+
+// ── Text ────────────────────────────────────────────────────────────────────
+@text: #fafafa; // primary text
+@text-soft: #e4e4e7; // secondary text
+@text-muted: #a1a1aa; // muted/placeholder labels
+@text-disabled: #71717a; // disabled state text
+@text-inverse: #09090b; // text on light backgrounds
+
+// ── Semantic colors ──────────────────────────────────────────────────────────
+@color-danger: #ef4444;
+@color-danger-bg: rgba(239, 68, 68, 0.12);
+@color-danger-border: rgba(239, 68, 68, 0.35);
+@color-danger-text: #fca5a5;
+
+@color-success: #22c55e;
+@color-success-bg: rgba(34, 197, 94, 0.12);
+@color-success-border: rgba(34, 197, 94, 0.35);
+@color-success-text: #86efac;
+
+@color-warning: #f59e0b;
+@color-warning-bg: rgba(245, 158, 11, 0.12);
+@color-warning-border: rgba(245, 158, 11, 0.35);
+@color-warning-text: #fcd34d;
+
+@color-info: #3b82f6;
+@color-info-bg: rgba(59, 130, 246, 0.12);
+@color-info-border: rgba(59, 130, 246, 0.35);
+@color-info-text: #93c5fd;
+
+// ── Component-level tokens ───────────────────────────────────────────────────
+@card-bg: @surface-raised;
+@card-radius: 6px;
+@card-border: @border;
+
+@input-bg: @surface-muted;
+@input-radius: 8px;
+@input-padding: 10px 14px;
+
+@main-sidebar-bg: @primary-color;// @surface;
+@main-sidebar-border: lighten(@primary-color, 20%);// @surface;
+@main-sidebar-icon-active: @text;
+@main-sidebar-icon-idle: @text-muted;
+@main-sidebar-active-marker: @color-info;
+@sidebar-bg: @surface;// @surface;
+@sidebar-border: lighten(@surface, 20%);//@border;
+
+@badge-radius: 8px;
+@drawer-close-border: #334155;
+@drawer-close-border-hover: #64748b;
+@drawer-close-text: #94a3b8;
+@drawer-close-text-hover: #f1f5f9;
+@notification-badge-bg: #ef4444;
+@notification-badge-text: #ffffff;
+
+// ── Descriptions component tokens ───────────────────────────────────────────
+@descriptions-header-bg: @surface-active;
+@descriptions-key-bg: @surface-muted;
+@descriptions-key-text: @text-soft;
+
+// ── Legacy aliases (keep for backward compat) ────────────────────────────────
+@black: @bg;
+@white: #e5e5e5;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+#app_global_drawer_host{
+    background-color: @bg;
+    border-left: 1px solid @border;
+    padding-top: 20px;
+    #global_drawer_shell, #global_drawer_scroll, #global_drawer_scroll_content{
+        background: @bg;
+    }
+}
+[class="container"] {
+    background-color: @bg;
+}
+#bottom_nav_language__input{
+    padding: 0;
+    border: none;
+    margin-left: 18px;
+    background: transparent;
+}
+
+#drawer_close_btn {
+    background: @bg;
+    border: 1px solid @drawer-close-border;
+    border-radius: 999px;
+    color: @drawer-close-text;
+    font-size: 11px;
+    font-weight: bold;
+}
+#drawer_close_btn:hover {
+    color: @drawer-close-text-hover;
+    border-color: @drawer-close-border-hover;
+}
+
+QLabel[ui_role="notification_badge"] {
+    background-color: @notification-badge-bg;
+    color: @notification-badge-text;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 0 2px;
+}
+QWidget {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: @text-soft;
+}
+
+QMainWindow {
+    background-color: @bg;
+}
+
+#toast_viewport {
+    background: transparent;
+}
+
+QFrame#toast_chip {
+    background-color: @bg;
+    border: 1px solid @border;
+    border-radius: 14px;
+}
+
+QLabel#toast_title {
+    color: @color-warning-text;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#toast_body {
+    color: @text-soft;
+    font-size: 12px;
+}
+
+QFrame#toast_chip[toast_variant="success"] {
+    background-color: @color-success-bg;
+    border-color: @color-success-border;
+}
+
+QFrame#toast_chip[toast_variant="warning"] {
+    background-color: @color-warning-bg;
+    border-color: @color-warning-border;
+}
+
+QFrame#toast_chip[toast_variant="error"],
+QFrame#toast_chip[toast_variant="destructive"] {
+    background-color: @color-danger-bg;
+    border-color: @color-danger-border;
+}
+
+QFrame#toast_chip[toast_variant="info"] {
+    background-color: @color-info-bg;
+    border-color: @color-info-border;
+}
+
+QDialog {
+    background-color: @surface-raised;
+}
+
+#main_layout,
+#root,
+#ui_container,
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+#ui_container {
+    background-color: @main-content-bg;
+}
+
+#scroll_sidebar_content,
+QScrollArea#scroll_sidebar,
+QScrollArea#scroll_sidebar > QWidget,
+QScrollArea#scroll_sidebar QWidget#qt_scrollarea_viewport {
+    background-color: @sidebar-bg;
+}
+
+#scroll_sidebar_content {
+    background-color: @sidebar-bg;
+    border-right: 1px solid @sidebar-border;
+    height: 100%;
+    padding: 0;
+}
+
+#main_sidebar {
+    background-color: @main-sidebar-bg;
+    border-right: 1px solid @main-sidebar-border;
+}
+
+#main_header {
+    background-color: @main-sidebar-bg;
+    border-bottom: 1px solid @main-sidebar-border;
+}
+
+QFrame[ui_role="header"] {
+    background-color: @main-sidebar-bg;
+    border-bottom: 1px solid @main-sidebar-border;
+    padding: 2px;
+}
+
+QFrame[ui_role="layout_preview_box"] {
+    border: 1px dashed @border-strong;
+}
+
+QFrame[ui_role="sidebar_panel"] {
+    background-color: @sidebar-bg;
+    border-right: 1px solid @sidebar-border;
+}
+
+// ── Container ───────────────────────────────────────────────────────────────
+
+/*
+#components_preview_content {
+    background-color: @surface;
+}
+
+#scroll_preview_content{
+    background-color: @bg;
+}
+*/
+
+// ── Typography ───────────────────────────────────────────────────────────────
+QLabel {
+    color: @text;
+    margin-bottom: 6px;
+
+    &[title="1"] {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    &[title="2"] {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    &[title="3"] {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    &[title="4"],
+    &[title="5"] {
+        font-weight: 600;
+        color: @text-muted;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+    }
+
+    &[title="5"] {
+        font-size: 9px;
+    }
+}
+
+// ── Base controls ────────────────────────────────────────────────────────────
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QListWidget {
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    color: @text;
+    padding: @input-padding;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+}
+
+QLineEdit {
+    &::placeholder {
+        color: @text-disabled;
+    }
+}
+
+QComboBox::drop-down {
+    border: none;
+    background: transparent;
+    width: 20px;
+}
+
+QComboBox QAbstractItemView,
+QListWidget {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border;
+    padding: 2px;
+    margin: 0;
+    outline: none;
+    selection-background-color: @border;
+    selection-color: @text;
+}
+
+QComboBox QAbstractItemView::item {
+    background: transparent;
+    color: @text;
+    padding: 4px 8px;
+    border: none;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background: @surface-active;
+    color: @text;
+}

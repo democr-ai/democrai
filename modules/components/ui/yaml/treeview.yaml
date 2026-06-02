@@ -1,0 +1,417 @@
+- kind: Column
+  id: components_complex_treeview_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_treeview_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_treeview_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_treeview_title
+      text: '@t/components.complex.treeview.title'
+      level: 1
+    - kind: Text
+      id: components_complex_treeview_description
+      text: '@t/components.complex.treeview.description'
+      muted: true
+  - kind: Card
+    id: components_complex_treeview_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_treeview_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_treeview_preview_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_treeview_navigation_col
+        spacing: 10
+        children:
+        - kind: TreeView
+          id: components_complex_treeview_navigation
+          min_height: 280
+          full_height: true
+          nodes:
+          - id: workspace
+            label: Workspace
+            expanded: true
+            selectable: false
+            children:
+            - id: overview
+              type: nav
+              label: Overview
+              path: /components/index
+              icon: ric.home-2-line
+              value: overview
+            - id: treeview
+              type: nav
+              label: TreeView
+              path: /components/_complex/treeview
+              icon: ric.node-tree
+              value: treeview
+            - id: locked
+              label: Locked branch
+              selectable: false
+            - id: disabled
+              label: Disabled item
+              disabled: true
+          click_action: nav
+          select_action: components.treeview_select
+          params:
+            source: navigation_preview
+          expand_all: false
+          click_mode: single
+          selection_mode: single
+          active_id: treeview
+          active_as_selection: true
+        - kind: Text
+          id: components_complex_treeview_selected_text
+          text:
+            type: store
+            scope: page
+            path: /components_complex/treeview/selected
+            default: No selection yet
+          muted: true
+      - kind: TreeView
+        id: components_complex_treeview_multi
+        min_height: 280
+        nodes:
+        - id: permissions
+          label: Permissions
+          expanded: true
+          selectable: false
+          children:
+          - id: read
+            label: Read
+            value: read
+            icon: ric.eye-line
+          - id: write
+            label: Write
+            value: write
+            icon: ric.edit-line
+          - id: delete
+            label: Delete
+            value: delete
+            icon: ric.delete-bin-2-line
+        - id: environments
+          label: Environments
+          expanded: true
+          selectable: false
+          children:
+          - id: staging
+            label: Staging
+            value: staging
+          - id: production
+            label: Production
+            value: production
+        select_action: components.treeview_select
+        params:
+          source: multi_select_preview
+        click_mode: none
+        selection_mode: multiple
+        expand_all: true
+  - kind: Card
+    id: components_complex_treeview_confirm_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_treeview_confirm_title
+      text: '@t/components.complex.treeview.confirm.title'
+      level: 3
+    - kind: TreeView
+      id: components_complex_treeview_confirm
+      min_height: 180
+      nodes:
+      - id: confirm_root
+        label: Confirmable actions
+        expanded: true
+        selectable: false
+        children:
+        - id: confirm_alpha
+          label: Alpha node
+          value: alpha
+        - id: confirm_beta
+          label: Beta node
+          value: beta
+      select_action:
+        name: components.treeview_confirm
+        context:
+          source: confirm_tree
+        confirm:
+          text: '@t/components.complex.treeview.confirm.prompt'
+          confirm_text: '@t/components.complex.treeview.confirm.accept'
+          cancel_text: '@t/components.complex.treeview.confirm.cancel'
+      click_mode: none
+      selection_mode: single
+      expand_all: true
+  - kind: Card
+    id: components_complex_treeview_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_treeview_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_treeview_runtime_description
+      text: '@t/components.complex.treeview.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_treeview_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_treeview_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_treeview_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TreeView
+            id: components_complex_treeview_page
+            min_height: 220
+            nodes:
+              type: store
+              scope: page
+              path: /components_complex/treeview/nodes
+            active_id:
+              type: store
+              scope: page
+              path: /components_complex/treeview/active_id
+            expand_all:
+              type: store
+              scope: page
+              path: /components_complex/treeview/expand_all
+            click_mode:
+              type: store
+              scope: page
+              path: /components_complex/treeview/click_mode
+            selection_mode:
+              type: store
+              scope: page
+              path: /components_complex/treeview/selection_mode
+            select_action: components.treeview_select
+            params:
+              source: page_store
+          - kind: Button
+            id: components_complex_treeview_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.treeview_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_treeview_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TreeView
+            id: components_complex_treeview_data
+            min_height: 220
+            nodes: '@data/components_complex/treeview_model/nodes'
+            active_id: '@data/components_complex/treeview_model/active_id'
+            expand_all: '@data/components_complex/treeview_model/expand_all'
+            click_mode: '@data/components_complex/treeview_model/click_mode'
+            selection_mode: '@data/components_complex/treeview_model/selection_mode'
+            select_action: components.treeview_select
+            params:
+              source: data_model
+          - kind: Button
+            id: components_complex_treeview_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.treeview_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_treeview_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_treeview_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TreeView
+            id: components_complex_treeview_global
+            min_height: 220
+            nodes:
+              type: store
+              scope: global
+              path: /components_complex/treeview/nodes
+            active_id:
+              type: store
+              scope: global
+              path: /components_complex/treeview/active_id
+            expand_all:
+              type: store
+              scope: global
+              path: /components_complex/treeview/expand_all
+            click_mode:
+              type: store
+              scope: global
+              path: /components_complex/treeview/click_mode
+            selection_mode:
+              type: store
+              scope: global
+              path: /components_complex/treeview/selection_mode
+            select_action: components.treeview_select
+            params:
+              source: global_store
+          - kind: Button
+            id: components_complex_treeview_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.treeview_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_treeview_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TreeView
+            id: components_complex_treeview_direct
+            min_height: 220
+            nodes:
+            - id: direct_root
+              label: Direct tree
+              expanded: true
+              selectable: false
+              children:
+              - id: direct_alpha
+                label: Direct alpha
+                value: alpha
+              - id: direct_beta
+                label: Direct beta
+                value: beta
+            active_id: direct_alpha
+            select_action: components.treeview_select
+            params:
+              source: direct_update
+            capabilities:
+            - nodes.set
+            - active_id.set
+          - kind: Button
+            id: components_complex_treeview_direct_button
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.treeview_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_complex_treeview_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_treeview_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_treeview_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_treeview_python_code
+        text: '@t/components.complex.treeview.definition.python'
+      - kind: Markdown
+        id: components_complex_treeview_yaml_code
+        text: '@t/components.complex.treeview.definition.yaml'
+  - kind: Card
+    id: components_complex_treeview_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_treeview_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_treeview_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/treeview_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_treeview_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_treeview_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_treeview_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/treeview_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

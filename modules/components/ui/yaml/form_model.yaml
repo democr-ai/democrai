@@ -1,0 +1,839 @@
+- kind: Column
+  id: components_forms_model_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_model_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_model_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_model_title
+      text: '@t/components.forms.model.title'
+      level: 1
+    - kind: Text
+      id: components_forms_model_description
+      text: '@t/components.forms.model.description'
+      muted: true
+  - kind: Card
+    id: components_forms_model_registration_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_registration_title
+      text: '@t/components.forms.model.registration.title'
+      level: 3
+    - kind: Text
+      id: components_forms_model_registration_description
+      text: '@t/components.forms.model.registration.description'
+      muted: true
+    - kind: Form
+      id: model_register_form
+      submit_label: '@t/components.forms.model.registration.submit'
+      action: components.form_model_submit
+      model:
+      - type: row
+        spacing: 16
+        children:
+        - name: first_name
+          label: First Name
+          type: text
+          placeholder: Ada
+          stretch: 1
+          validations:
+          - rule: required
+            message: First name is required
+          - rule: min_length
+            value: 2
+            message: At least 2 characters
+        - name: last_name
+          label: Last Name
+          type: text
+          placeholder: Lovelace
+          stretch: 1
+          validations:
+          - rule: required
+            message: Last name is required
+          - rule: min_length
+            value: 2
+            message: At least 2 characters
+      - type: row
+        spacing: 16
+        children:
+        - name: username
+          label: Username
+          type: text
+          placeholder: adalovelace
+          stretch: 1
+          validations:
+          - rule: required
+            message: Username is required
+          - rule: regex
+            pattern: ^[a-zA-Z0-9_]+$
+            message: Only letters
+            numbers and underscore allowed: null
+          - rule: min_length
+            value: 4
+            message: At least 4 characters
+        - name: email
+          label: Email
+          type: email
+          placeholder: you@example.com
+          stretch: 1
+          validations:
+          - rule: required
+            message: Email is required
+          - rule: regex
+            pattern: ^[^@]+@[^@]+\.[^@]+$
+            message: Invalid email format
+      - type: row
+        spacing: 16
+        children:
+        - name: password
+          label: Password
+          type: password
+          placeholder: Min 8 characters
+          stretch: 1
+          validations:
+          - rule: required
+            message: Password is required
+          - rule: min_length
+            value: 8
+            message: At least 8 characters
+        - name: confirm_password
+          label: Confirm Password
+          type: password
+          placeholder: Repeat your password
+          stretch: 1
+          validations:
+          - rule: required
+            message: Please confirm your password
+          - rule: equals_field
+            field: password
+            message: Passwords do not match
+      - type: row
+        spacing: 16
+        children:
+        - name: role
+          label: Role
+          type: select
+          stretch: 1
+          options:
+          - label: Super Admin
+            value: super_admin
+          - label: Organization Admin
+            value: organization_admin
+          - label: User
+            value: user
+          validations:
+          - rule: required
+            message: Please select a role
+      - name: gender
+        label: Gender
+        type: radio
+        options:
+        - label: Female
+          value: f
+        - label: Male
+          value: m
+        - label: Other
+          value: o
+        validations:
+        - rule: required
+          message: Please select gender
+      - name: terms
+        label: I accept Terms and Privacy Policy
+        type: checkbox
+        validations:
+        - rule: required
+          message: You must accept terms
+    - kind: Button
+      id: model_register_show_btn
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        label: registration_form
+        form_id: model_register_form
+        field_ids:
+        - first_name
+        - last_name
+        - username
+        - email
+        - password
+        - confirm_password
+        - role
+        - gender
+        - terms
+      collect_input_ids:
+      - model_register_form_first_name
+      - model_register_form_last_name
+      - model_register_form_username
+      - model_register_form_email
+      - model_register_form_password
+      - model_register_form_confirm_password
+      - model_register_form_role
+      - model_register_form_gender
+      - model_register_form_terms
+  - kind: Card
+    id: components_forms_model_support_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_support_title
+      text: '@t/components.forms.model.support.title'
+      level: 3
+    - kind: Text
+      id: components_forms_model_support_description
+      text: '@t/components.forms.model.support.description'
+      muted: true
+    - kind: Form
+      id: model_support_form
+      submit_label: '@t/components.forms.model.support.submit'
+      action: components.form_model_submit
+      model:
+      - name: subject
+        label: Subject
+        type: text
+        placeholder: Short summary
+        validations:
+        - rule: required
+          message: Subject is required
+        - rule: min_length
+          value: 5
+          message: At least 5 characters
+      - name: priority
+        label: Priority
+        type: select
+        options:
+        - label: Low
+          value: low
+        - label: Medium
+          value: medium
+        - label: High
+          value: high
+        - label: Urgent
+          value: urgent
+        validations:
+        - rule: required
+          message: Select a priority
+      - name: tags
+        label: Tags
+        type: tags
+        value:
+        - bug
+        - ui
+        placeholder: backend
+        item_schema:
+          type: text
+        validations:
+        - rule: required
+          message: Select at least one tag
+      - name: details
+        label: Details
+        type: textarea
+        placeholder: Describe the issue...
+        validations:
+        - rule: required
+          message: Details are required
+        - rule: min_length
+          value: 20
+          message: At least 20 characters
+        - rule: max_length
+          value: 800
+          message: Max 800 characters
+      - name: watchers
+        label: Watchers
+        type: editable_list
+        value:
+        - support
+        - platform
+        placeholder: security
+        add_label: Add watcher
+        remove_label: Remove
+        submit_label: Save local list
+        item_schema:
+          type: text
+      - name: attachment
+        label: Attachment
+        type: file
+        accept: .pdf,.png,.jpg,.jpeg,.zip,.txt
+    - kind: Button
+      id: model_support_show_btn
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        label: support_ticket_form
+        form_id: model_support_form
+        field_ids:
+        - subject
+        - priority
+        - tags
+        - details
+        - watchers
+        - attachment
+      collect_input_ids:
+      - model_support_form_subject
+      - model_support_form_priority
+      - model_support_form_tags
+      - model_support_form_details
+      - model_support_form_watchers
+      - model_support_form_attachment
+  - kind: Card
+    id: components_forms_model_profile_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_profile_title
+      text: '@t/components.forms.model.profile.title'
+      level: 3
+    - kind: Text
+      id: components_forms_model_profile_description
+      text: '@t/components.forms.model.profile.description'
+      muted: true
+    - kind: Form
+      id: model_profile_form
+      submit_label: '@t/components.forms.model.profile.submit'
+      action: components.form_model_submit
+      model:
+      - type: row
+        spacing: 16
+        children:
+        - name: country
+          label: Country
+          type: select
+          stretch: 1
+          options:
+          - label: Italy
+            value: it
+          - label: France
+            value: fr
+          - label: Spain
+            value: es
+          - label: Germany
+            value: de
+          validations:
+          - rule: required
+            message: Country is required
+        - name: city
+          label: City
+          type: text
+          placeholder: Milano
+          stretch: 1
+          validations:
+          - rule: required
+            message: City is required
+      - name: bio
+        label: Short Bio
+        type: textarea
+        placeholder: Tell us about your profile...
+        validations:
+        - rule: min_length
+          value: 10
+          message: At least 10 characters
+        - rule: max_length
+          value: 240
+          message: Max 240 characters
+      - name: preferred_contact
+        label: Preferred Contact
+        type: radio
+        options:
+        - label: Email
+          value: email
+        - label: Phone
+          value: phone
+        - label: Chat
+          value: chat
+        validations:
+        - rule: required
+          message: Pick one contact channel
+      - name: newsletter
+        label: Subscribe to product updates
+        type: checkbox
+    - kind: Button
+      id: model_profile_show_btn
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        label: profile_completion_form
+        form_id: model_profile_form
+        field_ids:
+        - country
+        - city
+        - bio
+        - preferred_contact
+        - newsletter
+      collect_input_ids:
+      - model_profile_form_country
+      - model_profile_form_city
+      - model_profile_form_bio
+      - model_profile_form_preferred_contact
+      - model_profile_form_newsletter
+  - kind: Card
+    id: components_forms_model_planning_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_planning_title
+      text: '@t/components.forms.model.planning.title'
+      level: 3
+    - kind: Text
+      id: components_forms_model_planning_description
+      text: '@t/components.forms.model.planning.description'
+      muted: true
+    - kind: Form
+      id: model_planning_form
+      submit_label: '@t/components.forms.model.planning.submit'
+      action: components.form_model_submit
+      model:
+      - type: row
+        spacing: 16
+        children:
+        - name: start_date
+          label: Start Date
+          type: date
+          format: yyyy-MM-dd
+          placeholder: yyyy-MM-dd
+          stretch: 1
+          validations:
+          - rule: required
+            message: Start date is required
+        - name: deadline
+          label: Deadline (Date & Time)
+          type: datetime
+          format: yyyy-MM-dd HH:mm
+          placeholder: yyyy-MM-dd HH:mm
+          stretch: 1
+          validations:
+          - rule: required
+            message: Deadline is required
+      - name: notify_team
+        label: Notify Team
+        type: toggle
+        value: true
+      - name: assets
+        label: Assets
+        type: file
+        multiple: true
+        accept: .pdf,.png,.jpg,.jpeg,.zip,.docx
+        validations:
+        - rule: required
+          message: Upload at least one file
+    - kind: Button
+      id: model_planning_show_btn
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        label: planning_form
+        form_id: model_planning_form
+        field_ids:
+        - start_date
+        - deadline
+        - notify_team
+        - assets
+      collect_input_ids:
+      - model_planning_form_start_date
+      - model_planning_form_deadline
+      - model_planning_form_notify_team
+      - model_planning_form_assets
+  - kind: Card
+    id: components_forms_model_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_model_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_model_runtime_description
+      text: '@t/components.forms.model.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_model_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_model_runtime_left
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_forms_model_static_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Form
+            id: components_forms_model_static_form
+            values:
+              title: Static onboarding
+              owner: Ada
+              priority: medium
+              notify: true
+            submit_label: '@t/components.forms.model.runtime.submit'
+            action: components.form_model_submit
+            model:
+            - name: title
+              label: Title
+              type: text
+              placeholder: Project title
+            - name: owner
+              label: Owner
+              type: text
+              placeholder: Owner
+            - name: priority
+              label: Priority
+              type: select
+              options:
+              - label: Low
+                value: low
+              - label: Medium
+                value: medium
+              - label: High
+                value: high
+              - label: Urgent
+                value: urgent
+            - name: notify
+              label: Notify team
+              type: checkbox
+          - kind: Button
+            id: components_forms_model_static_read
+            label: '@t/components.forms.usage.read_button'
+            variant: default
+            action: components.form_preview_show_value
+            params:
+              label: static_values
+              form_id: components_forms_model_static_form
+              field_ids:
+              - title
+              - owner
+              - priority
+              - notify
+            collect_input_ids:
+            - components_forms_model_static_form_title
+            - components_forms_model_static_form_owner
+            - components_forms_model_static_form_priority
+            - components_forms_model_static_form_notify
+        - kind: Column
+          id: components_forms_model_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Form
+            id: components_forms_model_page_form
+            values:
+              type: store
+              scope: page
+              path: /components_forms/model/page_values
+            submit_label: '@t/components.forms.model.runtime.submit'
+            action: components.form_model_submit
+            model:
+            - name: title
+              label: Title
+              type: text
+              placeholder: Project title
+            - name: owner
+              label: Owner
+              type: text
+              placeholder: Owner
+            - name: priority
+              label: Priority
+              type: select
+              options:
+              - label: Low
+                value: low
+              - label: Medium
+                value: medium
+              - label: High
+                value: high
+              - label: Urgent
+                value: urgent
+            - name: notify
+              label: Notify team
+              type: checkbox
+          - kind: Row
+            id: components_forms_model_page_buttons
+            spacing: 10
+            align: left
+            children:
+            - kind: Button
+              id: components_forms_model_page_button
+              label: '@t/components.forms.usage.page_store_button'
+              variant: default
+              action:
+                name: components.form_model_values_update
+                context:
+                  mode: page_store
+            - kind: Button
+              id: components_forms_model_page_read
+              label: '@t/components.forms.usage.read_button'
+              variant: default
+              action: components.form_preview_show_value
+              params:
+                label: page_store_values
+                form_id: components_forms_model_page_form
+                field_ids:
+                - title
+                - owner
+                - priority
+                - notify
+              collect_input_ids:
+              - components_forms_model_page_form_title
+              - components_forms_model_page_form_owner
+              - components_forms_model_page_form_priority
+              - components_forms_model_page_form_notify
+      - kind: Column
+        id: components_forms_model_runtime_right
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_forms_model_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Form
+            id: components_forms_model_global_form
+            values:
+              type: store
+              scope: global
+              path: /components_forms/model/global_values
+            submit_label: '@t/components.forms.model.runtime.submit'
+            action: components.form_model_submit
+            model:
+            - name: title
+              label: Title
+              type: text
+              placeholder: Project title
+            - name: owner
+              label: Owner
+              type: text
+              placeholder: Owner
+            - name: priority
+              label: Priority
+              type: select
+              options:
+              - label: Low
+                value: low
+              - label: Medium
+                value: medium
+              - label: High
+                value: high
+              - label: Urgent
+                value: urgent
+            - name: notify
+              label: Notify team
+              type: checkbox
+          - kind: Row
+            id: components_forms_model_global_buttons
+            spacing: 10
+            align: left
+            children:
+            - kind: Button
+              id: components_forms_model_global_button
+              label: '@t/components.forms.usage.global_store_button'
+              variant: default
+              action:
+                name: components.form_model_values_update
+                context:
+                  mode: global_store
+            - kind: Button
+              id: components_forms_model_global_read
+              label: '@t/components.forms.usage.read_button'
+              variant: default
+              action: components.form_preview_show_value
+              params:
+                label: global_store_values
+                form_id: components_forms_model_global_form
+                field_ids:
+                - title
+                - owner
+                - priority
+                - notify
+              collect_input_ids:
+              - components_forms_model_global_form_title
+              - components_forms_model_global_form_owner
+              - components_forms_model_global_form_priority
+              - components_forms_model_global_form_notify
+        - kind: Column
+          id: components_forms_model_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Form
+            id: components_forms_model_data_form
+            values: '@data/components_forms/model_data/values'
+            submit_label: '@t/components.forms.model.runtime.submit'
+            action: components.form_model_submit
+            model:
+            - name: title
+              label: Title
+              type: text
+              placeholder: Project title
+            - name: owner
+              label: Owner
+              type: text
+              placeholder: Owner
+            - name: priority
+              label: Priority
+              type: select
+              options:
+              - label: Low
+                value: low
+              - label: Medium
+                value: medium
+              - label: High
+                value: high
+              - label: Urgent
+                value: urgent
+            - name: notify
+              label: Notify team
+              type: checkbox
+          - kind: Row
+            id: components_forms_model_data_buttons
+            spacing: 10
+            align: left
+            children:
+            - kind: Button
+              id: components_forms_model_data_button
+              label: '@t/components.forms.usage.data_button'
+              variant: default
+              action:
+                name: components.form_model_values_update
+                context:
+                  mode: data
+            - kind: Button
+              id: components_forms_model_data_read
+              label: '@t/components.forms.usage.read_button'
+              variant: default
+              action: components.form_preview_show_value
+              params:
+                label: data_model_values
+                form_id: components_forms_model_data_form
+                field_ids:
+                - title
+                - owner
+                - priority
+                - notify
+              collect_input_ids:
+              - components_forms_model_data_form_title
+              - components_forms_model_data_form_owner
+              - components_forms_model_data_form_priority
+              - components_forms_model_data_form_notify
+  - kind: Card
+    id: components_forms_model_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_model_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_model_python_code
+        text: '@t/components.forms.model.definition.python'
+      - kind: Markdown
+        id: components_forms_model_yaml_code
+        text: '@t/components.forms.model.definition.yaml'
+  - kind: Card
+    id: components_forms_model_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_model_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/model_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_model_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_model_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_model_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/model_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

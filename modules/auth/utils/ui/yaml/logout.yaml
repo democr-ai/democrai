@@ -1,0 +1,36 @@
+- kind: Row
+  id: login_container
+  align: center
+  padding: [12,12,12,12]
+  children:
+    - kind: Column
+      id: spacer_1
+      stretch: True
+    - kind: Column
+      id: login_card
+      align: "top"
+      width: 400
+      spacing: 12
+      stretch: False
+      style: "width: 400px;"
+      children:
+        - kind: Row
+          children:  
+            - kind: Column
+              align: center
+              children:
+                - kind: Image
+                  alt: "logo"
+                  url: logo_full.svg
+                  width: 400
+                  height: 220
+                - kind: Text
+                  id: goodbye_text
+                  text: "@t/auth.goodbye"
+                  style: "text-align: center; margin: 12px auto;"
+                - kind: Button
+                  label: "@t/auth.back_to_login"
+                  action: "auth.go_login"
+    - kind: Column
+      id: spacer_2
+      stretch: True

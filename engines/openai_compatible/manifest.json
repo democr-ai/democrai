@@ -1,0 +1,106 @@
+{
+  "id": "openai_compatible",
+  "name": "OpenAI Compatible",
+  "kind": "llm",
+  "entrypoint": "engines.openai_compatible.engine:OpenAICompatibleEngine",
+  "runtime": {
+    "allowed_config_urls": "base_url",
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "provider": {
+    "id": "openai_compatible",
+    "label": "OpenAI Compatible",
+    "kind": "llm",
+    "deployment": "hybrid",
+    "model_source": "provider_api",
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "embedding",
+      "image_to_text"
+    ],
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream",
+      "embed_texts"
+    ],
+    "icon_url": "engines/openai_compatible/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "openai",
+        "module": "openai",
+        "label": "openai",
+        "pip_packages": [
+          "openai"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "base_url",
+        "label": "Base URL",
+        "type": "text",
+        "placeholder": "https://api.provider.tld/v1",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Base URL is required"
+          }
+        ]
+      },
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "optional"
+      },
+      {
+        "name": "request_parameter_mapping",
+        "label": "Request parameter mapping",
+        "type": "editable_list",
+        "placeholder": "temperature=",
+        "add_label": "Add mapping",
+        "remove_label": "Remove",
+        "submit_label": "Save mapping",
+        "item_schema": {
+          "type": "text"
+        }
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Use OpenAI-compatible APIs with custom base URL.",
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "embedding",
+      "image_to_text"
+    ],
+    "capability_option_fields": {
+      "reasoning": [
+        {
+          "name": "reasoning_param_name",
+          "label": "Reasoning parameter",
+          "type": "text",
+          "default": "reasoning"
+        }
+      ]
+    },
+    "request_parameter_mapping": {
+      "configurable": true,
+      "allowed_sources": [
+        "temperature",
+        "top_p",
+        "max_tokens",
+        "reasoning"
+      ]
+    }
+  }
+}

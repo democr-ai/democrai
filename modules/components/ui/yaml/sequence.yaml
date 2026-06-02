@@ -1,0 +1,339 @@
+- kind: Column
+  id: components_charts_sequence_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_charts_sequence_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_charts_sequence_eyebrow
+      text: '@t/components.charts.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_charts_sequence_title
+      text: '@t/components.charts.sequence.title'
+      level: 1
+    - kind: Text
+      id: components_charts_sequence_description
+      text: '@t/components.charts.sequence.description'
+      muted: true
+  - kind: Card
+    id: components_charts_sequence_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_charts_sequence_preview_title
+      text: '@t/components.charts.preview.title'
+      level: 3
+    - kind: Column
+      id: components_charts_sequence_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: SequenceDiagram
+        id: components_charts_sequence_structured
+        title: '@t/components.charts.sequence.structured'
+        height: 420
+        participants:
+        - id: client
+          label: Client
+        - id: gateway
+          label: API Gateway
+        - id: orchestrator
+          label: Orchestrator
+        - id: knowledge
+          label: Knowledge Service
+        - id: llm
+          label: Model Provider
+        messages:
+        - from: client
+          to: gateway
+          text: POST /chat
+          type: sync
+        - from: gateway
+          to: orchestrator
+          text: dispatch(request)
+          type: sync
+        - from: orchestrator
+          to: knowledge
+          text: retrieve_context()
+          type: sync
+        - from: knowledge
+          to: orchestrator
+          text: context_bundle
+          type: reply
+        - from: orchestrator
+          to: llm
+          text: generate(messages+context)
+          type: sync
+        - from: llm
+          to: orchestrator
+          text: completion
+          type: reply
+        - from: orchestrator
+          to: gateway
+          text: surface_update
+          type: reply
+        - from: gateway
+          to: client
+          text: 200 + payload
+          type: reply
+      - kind: SequenceDiagram
+        id: components_charts_sequence_mermaid
+        title: '@t/components.charts.sequence.mermaid'
+        height: 420
+        mermaid: "sequenceDiagram\n    participant Client\n    participant Gateway as API_Gateway\n    participant Orchestrator\n\
+          \    participant LLM\n    Client->>Gateway: POST /chat\n    Gateway->>Orchestrator: dispatch(request)\n    Orchestrator->>LLM:\
+          \ generate(messages)\n    LLM-->>Orchestrator: completion\n    Orchestrator-->>Gateway: surface_update\n    Gateway-->>Client:\
+          \ 200 + payload\n"
+  - kind: Card
+    id: components_charts_sequence_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_charts_sequence_runtime_title
+      text: '@t/components.charts.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_charts_sequence_runtime_description
+      text: '@t/components.charts.sequence.runtime.description'
+      muted: true
+    - kind: Column
+      id: components_charts_sequence_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_charts_sequence_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_sequence_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: SequenceDiagram
+            id: components_charts_sequence_page
+            title:
+              type: store
+              scope: page
+              path: /components_charts/sequence/title
+            participants:
+              type: store
+              scope: page
+              path: /components_charts/sequence/participants
+            messages:
+              type: store
+              scope: page
+              path: /components_charts/sequence/messages
+            height: 360
+          - kind: Button
+            id: components_charts_sequence_page_button
+            label: '@t/components.charts.usage.page_store_button'
+            variant: default
+            action:
+              name: components.sequence_diagram_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_charts_sequence_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: SequenceDiagram
+            id: components_charts_sequence_data
+            title: '@data/components_charts/sequence_model/title'
+            participants: '@data/components_charts/sequence_model/participants'
+            messages: '@data/components_charts/sequence_model/messages'
+            height: 360
+          - kind: Button
+            id: components_charts_sequence_data_button
+            label: '@t/components.charts.usage.data_button'
+            variant: default
+            action:
+              name: components.sequence_diagram_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_charts_sequence_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_sequence_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: SequenceDiagram
+            id: components_charts_sequence_global
+            title:
+              type: store
+              scope: global
+              path: /components_charts/sequence/title
+            participants:
+              type: store
+              scope: global
+              path: /components_charts/sequence/participants
+            messages:
+              type: store
+              scope: global
+              path: /components_charts/sequence/messages
+            height: 360
+          - kind: Button
+            id: components_charts_sequence_global_button
+            label: '@t/components.charts.usage.global_store_button'
+            variant: default
+            action:
+              name: components.sequence_diagram_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_charts_sequence_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: SequenceDiagram
+            id: components_charts_sequence_direct
+            title: '@t/components.charts.sequence.direct'
+            participants:
+            - id: client
+              label: Client
+            - id: gateway
+              label: API Gateway
+            - id: orchestrator
+              label: Orchestrator
+            - id: llm
+              label: Model Provider
+            messages:
+            - from: client
+              to: gateway
+              text: POST /chat
+              type: sync
+            - from: gateway
+              to: orchestrator
+              text: dispatch(request)
+              type: sync
+            - from: orchestrator
+              to: llm
+              text: generate(messages)
+              type: sync
+            - from: llm
+              to: orchestrator
+              text: completion
+              type: reply
+            - from: orchestrator
+              to: gateway
+              text: surface_update
+              type: reply
+            - from: gateway
+              to: client
+              text: 200 + payload
+              type: reply
+            height: 360
+            capabilities:
+            - title.set
+            - participants.set
+            - messages.set
+          - kind: Button
+            id: components_charts_sequence_direct_button
+            label: '@t/components.charts.usage.direct_button'
+            variant: default
+            action:
+              name: components.sequence_diagram_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_charts_sequence_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_sequence_definition_title
+      text: '@t/components.charts.definition.title'
+      level: 3
+    - kind: Row
+      id: components_charts_sequence_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_charts_sequence_python_code
+        text: '@t/components.charts.sequence.definition.python'
+      - kind: Markdown
+        id: components_charts_sequence_yaml_code
+        text: '@t/components.charts.sequence.definition.yaml'
+  - kind: Card
+    id: components_charts_sequence_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_sequence_binding_title
+      text: '@t/components.charts.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_sequence_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/sequence_bindings'
+      model:
+      - field: binding
+        header: '@t/components.charts.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.charts.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.charts.table.source'
+        type: str
+  - kind: Card
+    id: components_charts_sequence_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_sequence_properties_title
+      text: '@t/components.charts.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_sequence_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/sequence_properties'
+      model:
+      - field: property
+        header: '@t/components.charts.table.property'
+        type: str
+      - field: type
+        header: '@t/components.charts.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.charts.table.usage'
+        type: str

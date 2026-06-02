@@ -1,0 +1,379 @@
+- kind: Column
+  id: components_layout_row_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_layout_row_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_layout_row_eyebrow
+      text: '@t/components.layout.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_layout_row_title
+      text: '@t/components.layout.row.title'
+      level: 1
+    - kind: Text
+      id: components_layout_row_description
+      text: '@t/components.layout.row.description'
+      muted: true
+  - kind: Card
+    id: components_layout_row_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_row_preview_title
+      text: '@t/components.layout.preview.title'
+      level: 3
+    - kind: Row
+      id: components_layout_row_static
+      spacing: 8
+      align: left
+      style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+      children:
+      - kind: Badge
+        id: components_layout_row_static_a
+        text: '@t/components.layout.item.alpha'
+        variant: info
+      - kind: Badge
+        id: components_layout_row_static_b
+        text: '@t/components.layout.item.beta'
+        variant: success
+      - kind: Badge
+        id: components_layout_row_static_c
+        text: '@t/components.layout.item.gamma'
+        variant: warning
+    - kind: Row
+      id: components_layout_row_store_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Row
+        id: components_layout_row_store
+        spacing:
+          type: store
+          scope: page
+          path: /components_layout/row_spacing
+          default: 10
+        align: left
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        children:
+        - kind: Badge
+          id: components_layout_row_store_a
+          text: '@t/components.layout.item.store_a'
+          variant: info
+        - kind: Badge
+          id: components_layout_row_store_b
+          text: '@t/components.layout.item.store_b'
+          variant: success
+      - kind: Button
+        id: components_layout_row_update_store
+        label: '@t/components.layout.usage.store_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: row
+            mode: store
+    - kind: Row
+      id: components_layout_row_data_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Row
+        id: components_layout_row_data
+        spacing: '@data/components_layout/row_model/spacing'
+        align: left
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        children:
+        - kind: Badge
+          id: components_layout_row_data_a
+          text: '@t/components.layout.item.data_a'
+          variant: info
+        - kind: Badge
+          id: components_layout_row_data_b
+          text: '@t/components.layout.item.data_b'
+          variant: success
+      - kind: Button
+        id: components_layout_row_update_data
+        label: '@t/components.layout.usage.data_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: row
+            mode: data
+    - kind: Row
+      id: components_layout_row_direct_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Row
+        id: components_layout_row_direct
+        spacing: 8
+        align: left
+        capabilities:
+        - spacing.set
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        children:
+        - kind: Badge
+          id: components_layout_row_direct_a
+          text: '@t/components.layout.item.direct_a'
+          variant: info
+        - kind: Badge
+          id: components_layout_row_direct_b
+          text: '@t/components.layout.item.direct_b'
+          variant: success
+      - kind: Button
+        id: components_layout_row_update_direct
+        label: '@t/components.layout.usage.direct_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: row
+            mode: direct
+  - kind: Card
+    id: components_layout_row_runtime_card
+    variant: outlined
+    padding:
+    - 22
+    - 22
+    - 22
+    - 22
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_layout_row_runtime_title
+      text: '@t/components.layout.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_layout_row_runtime_description
+      text: '@t/components.layout.row.runtime.description'
+      muted: true
+    - kind: Column
+      id: components_layout_row_children_examples
+      spacing: 16
+      children:
+      - kind: Title
+        id: components_layout_row_children_title
+        text: '@t/components.layout.row.children.title'
+        level: 4
+      - kind: Row
+        id: components_layout_row_children_page_line
+        spacing: 12
+        align: fill
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Row
+          id: components_layout_row_children_page
+          align:
+            type: store
+            scope: page
+            path: /components_layout/row_align
+            default: left
+          spacing: 8
+          style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Badge
+            id: components_layout_row_children_page_a
+            text: '@t/components.layout.item.page_a'
+            variant: info
+          - kind: Badge
+            id: components_layout_row_children_page_b
+            text: '@t/components.layout.item.page_b'
+            variant: success
+        - kind: Button
+          id: components_layout_row_align_page_button
+          label: '@t/components.layout.usage.page_align_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: row
+              prop: align
+              mode: page_store
+      - kind: Row
+        id: components_layout_row_children_global_line
+        spacing: 12
+        align: fill
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Row
+          id: components_layout_row_children_global
+          align:
+            type: store
+            scope: global
+            path: /components_layout/row_align
+            default: left
+          spacing: 8
+          style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Badge
+            id: components_layout_row_children_global_a
+            text: '@t/components.layout.item.global_a'
+            variant: info
+          - kind: Badge
+            id: components_layout_row_children_global_b
+            text: '@t/components.layout.item.global_b'
+            variant: success
+        - kind: Button
+          id: components_layout_row_align_global_button
+          label: '@t/components.layout.usage.global_align_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: row
+              prop: align
+              mode: global_store
+      - kind: Row
+        id: components_layout_row_children_data_line
+        spacing: 12
+        align: fill
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Row
+          id: components_layout_row_children_data
+          align: '@data/components_layout/row_model/align'
+          spacing: 8
+          style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Badge
+            id: components_layout_row_children_data_a
+            text: '@t/components.layout.item.data_a'
+            variant: info
+          - kind: Badge
+            id: components_layout_row_children_data_b
+            text: '@t/components.layout.item.data_b'
+            variant: success
+        - kind: Button
+          id: components_layout_row_align_data_button
+          label: '@t/components.layout.usage.data_align_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: row
+              prop: align
+              mode: data
+      - kind: Row
+        id: components_layout_row_children_direct_line
+        spacing: 12
+        align: fill
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Row
+          id: components_layout_row_children_direct
+          capabilities:
+          - children.append
+          - children.remove
+          spacing: 8
+          style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Badge
+            id: components_layout_row_children_direct_initial
+            text: '@t/components.layout.item.direct_a'
+            variant: info
+        - kind: Button
+          id: components_layout_row_children_direct_button
+          label: '@t/components.layout.usage.direct_children_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: row
+              prop: children
+              mode: direct
+  - kind: Card
+    id: components_layout_row_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_row_definition_title
+      text: '@t/components.layout.definition.title'
+      level: 3
+    - kind: Row
+      id: components_layout_row_definition_codes
+      spacing: 14
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_layout_row_python
+        text: '@t/components.layout.row.definition.python'
+      - kind: Markdown
+        id: components_layout_row_yaml
+        text: '@t/components.layout.row.definition.yaml'
+  - kind: Card
+    id: components_layout_row_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_row_binding_title
+      text: '@t/components.layout.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_row_binding_table
+      rows: '@data/components_layout/row_bindings'
+      paginated: false
+      pagination: false
+      total_rows: 3
+      model:
+      - field: binding
+        header: '@t/components.layout.table.binding'
+      - field: yaml
+        header: '@t/components.layout.table.yaml'
+      - field: source
+        header: '@t/components.layout.table.source'
+  - kind: Card
+    id: components_layout_row_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_row_properties_title
+      text: '@t/components.layout.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_row_properties_table
+      rows: '@data/components_layout/row_properties'
+      paginated: false
+      pagination: false
+      total_rows: 5
+      model:
+      - field: property
+        header: '@t/components.layout.table.property'
+      - field: type
+        header: '@t/components.layout.table.type'
+      - field: page_store
+        header: '@t/components.layout.table.page_store'
+      - field: global_store
+        header: '@t/components.layout.table.global_store'
+      - field: data
+        header: '@t/components.layout.table.data'
+      - field: direct
+        header: '@t/components.layout.table.direct'

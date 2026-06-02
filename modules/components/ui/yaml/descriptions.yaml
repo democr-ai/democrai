@@ -1,0 +1,340 @@
+- kind: Column
+  id: components_complex_descriptions_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_descriptions_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_descriptions_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_descriptions_title
+      text: '@t/components.complex.descriptions.title'
+      level: 1
+    - kind: Text
+      id: components_complex_descriptions_description
+      text: '@t/components.complex.descriptions.description'
+      muted: true
+  - kind: Card
+    id: components_complex_descriptions_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_descriptions_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_descriptions_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Descriptions
+        id: components_complex_descriptions_profile
+        key_header: Property
+        value_header: Value
+        borders: true
+        model:
+        - field: full_name
+          label: Full name
+          type: str
+        - field: role
+          label: Role
+          type: str
+          transform: title
+        - field: active
+          label: Active
+          type: bool
+        - field: login_count
+          label: Logins
+          type: int
+        - field: credit
+          label: Credit
+          type: float
+          format: .2f
+        - field: signup_at
+          label: Signup date
+          type: datetime
+          format: '%d/%m/%Y %H:%M'
+        - field: tags
+          label: Tags
+          transform: join_list|, |upper
+          placeholder: No tags
+        - field: notes
+          label: Notes
+          transform: truncate|36
+          placeholder: No notes
+        - field: missing
+          label: Missing value
+          placeholder: Not provided
+        data:
+          full_name: Lina Bianchi
+          role: platform admin
+          active: true
+          login_count: 42
+          credit: 1234.5
+          signup_at: '2026-03-21T09:30:00'
+          tags:
+          - owner
+          - billing
+          - security
+          notes: Primary account owner with elevated operational permissions.
+      - kind: Descriptions
+        id: components_complex_descriptions_fallback
+        model: []
+        data: '@data/components_complex/descriptions_fallback'
+        key_header: Auto field
+        value_header: Auto value
+        borders: false
+  - kind: Card
+    id: components_complex_descriptions_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_descriptions_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_descriptions_runtime_description
+      text: '@t/components.complex.descriptions.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_descriptions_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_descriptions_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_descriptions_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Descriptions
+            id: components_complex_descriptions_page
+            model:
+              type: store
+              scope: page
+              path: /components_complex/descriptions/model
+            data:
+              type: store
+              scope: page
+              path: /components_complex/descriptions/data
+            key_header:
+              type: store
+              scope: page
+              path: /components_complex/descriptions/key_header
+            value_header:
+              type: store
+              scope: page
+              path: /components_complex/descriptions/value_header
+            borders:
+              type: store
+              scope: page
+              path: /components_complex/descriptions/borders
+          - kind: Button
+            id: components_complex_descriptions_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.descriptions_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_descriptions_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Descriptions
+            id: components_complex_descriptions_data
+            model: '@data/components_complex/descriptions_model/model'
+            data: '@data/components_complex/descriptions_model/data'
+            key_header: '@data/components_complex/descriptions_model/key_header'
+            value_header: '@data/components_complex/descriptions_model/value_header'
+            borders: '@data/components_complex/descriptions_model/borders'
+          - kind: Button
+            id: components_complex_descriptions_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.descriptions_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_descriptions_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_descriptions_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Descriptions
+            id: components_complex_descriptions_global
+            model:
+              type: store
+              scope: global
+              path: /components_complex/descriptions/model
+            data:
+              type: store
+              scope: global
+              path: /components_complex/descriptions/data
+            key_header:
+              type: store
+              scope: global
+              path: /components_complex/descriptions/key_header
+            value_header:
+              type: store
+              scope: global
+              path: /components_complex/descriptions/value_header
+            borders:
+              type: store
+              scope: global
+              path: /components_complex/descriptions/borders
+          - kind: Button
+            id: components_complex_descriptions_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.descriptions_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_descriptions_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Descriptions
+            id: components_complex_descriptions_direct
+            key_header: Property
+            value_header: Value
+            borders: true
+            capabilities:
+            - model.set
+            - data.set
+            - key_header.set
+            - value_header.set
+            - borders.set
+            model:
+            - field: order_id
+              label: Order ID
+              type: str
+            - field: status
+              label: Status
+              type: str
+              transform: upper
+            - field: total
+              label: Total EUR
+              type: float
+              format: .2f
+            data:
+              order_id: ORD-2026-0042
+              status: shipped
+              total: 289.9
+          - kind: Button
+            id: components_complex_descriptions_direct_button
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.descriptions_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_complex_descriptions_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_descriptions_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_descriptions_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_descriptions_python_code
+        text: '@t/components.complex.descriptions.definition.python'
+      - kind: Markdown
+        id: components_complex_descriptions_yaml_code
+        text: '@t/components.complex.descriptions.definition.yaml'
+  - kind: Card
+    id: components_complex_descriptions_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_descriptions_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_descriptions_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/descriptions_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_descriptions_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_descriptions_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_descriptions_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/descriptions_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

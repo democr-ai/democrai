@@ -1,0 +1,14 @@
+from modules.system.actions.engine.model_tests import generate_completion as _generate_completion  # noqa: F401
+from modules.system.actions.engine.model_tests import configuration as _configuration  # noqa: F401
+from modules.system.actions.engine.model_tests import generate_stream as _generate_stream  # noqa: F401
+from modules.system.actions.engine.model_tests import embed_texts as _embed_texts  # noqa: F401
+from modules.system.actions.engine.model_tests import rerank as _rerank  # noqa: F401
+from modules.system.actions.engine.model_tests import classify as _classify  # noqa: F401
+from modules.system.actions.engine.model_tests import extract_tokens as _extract_tokens  # noqa: F401
+from modules.system.actions.engine.model_tests import extract_triples as _extract_triples  # noqa: F401
+from modules.system.actions.engine.model_tests import synthesize as _synthesize  # noqa: F401
+from modules.system.actions.engine.model_tests import synthesize_stream as _synthesize_stream  # noqa: F401
+from modules.system.actions.engine.model_tests import transcribe as _transcribe  # noqa: F401
+from modules.system.actions.engine.model_tests import detect as _detect  # noqa: F401
+from modules.system.actions.engine.model_tests import tool_calling as _tool_calling  # noqa: F401
+from modules.system.actions.engine.model_tests import multimodal as _multimodal  # noqa: F401

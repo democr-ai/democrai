@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "democrai://engines/schemas/catalog.schema.json",
+  "title": "Democr.ai Engine Model Catalog",
+  "type": "object",
+  "required": ["engine_id", "schema", "models"],
+  "properties": {
+    "engine_id": {"type": "string", "minLength": 1},
+    "schema": {"type": "string", "minLength": 1},
+    "models": {
+      "type": "array",
+      "items": {"$ref": "model-definition.schema.json"}
+    }
+  },
+  "additionalProperties": false
+}

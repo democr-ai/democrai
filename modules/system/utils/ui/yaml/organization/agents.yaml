@@ -1,0 +1,59 @@
+- kind: Column
+  id: organization_agents_section
+  spacing: 12
+  children:
+    - kind: Title
+      id: organization_agents_title
+      level: 3
+      text: "@t/system.organization.agents.title"
+    - kind: DataTable
+      id: organization_agents_table
+      show_row_numbers: true
+      paginated: false
+      total_rows: 0
+      model:
+        - field: agent_name
+          header: "@t/system.organization.agents.field.agent_name"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: module_name
+          header: "@t/system.organization.agents.field.module_name"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: description
+          header: "@t/system.organization.agents.field.description"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: enabled
+          header: "@t/system.organization.agents.field.enabled"
+          type: bool
+          filterable: true
+          filter_type: boolean
+      rows: []
+      row_actions:
+        - label: "@t/system.organization.agents.action.enable"
+          icon: ric.check-line
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: false
+          action:
+            name: system.enable_organization_agent
+            context: {}
+        - label: "@t/system.organization.agents.action.disable"
+          icon: ric.close-line
+          variant: danger
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: true
+          action:
+            name: system.disable_organization_agent
+            context: {}

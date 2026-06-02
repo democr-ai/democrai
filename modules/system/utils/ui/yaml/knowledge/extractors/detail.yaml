@@ -1,0 +1,125 @@
+- kind: Column
+  id: knowledge_extractor_detail_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: knowledge_extractor_detail_breadcrumb
+      segments:
+        - label: "@t/system.index.title"
+          path: /system/index
+        - label: "@t/system.knowledge.common.breadcrumb.knowledge"
+          current: false
+        - label: "@t/system.knowledge.extractors.title"
+          path: /system/knowledge/extractors/list
+        - label: "@state/page/current_extractor/name"
+          current: true
+    - kind: Card
+      id: knowledge_extractor_detail_summary_card
+      variant: elevated
+      padding: [16, 16, 16, 16]
+      children:
+        - kind: Column
+          id: knowledge_extractor_detail_summary_body
+          spacing: 12
+          children:
+            - kind: Row
+              id: knowledge_extractor_detail_header
+              spacing: 12
+              children:
+                - kind: Image
+                  id: knowledge_extractor_detail_icon
+                  alt: "@state/page/current_extractor/name"
+                  url: "@state/page/current_extractor/icon_url"
+                  width: 48
+                  height: 48
+                  style: "min-width: 48px; min-height: 48px; max-width: 48px; max-height: 48px;"
+                - kind: Column
+                  id: knowledge_extractor_detail_identity
+                  spacing: 6
+                  children:
+                    - kind: Title
+                      id: knowledge_extractor_detail_title
+                      text: "@state/page/current_extractor/name"
+                      level: 2
+                    - kind: Text
+                      id: knowledge_extractor_detail_subtitle
+                      text: "@state/page/current_extractor/summary"
+                      style: "font-size: 13px;"
+            - kind: Row
+              id: knowledge_extractor_detail_meta
+              spacing: 8
+              children:
+                - kind: Badge
+                  id: knowledge_extractor_detail_status
+                  text: "@state/page/current_extractor/status"
+                  variant: "@state/page/current_extractor/status_variant"
+                - kind: Badge
+                  id: knowledge_extractor_detail_mime_count
+                  text: "@state/page/current_extractor/mime_count_label"
+                  variant: info
+    - kind: Card
+      id: knowledge_extractor_runtime_config_card
+      variant: elevated
+      padding: [16, 16, 16, 16]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /current_extractor/show_runtime_config, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: knowledge_extractor_runtime_config_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: knowledge_extractor_runtime_config_title
+              text: "@t/system.knowledge.extractor_detail.runtime_config"
+              level: 4
+            - kind: Form
+              id: knowledge_extractor_runtime_config_form
+              submit_label: "@t/system.knowledge.extractor_detail.save_runtime_config"
+              action:
+                name: system.save_extractor_config
+                context:
+                  extractor_id: "@state/page/current_extractor/extractor_id"
+                  phase: runtime
+              track_loading: system.save_extractor_config
+              model: "@state/page/current_extractor/runtime_form_model"
+    - kind: Card
+      id: knowledge_extractor_test_card
+      variant: elevated
+      padding: [16, 16, 16, 16]
+      children:
+        - kind: Column
+          id: knowledge_extractor_test_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: knowledge_extractor_test_title
+              text: "@t/system.knowledge.extractor_detail.test_title"
+              level: 4
+            - kind: Form
+              id: knowledge_extractor_test_form
+              submit_label: "@t/system.knowledge.extractor_detail.run_test"
+              action:
+                name: system.test_extractor_document
+                context:
+                  extractor_id: "@state/page/current_extractor/extractor_id"
+              track_loading: system.test_extractor_document
+              model:
+                - type: attachment
+                  name: document
+                  label: "@t/system.knowledge.extractor_detail.document"
+                  multiple: false
+                  ingest: false
+                  validations:
+                    - rule: required
+                      message: "@t/system.knowledge.extractor_detail.select_document"
+            - kind: Markdown
+              id: knowledge_extractor_test_result
+              text: ""
+            - kind: Column
+              id: knowledge_extractor_test_task_mount
+              spacing: 8
+              capabilities: [children.append]
+              children: []

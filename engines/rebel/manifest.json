@@ -1,0 +1,74 @@
+{
+  "id": "rebel",
+  "name": "REBEL",
+  "kind": "kg",
+  "entrypoint": "engines.rebel.engine:REBELEngine",
+  "install": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HUGGINGFACE_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TOKENIZERS_PARALLELISM": "false",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {"resource_type": "filesystem", "operation": "read", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "create", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "modify", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "read", "target": "{engine_config}/fsspec"},
+      {"resource_type": "filesystem", "operation": "create", "target": "{engine_config}/fsspec"},
+      {"resource_type": "filesystem", "operation": "modify", "target": "{engine_config}/fsspec"}
+    ],
+    "allowed_imports": ["ctypes", "_ctypes", "cffi", "_cffi_backend"]
+  },
+  "runtime": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HUGGINGFACE_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TOKENIZERS_PARALLELISM": "false",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {"resource_type": "filesystem", "operation": "read", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "create", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "modify", "target": "{engine_cache}/huggingface"},
+      {"resource_type": "filesystem", "operation": "read", "target": "{engine_config}/fsspec"},
+      {"resource_type": "filesystem", "operation": "create", "target": "{engine_config}/fsspec"},
+      {"resource_type": "filesystem", "operation": "modify", "target": "{engine_config}/fsspec"}
+    ],
+    "allowed_imports": ["ctypes", "_ctypes", "cffi", "_cffi_backend"]
+  },
+  "models": {
+    "catalog": {"enabled": true, "path": "models/catalog.json"},
+    "source_modes": ["catalog"],
+    "custom_definition": {"enabled": false},
+    "artifact_upload": {"enabled": false}
+  },
+  "provider": {
+    "id": "rebel",
+    "label": "REBEL",
+    "kind": "kg",
+    "deployment": "local",
+    "model_source": "engine_catalog",
+    "runtime_methods": ["extract_triples"],
+    "runtime_batch_sizes": {"extract_triples": 1},
+    "icon_url": "engines/rebel/assets/icon.svg",
+    "dependencies": [
+      {
+        "dependency_key": "transformers",
+        "module": "transformers",
+        "label": "Transformers",
+        "pip_packages": ["transformers", "huggingface-hub>=0.34,<1.0", "safetensors"]
+      }
+    ],
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Local end-to-end relation extraction with REBEL sequence-to-sequence models.",
+    "capabilities": ["triples_extractor", "offline"],
+    "model_capabilities": ["triples_extractor"]
+  }
+}

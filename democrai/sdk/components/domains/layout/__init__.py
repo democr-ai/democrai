@@ -1,0 +1,1 @@
+"""SDK components: layout domain."""

@@ -1,0 +1,264 @@
+- kind: Column
+  id: components_typography_root
+  spacing: 22
+  align: top
+  children:
+  - kind: Column
+    id: components_typography_header
+    spacing: 8
+    style: 'margin-bottom: 12px'
+    children:
+    - kind: Title
+      id: components_typography_eyebrow
+      text: '@t/components.typography.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_typography_title
+      text: '@t/components.typography.title'
+      level: 1
+    - kind: Text
+      id: components_typography_description
+      text: '@t/components.typography.description'
+      tone: muted
+  - kind: Card
+    id: components_typography_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_typography_preview_title
+      text: '@t/components.typography.preview.title'
+      level: 3
+    - kind: Text
+      id: components_typography_preview_description
+      text: '@t/components.typography.preview.description'
+      muted: true
+    - kind: Column
+      id: components_typography_preview_stack
+      spacing: 10
+      children:
+      - kind: Title
+        id: components_typography_demo_h1
+        text: '@t/components.typography.preview.h1'
+        level: 1
+      - kind: Title
+        id: components_typography_demo_h2
+        text: '@t/components.typography.preview.h2'
+        level: 2
+      - kind: Title
+        id: components_typography_demo_h3
+        text: '@t/components.typography.preview.h3'
+        level: 3
+      - kind: Text
+        id: components_typography_demo_text
+        text: '@t/components.typography.preview.body'
+        selectable: true
+      - kind: Text
+        id: components_typography_demo_center
+        text: '@t/components.typography.preview.center'
+        align: center
+        tone: secondary
+      - kind: Markdown
+        id: components_typography_demo_markdown
+        text: '@t/components.typography.preview.markdown'
+  - kind: Card
+    id: components_typography_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_typography_definition_title
+      text: '@t/components.typography.definition.title'
+      level: 3
+    - kind: Text
+      id: components_typography_definition_description
+      text: '@t/components.typography.definition.description'
+      muted: true
+    - kind: Row
+      id: components_typography_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_typography_python_code
+        text: '@t/components.typography.definition.python'
+      - kind: Markdown
+        id: components_typography_yaml_code
+        text: '@t/components.typography.definition.yaml'
+  - kind: Card
+    id: components_typography_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_typography_binding_title
+      text: '@t/components.typography.binding.title'
+      level: 3
+    - kind: Text
+      id: components_typography_binding_description
+      text: '@t/components.typography.binding.description'
+      muted: true
+    - kind: Column
+      id: components_typography_binding_preview
+      spacing: 8
+      children:
+      - kind: Text
+        id: components_typography_literal_text
+        text: '@t/components.typography.binding.literal_text'
+      - kind: Row
+        id: components_typography_store_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Column
+          id: components_typography_store_values
+          spacing: 6
+          children:
+          - kind: Title
+            id: components_typography_store_title
+            text: '@state/page/components_typography/store_title'
+            level: 3
+          - kind: Text
+            id: components_typography_store_text
+            text: '@state/page/components_typography/store_text'
+        - kind: Button
+          id: components_typography_update_store
+          label: '@t/components.typography.usage.store_button'
+          variant: default
+          action:
+            name: components.typography_update
+            context:
+              mode: store
+      - kind: Row
+        id: components_typography_data_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Column
+          id: components_typography_data_values
+          spacing: 6
+          children:
+          - kind: Title
+            id: components_typography_data_title
+            text: '@data/components_typography/data_title'
+            level: 3
+          - kind: Text
+            id: components_typography_data_text
+            text: '@data/components_typography/data_text'
+          - kind: Markdown
+            id: components_typography_data_markdown
+            text: '@data/components_typography/data_markdown'
+        - kind: Button
+          id: components_typography_update_data
+          label: '@t/components.typography.usage.data_button'
+          variant: default
+          action:
+            name: components.typography_update
+            context:
+              mode: data
+      - kind: Row
+        id: components_typography_direct_row
+        spacing: 12
+        align: fill
+        children:
+        - kind: Column
+          id: components_typography_direct_preview
+          spacing: 8
+          children:
+          - kind: Title
+            id: components_typography_direct_title
+            text: '@t/components.typography.usage.direct_initial_title'
+            level: 3
+            capabilities:
+            - text.set
+            - level.set
+          - kind: Text
+            id: components_typography_direct_text
+            text: '@t/components.typography.usage.direct_initial_text'
+            align: left
+            capabilities:
+            - text.set
+            - align.set
+        - kind: Button
+          id: components_typography_update_direct
+          label: '@t/components.typography.usage.direct_button'
+          variant: default
+          action:
+            name: components.typography_update
+            context:
+              mode: direct
+    - kind: Markdown
+      id: components_typography_binding_code
+      text: '@t/components.typography.binding.code'
+    - kind: DataTable
+      id: components_typography_binding_paths
+      paginated: false
+      pagination: false
+      total_rows: 4
+      rows: '@data/components_typography/binding_rows'
+      model:
+      - field: binding
+        header: '@t/components.typography.binding.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.typography.binding.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.typography.binding.table.source'
+        type: str
+    - kind: Title
+      id: components_typography_usage_title
+      text: '@t/components.typography.usage.title'
+      level: 4
+    - kind: Text
+      id: components_typography_usage_description
+      text: '@t/components.typography.usage.description'
+      muted: true
+    - kind: Markdown
+      id: components_typography_usage_code
+      text: '@t/components.typography.usage.code'
+  - kind: Card
+    id: components_typography_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_typography_properties_title
+      text: '@t/components.typography.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_typography_properties_list
+      paginated: false
+      pagination: false
+      total_rows: 3
+      rows: '@data/components_typography/properties_rows'
+      model:
+      - field: component
+        header: '@t/components.typography.properties.table.component'
+        type: str
+      - field: properties
+        header: '@t/components.typography.properties.table.properties'
+        type: str
+      - field: bindings
+        header: '@t/components.typography.properties.table.bindings'
+        type: str

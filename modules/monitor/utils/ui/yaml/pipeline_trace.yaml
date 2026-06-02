@@ -1,0 +1,62 @@
+- kind: Column
+  id: monitor_pipeline_trace_drawer
+  spacing: 14
+  style: "min-width: 900px;"
+  children:
+    - kind: Row
+      id: monitor_pipeline_trace_header
+      spacing: 10
+      align: left
+      children:
+        - kind: Title
+          id: monitor_pipeline_trace_title
+          text: "@data/trace/title"
+          level: 3
+        - kind: Button
+          id: monitor_pipeline_trace_close
+          label: "@t/monitor.common.close"
+          icon: ric.close-line
+          variant: danger
+          action: close_drawer
+    - kind: Alert
+      id: monitor_pipeline_trace_notice
+      title: "@data/trace/notice_title"
+      description: "@data/trace/notice"
+      variant: "@data/trace/notice_variant"
+    - kind: Descriptions
+      id: monitor_pipeline_trace_overview
+      borders: true
+      key_header: "@t/monitor.detail.field"
+      value_header: "@t/monitor.detail.value"
+      model:
+        - field: step_id
+          label: "@t/monitor.detail.step_id"
+          type: str
+        - field: type
+          label: "@t/monitor.detail.type"
+          type: str
+        - field: name
+          label: "@t/monitor.detail.action"
+          type: str
+        - field: status
+          label: "@t/monitor.detail.status"
+          type: str
+        - field: archive_media_path
+          label: "@t/monitor.detail.archive_media_path"
+          type: str
+        - field: input_size_bytes
+          label: "@t/monitor.detail.input_size"
+          type: int
+        - field: output_size_bytes
+          label: "@t/monitor.detail.output_size"
+          type: int
+        - field: input_hash
+          label: "@t/monitor.detail.input_hash"
+          type: str
+        - field: output_hash
+          label: "@t/monitor.detail.output_hash"
+          type: str
+      data: "@data/trace/overview"
+    - kind: Markdown
+      id: monitor_pipeline_trace_payload
+      text: "@data/trace/payload_markdown"

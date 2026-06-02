@@ -1,0 +1,1013 @@
+{
+  "engine_id": "llamacpp",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "tiny-llama3-test-q2-k",
+      "label": "Tiny Llama 3 Test Q2_K",
+      "engine_id": "llamacpp",
+      "family": "llama",
+      "summary": "Very small GGUF model for llama.cpp installation and runtime validation.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "test"
+      ],
+      "capabilities": [
+        "chat"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 1,
+        "vram_gb": 0,
+        "storage_gb": 0.05
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/tiny-llama3-test-Q2_K.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "tensorblock/tiny-llama3-test-GGUF",
+            "files": [
+              "tiny-llama3-test-Q2_K.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "tiny-llama3-test-Q2_K.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.0,
+            "top_p": 1.0,
+            "max_tokens": 8
+          },
+          "runtime": {
+            "context_length": 512,
+            "n_gpu_layers": 0
+          }
+        }
+      },
+      "metadata": {
+        "license": "unknown"
+      }
+    },
+    {
+      "id": "meta-llama-3.1-8b-instruct-q4-k-m",
+      "label": "Meta Llama 3.1 8B Instruct Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "llama",
+      "summary": "GGUF chat model for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local"
+      ],
+      "capabilities": [
+        "chat",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 0,
+        "vram_gb": 5,
+        "storage_gb": 5
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+            "files": [
+              "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+        "defaults": {
+          "context_length": 8152,
+          "n_gpu_layers": -1,
+          "context_policy": "offload_then_reduce",
+          "output_parser": "llama31"
+        }
+      },
+      "features": {
+        "tool_calling": {
+          "supported": true,
+          "activation": {
+            "mode": "native"
+          }
+        }
+      },
+      "metadata": {
+        "license": "llama3"
+      }
+    },
+    {
+      "id": "gpt-oss-20b-unsloth-q4-k-m",
+      "label": "GPT-OSS 20B Unsloth Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "gpt-oss",
+      "summary": "Unsloth GGUF Q4_K_M GPT-OSS 20B model for local llama.cpp reasoning tests.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "4bit",
+        "reasoning",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 0,
+        "vram_gb": 11,
+        "storage_gb": 12
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/gpt-oss-20b-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gpt-oss-20b-GGUF",
+            "files": [
+              "gpt-oss-20b-Q4_K_M.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "gpt-oss-20b-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 1.0,
+            "top_p": 1.0,
+            "top_k": 0,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8142,
+            "n_gpu_layers": -1,
+            "output_parser": "gpt_oss",
+            "reasoning_parser": "gpt_oss",
+            "context_policy": "offload_then_reduce"
+          }
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "Q4_K_M"
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "select",
+            "values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "default": "medium"
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3.5-2b-unsloth-q4-k-m",
+      "label": "Qwen3.5 2B Unsloth Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "qwen3.5",
+      "summary": "Small Qwen3.5 GGUF model for local llama.cpp chat and reasoning tests.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "4bit",
+        "reasoning",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 0,
+        "storage_gb": 2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/Qwen3.5-2B-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/Qwen3.5-2B-GGUF",
+            "files": [
+              "Qwen3.5-2B-Q4_K_M.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen3.5-2B-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8192,
+            "n_gpu_layers": -1,
+            "output_parser": "qwen3",
+            "chat_template": "qwen35_vl_thinking"
+          }
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "Q4_K_M"
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "gemma-4-e2b-it-unsloth-ud-q4-k-xl",
+      "label": "Gemma 4 E2B IT Unsloth UD-Q4_K_XL",
+      "engine_id": "llamacpp",
+      "family": "gemma4",
+      "summary": "Compact Gemma 4 instruction model with Unsloth Dynamic 2.0 GGUF quantization for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "gemma4",
+        "4bit",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 0,
+        "vram_gb": 3.3,
+        "storage_gb": 4.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/gemma-4-E2B-it-UD-Q4_K_XL.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-E2B-it-GGUF",
+            "files": [
+              "gemma-4-E2B-it-UD-Q4_K_XL.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        },
+        {
+          "id": "mmproj",
+          "kind": "projector",
+          "format": "gguf",
+          "required": true,
+          "runtime_role": "multimodal_projector",
+          "target": "models/mmproj-F16.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-E2B-it-GGUF",
+            "files": [
+              "mmproj-F16.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "gemma-4-E2B-it-UD-Q4_K_XL.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8152,
+            "n_gpu_layers": -1,
+            "reasoning_parser": "gemma4",
+            "chat_template": "gemma4_thinking",
+            "multimodal_chat_handler": "llava15",
+            "context_policy": "offload_then_reduce",
+            "output_parser": "gemma4"
+          }
+        },
+        "auxiliary_artifacts": {
+          "mmproj": "mmproj"
+        },
+        "entrypoint": "gemma-4-E2B-it-UD-Q4_K_XL.gguf"
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "UD-Q4_K_XL"
+      },
+      "features": {
+        "image_to_text": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        },
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "gemma-4-e4b-it-unsloth-ud-q4-k-xl",
+      "label": "Gemma 4 E4B IT Unsloth UD-Q4_K_XL",
+      "engine_id": "llamacpp",
+      "family": "gemma4",
+      "summary": "Gemma 4 E4B instruction model with Unsloth Dynamic 2.0 GGUF quantization for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "gemma4",
+        "4bit",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 0,
+        "vram_gb": 3.4,
+        "storage_gb": 6.1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights",
+            "mmproj"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/gemma-4-E4B-it-UD-Q4_K_XL.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-E4B-it-GGUF",
+            "files": [
+              "gemma-4-E4B-it-UD-Q4_K_XL.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        },
+        {
+          "id": "mmproj",
+          "kind": "projector",
+          "format": "gguf",
+          "required": true,
+          "runtime_role": "multimodal_projector",
+          "target": "models/mmproj-F16.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-E4B-it-GGUF",
+            "files": [
+              "mmproj-F16.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "gemma-4-E4B-it-UD-Q4_K_XL.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8152,
+            "n_gpu_layers": -1,
+            "reasoning_parser": "gemma4",
+            "chat_template": "gemma4_thinking",
+            "multimodal_chat_handler": "llava15",
+            "context_policy": "offload_then_reduce",
+            "output_parser": "gemma4"
+          }
+        },
+        "auxiliary_artifacts": {
+          "mmproj": "mmproj"
+        },
+        "entrypoint": "gemma-4-E4B-it-UD-Q4_K_XL.gguf"
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "UD-Q4_K_XL"
+      },
+      "features": {
+        "image_to_text": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        },
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "gemma-4-26b-a4b-it-unsloth-ud-q4-k-m",
+      "label": "Gemma 4 26B A4B IT Unsloth UD-Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "gemma4",
+      "summary": "Gemma 4 MoE instruction model with Unsloth Dynamic 2.0 GGUF quantization for high-quality local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "gemma4",
+        "moe",
+        "4bit",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 1.5,
+        "vram_gb": 16.5,
+        "storage_gb": 18.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights",
+            "mmproj"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
+            "files": [
+              "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        },
+        {
+          "id": "mmproj",
+          "kind": "projector",
+          "format": "gguf",
+          "required": true,
+          "runtime_role": "multimodal_projector",
+          "target": "models/mmproj-F16.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
+            "files": [
+              "mmproj-F16.gguf"
+            ]
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+        "entrypoint": "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "max_tokens": 4086
+          },
+          "runtime": {
+            "context_length": 8152,
+            "n_gpu_layers": -1,
+            "reasoning_parser": "gemma4",
+            "chat_template": "gemma4_thinking",
+            "multimodal_chat_handler": "llava15",
+            "context_policy": "offload_then_reduce",
+            "output_parser": "gemma4"
+          }
+        },
+        "auxiliary_artifacts": {
+          "mmproj": "mmproj"
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "UD-Q4_K_M"
+      },
+      "features": {
+        "image_to_text": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        },
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3.5-0.8b-unsloth-q4-k-m",
+      "label": "Qwen3.5 0.8B Unsloth Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "qwen3.5",
+      "summary": "Qwen3.5 0.8B Unsloth Q4_K_M GGUF model for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "4bit",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 0,
+        "vram_gb": 1,
+        "storage_gb": 0.8
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/Qwen3.5-0.8B-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+            "files": [
+              "Qwen3.5-0.8B-Q4_K_M.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen3.5-0.8B-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8192,
+            "n_gpu_layers": -1,
+            "output_parser": "qwen3"
+          }
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "Q4_K_M"
+      },
+      "features": {}
+    },
+    {
+      "id": "qwen3.5-4b-unsloth-q4-k-m",
+      "label": "Qwen3.5 4B Unsloth Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "qwen3.5",
+      "summary": "Qwen3.5 4B Unsloth Q4_K_M GGUF model for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "4bit",
+        "reasoning",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "vram_gb": 0,
+        "storage_gb": 4
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/Qwen3.5-4B-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/Qwen3.5-4B-GGUF",
+            "files": [
+              "Qwen3.5-4B-Q4_K_M.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen3.5-4B-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8192,
+            "n_gpu_layers": -1,
+            "output_parser": "qwen3",
+            "chat_template": "qwen35_vl_thinking"
+          }
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "Q4_K_M"
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3.5-9b-unsloth-q4-k-m",
+      "label": "Qwen3.5 9B Unsloth Q4_K_M",
+      "engine_id": "llamacpp",
+      "family": "qwen3.5",
+      "summary": "Qwen3.5 9B Unsloth Q4_K_M GGUF model for local llama.cpp inference.",
+      "tags": [
+        "gguf",
+        "chat",
+        "local",
+        "huggingface",
+        "4bit",
+        "reasoning",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 12,
+        "vram_gb": 0,
+        "storage_gb": 8
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_files",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "gguf",
+          "required": true,
+          "target": "models/Qwen3.5-9B-Q4_K_M.gguf",
+          "source": {
+            "type": "huggingface",
+            "repo": "unsloth/Qwen3.5-9B-GGUF",
+            "files": [
+              "Qwen3.5-9B-Q4_K_M.gguf"
+            ]
+          },
+          "runtime_role": "model"
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen3.5-9B-Q4_K_M.gguf",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "context_length": 8192,
+            "n_gpu_layers": -1,
+            "output_parser": "qwen3",
+            "chat_template": "qwen35_vl_thinking"
+          }
+        }
+      },
+      "metadata": {
+        "license": "apache-2.0",
+        "source": "unsloth",
+        "quantization": "Q4_K_M"
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "mode": "parsed",
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "values": [
+              true,
+              false
+            ],
+            "default": false
+          }
+        }
+      }
+    }
+  ]
+}

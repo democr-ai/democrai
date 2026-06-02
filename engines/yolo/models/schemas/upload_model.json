@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "YOLO uploaded artifact",
+  "type": "object",
+  "required": ["id", "label", "uploaded_artifact"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "label": {"type": "string", "minLength": 1},
+    "uploaded_artifact": {
+      "type": "object",
+      "required": ["accept"],
+      "properties": {
+        "accept": {"type": "array", "items": {"type": "string", "enum": [".pt"]}, "minItems": 1, "uniqueItems": true}
+      },
+      "additionalProperties": true
+    },
+    "runtime": {"type": "object"}
+  },
+  "additionalProperties": true
+}

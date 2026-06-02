@@ -1,0 +1,7 @@
+!.gitignore
+libmagic/linux/*
+!libmagic/linux/.gitkeep
+libmagic/macos/*
+!libmagic/macos/.gitkeep
+libmagic/windows/*
+!libmagic/windows/.gitkeep

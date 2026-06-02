@@ -1,0 +1,109 @@
+- kind: Column
+  id: engine_provider_config_page
+  spacing: 14
+  main_axis_alignment: start
+  cross_axis_alignment: start
+  children:
+    - kind: Breadcrumb
+      id: engine_provider_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: "Engine"
+          path: "/system/engine/list"
+        - label: "@state/page/current_provider/label"
+          current: true
+    - kind: Alert
+      id: engine_provider_info_alert
+      title: "@t/system.engine.provider.page.info.title"
+      description: "@t/system.engine.provider.page.info.description"
+      variant: info
+      style: "margin-bottom: 12px;"
+    - kind: Card
+      id: engine_provider_info_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      item_actions:
+        - label: "@t/system.engine.list.action.add_engine"
+          variant: primary
+          icon: ric.add-line
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: "@state/page/current_provider/config_path"
+              position: right
+              dim: 620
+          show_if: 
+            conditions:
+              - left:
+                  type: store
+                  scope: page
+                  path: current_provider/configurable
+                op: "=="
+                right: True       
+      data:
+        current_provider: "@state/page/current_provider"
+      children:
+        - kind: Column
+          id: engine_provider_info_body
+          spacing: 6
+          children:
+            - kind: Row
+              id: card_row
+              spacing: 12
+              children:
+                - kind: Image
+                  id: engine_provider_info_icon
+                  alt: "provider icon"
+                  url: ""
+                  width: 44
+                  height: 44
+                  style: "min-width: 44px; min-height: 44px; max-width: 44px; max-height: 44px; border-radius: 8px;"
+                - kind: Column
+                  id: card_col
+                  spacing: 6
+                  children:
+                    - kind: Title
+                      id: engine_provider_info_title
+                      text: "@state/page/current_provider/label"
+                      level: 3
+                    - kind: Text
+                      id: engine_provider_info_description
+                      text: "@state/page/current_provider/description"
+                    - kind: Row
+                      id: engine_provider_info_capabilities
+                      spacing: 8
+                      children: []
+    - kind: Card
+      id: engine_provider_instances_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      children:
+        - kind: Column
+          id: engine_provider_instances_body
+          spacing: 10
+          children:
+            - kind: Title
+              id: engine_provider_instances_title
+              text: "@t/system.engine.provider.instances.title"
+              level: 4
+            - kind: Text
+              id: engine_provider_instances_empty
+              text: "@t/system.engine.provider.instances.empty"
+              show_if:
+                conditions:
+                  - left:
+                      type: store
+                      scope: page
+                      path: /provider_engines_empty
+                      default: false
+                    op: "=="
+                    right: true
+              style: "font-size: 13px;"
+            - kind: FlexContainer
+              id: engine_provider_instances_cards
+              children: []
+    - kind: Column
+      id: engine_provider_task_mount_col
+      spacing: 10
+      children: []

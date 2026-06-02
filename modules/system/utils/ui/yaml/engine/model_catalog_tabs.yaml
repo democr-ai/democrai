@@ -1,0 +1,199 @@
+- kind: Column
+  id: engine_models_tabs_root
+  spacing: 12
+  children:
+    - kind: Tabs
+      id: engine_models_tabs
+      tabs:
+        - id: engine_models_available_tab
+          label: "@t/system.engine.models.tab.available"
+          icon: "ric.checkbox-circle-line"
+        - id: engine_models_catalog_tab
+          label: "@t/system.engine.models.tab.catalog"
+          icon: "ric.download-cloud-2-line"
+      children:
+        - kind: Column
+          id: engine_models_available_tab
+          spacing: 12
+          align: top
+          children:
+            - kind: Column
+              id: engine_models_available_tab_mount
+              spacing: 12
+              children: []
+        - kind: Column
+          id: engine_models_catalog_tab
+          spacing: 12
+          align: top
+          children:
+            - kind: Card
+              id: engine_model_catalog_card
+              variant: outlined
+              style: "margin-top: 12px;"
+              children:
+                - kind: Column
+                  id: engine_model_catalog_card_content
+                  spacing: 12
+                  children:
+                    - kind: Row
+                      id: engine_model_catalog_toolbar
+                      spacing: 8
+                      align: left
+                      height: 56
+                      style: "max-width: 860px; margin-bottom: 8px;"
+                      children:
+                        - kind: TextField
+                          id: engine_model_catalog_search
+                          placeholder: "@t/system.model.catalog.search.placeholder"
+                          value: ""
+                        - kind: Select
+                          id: engine_model_catalog_status_filter
+                          value: ""
+                          placeholder: "@t/system.model.filter.status.placeholder"
+                          options:
+                            - label: "@t/system.model.filter.status.all"
+                              value: ""
+                            - label: "@t/system.model.catalog.status.available"
+                              value: catalog_available
+                            - label: "@t/system.model.catalog.status.imported"
+                              value: available
+                            - label: "@t/system.model.catalog.status.downloading"
+                              value: downloading
+                            - label: "@t/system.model.catalog.status.failed"
+                              value: failed
+                        - kind: Button
+                          id: engine_model_catalog_search_btn
+                          label: "@t/system.model.catalog.search.action"
+                          icon: "ric.search-line"
+                          action: system.filter_engine_model_catalog
+                          params:
+                            engine_id: "@state/page/instance/id"
+                            provider: "@state/page/instance/provider"
+                            page: 0
+                            page_size: 20
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          track_loading: system.filter_engine_model_catalog
+                    - kind: Text
+                      id: engine_model_catalog_page_info
+                      text: ""
+                      style: "font-size: 12px;"
+                    - kind: List
+                      id: engine_model_catalog_list
+                      orientation: vertical
+                      template: title_text
+                      capabilities: [dataSource.set]
+                      item_actions:
+                        - label: "@t/system.model.catalog.action.details"
+                          icon: "ric.search-eye-line"
+                          action:
+                            name: nav
+                            context:
+                              type: nav
+                              path: "$item.detail_path"
+                        - label: "@t/system.model.catalog.action.download"
+                          icon: "ric.download-cloud-2-line"
+                          action:
+                            name: system.download_engine_model_catalog
+                            context:
+                              catalog_id: "$item.id"
+                              engine_id: "@state/page/instance/id"
+                              provider: "@state/page/instance/provider"
+                              task_mount_id: engine_instance_models_task_mount_col
+                              items: "@state/page/engine_model_catalog/items"
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          hide_if:
+                            operator: OR
+                            conditions:
+                              - left: "$item.imported"
+                                op: "=="
+                                right: true
+                              - left: "$item.retryable"
+                                op: "=="
+                                right: true
+                          required_permissions: [system.engine.model.manage]
+                        - label: "@t/system.model.catalog.action.retry"
+                          icon: "ric.restart-line"
+                          action:
+                            name: system.download_engine_model_catalog
+                            context:
+                              catalog_id: "$item.id"
+                              engine_id: "@state/page/instance/id"
+                              provider: "@state/page/instance/provider"
+                              task_mount_id: engine_instance_models_task_mount_col
+                              items: "@state/page/engine_model_catalog/items"
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          show_if:
+                            conditions:
+                              - left: "$item.retryable"
+                                op: "=="
+                                right: true
+                          required_permissions: [system.engine.model.manage]
+                        - label: "@t/system.model.inventory.action.delete"
+                          icon: "ric.delete-bin-line"
+                          variant: danger
+                          action:
+                            name: system.delete_engine_catalog_available_model
+                            context:
+                              catalog_id: "$item.id"
+                              engine_id: "@state/page/instance/id"
+                              provider: "@state/page/instance/provider"
+                              page_size: 20
+                            confirm:
+                              text: "@t/system.model.inventory.delete.confirm.text"
+                              confirm_text: "@t/system.model.inventory.delete.confirm.accept"
+                              cancel_text: "@t/system.model.inventory.delete.confirm.cancel"
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          show_if:
+                            operator: OR
+                            conditions:
+                              - left: "$item.status"
+                                op: "=="
+                                right: available
+                              - left: "$item.status"
+                                op: "=="
+                                right: imported
+                              - left: "$item.status"
+                                op: "=="
+                                right: failed
+                          required_permissions: [system.engine.model.manage]
+                      data_source:
+                        type: binding
+                        data: {type: store, scope: page, path: /engine_model_catalog/visible_items, default: []}
+                    - kind: Row
+                      id: engine_model_catalog_pagination
+                      spacing: 8
+                      align: left
+                      show_if:
+                        conditions:
+                          - left: {type: store, scope: page, path: /engine_model_catalog/show_pagination, default: false}
+                            op: "=="
+                            right: true
+                      children:
+                        - kind: Button
+                          id: engine_model_catalog_prev
+                          label: "@t/system.model.catalog.pagination.prev"
+                          icon: "ric.arrow-left-line"
+                          action: system.filter_engine_model_catalog
+                          params:
+                            engine_id: "@state/page/instance/id"
+                            provider: "@state/page/instance/provider"
+                            page: 0
+                            page_size: 20
+                            direction: prev
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          track_loading: system.filter_engine_model_catalog
+                          capabilities: [params.set]
+                        - kind: Button
+                          id: engine_model_catalog_next
+                          label: "@t/system.model.catalog.pagination.next"
+                          icon: "ric.arrow-right-line"
+                          action: system.filter_engine_model_catalog
+                          params:
+                            engine_id: "@state/page/instance/id"
+                            provider: "@state/page/instance/provider"
+                            page: 0
+                            page_size: 20
+                            direction: next
+                          collect_input_ids: [engine_model_catalog_search, engine_model_catalog_status_filter]
+                          track_loading: system.filter_engine_model_catalog
+                          capabilities: [params.set]

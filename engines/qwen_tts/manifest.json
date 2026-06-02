@@ -1,0 +1,276 @@
+{
+  "id": "qwen_tts",
+  "name": "Qwen3-TTS",
+  "kind": "tts",
+  "entrypoint": "engines.qwen_tts.engine:QwenTTSEngine",
+  "install": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "NETRC": "{engine_config}/netrc",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/netrc"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://us.aws.cdn.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://us.aws.cdn.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://huggingface.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://huggingface.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cdn-lfs.huggingface.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cdn-lfs.huggingface.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cas-bridge.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cas-bridge.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cas-server.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cas-server.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://transfer.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://transfer.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend",
+      "ctypes",
+      "_ctypes"
+    ],
+    "allowed_subprocess_commands": [
+      "sox -h"
+    ]
+  },
+  "runtime": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "NETRC": "{engine_config}/netrc",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/netrc"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend",
+      "ctypes",
+      "_ctypes"
+    ],
+    "allowed_subprocess_commands": [
+      "sox -h"
+    ]
+  },
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "source_modes": [
+      "catalog"
+    ],
+    "custom_definition": {
+      "enabled": false,
+      "schema": "models/schemas/add_model.json"
+    },
+    "artifact_upload": {
+      "enabled": false
+    }
+  },
+  "provider": {
+    "id": "qwen_tts",
+    "label": "Qwen3-TTS",
+    "kind": "tts",
+    "deployment": "local",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "local_section": "local_audio",
+    "icon_url": "engines/qwen_tts/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "qwen_tts",
+        "module": "qwen_tts",
+        "label": "qwen-tts",
+        "pip_packages": [
+          "qwen-tts",
+          "soundfile",
+          "transformers",
+          "huggingface-hub"
+        ]
+      },
+      {
+        "dependency_key": "torch",
+        "module": "torch",
+        "label": "PyTorch",
+        "pip_packages": [
+          "torch==2.10.0",
+          "torchvision==0.25.0",
+          "torchaudio==2.10.0"
+        ]
+      },
+      {
+        "dependency_key": "soundfile",
+        "module": "soundfile",
+        "label": "soundfile",
+        "pip_packages": [
+          "soundfile"
+        ]
+      }
+    ],
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Local neural TTS provider based on Qwen3-TTS models.",
+    "capabilities": [
+      "tts",
+      "offline"
+    ]
+  }
+}

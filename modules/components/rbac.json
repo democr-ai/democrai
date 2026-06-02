@@ -1,0 +1,13 @@
+{
+  "permissions": [
+    "documentation.view"
+  ],
+  "assignments": {
+    "super": [
+      "documentation.view"
+    ],
+    "organization": [],
+    "user": [],
+    "guest": []
+  }
+}

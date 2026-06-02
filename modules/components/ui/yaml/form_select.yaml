@@ -1,0 +1,353 @@
+- kind: Column
+  id: components_forms_select_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_select_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_select_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_select_title
+      text: '@t/components.forms.select.title'
+      level: 1
+    - kind: Text
+      id: components_forms_select_description
+      text: '@t/components.forms.select.description'
+      muted: true
+  - kind: Card
+    id: components_forms_select_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_select_preview_title
+      text: '@t/components.forms.preview.title'
+      level: 3
+    - kind: Select
+      id: components_forms_select_preview
+      label: '@t/components.forms.select.preview.single'
+      value: draft
+      placeholder: '@t/components.forms.select.preview.placeholder'
+      options: '@data/components_forms/select_options'
+    - kind: Select
+      id: components_forms_select_multiple
+      label: '@t/components.forms.select.preview.multiple'
+      value:
+      - draft
+      - archived
+      multiple: true
+      options: '@data/components_forms/select_options'
+    - kind: Button
+      id: components_forms_select_read_button
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        input_id: components_forms_select_preview
+        label: select
+      collect_input_ids:
+      - components_forms_select_preview
+  - kind: Card
+    id: components_forms_select_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_select_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_select_runtime_description
+      text: '@t/components.forms.select.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_select_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_select_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_select_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Select
+            id: components_forms_select_page
+            label: '@t/components.forms.usage.page_store'
+            value:
+              type: store
+              scope: page
+              path: /components_forms/select/value
+            options: '@data/components_forms/select_options'
+          - kind: Button
+            id: components_forms_select_page_button
+            label: '@t/components.forms.usage.page_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: select
+                mode: page_store
+        - kind: Column
+          id: components_forms_select_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Select
+            id: components_forms_select_data
+            label: '@t/components.forms.usage.data_model'
+            value: '@data/components_forms/select_model/value'
+            options: '@data/components_forms/select_options'
+          - kind: Button
+            id: components_forms_select_data_button
+            label: '@t/components.forms.usage.data_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: select
+                mode: data
+      - kind: Column
+        id: components_forms_select_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_select_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Select
+            id: components_forms_select_global
+            label: '@t/components.forms.usage.global_store'
+            value:
+              type: store
+              scope: global
+              path: /components_forms/select/value
+            options: '@data/components_forms/select_options'
+          - kind: Button
+            id: components_forms_select_global_button
+            label: '@t/components.forms.usage.global_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: select
+                mode: global_store
+        - kind: Column
+          id: components_forms_select_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Select
+            id: components_forms_select_direct
+            label: '@t/components.forms.usage.direct'
+            value: draft
+            options: '@data/components_forms/select_options'
+            capabilities:
+            - value.set
+          - kind: Button
+            id: components_forms_select_direct_button
+            label: '@t/components.forms.usage.direct_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: select
+                mode: direct
+  - kind: Card
+    id: components_forms_select_dynamic_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_select_dynamic_title
+      text: '@t/components.forms.select.dynamic.title'
+      level: 3
+    - kind: Text
+      id: components_forms_select_dynamic_description
+      text: '@t/components.forms.select.dynamic.description'
+      muted: true
+    - kind: Row
+      id: components_forms_select_dynamic_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_select_action_dynamic_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Select
+          id: components_forms_select_action_dynamic
+          label: '@t/components.forms.select.dynamic.action_label'
+          options: []
+          placeholder: '@t/components.forms.select.dynamic.action_placeholder'
+          capabilities:
+          - options.set
+          - value.set
+        - kind: Row
+          id: components_forms_select_action_dynamic_buttons
+          spacing: 10
+          align: left
+          children:
+          - kind: Button
+            id: components_forms_select_action_load_button
+            label: '@t/components.forms.select.dynamic.action_button'
+            variant: primary
+            mode: ghost
+            action:
+              name: components.select_preview_populate_action
+              context:
+                target: components_forms_select_action_dynamic
+          - kind: Button
+            id: components_forms_select_action_read_button
+            label: '@t/components.forms.usage.read_button'
+            variant: default
+            action: components.form_preview_show_value
+            params:
+              input_id: components_forms_select_action_dynamic
+              label: select_action_options
+            collect_input_ids:
+            - components_forms_select_action_dynamic
+      - kind: Column
+        id: components_forms_select_state_dynamic_line
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Select
+          id: components_forms_select_state_dynamic
+          label: '@t/components.forms.select.dynamic.state_label'
+          options:
+            type: store
+            scope: page
+            path: /select_state_options
+            default:
+            - label: Not loaded
+              value: not_loaded
+          placeholder: '@t/components.forms.select.dynamic.state_placeholder'
+        - kind: Row
+          id: components_forms_select_state_dynamic_buttons
+          spacing: 10
+          align: left
+          children:
+          - kind: Button
+            id: components_forms_select_state_load_button
+            label: '@t/components.forms.select.dynamic.state_button'
+            variant: primary
+            mode: ghost
+            action: components.select_preview_populate_state
+          - kind: Button
+            id: components_forms_select_state_read_button
+            label: '@t/components.forms.usage.read_button'
+            variant: default
+            action: components.form_preview_show_value
+            params:
+              input_id: components_forms_select_state_dynamic
+              label: select_state_options
+            collect_input_ids:
+            - components_forms_select_state_dynamic
+  - kind: Card
+    id: components_forms_select_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_select_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_select_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_select_python_code
+        text: '@t/components.forms.select.definition.python'
+      - kind: Markdown
+        id: components_forms_select_yaml_code
+        text: '@t/components.forms.select.definition.yaml'
+  - kind: Card
+    id: components_forms_select_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_select_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_select_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/select_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_select_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_select_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_select_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/select_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

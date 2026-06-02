@@ -1,0 +1,79 @@
+- kind: Column
+  id: role_list_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: role_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: System
+          type: nav
+          path: /system/index
+        - label: "@t/system.role.list.title"
+          current: true
+    - kind: Row
+      id: role_list_header
+      spacing: 12
+      align: "left"
+      children:
+        - kind: Title
+          id: role_list_title
+          text: "@t/system.role.list.title"
+          level: 2
+        - kind: Button
+          id: role_new_btn
+          label: "@t/system.role.list.new_role"
+          icon: ric.add-line
+          variant: success
+          mode: ghost
+          required_permissions:
+            - system.role.create
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/role/create
+    - kind: DataTable
+      id: role_list_table
+      show_row_numbers: true
+      paginated: true
+      page: "@data/system/role/list/page"
+      page_size: "@data/system/role/list/page_size"
+      total_rows: "@data/system/role/list/total_rows"
+      remote_service: system.list_role
+      model: "@data/system/role/list/model"
+      rows: "@data/system/role/list/rows"
+      row_actions:
+        - label: "@t/system.role.list.action.view"
+          icon: ric.eye-line
+          required_permissions:
+            - system.role.view
+          action:
+            name: system.view_role
+            context:
+              op: open
+        - label: "@t/system.role.list.action.edit"
+          icon: ric.edit-line
+          required_permissions:
+            - system.role.update
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/role/$item.id/update
+        - label: "@t/system.role.list.action.delete"
+          icon: ric.delete-bin-6-line
+          variant: danger
+          required_permissions:
+            - system.role.delete
+          show_if:
+            left: "{{is_super_role}}"
+            op: "=="
+            right: false
+          action:
+            name: system.delete_role
+            context: {}
+            confirm:
+              text: "@t/system.role.delete.confirm.text"
+              confirm_text: "@t/system.role.delete.confirm.accept"
+              cancel_text: "@t/system.role.delete.confirm.cancel"

@@ -1,0 +1,41 @@
+- kind: Card
+  id: components_complex_tabs_route_metrics_root
+  variant: outlined
+  padding: [16, 16, 16, 16]
+  spacing: 12
+  children:
+    - kind: Title
+      id: components_complex_tabs_route_metrics_title
+      text: Metrics route
+      level: 4
+    - kind: Row
+      id: components_complex_tabs_route_metrics_row
+      spacing: 12
+      align: fill
+      children:
+        - kind: Card
+          id: components_complex_tabs_route_metrics_cpu
+          variant: flat
+          padding: [12, 12, 12, 12]
+          children:
+            - kind: Title
+              id: components_complex_tabs_route_metrics_cpu_value
+              text: "64%"
+              level: 3
+            - kind: Text
+              id: components_complex_tabs_route_metrics_cpu_label
+              text: CPU
+              muted: true
+        - kind: Card
+          id: components_complex_tabs_route_metrics_ram
+          variant: flat
+          padding: [12, 12, 12, 12]
+          children:
+            - kind: Title
+              id: components_complex_tabs_route_metrics_ram_value
+              text: "11.8 GB"
+              level: 3
+            - kind: Text
+              id: components_complex_tabs_route_metrics_ram_label
+              text: RAM
+              muted: true

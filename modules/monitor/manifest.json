@@ -1,0 +1,9 @@
+{
+  "name": "monitor",
+  "label": "Monitoring",
+  "version": "1.0.0",
+  "icon": "ric.pie-chart-line",
+  "description": "Monitoring module",
+  "priority": 50,
+  "allowed_imports": []
+}

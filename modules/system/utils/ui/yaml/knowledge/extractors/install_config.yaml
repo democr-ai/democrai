@@ -1,0 +1,26 @@
+- kind: Column
+  id: knowledge_extractor_install_config_modal
+  spacing: 14
+  style: "min-width: 420px;"
+  children:
+    - kind: Form
+      id: knowledge_extractor_install_config_form
+      submit_label: "@t/system.knowledge.extractors.install"
+      action:
+        name: system.install_extractor
+        context:
+          extractor_id: "@state/page/extractor_install_config/extractor_id"
+      track_loading: system.install_extractor
+      model: "@state/page/extractor_install_config/form_model"
+    - kind: Row
+      id: knowledge_extractor_install_config_actions
+      spacing: 8
+      align: right
+      children:
+        - kind: Button
+          id: knowledge_extractor_install_config_close_btn
+          label: "@t/system.common.close"
+          icon: ric.close-line
+          variant: secondary
+          mode: ghost
+          action: close_modal

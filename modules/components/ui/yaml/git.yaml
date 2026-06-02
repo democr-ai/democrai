@@ -1,0 +1,377 @@
+- kind: Column
+  id: components_charts_git_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_charts_git_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_charts_git_eyebrow
+      text: '@t/components.charts.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_charts_git_title
+      text: '@t/components.charts.git.title'
+      level: 1
+    - kind: Text
+      id: components_charts_git_description
+      text: '@t/components.charts.git.description'
+      muted: true
+  - kind: Card
+    id: components_charts_git_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_charts_git_preview_title
+      text: '@t/components.charts.preview.title'
+      level: 3
+    - kind: Row
+      id: components_charts_git_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: GitGraph
+        id: components_charts_git_branch
+        title: '@t/components.charts.git.branch'
+        height: 520
+        lane_width: 90
+        row_height: 58
+        show_branch_names: true
+        commits:
+        - id: c1
+          label: a31f9e2  Init project scaffold
+          branch: main
+        - id: c2
+          label: c9bbd51  Add auth guard
+          branch: main
+        - id: c3
+          label: f8d77a0  Start feature/chat-stream
+          branch: feature/chat-stream
+        - id: c4
+          label: 98bbf4d  Improve composer UX
+          branch: feature/chat-stream
+        - id: c5
+          label: a4e1f6b  Hotfix permission check
+          branch: main
+        - id: c6
+          label: 91dfe26  Merge feature/chat-stream
+          branch: main
+        - id: c7
+          label: db1a002  Release v2.3.0
+          branch: release/2.3
+        - id: c8
+          label: 56c11f8  Patch telemetry tags
+          branch: release/2.3
+        - id: c9
+          label: 9ed10aa  Merge release into main
+          branch: main
+        edges:
+        - source: c1
+          target: c2
+        - source: c2
+          target: c3
+        - source: c3
+          target: c4
+        - source: c2
+          target: c5
+        - source: c4
+          target: c6
+        - source: c5
+          target: c6
+        - source: c6
+          target: c7
+        - source: c7
+          target: c8
+        - source: c8
+          target: c9
+        - source: c6
+          target: c9
+        action: components.demo_ui_event
+        params:
+          source: components_charts_git_branch
+      - kind: GitGraph
+        id: components_charts_git_lane
+        title: '@t/components.charts.git.lane'
+        height: 520
+        lane_width: 96
+        row_height: 58
+        show_branch_names: true
+        commits:
+        - id: l1
+          label: 17a2dd0  Base runtime
+          lane: 0
+          laneName: main
+        - id: l2
+          label: 45cc981  Branch AI chat
+          lane: 1
+          laneName: ai-chat
+        - id: l3
+          label: 82fb001  Add message types
+          lane: 1
+          laneName: ai-chat
+        - id: l4
+          label: 0c41fd2  Harden media proxy
+          lane: 2
+          laneName: security
+        - id: l5
+          label: 6cadd9a  Merge AI chat
+          lane: 0
+          laneName: main
+        - id: l6
+          label: a9221f0  Release candidate
+          lane: 3
+          laneName: release
+        - id: l7
+          label: bb404f8  Merge security patch
+          lane: 0
+          laneName: main
+        edges:
+        - source: l1
+          target: l2
+        - source: l2
+          target: l3
+        - source: l1
+          target: l4
+        - source: l3
+          target: l5
+        - source: l5
+          target: l6
+        - source: l4
+          target: l7
+        - source: l6
+          target: l7
+        action: components.demo_ui_event
+        params:
+          source: components_charts_git_lane
+  - kind: Card
+    id: components_charts_git_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_charts_git_runtime_title
+      text: '@t/components.charts.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_charts_git_runtime_description
+      text: '@t/components.charts.git.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_charts_git_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_charts_git_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_git_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: GitGraph
+            id: components_charts_git_page
+            title:
+              type: store
+              scope: page
+              path: /components_charts/git/title
+            commits:
+              type: store
+              scope: page
+              path: /components_charts/git/commits
+            edges:
+              type: store
+              scope: page
+              path: /components_charts/git/edges
+            height: 360
+          - kind: Button
+            id: components_charts_git_page_button
+            label: '@t/components.charts.usage.page_store_button'
+            variant: default
+            action:
+              name: components.git_graph_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_charts_git_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: GitGraph
+            id: components_charts_git_data
+            title: '@data/components_charts/git_model/title'
+            commits: '@data/components_charts/git_model/commits'
+            edges: '@data/components_charts/git_model/edges'
+            height: 360
+          - kind: Button
+            id: components_charts_git_data_button
+            label: '@t/components.charts.usage.data_button'
+            variant: default
+            action:
+              name: components.git_graph_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_charts_git_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_git_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: GitGraph
+            id: components_charts_git_global
+            title:
+              type: store
+              scope: global
+              path: /components_charts/git/title
+            commits:
+              type: store
+              scope: global
+              path: /components_charts/git/commits
+            edges:
+              type: store
+              scope: global
+              path: /components_charts/git/edges
+            height: 360
+          - kind: Button
+            id: components_charts_git_global_button
+            label: '@t/components.charts.usage.global_store_button'
+            variant: default
+            action:
+              name: components.git_graph_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_charts_git_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: GitGraph
+            id: components_charts_git_direct
+            title: '@t/components.charts.git.direct'
+            height: 360
+            capabilities:
+            - title.set
+            - commits.set
+            - edges.set
+            commits:
+            - id: d1
+              label: 22fd440  Seed graph
+              branch: main
+            - id: d2
+              label: cf19a41  Add review branch
+              branch: review
+            - id: d3
+              label: 0718f31  Merge review
+              branch: main
+            edges:
+            - source: d1
+              target: d2
+            - source: d2
+              target: d3
+          - kind: Button
+            id: components_charts_git_direct_button
+            label: '@t/components.charts.usage.direct_button'
+            variant: default
+            action:
+              name: components.git_graph_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_charts_git_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_git_definition_title
+      text: '@t/components.charts.definition.title'
+      level: 3
+    - kind: Row
+      id: components_charts_git_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_charts_git_python_code
+        text: '@t/components.charts.git.definition.python'
+      - kind: Markdown
+        id: components_charts_git_yaml_code
+        text: '@t/components.charts.git.definition.yaml'
+  - kind: Card
+    id: components_charts_git_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_git_binding_title
+      text: '@t/components.charts.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_git_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/git_bindings'
+      model:
+      - field: binding
+        header: '@t/components.charts.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.charts.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.charts.table.source'
+        type: str
+  - kind: Card
+    id: components_charts_git_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_git_properties_title
+      text: '@t/components.charts.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_git_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/git_properties'
+      model:
+      - field: property
+        header: '@t/components.charts.table.property'
+        type: str
+      - field: type
+        header: '@t/components.charts.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.charts.table.usage'
+        type: str

@@ -1,0 +1,371 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { parseStyle } from '@/utils/style';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
+type WidgetMeta = {
+  id: string;
+  row: number;
+  col: number;
+  w: number;
+  h: number;
+};
+
+const sizeToSpan = (size: string): { w: number; h: number } => {
+  switch (size) {
+    case 'rect_h': return { w: 2, h: 1 };
+    case 'rect_v': return { w: 1, h: 2 };
+    case 'large': return { w: 2, h: 2 };
+    default: return { w: 1, h: 1 };
+  }
+};
+
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(v, max));
+const toPositiveInt = (value: any, fallback: number) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.trunc(n));
+};
+
+const getWidgetPropsFromSurface = (surfaces: any, surfaceId: string, componentId: string): any => {
+  const comp = surfaces?.[surfaceId]?.components?.[componentId];
+  const widget = comp?.component?.DashboardWidget;
+  return widget && typeof widget === 'object' ? widget : null;
+};
+
+export const GridDropZone: React.FC<any> = ({
+  id,
+  ExplicitList,
+  columns = 4,
+  rows = 4,
+  edit_mode = false,
+  add_action = 'add_widget',
+  move_action = 'move_widget',
+  session_key = 'grid_widgets',
+  insertable_items,
+  style,
+  onAction,
+  surfaces,
+  surfaceId,
+}) => {
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [gridWidth, setGridWidth] = useState(0);
+  const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
+  const [addMenuCell, setAddMenuCell] = useState<{ row: number; col: number } | null>(null);
+  const cols = toPositiveInt(columns, 4);
+  const rowCount = toPositiveInt(rows, 4);
+  const cellGap = 8;
+  const gridPadding = 8;
+
+  useEffect(() => {
+    const element = gridRef.current;
+    if (!element) return;
+
+    const update = () => {
+      setGridWidth(element.clientWidth || 0);
+    };
+    update();
+
+    const observer = new ResizeObserver(() => update());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const cellSize = useMemo(() => {
+    const available = Math.max(0, gridWidth - (gridPadding * 2) - (Math.max(0, cols - 1) * cellGap));
+    return Math.max(42, Math.floor(available / cols) || 0);
+  }, [gridWidth, cols]);
+  const gridHeight = (cellSize * rowCount) + (Math.max(0, rowCount - 1) * cellGap) + (gridPadding * 2);
+
+  const children = React.Children.toArray(ExplicitList) as React.ReactElement[];
+
+  const { widgets, occupied } = useMemo(() => {
+    const metas: WidgetMeta[] = [];
+    const occ = new Set<string>();
+
+    const toPlace = children
+      .map((child) => {
+        if (!React.isValidElement(child)) return null;
+        const componentId = String((child.props as any)?.componentId || (child.key ?? ''));
+        if (!componentId) return null;
+        const widgetProps = getWidgetPropsFromSurface(surfaces, surfaceId, componentId);
+        const size = String(widgetProps?.size || 'square');
+        const span = sizeToSpan(size);
+        return { id: componentId, widgetProps, span };
+      })
+      .filter(Boolean) as any[];
+
+    // First assign explicitly placed widgets
+    const unplaced: any[] = [];
+    toPlace.forEach((item) => {
+      const explicitCoords = Array.isArray(item.widgetProps?.coords) ? item.widgetProps.coords : null;
+      if (explicitCoords) {
+        const row = clamp(Number(explicitCoords[0]) || 0, 0, rowCount - 1);
+        const col = clamp(Number(explicitCoords[1]) || 0, 0, cols - 1);
+        metas.push({ id: item.id, row, col, w: item.span.w, h: item.span.h });
+        for (let r = 0; r < item.span.h; r += 1) {
+          for (let c = 0; c < item.span.w; c += 1) {
+            occ.add(`${row + r}:${col + c}`);
+          }
+        }
+      } else {
+        unplaced.push(item);
+      }
+    });
+
+    // Then auto-place remaining
+    unplaced.forEach((item) => {
+      const { w, h } = item.span;
+      let placed = false;
+      for (let r = 0; r < rowCount; r += 1) {
+        for (let c = 0; c <= cols - w; c += 1) {
+          let isFree = true;
+          for (let dr = 0; dr < h; dr += 1) {
+            for (let dc = 0; dc < w; dc += 1) {
+              if (occ.has(`${r + dr}:${c + dc}`)) {
+                isFree = false;
+                break;
+              }
+            }
+            if (!isFree) break;
+          }
+          if (isFree) {
+            metas.push({ id: item.id, row: r, col: c, w, h });
+            for (let dr = 0; dr < h; dr += 1) {
+              for (let dc = 0; dc < w; dc += 1) {
+                occ.add(`${r + dr}:${c + dc}`);
+              }
+            }
+            placed = true;
+            break;
+          }
+        }
+        if (placed) break;
+      }
+      if (!placed) {
+        // Fallback: place it out of bounds or overlap if grid is totally full
+        metas.push({ id: item.id, row: 0, col: 0, w, h });
+      }
+    });
+
+    return { widgets: metas, occupied: occ };
+  }, [children, surfaces, surfaceId, rowCount, cols]);
+
+  const cellFromMouse = (event: React.DragEvent<HTMLDivElement>): { row: number; col: number } | null => {
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    const cellW = rect.width / cols;
+    const cellH = rect.height / rowCount;
+
+    const col = clamp(Math.floor(x / cellW), 0, cols - 1);
+    const row = clamp(Math.floor(y / cellH), 0, rowCount - 1);
+    return { row, col };
+  };
+
+  const canPlace = (row: number, col: number, w = 1, h = 1, ignoreId?: string): boolean => {
+    if (col + w > cols || row + h > rowCount) return false;
+
+    const ignoreCells = new Set<string>();
+    if (ignoreId) {
+      const source = widgets.find((item) => item.id === ignoreId);
+      if (source) {
+        for (let r = 0; r < source.h; r += 1) {
+          for (let c = 0; c < source.w; c += 1) {
+            ignoreCells.add(`${source.row + r}:${source.col + c}`);
+          }
+        }
+      }
+    }
+
+    for (let r = 0; r < h; r += 1) {
+      for (let c = 0; c < w; c += 1) {
+        const key = `${row + r}:${col + c}`;
+        if (occupied.has(key) && !ignoreCells.has(key)) return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!edit_mode) return;
+    event.preventDefault();
+    setHoverCell(null);
+    setAddMenuCell(null);
+
+    const cell = cellFromMouse(event);
+    if (!cell) return;
+
+    const widgetId = event.dataTransfer.getData('application/x-dashboard-widget');
+    const w = Number(event.dataTransfer.getData('application/x-dashboard-widget-w') || '1') || 1;
+    const h = Number(event.dataTransfer.getData('application/x-dashboard-widget-h') || '1') || 1;
+
+    if (!widgetId) return;
+
+    const col = clamp(cell.col, 0, Math.max(0, cols - w));
+    const row = clamp(cell.row, 0, Math.max(0, rowCount - h));
+
+    if (!canPlace(row, col, w, h, widgetId)) return;
+
+    onAction?.(move_action, { id: widgetId, row, col, grid_id: id, session_key });
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!edit_mode) return;
+    event.preventDefault();
+    if (addMenuCell) setAddMenuCell(null);
+
+    const cell = cellFromMouse(event);
+    if (!cell) return;
+
+    const w = Number(event.dataTransfer.getData('application/x-dashboard-widget-w') || '1') || 1;
+    const h = Number(event.dataTransfer.getData('application/x-dashboard-widget-h') || '1') || 1;
+
+    const col = clamp(cell.col, 0, Math.max(0, cols - w));
+    const row = clamp(cell.row, 0, Math.max(0, rowCount - h));
+
+    setHoverCell({ row, col });
+  };
+
+  const addOptions: Array<{ label: string; size: string }> = Array.isArray(insertable_items) && insertable_items.length > 0
+    ? insertable_items
+    : [
+        { label: 'Square', size: 'square' },
+        { label: 'Horizontal', size: 'rect_h' },
+        { label: 'Vertical', size: 'rect_v' },
+      ];
+
+  const renderCellOverlay = () => {
+    const cells = [];
+    for (let row = 0; row < rowCount; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const occupiedCell = occupied.has(`${row}:${col}`);
+        const isHover = hoverCell?.row === row && hoverCell?.col === col;
+        const isAddMenuOpen = addMenuCell?.row === row && addMenuCell?.col === col;
+
+        cells.push(
+          <div
+            key={`cell_${row}_${col}`}
+            className={cn('relative',
+              'rounded-md border border-dashed bg-muted/20 transition-colors',
+              isHover && 'border-primary bg-primary/10',
+              occupiedCell && 'opacity-25',
+            )}
+          >
+            {edit_mode && !occupiedCell ? (
+              <div className="flex h-full w-full items-center justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    setAddMenuCell(isAddMenuOpen ? null : { row, col });
+                  }}
+                  title="Choose component"
+                >
+                  +
+                </Button>
+              </div>
+            ) : null}
+            {edit_mode && !occupiedCell && isAddMenuOpen ? (
+              <div className="absolute left-1/2 top-[calc(100%+6px)] z-20 w-[132px] -translate-x-1/2 rounded-md border bg-background p-1 shadow-xl">
+                {addOptions.map((option) => (
+                  <button
+                    key={`${row}_${col}_${option.size}`}
+                    type="button"
+                    className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs hover:bg-accent"
+                    onClick={() => {
+                      onAction?.(add_action, {
+                        component: 'DashboardWidget',
+                        size: option.size,
+                        row,
+                        col,
+                        grid_id: id,
+                        session_key,
+                      });
+                      setAddMenuCell(null);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>,
+        );
+      }
+    }
+    return cells;
+  };
+
+  const placeStyleFor = (meta: WidgetMeta): React.CSSProperties => ({
+    gridColumn: `${meta.col + 1} / span ${meta.w}`,
+    gridRow: `${meta.row + 1} / span ${meta.h}`,
+  });
+
+  const childById = new Map<string, React.ReactElement>();
+  React.Children.toArray(ExplicitList).forEach((child) => {
+    if (!React.isValidElement(child)) return;
+    const componentId = String((child.props as any)?.componentId || (child.key ?? ''));
+    if (componentId) childById.set(componentId, child);
+  });
+
+  return (
+    <div
+      id={id}
+      ref={gridRef}
+      className="relative w-full"
+      style={{ ...parseStyle(style), minHeight: gridHeight }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={() => {
+        if (!edit_mode) return;
+        setHoverCell(null);
+      }}
+      onClick={(event) => {
+        if (!addMenuCell) return;
+        const target = event.target as HTMLElement | null;
+        if (!target?.closest('button')) setAddMenuCell(null);
+      }}
+    >
+        <div
+          className="grid w-full rounded-lg border border-border/60 bg-background/30"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+            gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`,
+            gap: cellGap,
+            padding: gridPadding,
+            height: gridHeight,
+          }}
+        >
+          {edit_mode ? renderCellOverlay() : null}
+        </div>
+
+        <div
+          className="pointer-events-none absolute inset-0 grid"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+            gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`,
+            gap: cellGap,
+            padding: gridPadding,
+            height: gridHeight,
+          }}
+        >
+          {widgets.map((meta) => {
+            const child = childById.get(meta.id);
+            if (!child) return null;
+            return (
+              <div key={meta.id} className="pointer-events-auto min-h-0 min-w-0 overflow-hidden" style={placeStyleFor(meta)}>
+                {React.isValidElement(child) ? React.cloneElement(child as any, { edit_mode }) : child}
+              </div>
+            );
+          })}
+        </div>
+    </div>
+  );
+};

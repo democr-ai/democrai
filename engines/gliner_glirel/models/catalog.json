@@ -1,0 +1,484 @@
+{
+  "engine_id": "gliner_glirel",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "gliner-medium-glirel-large",
+      "label": "GLiNER Medium + GLiREL Large",
+      "engine_id": "gliner_glirel",
+      "family": "gliner-glirel",
+      "summary": "Local zero-shot entity and relation extraction using GLiNER for entities and GLiREL for relation labels.",
+      "tags": [
+        "kg",
+        "triples",
+        "relation_extraction",
+        "ner",
+        "local",
+        "huggingface",
+        "cpu"
+      ],
+      "capabilities": [
+        "triples_extractor"
+      ],
+      "extended_capabilities": [
+        "offline",
+        "cpu_friendly"
+      ],
+      "interfaces": [
+        "text_to_kg"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "storage_gb": 3
+      },
+      "compatible_engines": [
+        "gliner_glirel"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "entity_model",
+            "entity_backbone",
+            "relation_model",
+            "relation_backbone"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "entity_model",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner",
+          "source": {
+            "type": "huggingface",
+            "repo": "urchade/gliner_medium-v2.1",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "entity_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/deberta-v3-base",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "relation_model",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel",
+          "source": {
+            "type": "huggingface",
+            "repo": "jackboyla/glirel-large-v0",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "relation_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/deberta-v3-large",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gliner-medium-glirel-large",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "entity_model": "urchade/gliner_medium-v2.1",
+            "relation_model": "jackboyla/glirel-large-v0",
+            "entity_labels": [
+              "Person",
+              "Organization",
+              "Location",
+              "Event",
+              "Product",
+              "Date"
+            ],
+            "relation_labels": [
+              "works at",
+              "founded",
+              "located in",
+              "part of",
+              "acquired by",
+              "partner of",
+              "created by",
+              "mentions"
+            ],
+            "threshold": 0.0,
+            "top_k": 1,
+            "max_relation_tokens": 360,
+            "relation_window_overlap": 48
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "max_relation_tokens",
+              "label": "Max relation tokens",
+              "type": "integer",
+              "min": 1,
+              "default": 360
+            },
+            {
+              "name": "relation_window_overlap",
+              "label": "Relation window overlap",
+              "type": "integer",
+              "min": 0,
+              "default": 48
+            }
+          ]
+        }
+      },
+      "features": {
+        "triples_extractor": {
+          "supported": true
+        }
+      },
+      "metadata": {
+        "entity_model": "urchade/gliner_medium-v2.1",
+        "relation_model": "jackboyla/glirel-large-v0",
+        "libraries": [
+          "gliner",
+          "glirel"
+        ]
+      }
+    },
+    {
+      "id": "gliner-large-glirel-large",
+      "label": "GLiNER Large + GLiREL Large",
+      "engine_id": "gliner_glirel",
+      "family": "gliner-glirel",
+      "summary": "GLiNER Large + GLiREL Large for zero-shot entities and relation extraction.",
+      "tags": [
+        "kg",
+        "triples",
+        "relation_extraction",
+        "ner",
+        "local",
+        "huggingface",
+        "cpu"
+      ],
+      "capabilities": [
+        "triples_extractor"
+      ],
+      "extended_capabilities": [
+        "offline",
+        "cpu_friendly"
+      ],
+      "interfaces": [
+        "text_to_kg"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "storage_gb": 4
+      },
+      "compatible_engines": [
+        "gliner_glirel"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "entity_model",
+            "entity_backbone",
+            "relation_model",
+            "relation_backbone"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner",
+          "source": {
+            "type": "huggingface",
+            "repo": "urchade/gliner_large-v2.1",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "entity_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/deberta-v3-large",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel",
+          "source": {
+            "type": "huggingface",
+            "repo": "jackboyla/glirel-large-v0",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "relation_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/deberta-v3-large",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gliner-large-glirel-large",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "entity_model": "urchade/gliner_large-v2.1",
+            "relation_model": "jackboyla/glirel-large-v0",
+            "entity_labels": [
+              "Person",
+              "Organization",
+              "Location",
+              "Event",
+              "Product",
+              "Date"
+            ],
+            "relation_labels": [
+              "works at",
+              "founded",
+              "located in",
+              "part of",
+              "acquired by",
+              "partner of",
+              "created by",
+              "mentions"
+            ],
+            "threshold": 0.0,
+            "top_k": 1,
+            "max_relation_tokens": 360,
+            "relation_window_overlap": 48
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "max_relation_tokens",
+              "label": "Max relation tokens",
+              "type": "integer",
+              "min": 1,
+              "default": 360
+            },
+            {
+              "name": "relation_window_overlap",
+              "label": "Relation window overlap",
+              "type": "integer",
+              "min": 0,
+              "default": 48
+            }
+          ]
+        }
+      },
+      "features": {
+        "triples_extractor": {
+          "supported": true
+        }
+      },
+      "metadata": {
+        "entity_model": "urchade/gliner_large-v2.1",
+        "relation_model": "jackboyla/glirel-large-v0",
+        "libraries": [
+          "gliner",
+          "glirel"
+        ]
+      }
+    },
+    {
+      "id": "gliner-multi-glirel-large",
+      "label": "GLiNER Multi + GLiREL Large",
+      "engine_id": "gliner_glirel",
+      "family": "gliner-glirel",
+      "summary": "GLiNER Multi + GLiREL Large for zero-shot entities and relation extraction.",
+      "tags": [
+        "kg",
+        "triples",
+        "relation_extraction",
+        "ner",
+        "local",
+        "huggingface",
+        "cpu",
+        "multilingual"
+      ],
+      "capabilities": [
+        "triples_extractor"
+      ],
+      "extended_capabilities": [
+        "offline",
+        "cpu_friendly"
+      ],
+      "interfaces": [
+        "text_to_kg"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "storage_gb": 4
+      },
+      "compatible_engines": [
+        "gliner_glirel"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "entity_model",
+            "entity_backbone",
+            "relation_model",
+            "relation_backbone"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner",
+          "source": {
+            "type": "huggingface",
+            "repo": "urchade/gliner_multi-v2.1",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "entity_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "gliner_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/mdeberta-v3-base",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel",
+          "source": {
+            "type": "huggingface",
+            "repo": "jackboyla/glirel-large-v0",
+            "snapshot": true
+          }
+        },
+        {
+          "id": "relation_backbone",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "glirel_backbone",
+          "source": {
+            "type": "huggingface",
+            "repo": "microsoft/deberta-v3-large",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gliner-multi-glirel-large",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "entity_model": "urchade/gliner_multi-v2.1",
+            "relation_model": "jackboyla/glirel-large-v0",
+            "entity_labels": [
+              "Person",
+              "Organization",
+              "Location",
+              "Event",
+              "Product",
+              "Date"
+            ],
+            "relation_labels": [
+              "works at",
+              "founded",
+              "located in",
+              "part of",
+              "acquired by",
+              "partner of",
+              "created by",
+              "mentions"
+            ],
+            "threshold": 0.0,
+            "top_k": 1,
+            "max_relation_tokens": 360,
+            "relation_window_overlap": 48
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "max_relation_tokens",
+              "label": "Max relation tokens",
+              "type": "integer",
+              "min": 1,
+              "default": 360
+            },
+            {
+              "name": "relation_window_overlap",
+              "label": "Relation window overlap",
+              "type": "integer",
+              "min": 0,
+              "default": 48
+            }
+          ]
+        }
+      },
+      "features": {
+        "triples_extractor": {
+          "supported": true
+        }
+      },
+      "metadata": {
+        "entity_model": "urchade/gliner_multi-v2.1",
+        "relation_model": "jackboyla/glirel-large-v0",
+        "libraries": [
+          "gliner",
+          "glirel"
+        ]
+      }
+    }
+  ]
+}

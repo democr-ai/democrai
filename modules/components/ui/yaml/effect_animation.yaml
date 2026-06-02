@@ -1,0 +1,213 @@
+- kind: Column
+  id: components_effect_animation_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_animation_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_animation_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_animation_title
+      text: '@t/components.effects.animation.title'
+      level: 1
+    - kind: Text
+      id: components_effect_animation_description
+      text: '@t/components.effects.animation.description'
+      muted: true
+  - kind: Card
+    id: components_effect_animation_pulse_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    children:
+    - kind: Title
+      id: components_effect_animation_pulse_title
+      text: '@t/components.effects.animation.pulse.title'
+      level: 3
+    - kind: Text
+      id: components_effect_animation_pulse_text
+      text: '@t/components.effects.animation.pulse.text'
+      style: 'font-size: 16px; font-weight: 700;'
+      animation:
+        name: blink
+        duration: 950
+        loop: -1
+        low: 0.22
+        high: 1.0
+  - kind: Card
+    id: components_effect_animation_fade_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    animation:
+      name: fade_in
+      duration: 360
+      opacity_from: 0.0
+      delay: 140
+    children:
+    - kind: Title
+      id: components_effect_animation_fade_title
+      text: '@t/components.effects.animation.fade.title'
+      level: 3
+    - kind: Text
+      id: components_effect_animation_fade_text
+      text: '@t/components.effects.animation.fade.text'
+      muted: true
+  - kind: Card
+    id: components_effect_animation_slide_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_animation_slide_title
+      text: '@t/components.effects.animation.slide.title'
+      level: 3
+    - kind: Row
+      id: components_effect_animation_slide_row
+      spacing: 16
+      align: fill
+      children:
+      - kind: Card
+        id: components_effect_animation_slide_left
+        variant: outlined
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 8
+        animation:
+          name: slide_left
+          duration: 260
+          distance: 56
+        children:
+        - kind: Title
+          id: components_effect_animation_slide_left_title
+          text: Slide Left
+          level: 4
+        - kind: Text
+          id: components_effect_animation_slide_left_text
+          text: '@t/components.effects.animation.slide.left'
+      - kind: Card
+        id: components_effect_animation_slide_up
+        variant: outlined
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 8
+        animation:
+          name: slide_up
+          duration: 300
+          distance: 42
+        children:
+        - kind: Title
+          id: components_effect_animation_slide_up_title
+          text: Slide Up
+          level: 4
+        - kind: Text
+          id: components_effect_animation_slide_up_text
+          text: '@t/components.effects.animation.slide.up'
+  - kind: Card
+    id: components_effect_animation_stagger_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_animation_stagger_title
+      text: '@t/components.effects.animation.stagger.title'
+      level: 3
+    - kind: Column
+      id: components_effect_animation_stagger_list
+      spacing: 10
+      animation_stagger:
+        step: 110
+        animation:
+          name: slide_up
+          duration: 260
+          distance: 24
+      children:
+      - kind: Card
+        id: components_effect_animation_stagger_item_0
+        variant: outlined
+        padding:
+        - 12
+        - 14
+        - 12
+        - 14
+        children:
+        - kind: Text
+          id: components_effect_animation_stagger_text_0
+          text: '@t/components.effects.animation.stagger.one'
+      - kind: Card
+        id: components_effect_animation_stagger_item_1
+        variant: outlined
+        padding:
+        - 12
+        - 14
+        - 12
+        - 14
+        children:
+        - kind: Text
+          id: components_effect_animation_stagger_text_1
+          text: '@t/components.effects.animation.stagger.two'
+      - kind: Card
+        id: components_effect_animation_stagger_item_2
+        variant: outlined
+        padding:
+        - 12
+        - 14
+        - 12
+        - 14
+        children:
+        - kind: Text
+          id: components_effect_animation_stagger_text_2
+          text: '@t/components.effects.animation.stagger.three'
+  - kind: Card
+    id: components_effect_animation_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_animation_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_animation_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_animation_python
+        text: '@t/components.effects.animation.definition.python'
+      - kind: Markdown
+        id: components_effect_animation_yaml
+        text: '@t/components.effects.animation.definition.yaml'

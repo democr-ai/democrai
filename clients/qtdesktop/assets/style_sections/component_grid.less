@@ -1,0 +1,87 @@
+/* =========================
+   Component: Grid
+   ========================= */
+QFrame[ui_role="grid_dropzone"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @card-radius;
+}
+
+QPushButton[ui_role="grid_add_btn"] {
+    background-color: @text-soft;
+    color: @text-inverse;
+    border: none;
+    border-radius: 22px;
+    font-size: 22px;
+    font-weight: 700;
+
+    &:hover {
+        background-color: @text;
+    }
+}
+
+QMenu[ui_role="grid_add_menu"] {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border;
+    border-radius: 10px;
+    padding: 6px;
+
+    &::item {
+        padding: 10px 24px;
+        border-radius: 6px;
+
+        &:selected {
+            background-color: @surface-active;
+        }
+    }
+}
+
+QFrame[ui_role="grid_placeholder_hidden"] {
+    background-color: transparent;
+    border: none;
+}
+
+QFrame[ui_role="grid_placeholder_idle"] {
+    background-color: rgba(161, 161, 170, 0.04);
+    border: 1px dashed rgba(161, 161, 170, 0.15);
+    border-radius: 10px;
+}
+
+QFrame[ui_role="grid_placeholder_active"] {
+    background-color: rgba(161, 161, 170, 0.12);
+    border: 2px solid rgba(161, 161, 170, 0.3);
+    border-radius: 10px;
+}
+
+QFrame[ui_role="grid_placeholder_collision"] {
+    background-color: @color-danger-bg;
+    border: 2px solid @color-danger-border;
+    border-radius: 10px;
+}
+
+QFrame[ui_role="grid_widget_card"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: 12px;
+}
+
+QFrame[ui_role="grid_widget_header"] {
+    background-color: @surface-active;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom: 1px solid @border-strong;
+}
+
+QLabel[ui_role="grid_widget_title"] {
+    font-weight: 600;
+    color: @text;
+    background: transparent;
+    font-size: 12px;
+}
+
+QFrame[ui_role="grid_widget_content"] {
+    background-color: @surface-raised;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+}

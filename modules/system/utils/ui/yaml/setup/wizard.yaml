@@ -1,0 +1,116 @@
+- kind: Row
+  id: setup_shell
+  align: center
+  padding: [12, 12, 12, 12]
+  children:
+    - kind: Column
+      id: setup_spacer_left
+      stretch: true
+      children: []
+    - kind: Column
+      id: setup_center
+      align: top
+      width: 760
+      spacing: 18
+      stretch: false
+      style: "width: 760px; max-width: 100%;"
+      children:
+        - kind: Image
+          id: setup_logo
+          url: assets/logo_full.svg
+          alt: Democrai
+          width: 300
+          height: 150
+        - kind: Column
+          id: wizard_card
+          width: 760
+          padding: [32, 32, 32, 32]
+          border: [1, solid, "#e0e0e0"]
+          border_radius: 12
+          background: "#ffffff"
+          children:
+            - kind: Title
+              id: wizard_header
+              text: "@state/page/system/setup/title"
+              level: 4
+            - kind: Progress
+              id: wizard_progress
+              value: "@state/page/system/setup/progress_value"
+              label: "@state/page/system/setup/step_label"
+              maximum: 100
+              show_label: true
+              style: "margin-bottom: 12px;"
+            - kind: Column
+              id: wizard_content
+              spacing: 16
+              children:
+                - "@include/utils/ui/yaml/setup/step_mode.yaml"
+                - "@include/utils/ui/yaml/setup/step_configuration.yaml"
+                - "@include/utils/ui/yaml/setup/step_admin.yaml"
+            - kind: Row
+              id: wizard_footer
+              spacing: 12
+              children:
+                - kind: Button
+                  id: btn_prev_2
+                  label: "@t/system.setup.action.back"
+                  action: system.setup_prev
+                  params: {step: 2}
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+                        op: "=="
+                        right: 2
+                - kind: Button
+                  id: btn_next_2_local
+                  label: "@t/system.setup.action.next"
+                  action: system.setup_next
+                  params: {step: 2}
+                  collect_input_ids: [media_path_input]
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+                        op: "=="
+                        right: 2
+                      - left: {type: store, scope: page, path: /system/setup/install_mode, default: local}
+                        op: "=="
+                        right: local
+                - kind: Button
+                  id: btn_next_2_distributed
+                  label: "@t/system.setup.action.next"
+                  action: system.setup_next
+                  params: {step: 2, upload_input_id: config_attachment_input}
+                  collect_input_ids: [config_attachment_input]
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+                        op: "=="
+                        right: 2
+                      - left: {type: store, scope: page, path: /system/setup/install_mode, default: local}
+                        op: "=="
+                        right: distributed
+                - kind: Button
+                  id: btn_prev_3
+                  label: "@t/system.setup.action.back"
+                  action: system.setup_prev
+                  params: {step: 3}
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+                        op: "=="
+                        right: 3
+                - kind: Button
+                  id: btn_finish
+                  label: "@t/system.setup.action.finish"
+                  action: system.setup_finish
+                  variant: primary
+                  collect_input_ids: [admin_user, admin_email, admin_pass]
+                  show_if:
+                    conditions:
+                      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+                        op: "=="
+                        right: 3
+    - kind: Column
+      id: setup_spacer_right
+      stretch: true
+      children: []

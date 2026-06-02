@@ -1,0 +1,59 @@
+- kind: Column
+  id: organization_mcp_section
+  spacing: 12
+  children:
+    - kind: Title
+      id: organization_mcp_title
+      level: 3
+      text: "@t/system.organization.mcp.title"
+    - kind: DataTable
+      id: organization_mcp_table
+      show_row_numbers: true
+      paginated: false
+      total_rows: 0
+      model:
+        - field: name
+          header: "@t/system.organization.mcp.field.name"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: transport
+          header: "@t/system.organization.mcp.field.transport"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: enabled_server
+          header: "@t/system.organization.mcp.field.enabled_server"
+          type: bool
+          filterable: true
+          filter_type: boolean
+        - field: enabled
+          header: "@t/system.organization.mcp.field.enabled"
+          type: bool
+          filterable: true
+          filter_type: boolean
+      rows: []
+      row_actions:
+        - label: "@t/system.organization.mcp.action.enable"
+          icon: ric.check-line
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: false
+          action:
+            name: system.enable_organization_mcp
+            context: {}
+        - label: "@t/system.organization.mcp.action.disable"
+          icon: ric.close-line
+          variant: danger
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: true
+          action:
+            name: system.disable_organization_mcp
+            context: {}

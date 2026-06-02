@@ -1,0 +1,482 @@
+- kind: Column
+  id: components_complex_tabs_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_tabs_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_tabs_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_tabs_title
+      text: '@t/components.complex.tabs.title'
+      level: 1
+    - kind: Text
+      id: components_complex_tabs_description
+      text: '@t/components.complex.tabs.description'
+      muted: true
+  - kind: Card
+    id: components_complex_tabs_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_tabs_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Tabs
+      id: components_complex_tabs_inline
+      tabs:
+      - id: components_complex_tabs_inline_overview
+        label: Overview
+        icon: ric.home-2-line
+      - id: components_complex_tabs_inline_activity
+        label: Activity
+        icon: ric.history-line
+      - id: components_complex_tabs_inline_settings
+        label: Settings
+        icon: ric.settings-3-line
+      children:
+      - kind: Column
+        id: components_complex_tabs_inline_overview
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 10
+        children:
+        - kind: Title
+          id: components_complex_tabs_inline_overview_title
+          text: Overview pane
+          level: 4
+        - kind: Text
+          id: components_complex_tabs_inline_overview_text
+          text: Inline tabs render child components whose id matches the tab id.
+          muted: true
+        - kind: Row
+          id: components_complex_tabs_inline_kpis
+          spacing: 12
+          align: fill
+          children:
+          - kind: Card
+            id: components_complex_tabs_inline_kpi_one
+            variant: outlined
+            padding:
+            - 12
+            - 12
+            - 12
+            - 12
+            children:
+            - kind: Title
+              id: components_complex_tabs_inline_kpi_one_value
+              text: '42'
+              level: 3
+            - kind: Text
+              id: components_complex_tabs_inline_kpi_one_label
+              text: Active jobs
+              muted: true
+          - kind: Card
+            id: components_complex_tabs_inline_kpi_two
+            variant: outlined
+            padding:
+            - 12
+            - 12
+            - 12
+            - 12
+            children:
+            - kind: Title
+              id: components_complex_tabs_inline_kpi_two_value
+              text: 98.4%
+              level: 3
+            - kind: Text
+              id: components_complex_tabs_inline_kpi_two_label
+              text: Success rate
+              muted: true
+      - kind: Column
+        id: components_complex_tabs_inline_activity
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 8
+        children:
+        - kind: Text
+          id: components_complex_tabs_inline_activity_one
+          text: Deployment succeeded - 2 min ago
+        - kind: Text
+          id: components_complex_tabs_inline_activity_two
+          text: Permission policy updated - 14 min ago
+        - kind: Text
+          id: components_complex_tabs_inline_activity_three
+          text: Backup completed - 1 h ago
+      - kind: Column
+        id: components_complex_tabs_inline_settings
+        padding:
+        - 16
+        - 16
+        - 16
+        - 16
+        spacing: 10
+        children:
+        - kind: Text
+          id: components_complex_tabs_inline_settings_region
+          text: 'Region: eu-west-1'
+        - kind: Text
+          id: components_complex_tabs_inline_settings_plan
+          text: 'Plan: Enterprise'
+        - kind: Button
+          id: components_complex_tabs_inline_settings_save
+          label: Save settings
+          variant: default
+          action:
+            name: components.tabs_toast
+            context:
+              source: inline_settings
+  - kind: Card
+    id: components_complex_tabs_route_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_tabs_route_title
+      text: '@t/components.complex.tabs.route.title'
+      level: 3
+    - kind: Text
+      id: components_complex_tabs_route_description
+      text: '@t/components.complex.tabs.route.description'
+      muted: true
+    - kind: Tabs
+      id: components_complex_tabs_routes
+      tabs:
+      - id: route_summary
+        label: Summary route
+        icon: ric.file-list-3-line
+        route: /components/_complex/tabs_route_summary
+      - id: route_metrics
+        label: Metrics route
+        icon: ric.bar-chart-2-line
+        route: /components/_complex/tabs_route_metrics
+      - id: route_settings
+        label: Settings route
+        icon: ric.settings-3-line
+        route: /components/_complex/tabs_route_settings
+      children: []
+  - kind: Card
+    id: components_complex_tabs_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_tabs_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_tabs_runtime_description
+      text: '@t/components.complex.tabs.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_tabs_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_tabs_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_tabs_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Tabs
+            id: components_complex_tabs_page
+            tabs:
+              type: store
+              scope: page
+              path: /components_complex/tabs/items
+            children:
+            - kind: Column
+              id: components_complex_tabs_page_overview
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_page_overview_text
+                text: Page-store overview pane.
+            - kind: Column
+              id: components_complex_tabs_page_activity
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_page_activity_text
+                text: Page-store activity pane.
+          - kind: Button
+            id: components_complex_tabs_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.tabs_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_tabs_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Tabs
+            id: components_complex_tabs_data
+            tabs: '@data/components_complex/tabs_model/tabs'
+            children:
+            - kind: Column
+              id: components_complex_tabs_data_overview
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_data_overview_text
+                text: Data-model overview pane.
+            - kind: Column
+              id: components_complex_tabs_data_activity
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_data_activity_text
+                text: Data-model activity pane.
+          - kind: Button
+            id: components_complex_tabs_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.tabs_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_tabs_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_tabs_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Tabs
+            id: components_complex_tabs_global
+            tabs:
+              type: store
+              scope: global
+              path: /components_complex/tabs/items
+            children:
+            - kind: Column
+              id: components_complex_tabs_global_overview
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_global_overview_text
+                text: Global-store overview pane.
+            - kind: Column
+              id: components_complex_tabs_global_activity
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_global_activity_text
+                text: Global-store activity pane.
+          - kind: Button
+            id: components_complex_tabs_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.tabs_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_tabs_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Tabs
+            id: components_complex_tabs_direct
+            capabilities:
+            - tabs.set
+            - tabs.append
+            - tabs.remove
+            - children.append
+            - children.remove
+            tabs:
+            - id: components_complex_tabs_direct_alpha
+              label: Alpha
+              icon: ric.number-1
+            - id: components_complex_tabs_direct_beta
+              label: Beta
+              icon: ric.number-2
+            children:
+            - kind: Column
+              id: components_complex_tabs_direct_alpha
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_direct_alpha_text
+                text: Direct alpha pane.
+            - kind: Column
+              id: components_complex_tabs_direct_beta
+              padding:
+              - 14
+              - 14
+              - 14
+              - 14
+              children:
+              - kind: Text
+                id: components_complex_tabs_direct_beta_text
+                text: Direct beta pane.
+          - kind: Row
+            id: components_complex_tabs_direct_buttons
+            spacing: 10
+            children:
+            - kind: Button
+              id: components_complex_tabs_direct_set_button
+              label: '@t/components.complex.usage.direct_button'
+              variant: default
+              action:
+                name: components.tabs_update
+                context:
+                  mode: direct
+            - kind: Button
+              id: components_complex_tabs_direct_append_button
+              label: Append tab
+              variant: default
+              action:
+                name: components.tabs_append_direct
+            - kind: Button
+              id: components_complex_tabs_direct_remove_button
+              label: Remove appended
+              variant: default
+              action:
+                name: components.tabs_remove_direct
+  - kind: Card
+    id: components_complex_tabs_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_tabs_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_tabs_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_tabs_python_code
+        text: '@t/components.complex.tabs.definition.python'
+      - kind: Markdown
+        id: components_complex_tabs_yaml_code
+        text: '@t/components.complex.tabs.definition.yaml'
+  - kind: Card
+    id: components_complex_tabs_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_tabs_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_tabs_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/tabs_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_tabs_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_tabs_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_tabs_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/tabs_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

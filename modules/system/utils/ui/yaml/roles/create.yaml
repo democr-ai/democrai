@@ -1,0 +1,15 @@
+- kind: Column
+  id: role_create_page
+  spacing: 14
+  align: top
+  children:
+    - kind: Title
+      id: role_create_title
+      text: "@t/system.role.create.title"
+      level: 3
+    - kind: Form
+      id: role_create_form
+      submit_label: "@t/system.role.create.submit"
+      action:
+        name: system.create_role
+      model: []

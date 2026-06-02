@@ -1,0 +1,5 @@
+- kind: Column
+  id: components_preview_content
+  stretch: true
+  align: top
+  children: []

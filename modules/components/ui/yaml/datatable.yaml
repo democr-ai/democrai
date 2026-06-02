@@ -1,0 +1,529 @@
+- kind: Column
+  id: components_complex_datatable_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_datatable_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_datatable_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_datatable_title
+      text: '@t/components.complex.datatable.title'
+      level: 1
+    - kind: Text
+      id: components_complex_datatable_description
+      text: '@t/components.complex.datatable.description'
+      muted: true
+  - kind: Card
+    id: components_complex_datatable_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_datatable_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Column
+      id: components_complex_datatable_preview_stack
+      spacing: 18
+      children:
+      - kind: Column
+        id: components_complex_datatable_features_block
+        spacing: 10
+        children:
+        - kind: Title
+          id: components_complex_datatable_features_title
+          text: '@t/components.complex.datatable.features.title'
+          level: 4
+        - kind: Text
+          id: components_complex_datatable_features_description
+          text: '@t/components.complex.datatable.features.description'
+          muted: true
+        - kind: DataTable
+          id: components_complex_datatable_features
+          show_row_numbers: true
+          selectable: true
+          paginated: false
+          page: 0
+          page_size: 3
+          total_rows: 5
+          sort:
+            field: name
+            direction: asc
+          on_cell_edit:
+            name: components.datatable_event
+            context:
+              source: features_edit
+          on_row_add:
+            name: components.datatable_event
+            context:
+              source: features_add
+            confirm:
+              text: '@t/datatable.confirm.add_prompt'
+              confirm_text: '@t/datatable.confirm.accept'
+              cancel_text: '@t/datatable.confirm.cancel'
+          row_actions:
+          - label: '@t/components.complex.datatable.action.inspect'
+            icon: ric.search-eye-line
+            action:
+              name: components.datatable_event
+              context:
+                source: features_row
+                op: inspect
+                item_id: $item.id
+          - label: '@t/components.complex.datatable.action.pending'
+            icon: ric.time-line
+            action:
+              name: components.datatable_event
+              context:
+                source: features_row
+                op: pending_only
+                item_id: $item.id
+            show_if:
+              conditions:
+              - left: $item.status
+                op: ==
+                right: pending
+          - label: '@t/components.complex.datatable.action.delete'
+            icon: ric.delete-bin-2-line
+            variant: danger
+            action:
+              name: components.datatable_event
+              context:
+                source: features_row
+                op: delete
+                item_id: $item.id
+            confirm:
+              text: '@t/datatable.confirm.row_prompt'
+              confirm_text: '@t/datatable.confirm.accept'
+              cancel_text: '@t/datatable.confirm.cancel'
+          selection_actions:
+          - label: '@t/components.complex.datatable.action.export_selected'
+            icon: ric.download-2-line
+            action:
+              name: components.datatable_event
+              context:
+                source: features_selection
+                op: export
+          - label: '@t/components.complex.datatable.action.archive_selected'
+            icon: ric.archive-line
+            variant: danger
+            action:
+              name: components.datatable_event
+              context:
+                source: features_selection
+                op: archive
+            confirm:
+              text: '@t/datatable.confirm.selection_prompt'
+              confirm_text: '@t/datatable.confirm.accept'
+              cancel_text: '@t/datatable.confirm.cancel'
+          model: '@data/components_complex/datatable_model/model'
+          rows: '@data/components_complex/datatable_model/rows'
+      - kind: Column
+        id: components_complex_datatable_remote_block
+        spacing: 10
+        children:
+        - kind: Title
+          id: components_complex_datatable_remote_title
+          text: '@t/components.complex.datatable.remote.title'
+          level: 4
+        - kind: Text
+          id: components_complex_datatable_remote_description
+          text: '@t/components.complex.datatable.remote.description'
+          muted: true
+        - kind: DataTable
+          id: components_complex_datatable_remote
+          capabilities:
+          - rows.set
+          - page.set
+          - page_size.set
+          - total_rows.set
+          - sort.set
+          - filters.set
+          show_row_numbers: true
+          selectable: true
+          paginated: true
+          page: 0
+          page_size: 5
+          total_rows: '@data/components_complex/datatable_model/remote_total'
+          auto_refresh: 20
+          remote_service:
+            name: components.datatable_remote
+            context:
+              source: remote_service
+          sort:
+            field: name
+            direction: asc
+          row_actions:
+          - label: '@t/components.complex.datatable.action.inspect'
+            icon: ric.search-eye-line
+            action:
+              name: components.datatable_event
+              context:
+                source: remote_row
+                op: inspect
+                item_id: $item.id
+          - label: '@t/components.complex.datatable.action.promote'
+            icon: ric.arrow-up-circle-line
+            action:
+              name: components.datatable_event
+              context:
+                source: remote_row
+                op: promote
+                item_id: $item.id
+            show_if:
+              conditions:
+              - left: $item.status
+                op: '!='
+                right: locked
+          selection_actions:
+          - label: '@t/components.complex.datatable.action.export_selected'
+            icon: ric.download-2-line
+            action:
+              name: components.datatable_event
+              context:
+                source: remote_selection
+                op: export
+          model: '@data/components_complex/datatable_model/model'
+          rows: '@data/components_complex/datatable_model/remote_rows'
+  - kind: Card
+    id: components_complex_datatable_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_datatable_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_datatable_runtime_description
+      text: '@t/components.complex.datatable.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_datatable_runtime_grid
+      spacing: 18
+      align: top
+      children:
+      - kind: Column
+        id: components_complex_datatable_runtime_left
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_complex_datatable_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 12px;'
+          children:
+          - kind: DataTable
+            id: components_complex_datatable_page
+            paginated: false
+            page_size: 5
+            total_rows:
+              type: store
+              scope: page
+              path: /components_complex/datatable/total
+              default: 0
+            model: '@data/components_complex/datatable_model/model'
+            rows:
+              type: store
+              scope: page
+              path: /components_complex/datatable/rows
+              default: []
+          - kind: Button
+            id: components_complex_datatable_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            action: components.datatable_update
+            params:
+              mode: page_store
+        - kind: Column
+          id: components_complex_datatable_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 12px;'
+          children:
+          - kind: DataTable
+            id: components_complex_datatable_data
+            paginated: false
+            page_size: 5
+            total_rows: '@data/components_complex/datatable_model/total'
+            model: '@data/components_complex/datatable_model/model'
+            rows: '@data/components_complex/datatable_model/rows'
+          - kind: Button
+            id: components_complex_datatable_data_button
+            label: '@t/components.complex.usage.data_button'
+            action: components.datatable_update
+            params:
+              mode: data
+      - kind: Column
+        id: components_complex_datatable_runtime_right
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_complex_datatable_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 12px;'
+          children:
+          - kind: DataTable
+            id: components_complex_datatable_global
+            paginated: false
+            page_size: 5
+            total_rows:
+              type: store
+              scope: global
+              path: /components_complex/datatable/total
+              default: 0
+            model: '@data/components_complex/datatable_model/model'
+            rows:
+              type: store
+              scope: global
+              path: /components_complex/datatable/rows
+              default: []
+          - kind: Button
+            id: components_complex_datatable_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            action: components.datatable_update
+            params:
+              mode: global_store
+        - kind: Column
+          id: components_complex_datatable_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 12px;'
+          children:
+          - kind: DataTable
+            id: components_complex_datatable_direct
+            capabilities:
+            - rows.set
+            - rows.append
+            - rows.remove
+            - rows.replace
+            - page.set
+            - page_size.set
+            - total_rows.set
+            - sort.set
+            - filters.set
+            paginated: false
+            page_size: 5
+            total_rows: 3
+            model: '@data/components_complex/datatable_model/model'
+            rows:
+            - id: 101
+              name: Ada Lovelace
+              role: Admin
+              status: active
+              team: Platform
+              score: 98.4
+              joined: '2024-01-10T00:00:00'
+              tags:
+              - owner
+              - release
+              selectable: true
+            - id: 102
+              name: Grace Hopper
+              role: Editor
+              status: active
+              team: Runtime
+              score: 91.2
+              joined: '2024-01-18T00:00:00'
+              tags:
+              - runtime
+              - review
+              selectable: true
+            - id: 103
+              name: Katherine Johnson
+              role: Viewer
+              status: pending
+              team: Research
+              score: 86.7
+              joined: '2024-02-02T00:00:00'
+              tags:
+              - analysis
+              selectable: true
+          - kind: Row
+            id: components_complex_datatable_direct_buttons
+            spacing: 10
+            align: center
+            children:
+            - kind: Button
+              id: components_complex_datatable_direct_button
+              label: '@t/components.complex.usage.direct_button'
+              action: components.datatable_update
+              params:
+                mode: direct
+            - kind: Button
+              id: components_complex_datatable_append_button
+              label: '@t/components.complex.datatable.append_button'
+              action: components.datatable_update
+              params:
+                mode: direct_append
+  - kind: Card
+    id: components_complex_datatable_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_datatable_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Column
+      id: components_complex_datatable_definition_grid
+      spacing: 16
+      children:
+      - kind: Markdown
+        id: components_complex_datatable_python
+        text: '@t/components.complex.datatable.definition.python'
+      - kind: Markdown
+        id: components_complex_datatable_yaml
+        text: '@t/components.complex.datatable.definition.yaml'
+  - kind: Card
+    id: components_complex_datatable_model_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_datatable_model_title
+      text: '@t/components.complex.datatable.model.title'
+      level: 3
+    - kind: Text
+      id: components_complex_datatable_model_description
+      text: '@t/components.complex.datatable.model.description'
+      muted: true
+    - kind: DataTable
+      id: components_complex_datatable_model_keys
+      paginated: false
+      model:
+      - field: key
+        header: '@t/components.complex.datatable.model.table.key'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: required
+        header: '@t/components.complex.datatable.model.table.required'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/datatable_model_schema/columns'
+    - kind: DataTable
+      id: components_complex_datatable_model_field_types
+      paginated: false
+      model:
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: display
+        header: '@t/components.complex.datatable.model.table.display'
+        type: str
+      - field: editable
+        header: '@t/components.complex.datatable.model.table.editable'
+        type: str
+      - field: payload
+        header: '@t/components.complex.datatable.model.table.payload'
+        type: str
+      rows: '@data/components_complex/datatable_model_schema/field_types'
+    - kind: DataTable
+      id: components_complex_datatable_model_filters
+      paginated: false
+      model:
+      - field: type
+        header: '@t/components.complex.datatable.model.table.filter_type'
+        type: str
+      - field: control
+        header: '@t/components.complex.datatable.model.table.control'
+        type: str
+      - field: payload
+        header: '@t/components.complex.datatable.model.table.payload'
+        type: str
+      rows: '@data/components_complex/datatable_model_schema/filters'
+    - kind: DataTable
+      id: components_complex_datatable_model_formatters
+      paginated: false
+      model:
+      - field: formatter
+        header: '@t/components.complex.datatable.model.table.formatter'
+        type: str
+      - field: syntax
+        header: '@t/components.complex.datatable.model.table.syntax'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/datatable_model_schema/formatters'
+  - kind: Card
+    id: components_complex_datatable_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    children:
+    - kind: Title
+      id: components_complex_datatable_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_datatable_binding_table
+      paginated: false
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+      rows: '@data/components_complex/datatable_bindings'
+  - kind: Card
+    id: components_complex_datatable_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    children:
+    - kind: Title
+      id: components_complex_datatable_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_datatable_properties_table
+      paginated: false
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/datatable_properties'

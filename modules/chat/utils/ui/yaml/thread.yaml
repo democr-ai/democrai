@@ -1,0 +1,170 @@
+- kind: Splitter
+  id: chat_thread_page
+  stretch: true
+  sizes: [250, 900]
+  max_sizes: [250, 0]
+  style: "min-height: 0; min-width: 0; background: transparent;"
+  children:
+    - kind: Sidebar
+      id: chat_sidebar
+      padding: [16, 16, 16, 16]
+      style: "height: 100%; min-height: 0; border: none;"
+      children:
+        - kind: Row
+          id: chat_sidebar_header
+          align: fill
+          spacing: 10
+          children:
+            - kind: Title
+              id: chat_sidebar_title
+              text: "@t/chat.sidebar.title"
+              level: 3
+              stretch: true
+            - kind: Button
+              id: chat_new_thread
+              label: "@t/chat.sidebar.new"
+              variant: default
+              icon: ric.add-line
+              action:
+                name: chat.new_thread
+        - kind: ScrollArea
+          id: chat_thread_scroll
+          transparent: true
+          scroll_x: false
+          scroll_y: true
+          stretch: true
+          style: "min-height: 0; background: transparent;"
+          content_style: "min-height: 0; background: transparent;"
+          children:
+            - kind: List
+              id: chat_thread_list
+              template: text
+              selectable: false
+              data_source:
+                type: binding
+                data:
+                  path: /chat/thread_list/items
+              on_item_click:
+                name: chat.open_thread
+                context:
+                  item_id: $item.id
+              item_actions:
+                - label: "@t/chat.thread.rename"
+                  icon: ric.edit-line
+                  action:
+                    name: open_drawer
+                    context:
+                      type: nav
+                      path: /chat/thread/$item.id/rename
+                - label: "@t/chat.thread.delete"
+                  icon: ric.delete-bin-6-line
+                  variant: danger
+                  action:
+                    name: chat.delete_thread
+                    context:
+                      item_id: $item.id
+                    confirm:
+                      text: "@t/chat.thread.delete.confirm.text"
+                      confirm_text: "@t/chat.thread.delete.confirm.accept"
+                      cancel_text: "@t/chat.thread.delete.confirm.cancel"
+              capabilities:
+                - dataSource.set
+                - dataSource.data.replace
+                - dataSource.data.remove
+        - kind: Row
+          id: chat_thread_pagination
+          align: center
+          spacing: 8
+          children:
+            - kind: Button
+              id: chat_thread_prev
+              label: "@t/chat.sidebar.prev"
+              variant: default
+              mode: ghost
+              icon: ric.arrow-left-s-line
+              action:
+                name: chat.thread_page_prev
+            - kind: Text
+              id: chat_thread_page_label
+              text: "@data/chat/thread_list/page_label"
+              muted: true
+              stretch: true
+            - kind: Button
+              id: chat_thread_next
+              label: "@t/chat.sidebar.next"
+              variant: default
+              mode: ghost
+              icon: ric.arrow-right-s-line
+              action:
+                name: chat.thread_page_next
+    - kind: ContentArea
+      id: chat_content
+      stretch: true
+      style: "height: 100vh; min-height: 0; min-width: 0; background: transparent;"
+      children:
+        - kind: Column
+          id: chat_thread_conversation
+          align: fill
+          spacing: 12
+          padding: [12, 12, 12, 12]
+          stretch: true
+          style: "min-height: 0; min-width: 0; background: transparent;"
+          children:
+            - kind: ScrollArea
+              id: chat_messages_scroll
+              transparent: true
+              scroll_x: false
+              scroll_y: true
+              content_vertical_policy: maximum
+              stretch: true
+              style: "min-height: 0; min-width: 0; background: transparent;"
+              content_style: "background: transparent;"
+              align: top
+              children:
+                - kind: MessageList
+                  id: chat_message_list
+                  #style: "max-height: none; min-height: 0;"
+                  messages: []
+                  on_attachment_click:
+                    name: chat.open_attachment_preview
+                    context:
+                      source: chat_message_list
+                  capabilities:
+                    - messages.append
+                    - messages.prepend
+                    - messages.replace
+                    - messages.set
+                    - scroll.set
+                  on_load_more:
+                    name: chat.load_older_messages
+                    context:
+                      target: chat_message_list
+            - kind: Composer
+              id: chat_composer
+              placeholder: "@t/chat.composer.placeholder"
+              disabled: "@state/page/chat/thread/composer_disabled"
+              enable_attachment: "@state/page/chat/thread/attachment_enabled"
+              attachment_multiple: true
+              attachment_accept: "@state/page/chat/thread/attachment_accept"
+              ingest: true
+              voice_action:
+                name: composer_transcribe_audio
+              model_capabilities: "@state/page/chat/thread/model_capabilities"
+              options: "@state/page/chat/thread/options"
+              options_schema: "@state/page/chat/thread/options_schema"
+              options_editable: "@state/page/chat/thread/options_editable"
+              send_action:
+                name: chat.submit_message
+                context:
+                  source: chat_thread
+                  composer: chat_composer
+                  target: chat_message_list
+              cancel_action:
+                name: chat.stop_generation
+                context:
+                  source: chat_thread
+                  composer: chat_composer
+              capabilities:
+                - value.set
+                - disabled.set
+                - current_request.set

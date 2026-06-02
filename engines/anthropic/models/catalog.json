@@ -1,0 +1,77 @@
+{
+  "engine_id": "anthropic",
+  "models": [
+    {
+      "id": "claude-opus-4-7",
+      "engine_id": "anthropic",
+      "label": "Claude Opus 4.7",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Anthropic's most capable generally available model for complex reasoning and agentic coding.",
+      "runtime": {
+        "model_ref": "claude-opus-4-7",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "engine_id": "anthropic",
+      "label": "Claude Sonnet 4.6",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Anthropic model balancing speed and intelligence for general workloads.",
+      "runtime": {
+        "model_ref": "claude-sonnet-4-6",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "engine_id": "anthropic",
+      "label": "Claude Haiku 4.5",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Anthropic fast model with near-frontier intelligence.",
+      "runtime": {
+        "model_ref": "claude-haiku-4-5-20251001",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    }
+  ]
+}

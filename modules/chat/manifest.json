@@ -1,0 +1,11 @@
+{
+  "name": "chat",
+  "label": "Chat",
+  "version": "0.1.0",
+  "icon": "ric.message-3-line",
+  "description": "Conversation workspace with document-aware attachments.",
+  "priority": 30,
+  "enabled": true,
+  "allowed_imports": [],
+  "access": []
+}

@@ -1,0 +1,46 @@
+Democrai Repository License Notice
+
+Copyright (C) 2026 Democr.ai
+
+Unless a file or directory contains its own LICENSE file or explicit license
+notice, the contents of this repository are licensed under the Apache License,
+Version 2.0.
+
+Sub-licenses and directory-specific licenses take precedence over this root
+notice for the files they cover.
+
+Current directory-specific licenses:
+
+- democrai/core: GNU Affero General Public License, version 3.0.
+- democrai/sdk: Apache License, Version 2.0.
+- engines: Apache License, Version 2.0.
+- extractors: Apache License, Version 2.0.
+- clients: Apache License, Version 2.0.
+- modules: Apache License, Version 2.0.
+
+Core licensing note
+-------------------
+
+The Democrai core is licensed under the GNU Affero General Public License,
+version 3.0, as stated in democrai/core/LICENSE.
+
+You may modify, use, deploy, or redistribute democrai/core only under the terms
+of the AGPL-3.0, including its source-code availability obligations for network
+interaction, or under a separate commercial/premium license granted by the
+copyright holder.
+
+For commercial/premium licensing terms that do not rely on the AGPL-3.0 grant,
+contact the copyright holder.
+
+The `democrai` Python package includes both the AGPL-licensed core runtime and the Apache-licensed SDK. The SDK is intended as the public extension boundary, while use or modification of the core runtime is governed by AGPL-3.0 or by a separate commercial license.
+
+Apache License reference
+------------------------
+
+The Apache-2.0 text used by the Apache-licensed parts of this repository is
+available in:
+
+- democrai/sdk/LICENSE
+- clients/LICENSE
+
+SPDX-License-Identifier: Apache-2.0

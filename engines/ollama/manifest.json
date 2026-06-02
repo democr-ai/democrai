@@ -1,0 +1,111 @@
+{
+  "id": "ollama",
+  "name": "Ollama",
+  "kind": "llm",
+  "entrypoint": "engines.ollama.engine:OllamaEngine",
+  "runtime": {
+    "allowed_config_urls": "base_url",
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "env": {
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    }
+  },
+  "provider": {
+    "id": "ollama",
+    "label": "Ollama",
+    "kind": "llm",
+    "deployment": "hybrid",
+    "model_source": "provider_api",
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "embedding",
+      "image_to_text"
+    ],
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream",
+      "embed_texts"
+    ],
+    "icon_url": "engines/ollama/assets/icon.svg",
+    "dependencies": [
+      {
+        "dependency_key": "ollama",
+        "module": "ollama",
+        "label": "ollama",
+        "pip_packages": [
+          "ollama"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "value": "Ollama",
+        "placeholder": "unique name",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Name is required"
+          }
+        ]
+      },
+      {
+        "name": "base_url",
+        "label": "Base URL",
+        "type": "text",
+        "value": "http://localhost:11434",
+        "placeholder": "http://localhost:11434 or https://ollama.example.com",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Base URL is required"
+          }
+        ]
+      },
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "optional"
+      },
+      {
+        "name": "timeout_seconds",
+        "label": "Timeout Seconds",
+        "type": "number",
+        "value": 60
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Run Ollama local or remote instances with optional API key.",
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "embedding",
+      "image_to_text"
+    ]
+  }
+}

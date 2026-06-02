@@ -1,0 +1,59 @@
+- kind: Column
+  id: organization_tools_section
+  spacing: 12
+  children:
+    - kind: Title
+      id: organization_tools_title
+      level: 3
+      text: "@t/system.organization.tools.title"
+    - kind: DataTable
+      id: organization_tools_table
+      show_row_numbers: true
+      paginated: false
+      total_rows: 0
+      model:
+        - field: tool_name
+          header: "@t/system.organization.tools.field.tool_name"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: module_name
+          header: "@t/system.organization.tools.field.module_name"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: description
+          header: "@t/system.organization.tools.field.description"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: enabled
+          header: "@t/system.organization.tools.field.enabled"
+          type: bool
+          filterable: true
+          filter_type: boolean
+      rows: []
+      row_actions:
+        - label: "@t/system.organization.tools.action.enable"
+          icon: ric.check-line
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: false
+          action:
+            name: system.enable_organization_tool
+            context: {}
+        - label: "@t/system.organization.tools.action.disable"
+          icon: ric.close-line
+          variant: danger
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{enabled}}"
+            op: "=="
+            right: true
+          action:
+            name: system.disable_organization_tool
+            context: {}

@@ -1,0 +1,137 @@
+- kind: Column
+  id: components_flow_events_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_events_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_events_eyebrow
+      text: '@t/components.flow.state.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_events_title
+      text: '@t/components.flow.events.title'
+      level: 1
+    - kind: Text
+      id: components_flow_events_description
+      text: '@t/components.flow.events.description'
+      muted: true
+  - kind: Card
+    id: components_flow_events_overview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_events_overview_title
+      text: '@t/components.flow.state.overview.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_events_overview_text
+      text: '@t/components.flow.events.overview'
+    - kind: DataTable
+      id: components_flow_events_concepts_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/events/concepts'
+      model:
+      - field: concept
+        header: '@t/components.flow.table.concept'
+        type: str
+      - field: api
+        header: '@t/components.flow.table.api'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str
+  - kind: Card
+    id: components_flow_events_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_events_definition_title
+      text: '@t/components.flow.events.definition.title'
+      level: 3
+    - kind: Row
+      id: components_flow_events_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_flow_events_slot_code
+        text: '@t/components.flow.events.definition.slot'
+      - kind: Markdown
+        id: components_flow_events_listener_code
+        text: '@t/components.flow.events.definition.listener'
+  - kind: Card
+    id: components_flow_events_emit_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_events_emit_title
+      text: '@t/components.flow.events.emit.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_events_emit_text
+      text: '@t/components.flow.events.emit'
+  - kind: Card
+    id: components_flow_events_discovery_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_events_discovery_title
+      text: '@t/components.flow.discovery.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_events_discovery_text
+      text: '@t/components.flow.events.discovery'
+  - kind: Card
+    id: components_flow_events_api_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_events_api_title
+      text: '@t/components.flow.state.api.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_events_api_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/events/api'
+      model:
+      - field: operation
+        header: '@t/components.flow.state.table.operation'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str

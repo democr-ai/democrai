@@ -1,0 +1,149 @@
+{
+  "engine_id": "gemini",
+  "models": [
+    {
+      "id": "gemini-3.1-pro-preview",
+      "engine_id": "gemini",
+      "label": "Gemini 3.1 Pro Preview",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 3.1 Pro preview model for complex reasoning and agentic workflows.",
+      "runtime": {
+        "model_ref": "gemini-3.1-pro-preview",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "engine_id": "gemini",
+      "label": "Gemini 3 Flash Preview",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 3 Flash preview model for multimodal, low-latency tasks.",
+      "runtime": {
+        "model_ref": "gemini-3-flash-preview",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "engine_id": "gemini",
+      "label": "Gemini 3.1 Flash-Lite",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 3.1 Flash-Lite stable model for low-latency, cost-efficient workloads.",
+      "runtime": {
+        "model_ref": "gemini-3.1-flash-lite",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro",
+      "engine_id": "gemini",
+      "label": "Gemini 2.5 Pro",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 2.5 Pro stable model for complex reasoning and long-context tasks.",
+      "runtime": {
+        "model_ref": "gemini-2.5-pro",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "engine_id": "gemini",
+      "label": "Gemini 2.5 Flash",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 2.5 Flash stable model for price-performance and low-latency reasoning.",
+      "runtime": {
+        "model_ref": "gemini-2.5-flash",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-flash-lite",
+      "engine_id": "gemini",
+      "label": "Gemini 2.5 Flash-Lite",
+      "format": "remote",
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "extended_capabilities": [],
+      "summary": "Gemini 2.5 Flash-Lite stable model for high-volume lightweight tasks.",
+      "runtime": {
+        "model_ref": "gemini-2.5-flash-lite",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9
+          },
+          "runtime": {}
+        }
+      },
+      "provisioning": {
+        "download": {
+          "strategy": "none"
+        }
+      }
+    }
+  ]
+}

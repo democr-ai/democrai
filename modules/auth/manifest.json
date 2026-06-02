@@ -1,0 +1,36 @@
+{
+  "name": "auth",
+  "label": "User Management",
+  "version": "1.0.0",
+  "type": "python",
+  "description": "Built-in authentication and user management.",
+  "icon": "ric.logout-box-line",
+  "sidebar_position": "bottom",
+  "requirements": {
+    "core": ">=1.0.0"
+  },
+  "priority": 100,
+  "allowed_imports": [],
+  "access": [
+    {
+      "resource_type": "filesystem",
+      "operation": "read",
+      "target": "/etc/zoneinfo/CEST"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "create",
+      "target": "/etc/zoneinfo/CEST"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "modify",
+      "target": "/etc/zoneinfo/CEST"
+    },
+    {
+      "resource_type": "filesystem",
+      "operation": "delete",
+      "target": "/etc/zoneinfo/CEST"
+    }
+  ]
+}

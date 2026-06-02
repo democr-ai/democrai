@@ -1,0 +1,496 @@
+- kind: Column
+  id: components_complex_list_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_list_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_list_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_list_title
+      text: '@t/components.complex.list.title'
+      level: 1
+    - kind: Text
+      id: components_complex_list_description
+      text: '@t/components.complex.list.description'
+      muted: true
+  - kind: Card
+    id: components_complex_list_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_list_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_list_preview_grid
+      spacing: 16
+      align: top
+      children:
+      - kind: Column
+        id: components_complex_list_preview_left
+        spacing: 14
+        children:
+        - kind: List
+          id: components_complex_list_text
+          template: text
+          selectable: true
+          selected_items_action_label: '@t/list.confirm.selected_label'
+          data_source:
+            type: inline
+            data:
+            - id: text_1
+              text: Check nightly pipeline
+              icon: ric.task-line
+              selectable: true
+            - id: text_2
+              text: Sync module permissions
+              icon: ric.shield-check-line
+              selectable: true
+            - id: text_3
+              text: Locked item
+              icon: ric.lock-line
+              selectable: false
+          item_actions:
+          - label: Inspect
+            icon: ric.search-eye-line
+            action:
+              name: components.list_event
+              context:
+                source: text_menu
+                item_id: $item.id
+          - label: Duplicate
+            icon: ric.file-copy-line
+            action:
+              name: components.list_event
+              context:
+                source: text_duplicate
+                item_id: $item.id
+          selected_items_action:
+            name: components.list_event
+            context:
+              source: text_selected
+        - kind: List
+          id: components_complex_list_title_text
+          template: title_text
+          selectable: true
+          orientation: vertical
+          selected_items_action_label: '@t/list.confirm.selected_label'
+          data_source:
+            type: inline
+            data:
+            - id: title_1
+              title: Report indexing
+              text: Completed five minutes ago
+              icon: ric.database-2-line
+              selectable: true
+            - id: title_2
+              title: Ticket moderation
+              text: 2 items pending
+              icon: ric.shield-check-line
+              selectable: true
+              active: true
+            - id: title_3
+              title: Policy update
+              text: In review
+              icon: ric.file-list-3-line
+              selectable: true
+          item_actions:
+          - label: Open
+            icon: ric.external-link-line
+            action:
+              name: components.list_event
+              context:
+                source: title_open
+                item_id: $item.id
+          selected_items_action:
+            name: components.list_event
+            context:
+              source: title_selected
+      - kind: Column
+        id: components_complex_list_preview_right
+        spacing: 14
+        children:
+        - kind: List
+          id: components_complex_list_custom
+          selectable: true
+          selected_items_action_label: '@t/list.confirm.selected_label'
+          data_source:
+            type: inline
+            data:
+            - id: custom_1
+              title: Runtime queue
+              text: 18 pending tasks
+              owner: Runtime
+              status: ready
+              show_badge: true
+              selectable: true
+            - id: custom_2
+              title: Security review
+              text: 3 policy checks
+              owner: Security
+              status: review
+              show_badge: true
+              selectable: true
+          item_template:
+            kind: Card
+            id: components_complex_list_custom_card
+            variant: outlined
+            padding:
+            - 14
+            - 14
+            - 14
+            - 14
+            children:
+            - kind: Column
+              id: components_complex_list_custom_body
+              spacing: 8
+              children:
+              - kind: Row
+                id: components_complex_list_custom_header
+                spacing: 8
+                align: center
+                children:
+                - kind: Title
+                  id: components_complex_list_custom_title
+                  text: '{{title}}'
+                  level: 4
+                - kind: Badge
+                  id: components_complex_list_custom_status
+                  text: '{{status}}'
+                  variant: info
+                  show_if:
+                    conditions:
+                    - left: $item.show_badge
+                      op: ==
+                      right: true
+              - kind: Text
+                id: components_complex_list_custom_text
+                text: '{{text}}'
+                muted: true
+              - kind: Text
+                id: components_complex_list_custom_owner
+                text: 'Owner: {{owner}}'
+          item_actions:
+          - label: Open
+            icon: ric.external-link-line
+            action:
+              name: components.list_event
+              context:
+                source: custom_menu
+                item_id: $item.id
+          selected_items_action:
+            name: components.list_event
+            context:
+              source: custom_selected
+        - kind: List
+          id: components_complex_list_confirm
+          template: title_text
+          selectable: true
+          selected_items_action_label: '@t/list.confirm.selected_label'
+          data_source:
+            type: inline
+            data:
+            - id: confirm_1
+              title: Confirm row click
+              text: Row click asks before dispatch
+              selectable: false
+            - id: confirm_2
+              title: Confirm selected action
+              text: Select this row and run the batch action
+              selectable: true
+          on_item_click:
+            name: components.list_event
+            context:
+              source: confirm_click
+              item_id: $item.id
+            confirm:
+              text: '@t/list.confirm.click_prompt'
+              confirm_text: '@t/list.confirm.accept'
+              cancel_text: '@t/list.confirm.cancel'
+          item_actions:
+          - label: '@t/list.confirm.item_action'
+            icon: ric.search-eye-line
+            action:
+              name: components.list_event
+              context:
+                source: confirm_menu
+                item_id: $item.id
+              confirm:
+                text: '@t/list.confirm.menu_prompt'
+                confirm_text: '@t/list.confirm.accept'
+                cancel_text: '@t/list.confirm.cancel'
+          selected_items_action:
+            name: components.list_event
+            context:
+              source: confirm_selected
+            confirm:
+              text: '@t/list.confirm.selected_prompt'
+              confirm_text: '@t/list.confirm.accept'
+              cancel_text: '@t/list.confirm.cancel'
+  - kind: Card
+    id: components_complex_list_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_list_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_list_runtime_description
+      text: '@t/components.complex.list.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_list_runtime_grid
+      spacing: 18
+      align: top
+      children:
+      - kind: Column
+        id: components_complex_list_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_list_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: List
+            id: components_complex_list_page
+            template: title_text
+            selectable: true
+            data_source:
+              type: binding
+              data:
+                type: store
+                scope: page
+                path: /components_complex/list/items
+                default: []
+            selected_items_action:
+              name: components.list_event
+              context:
+                source: page_selected
+            selected_items_action_label: '@t/list.confirm.selected_label'
+          - kind: Button
+            id: components_complex_list_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.list_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_list_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: List
+            id: components_complex_list_data
+            template: title_text
+            selectable: true
+            data_source:
+              type: binding
+              data: '@data/components_complex/list_model/items'
+            selected_items_action:
+              name: components.list_event
+              context:
+                source: data_selected
+            selected_items_action_label: '@t/list.confirm.selected_label'
+          - kind: Button
+            id: components_complex_list_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.list_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_list_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_list_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: List
+            id: components_complex_list_global
+            template: title_text
+            selectable: true
+            data_source:
+              type: binding
+              data:
+                type: store
+                scope: global
+                path: /components_complex/list/items
+                default: []
+            selected_items_action:
+              name: components.list_event
+              context:
+                source: global_selected
+            selected_items_action_label: '@t/list.confirm.selected_label'
+          - kind: Button
+            id: components_complex_list_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.list_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_list_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: List
+            id: components_complex_list_direct
+            template: title_text
+            selectable: true
+            data_source:
+              type: inline
+              data:
+              - id: direct_1
+                title: Direct item
+                text: Initial direct source
+                selectable: true
+              - id: direct_2
+                title: Secondary direct item
+                text: Direct update target
+                selectable: true
+            item_actions:
+            - label: Open
+              icon: ric.external-link-line
+              action:
+                name: components.list_event
+                context:
+                  source: direct_menu
+                  item_id: $item.id
+            selected_items_action:
+              name: components.list_event
+              context:
+                source: direct_selected
+            selected_items_action_label: '@t/list.confirm.selected_label'
+            capabilities:
+            - dataSource.set
+            - dataSource.data.append
+            - itemActions.set
+            - selectable.set
+          - kind: Row
+            id: components_complex_list_direct_buttons
+            spacing: 10
+            align: top
+            children:
+            - kind: Button
+              id: components_complex_list_direct_button
+              label: '@t/components.complex.usage.direct_button'
+              variant: default
+              action:
+                name: components.list_update
+                context:
+                  mode: direct
+            - kind: Button
+              id: components_complex_list_direct_append_button
+              label: '@t/components.complex.list.append_button'
+              variant: default
+              action:
+                name: components.list_update
+                context:
+                  mode: direct_append
+  - kind: Card
+    id: components_complex_list_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_list_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_list_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_list_python_code
+        text: '@t/components.complex.list.definition.python'
+      - kind: Markdown
+        id: components_complex_list_yaml_code
+        text: '@t/components.complex.list.definition.yaml'
+  - kind: Card
+    id: components_complex_list_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_list_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_list_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/list_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_list_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_list_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_list_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/list_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

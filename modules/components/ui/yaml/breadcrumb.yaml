@@ -1,0 +1,265 @@
+- kind: Column
+  id: components_breadcrumb_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_breadcrumb_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_breadcrumb_eyebrow
+      text: '@t/components.content.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_breadcrumb_title
+      text: '@t/components.content.breadcrumb.title'
+      level: 1
+    - kind: Text
+      id: components_breadcrumb_description
+      text: '@t/components.content.breadcrumb.description'
+      muted: true
+  - kind: Card
+    id: components_breadcrumb_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_breadcrumb_preview_title
+      text: '@t/components.content.preview.title'
+      level: 3
+    - kind: Row
+      id: components_breadcrumb_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Column
+        id: components_breadcrumb_preview_default
+        spacing: 10
+        children:
+        - kind: Breadcrumb
+          id: components_breadcrumb_static
+          separator: /
+          segments:
+          - label: Components
+            path: /components/index
+          - label: Content
+            path: /components/_content/text
+          - label: Breadcrumb
+            current: true
+        - kind: Text
+          id: components_breadcrumb_static_note
+          text: '@t/components.content.breadcrumb.preview.static'
+          muted: true
+      - kind: Column
+        id: components_breadcrumb_preview_separator
+        spacing: 10
+        children:
+        - kind: Breadcrumb
+          id: components_breadcrumb_custom_separator
+          separator: '>'
+          segments:
+          - label: Workspace
+            path: /components/index
+          - label: Module
+            path: /components/_content/text
+          - label: Detail
+            current: true
+        - kind: Text
+          id: components_breadcrumb_separator_note
+          text: '@t/components.content.breadcrumb.preview.separator'
+          muted: true
+  - kind: Card
+    id: components_breadcrumb_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_breadcrumb_runtime_title
+      text: '@t/components.content.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_breadcrumb_runtime_description
+      text: '@t/components.content.breadcrumb.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_breadcrumb_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_breadcrumb_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_breadcrumb_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Breadcrumb
+            id: components_breadcrumb_page
+            segments:
+              type: store
+              scope: page
+              path: /components_content/breadcrumb/segments
+          - kind: Button
+            id: components_breadcrumb_page_button
+            label: '@t/components.content.usage.page_store_button'
+            variant: default
+            action:
+              name: components.breadcrumb_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_breadcrumb_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Breadcrumb
+            id: components_breadcrumb_data
+            segments: '@data/components_content/breadcrumb_model/segments'
+          - kind: Button
+            id: components_breadcrumb_data_button
+            label: '@t/components.content.usage.data_button'
+            variant: default
+            action:
+              name: components.breadcrumb_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_breadcrumb_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_breadcrumb_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Breadcrumb
+            id: components_breadcrumb_global
+            segments:
+              type: store
+              scope: global
+              path: /components_content/breadcrumb/segments
+          - kind: Button
+            id: components_breadcrumb_global_button
+            label: '@t/components.content.usage.global_store_button'
+            variant: default
+            action:
+              name: components.breadcrumb_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_breadcrumb_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Breadcrumb
+            id: components_breadcrumb_direct
+            capabilities:
+            - segments.set
+            segments:
+            - label: Components
+              path: /components/index
+            - label: Content
+              current: true
+          - kind: Button
+            id: components_breadcrumb_direct_button
+            label: '@t/components.content.usage.direct_button'
+            variant: default
+            action:
+              name: components.breadcrumb_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_breadcrumb_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_breadcrumb_definition_title
+      text: '@t/components.content.definition.title'
+      level: 3
+    - kind: Row
+      id: components_breadcrumb_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_breadcrumb_python_code
+        text: '@t/components.content.breadcrumb.definition.python'
+      - kind: Markdown
+        id: components_breadcrumb_yaml_code
+        text: '@t/components.content.breadcrumb.definition.yaml'
+  - kind: Card
+    id: components_breadcrumb_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_breadcrumb_binding_title
+      text: '@t/components.content.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_breadcrumb_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_content/breadcrumb_bindings'
+      model:
+      - field: binding
+        header: '@t/components.content.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.content.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.content.table.source'
+        type: str
+  - kind: Card
+    id: components_breadcrumb_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_breadcrumb_properties_title
+      text: '@t/components.content.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_breadcrumb_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_content/breadcrumb_properties'
+      model:
+      - field: property
+        header: '@t/components.content.table.property'
+        type: str
+      - field: type
+        header: '@t/components.content.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.content.table.usage'
+        type: str

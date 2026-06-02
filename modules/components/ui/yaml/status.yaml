@@ -1,0 +1,340 @@
+- kind: Column
+  id: components_status_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_status_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_status_eyebrow
+      text: '@t/components.content.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_status_title
+      text: '@t/components.content.status.title'
+      level: 1
+    - kind: Text
+      id: components_status_description
+      text: '@t/components.content.status.description'
+      muted: true
+  - kind: Card
+    id: components_status_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_status_preview_title
+      text: '@t/components.content.preview.title'
+      level: 3
+    - kind: Row
+      id: components_status_badge_row
+      spacing: 10
+      align: left
+      children:
+      - kind: Badge
+        id: components_status_badge_default
+        text: Draft
+        variant: default
+      - kind: Badge
+        id: components_status_badge_success
+        text: Synced
+        variant: success
+      - kind: Badge
+        id: components_status_badge_warning
+        text: Pending
+        variant: warning
+      - kind: Badge
+        id: components_status_badge_destructive
+        text: Blocked
+        variant: destructive
+    - kind: Column
+      id: components_status_alert_stack
+      spacing: 10
+      children:
+      - kind: Alert
+        id: components_status_alert_info
+        title: Background sync running
+        description: Use Alert for expanded status blocks.
+        variant: info
+      - kind: Alert
+        id: components_status_alert_success
+        title: Deploy completed
+        description: The operation finished correctly.
+        variant: success
+      - kind: Alert
+        id: components_status_alert_warning
+        title: Validation drift detected
+        description: Review the mapping before continuing.
+        variant: warning
+  - kind: Card
+    id: components_status_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_status_runtime_title
+      text: '@t/components.content.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_status_runtime_description
+      text: '@t/components.content.status.runtime.description'
+      muted: true
+    - kind: Column
+      id: components_status_runtime_grid
+      spacing: 18
+      children:
+      - kind: Row
+        id: components_status_page_line
+        spacing: 14
+        align: left
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Column
+          id: components_status_page_preview
+          spacing: 8
+          style: 'min-width: 360px; max-width: 520px;'
+          children:
+          - kind: Badge
+            id: components_status_badge_page
+            text:
+              type: store
+              scope: page
+              path: /components_content/status/badge_text
+              default: Store badge
+            variant:
+              type: store
+              scope: page
+              path: /components_content/status/badge_variant
+              default: default
+          - kind: Alert
+            id: components_status_alert_page
+            title:
+              type: store
+              scope: page
+              path: /components_content/status/title
+              default: Store-bound status
+            description:
+              type: store
+              scope: page
+              path: /components_content/status/description
+              default: Status follows page store.
+            variant:
+              type: store
+              scope: page
+              path: /components_content/status/variant
+              default: info
+        - kind: Button
+          id: components_status_page_button
+          label: '@t/components.content.usage.page_store_button'
+          variant: default
+          action:
+            name: components.status_update
+            context:
+              mode: page_store
+      - kind: Row
+        id: components_status_global_line
+        spacing: 14
+        align: left
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Column
+          id: components_status_global_preview
+          spacing: 8
+          style: 'min-width: 360px; max-width: 520px;'
+          children:
+          - kind: Badge
+            id: components_status_badge_global
+            text:
+              type: store
+              scope: global
+              path: /components_content/status/badge_text
+              default: Global badge
+            variant:
+              type: store
+              scope: global
+              path: /components_content/status/badge_variant
+              default: warning
+          - kind: Alert
+            id: components_status_alert_global
+            title:
+              type: store
+              scope: global
+              path: /components_content/status/title
+              default: Global status
+            description:
+              type: store
+              scope: global
+              path: /components_content/status/description
+              default: Status follows global store.
+            variant:
+              type: store
+              scope: global
+              path: /components_content/status/variant
+              default: warning
+        - kind: Button
+          id: components_status_global_button
+          label: '@t/components.content.usage.global_store_button'
+          variant: default
+          action:
+            name: components.status_update
+            context:
+              mode: global_store
+      - kind: Row
+        id: components_status_data_line
+        spacing: 14
+        align: left
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Column
+          id: components_status_data_preview
+          spacing: 8
+          style: 'min-width: 360px; max-width: 520px;'
+          children:
+          - kind: Badge
+            id: components_status_badge_data
+            text: '@data/components_content/status_model/badge_text'
+            variant: '@data/components_content/status_model/badge_variant'
+          - kind: Alert
+            id: components_status_alert_data
+            title: '@data/components_content/status_model/title'
+            description: '@data/components_content/status_model/description'
+            variant: '@data/components_content/status_model/variant'
+        - kind: Button
+          id: components_status_data_button
+          label: '@t/components.content.usage.data_button'
+          variant: default
+          action:
+            name: components.status_update
+            context:
+              mode: data
+      - kind: Row
+        id: components_status_direct_line
+        spacing: 14
+        align: left
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Column
+          id: components_status_direct_preview
+          spacing: 8
+          style: 'min-width: 360px; max-width: 520px;'
+          children:
+          - kind: Badge
+            id: components_status_badge_direct
+            text: Runtime badge
+            variant: default
+            capabilities:
+            - text.set
+            - variant.set
+          - kind: Alert
+            id: components_status_alert_direct
+            title: Runtime status
+            description: Default runtime message.
+            variant: info
+            capabilities:
+            - title.set
+            - description.set
+            - variant.set
+        - kind: Button
+          id: components_status_direct_button
+          label: '@t/components.content.usage.direct_button'
+          variant: default
+          action:
+            name: components.status_update
+            context:
+              mode: direct
+  - kind: Card
+    id: components_status_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_status_definition_title
+      text: '@t/components.content.definition.title'
+      level: 3
+    - kind: Row
+      id: components_status_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_status_python_code
+        text: '@t/components.content.status.definition.python'
+      - kind: Markdown
+        id: components_status_yaml_code
+        text: '@t/components.content.status.definition.yaml'
+  - kind: Card
+    id: components_status_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_status_binding_title
+      text: '@t/components.content.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_status_binding_table
+      paginated: false
+      pagination: false
+      total_rows: 4
+      rows: '@data/components_content/status_bindings'
+      model:
+      - field: binding
+        header: '@t/components.content.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.content.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.content.table.source'
+        type: str
+  - kind: Card
+    id: components_status_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_status_properties_title
+      text: '@t/components.content.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_status_properties_table
+      paginated: false
+      pagination: false
+      total_rows: 6
+      rows: '@data/components_content/status_properties'
+      model:
+      - field: component
+        header: '@t/components.content.table.component'
+        type: str
+      - field: property
+        header: '@t/components.content.table.property'
+        type: str
+      - field: usage
+        header: '@t/components.content.table.usage'
+        type: str

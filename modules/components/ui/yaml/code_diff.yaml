@@ -1,0 +1,376 @@
+- kind: Column
+  id: components_complex_codediff_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_codediff_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_codediff_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_codediff_title
+      text: '@t/components.complex.codediff.title'
+      level: 1
+    - kind: Text
+      id: components_complex_codediff_description
+      text: '@t/components.complex.codediff.description'
+      muted: true
+  - kind: Card
+    id: components_complex_codediff_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_codediff_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: CodeDiff
+      id: components_complex_codediff_preview
+      title: Configuration update
+      filePath: config/settings.yaml
+      oldRevision: 7f8e9a2
+      newRevision: 4b2c1d0
+      showLineNumbers: true
+      hunks:
+      - old_start: 12
+        new_start: 12
+        header: '@@ -12,6 +12,7 @@'
+        lines:
+        - type: context
+          old_no: 12
+          new_no: 12
+          text: 'server:'
+        - type: remove
+          old_no: 13
+          text: '  timeout: 30s'
+        - type: add
+          new_no: 13
+          text: '  timeout: 60s'
+        - type: add
+          new_no: 14
+          text: '  retry_attempts: 3'
+        - type: context
+          old_no: 14
+          new_no: 15
+          text: '  logging: info'
+    - kind: CodeDiff
+      id: components_complex_codediff_without_lines
+      title: Compact review
+      filePath: modules/components/ui/yaml/code_diff.yaml
+      oldRevision: a31f9e2
+      newRevision: c9bbd51
+      showLineNumbers: false
+      hunks:
+      - old_start: 3
+        new_start: 3
+        header: '@@ -3,3 +3,4 @@'
+        lines:
+        - type: context
+          text: 'children:'
+        - type: remove
+          text: '  - legacy_markdown'
+        - type: add
+          text: '  - components_complex_codediff_preview_card'
+        - type: add
+          text: '  - components_complex_codediff_runtime_card'
+  - kind: Card
+    id: components_complex_codediff_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_codediff_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_codediff_runtime_description
+      text: '@t/components.complex.codediff.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_codediff_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_codediff_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_codediff_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: CodeDiff
+            id: components_complex_codediff_page
+            title:
+              type: store
+              scope: page
+              path: /components_complex/codediff/title
+              default: Configuration update
+            filePath:
+              type: store
+              scope: page
+              path: /components_complex/codediff/filePath
+              default: config/settings.yaml
+            oldRevision:
+              type: store
+              scope: page
+              path: /components_complex/codediff/oldRevision
+              default: 7f8e9a2
+            newRevision:
+              type: store
+              scope: page
+              path: /components_complex/codediff/newRevision
+              default: 4b2c1d0
+            showLineNumbers:
+              type: store
+              scope: page
+              path: /components_complex/codediff/showLineNumbers
+              default: true
+            hunks:
+              type: store
+              scope: page
+              path: /components_complex/codediff/hunks
+              default: []
+          - kind: Button
+            id: components_complex_codediff_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.codediff_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_codediff_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: CodeDiff
+            id: components_complex_codediff_data
+            title: '@data/components_complex/codediff_model/title'
+            filePath: '@data/components_complex/codediff_model/filePath'
+            oldRevision: '@data/components_complex/codediff_model/oldRevision'
+            newRevision: '@data/components_complex/codediff_model/newRevision'
+            showLineNumbers: '@data/components_complex/codediff_model/showLineNumbers'
+            hunks: '@data/components_complex/codediff_model/hunks'
+          - kind: Button
+            id: components_complex_codediff_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.codediff_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_codediff_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_codediff_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: CodeDiff
+            id: components_complex_codediff_global
+            title:
+              type: store
+              scope: global
+              path: /components_complex/codediff/title
+              default: Configuration update
+            filePath:
+              type: store
+              scope: global
+              path: /components_complex/codediff/filePath
+              default: config/settings.yaml
+            oldRevision:
+              type: store
+              scope: global
+              path: /components_complex/codediff/oldRevision
+              default: 7f8e9a2
+            newRevision:
+              type: store
+              scope: global
+              path: /components_complex/codediff/newRevision
+              default: 4b2c1d0
+            showLineNumbers:
+              type: store
+              scope: global
+              path: /components_complex/codediff/showLineNumbers
+              default: true
+            hunks:
+              type: store
+              scope: global
+              path: /components_complex/codediff/hunks
+              default: []
+          - kind: Button
+            id: components_complex_codediff_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.codediff_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_codediff_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: CodeDiff
+            id: components_complex_codediff_direct
+            capabilities:
+            - title.set
+            - filePath.set
+            - oldRevision.set
+            - newRevision.set
+            - showLineNumbers.set
+            - hunks.set
+            title: Direct review
+            filePath: app/service.py
+            oldRevision: 1a2b3c4
+            newRevision: 5d6e7f8
+            showLineNumbers: true
+            hunks:
+            - old_start: 8
+              new_start: 8
+              header: '@@ -8,3 +8,4 @@'
+              lines:
+              - type: context
+                old_no: 8
+                new_no: 8
+                text: 'def run():'
+              - type: remove
+                old_no: 9
+                text: '    execute()'
+              - type: add
+                new_no: 9
+                text: '    execute_safe()'
+          - kind: Button
+            id: components_complex_codediff_direct_button
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.codediff_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_complex_codediff_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_codediff_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_codediff_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_codediff_python_code
+        text: '@t/components.complex.codediff.definition.python'
+      - kind: Markdown
+        id: components_complex_codediff_yaml_code
+        text: '@t/components.complex.codediff.definition.yaml'
+  - kind: Card
+    id: components_complex_codediff_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_codediff_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_codediff_binding_table
+      paginated: false
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+      rows: '@data/components_complex/codediff_bindings'
+  - kind: Card
+    id: components_complex_codediff_schema_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_codediff_schema_title
+      text: '@t/components.complex.codediff.schema.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_codediff_schema_table
+      paginated: false
+      model:
+      - field: field
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/codediff_schema'
+  - kind: Card
+    id: components_complex_codediff_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    children:
+    - kind: Title
+      id: components_complex_codediff_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_codediff_properties_table
+      paginated: false
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/codediff_properties'

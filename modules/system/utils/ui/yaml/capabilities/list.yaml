@@ -1,0 +1,29 @@
+- kind: Column
+  id: capabilities_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: capabilities_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: System
+          type: nav
+          path: /system/index
+        - label: "@t/system.capabilities.list.title"
+          current: true
+    - kind: Title
+      id: capabilities_title
+      text: "@t/system.capabilities.list.title"
+      level: 2
+    - kind: Text
+      id: capabilities_subtitle
+      text: "@t/system.capabilities.list.subtitle"
+      style: "font-size: 13px;"
+    - kind: Text
+      id: capabilities_empty
+      text: "@t/system.capabilities.list.empty"
+      style: "font-size: 13px; margin-bottom: 12px;"
+    - kind: Tabs
+      id: capabilities_tabs
+      children: []
+      tabs: []

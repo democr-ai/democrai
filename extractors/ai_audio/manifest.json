@@ -1,0 +1,49 @@
+{
+  "manifest_version": "1",
+  "id": "ai_audio",
+  "name": "AI Audio Extractor",
+  "kind": "extractor",
+  "entrypoint": "extractors.ai_audio.extractor:AIAudioExtractor",
+  "icon_url": "extractors/ai_audio/assets/icon.png",
+  "file_extensions": [
+    ".mp3",
+    ".wav",
+    ".m4a",
+    ".aac",
+    ".ogg",
+    ".flac"
+  ],
+  "mime_types": [
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mp4",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac"
+  ],
+  "dependencies": [],
+  "install": {
+    "access": []
+  },
+  "runtime": {
+    "access": [],
+    "config_schema": [
+      {
+        "name": "model_registry_id",
+        "label": "Speech-to-text model",
+        "type": "select",
+        "source": {
+          "type": "model_registry",
+          "capability": "stt"
+        },
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Speech-to-text model is required"
+          }
+        ]
+      }
+    ]
+  }
+}

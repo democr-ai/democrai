@@ -1,0 +1,18 @@
+# Observability Migrations
+
+Alembic revisions for relational observability storage backends.
+
+These migrations change technical runtime events and audit schemas. They do not
+own primary application state or module data.
+
+Use the runner:
+
+```bash
+python main.py create-migration observability -m "description" --autogenerate
+python main.py migrate observability
+python main.py rollback observability --steps 1
+python main.py migration-status observability
+```
+
+The `clickhouse` backend uses dedicated schema bootstrap and does not use the
+normal Alembic flow.

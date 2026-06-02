@@ -1,0 +1,65 @@
+{
+  "id": "openai_tts",
+  "name": "OpenAI TTS",
+  "kind": "tts",
+  "entrypoint": "engines.openai_tts.engine:OpenAITTSEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+  "runtime": {
+    "allowed_config_urls": "base_url"
+  },
+  "provider": {
+    "id": "openai_tts",
+    "label": "OpenAI TTS",
+    "kind": "tts",
+    "deployment": "remote",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "icon_url": "engines/openai_tts/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "openai",
+        "module": "openai",
+        "label": "openai",
+        "pip_packages": [
+          "openai"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "sk-...",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "API key is required"
+          }
+        ]
+      },
+      {
+        "name": "base_url",
+        "label": "Base URL",
+        "type": "text",
+        "value": "https://api.openai.com/v1"
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Remote OpenAI text-to-speech provider.",
+    "capabilities": [
+      "tts"
+    ]
+  }
+}

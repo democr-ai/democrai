@@ -1,0 +1,2 @@
+"""Chat thread routes."""
+

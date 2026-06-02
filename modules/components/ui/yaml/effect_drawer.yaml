@@ -1,0 +1,132 @@
+- kind: Column
+  id: components_effect_drawer_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_drawer_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_drawer_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_drawer_title
+      text: '@t/components.effects.drawer.title'
+      level: 1
+    - kind: Text
+      id: components_effect_drawer_description
+      text: '@t/components.effects.drawer.description'
+      muted: true
+  - kind: Card
+    id: components_effect_drawer_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_drawer_preview_title
+      text: '@t/components.effects.preview.title'
+      level: 3
+    - kind: Row
+      id: components_effect_drawer_buttons
+      spacing: 10
+      align: left
+      children:
+      - kind: Button
+        id: components_effect_drawer_right
+        label: '@t/components.effects.drawer.right'
+        action: open_drawer
+        params:
+          path: /components/overlays/drawer_sample
+          position: right
+          dim: 520
+        variant: default
+        icon: ric.sidebar-unfold-line
+      - kind: Button
+        id: components_effect_drawer_left
+        label: '@t/components.effects.drawer.left'
+        action: open_drawer
+        params:
+          path: /components/overlays/drawer_sample
+          position: left
+          dim: 420
+        variant: default
+        icon: ric.sidebar-fold-line
+      - kind: Button
+        id: components_effect_drawer_top
+        label: '@t/components.effects.drawer.top'
+        action: open_drawer
+        params:
+          path: /components/overlays/drawer_sample
+          position: top
+          dim: 240
+        variant: default
+        icon: ric.layout-top-line
+  - kind: Card
+    id: components_effect_drawer_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_drawer_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_drawer_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_drawer_python
+        text: '@t/components.effects.drawer.definition.python'
+      - kind: Markdown
+        id: components_effect_drawer_yaml
+        text: '@t/components.effects.drawer.definition.yaml'
+  - kind: Card
+    id: components_effect_drawer_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_drawer_properties_title
+      text: '@t/components.effects.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_effect_drawer_properties_table
+      paginated: false
+      pagination: false
+      rows:
+      - field: path
+        type: str
+        usage: '@t/components.effects.drawer.property.path'
+      - field: position
+        type: str
+        usage: '@t/components.effects.drawer.property.position'
+      - field: dim
+        type: int
+        usage: '@t/components.effects.drawer.property.dim'
+      model:
+      - field: field
+        header: '@t/components.effects.table.field'
+        type: str
+      - field: type
+        header: '@t/components.effects.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.effects.table.usage'
+        type: str

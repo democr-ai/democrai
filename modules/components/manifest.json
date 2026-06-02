@@ -1,0 +1,11 @@
+{
+  "name": "components",
+  "label": "Components",
+  "version": "1.0.0",
+  "icon": "ric.stack-line",
+  "description": "UI Components Explorer",
+  "priority": 70,
+  "enabled": true,
+  "allowed_imports": [],
+  "access": []
+}

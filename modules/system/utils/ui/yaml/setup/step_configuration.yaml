@@ -1,0 +1,114 @@
+- kind: Column
+  id: setup_step_configuration
+  spacing: 16
+  show_if:
+    conditions:
+      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+        op: "=="
+        right: 2
+  children:
+    - kind: Column
+      id: config_local_section
+      spacing: 16
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/setup/install_mode, default: local}
+            op: "=="
+            right: local
+      children:
+        - kind: Alert
+          id: config_local_intro_alert
+          title: "@t/system.setup.configuration.local.title"
+          description: "@t/system.setup.configuration.local.description"
+          variant: info
+          style: "margin-bottom: 12px;"
+        - kind: Card
+          id: config_local_media_card
+          variant: outlined
+          padding: [20, 20, 20, 20]
+          children:
+            - kind: Text
+              id: media_path_title
+              text: "@t/system.setup.configuration.media.title"
+              style: "font-size: 16px; font-weight: 700;"
+            - kind: Text
+              id: media_path_hint
+              text: "@t/system.setup.configuration.media.hint"
+              style: "color: #5f6b7a; margin-bottom: 6px;"
+            - kind: FolderSelector
+              id: media_path_input
+              label: "@t/system.setup.configuration.media.label"
+              value: "@state/page/system/setup/media_path"
+    - kind: Column
+      id: config_distributed_section
+      spacing: 16
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /system/setup/install_mode, default: local}
+            op: "=="
+            right: distributed
+      children:
+        - kind: Alert
+          id: config_distributed_intro_alert
+          title: "@t/system.setup.configuration.distributed.title"
+          description: "@t/system.setup.configuration.distributed.description"
+          variant: info
+          style: "margin-bottom: 12px;"
+        - kind: Card
+          id: config_distributed_upload_card
+          variant: outlined
+          padding: [20, 20, 20, 20]
+          children:
+            - kind: Text
+              id: config_upload_title
+              text: "@t/system.setup.configuration.upload.title"
+              style: "font-size: 16px; font-weight: 700;"
+            - kind: Text
+              id: config_upload_hint
+              text: "@t/system.setup.configuration.upload.hint"
+              style: "color: #5f6b7a; margin-bottom: 6px;"
+            - kind: Attachment
+              id: config_attachment_input
+              label: "@t/system.setup.configuration.upload.label"
+              accept: ".yaml,.yml"
+              multiple: false
+              value: "@state/page/system/setup/config_upload_value"
+            - kind: Button
+              id: btn_validate_yaml
+              label: "@t/system.setup.configuration.validate"
+              action: system.validate_setup_config
+              params: {upload_input_id: config_attachment_input}
+              collect_input_ids: [config_attachment_input]
+            - kind: Text
+              id: config_validation_status
+              text: "@state/page/system/setup/config_validation_status"
+              style: "white-space: pre-line;"
+        - kind: Card
+          id: config_distributed_template_card
+          variant: outlined
+          padding: [20, 20, 20, 20]
+          children:
+            - kind: Text
+              id: template_info
+              text: "@t/system.setup.configuration.templates.info"
+            - kind: Text
+              id: template_paths
+              text: "Local template asset: assets/config.example.yaml\nDistributed template asset: assets/config.distributed.example.yaml"
+              style: "white-space: pre-line; color: #5f6b7a;"
+            - kind: Row
+              id: template_export_row
+              spacing: 8
+              children:
+                - kind: Button
+                  id: btn_export_local_template
+                  label: "@t/system.setup.configuration.templates.local"
+                  action: system.export_setup_template
+                  params: {template_name: local}
+                - kind: Button
+                  id: btn_export_distributed_template
+                  label: "@t/system.setup.configuration.templates.distributed"
+                  action: system.export_setup_template
+                  params: {template_name: distributed}
+            - kind: Text
+              id: template_export_status
+              text: "@state/page/system/setup/template_export_message"

@@ -1,0 +1,126 @@
+- kind: Column
+  id: system_model_list_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: system_model_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: "System"
+          path: "/system/index"
+        - label: "@t/system.model.list.title"
+          current: true
+    - kind: Column
+      id: system_model_list_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: system_model_list_title
+          text: "@t/system.model.list.title"
+          level: 2
+        - kind: Text
+          id: system_model_list_subtitle
+          text: "@t/system.model.list.subtitle"
+          style: "font-size: 13px;"
+    - kind: Tabs
+      id: system_model_tabs
+      tabs:
+        - id: system_model_active_tab
+          label: "Activated models"
+          icon: "ric.checkbox-circle-line"
+        - id: system_model_loaded_tab
+          label: "Loaded in memory"
+          icon: "ric.cpu-line"
+        - id: system_model_jobs_tab
+          label: "Runtime jobs"
+          icon: "ric.loader-4-line"
+      children:
+        - kind: Column
+          id: system_model_active_tab
+          spacing: 12
+          align: top
+          children:
+            - kind: Card
+              id: system_model_active_card
+              variant: outlined
+              style: "margin-top: 12px;"
+              children:
+                - kind: Column
+                  id: system_model_active_card_content
+                  spacing: 12
+                  children:
+                    - kind: List
+                      id: system_model_active_list
+                      orientation: vertical
+                      template: title_text
+                      item_actions:
+                        - label: "@t/system.engine.model.test.action.open"
+                          icon: "ric.speed-up-line"
+                          action:
+                            name: nav
+                            context:
+                              type: nav
+                              path: "/system/engine/model/$item.model_row_id/view"
+                          required_permissions: [system.engine.model.manage]
+                        - label: "@t/system.engine.models.available.action.deactivate"
+                          icon: "ric.pause-circle-line"
+                          action:
+                            name: system.deactivate_engine_model
+                            context:
+                              model_row_id: "$item.model_row_id"
+                          required_permissions: [system.engine.model.manage]
+                      data_source:
+                        type: binding
+                        data: {type: store, scope: page, path: /system/model/active/items, default: []}
+        - kind: Column
+          id: system_model_loaded_tab
+          spacing: 12
+          align: top
+          children:
+            - kind: Card
+              id: system_model_loaded_card
+              variant: outlined
+              style: "margin-top: 12px;"
+              children:
+                - kind: Column
+                  id: system_model_loaded_card_content
+                  spacing: 12
+                  children:
+                    - kind: List
+                      id: system_model_loaded_list
+                      orientation: vertical
+                      template: title_text
+                      item_actions:
+                        - label: "Unload"
+                          icon: "ric.close-circle-line"
+                          variant: danger
+                          action:
+                            name: system.unload_loaded_model
+                            context:
+                              engine_registry_id: "$item.engine_row_id"
+                              model_registry_id: "$item.model_registry_id"
+                          required_permissions: [system.engine.model.manage]
+                      data_source:
+                        type: binding
+                        data: {type: store, scope: page, path: /system/model/loaded/items, default: []}
+        - kind: Column
+          id: system_model_jobs_tab
+          spacing: 12
+          align: top
+          children:
+            - kind: Card
+              id: system_model_jobs_card
+              variant: outlined
+              style: "margin-top: 12px;"
+              children:
+                - kind: Column
+                  id: system_model_jobs_card_content
+                  spacing: 12
+                  children:
+                    - kind: List
+                      id: system_model_jobs_list
+                      orientation: vertical
+                      template: title_text
+                      data_source:
+                        type: binding
+                        data: {type: store, scope: page, path: /system/model/jobs/items, default: []}

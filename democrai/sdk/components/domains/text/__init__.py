@@ -1,0 +1,1 @@
+"""SDK components: text domain."""

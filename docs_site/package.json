@@ -1,0 +1,9 @@
+{
+  "name": "democrai-docs-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "shiki": "^1.29.2"
+  }
+}

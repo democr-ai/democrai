@@ -1,0 +1,103 @@
+/* =========================
+   Component: TextField
+   ========================= */
+QLineEdit[_comp_type="TextField"] {
+    background-color: @input-bg;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: @input-padding;
+    color: @text;
+    font-size: 13px;
+    selection-background-color: @border-strong;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+
+    &::placeholder {
+        color: @text-disabled;
+    }
+}
+
+/* =========================
+   Component: Toggle
+   ========================= */
+QCheckBox[_comp_type="Toggle"] {
+    spacing: 12px;
+    color: @text;
+    font-size: 13px;
+    font-weight: 500;
+
+    &::indicator {
+        width: 44px;
+        height: 22px;
+        border-radius: 11px;
+        background-color: @surface-muted;
+        border: 1px solid @border;
+
+        &:unchecked {
+            background-color: @surface-muted;
+            image: url(ric.checkbox-blank-circle-fill); /* Using a circle as the knob */
+            padding-right: 22px;
+        }
+
+        &:checked {
+            background-color: @color-info;
+            border-color: @color-info;
+            image: url(ric.checkbox-blank-circle-fill);
+            padding-left: 22px;
+        }
+    }
+}
+
+/* =========================
+   Component: RadioGroup
+   ========================= */
+QGroupBox[_comp_type="RadioGroup"] {
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    margin-top: 1ex;
+    padding-top: 15px;
+    color: @text;
+    font-size: 12px;
+    font-weight: 600;
+
+    &::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 5px;
+        color: @text-muted;
+    }
+
+    QRadioButton {
+        color: @text-muted;
+        font-size: 13px;
+        font-weight: 400;
+        padding: 5px 0;
+        spacing: 8px;
+
+        &:hover {
+            color: @text;
+        }
+
+        &::indicator {
+            width: 18px;
+            height: 18px;
+            border-radius: 9px;
+
+            &:unchecked {
+                background-color: @bg;
+                border: 1.5px solid @border;
+
+                &:hover {
+                    border-color: @border-focus;
+                }
+            }
+
+            &:checked {
+                background-color: @text;
+                border: 1.5px solid @text;
+            }
+        }
+    }
+}

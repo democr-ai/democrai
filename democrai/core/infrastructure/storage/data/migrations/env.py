@@ -1,0 +1,114 @@
+import sys
+import os
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+
+from alembic import context
+
+# Handle path for frozen environments (compiled bundles)
+if getattr(sys, "frozen", False):
+    root = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+# Try to get metadata and URL from injected attributes (Decoupled mode)
+config = context.config
+injected_metadata = config.attributes.get("target_metadata")
+injected_url = config.attributes.get("db_url")
+injected_include_object = config.attributes.get("include_object")
+
+if injected_metadata and injected_url:
+    target_metadata = injected_metadata
+    DATABASE_URL = injected_url
+else:
+    # Standard import mode (Developer / CLI)
+    try:
+        from democrai.core.infrastructure.storage.data.models import Base
+        from democrai.core.infrastructure.storage.data.database import get_database_url
+        DATABASE_URL = get_database_url()
+        target_metadata = Base.metadata
+    except ImportError:
+        # Add application root to path if running via CLI 'alembic' in dev
+        # path is: [root]/core/infrastructure/storage/data/migrations/env.py -> 6 levels up
+        parent_dir = os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            )
+        )
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        from democrai.core.infrastructure.storage.data.models import Base
+        from democrai.core.infrastructure.storage.data.database import get_database_url
+        DATABASE_URL = get_database_url()
+        target_metadata = Base.metadata
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+
+# Set sqlalchemy.url dynamically
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
+# Fallback to alembic_version_data if version_table is not explicitly provided 
+# (e.g. via module migration handler which overrides this main option)
+version_table_configured = config.get_main_option("version_table")
+if not version_table_configured:
+    config.set_main_option("version_table", "alembic_version_data")
+
+# Interpret the config file for Python logging.
+if config.config_file_name is not None:
+    # fileConfig(config.config_file_name)
+    pass
+
+# target_metadata is set during initialization above
+
+
+def run_migrations_offline() -> None:
+    url = config.get_main_option("sqlalchemy.url")
+    version_table = config.get_main_option("version_table", "alembic_version_data")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        include_object=injected_include_object,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
+        version_table=version_table,
+        transactional_ddl=True,
+        transaction_per_migration=False,
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    version_table = config.get_main_option("version_table", "alembic_version_data")
+    with connectable.connect() as connection:
+        with connection.begin():
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                include_object=injected_include_object,
+                render_as_batch=True,
+                version_table=version_table,
+                transactional_ddl=True,
+                transaction_per_migration=False,
+            )
+
+            with context.begin_transaction():
+                context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

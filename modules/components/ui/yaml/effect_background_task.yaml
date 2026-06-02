@@ -1,0 +1,120 @@
+- kind: Column
+  id: components_effect_background_task_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_effect_background_task_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_effect_background_task_eyebrow
+      text: '@t/components.effects.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_effect_background_task_title
+      text: '@t/components.effects.background.title'
+      level: 1
+    - kind: Text
+      id: components_effect_background_task_description
+      text: '@t/components.effects.background.description'
+      muted: true
+  - kind: Card
+    id: components_effect_background_task_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_effect_background_task_preview_title
+      text: '@t/components.effects.preview.title'
+      level: 3
+    - kind: Row
+      id: components_effect_background_task_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_effect_background_task_live_col
+        spacing: 12
+        children:
+        - kind: Button
+          id: bgtask_start_btn
+          label: '@t/components.effects.background.start'
+          action: components.start_bg_task_demo
+          variant: primary
+          icon: ric.play-circle-line
+        - kind: Row
+          id: bg_task_demo_container
+          spacing: 8
+          capabilities:
+          - children.append
+          children: []
+      - kind: Column
+        id: components_effect_background_task_seed_col
+        spacing: 12
+        children:
+        - kind: Text
+          id: components_effect_background_task_seed_label
+          text: '@t/components.effects.background.existing'
+          muted: true
+        - kind: BackgroundTask
+          id: components_effect_background_completed_card
+          task_id: components_demo_completed
+  - kind: Card
+    id: components_effect_background_task_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_background_task_definition_title
+      text: '@t/components.effects.definition.title'
+      level: 3
+    - kind: Row
+      id: components_effect_background_task_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_effect_background_task_python
+        text: '@t/components.effects.background.definition.python'
+      - kind: Markdown
+        id: components_effect_background_task_yaml
+        text: '@t/components.effects.background.definition.yaml'
+  - kind: Card
+    id: components_effect_background_task_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_effect_background_task_properties_title
+      text: '@t/components.effects.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_effect_background_task_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_effects/background_task_properties'
+      model:
+      - field: field
+        header: '@t/components.effects.table.field'
+        type: str
+      - field: type
+        header: '@t/components.effects.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.effects.table.usage'
+        type: str

@@ -1,0 +1,15 @@
+- kind: Column
+  id: user_create_page
+  spacing: 14
+  align: "top"
+  children:
+    - kind: Title
+      id: user_create_title
+      text: "@t/system.user.create.title"
+      level: 3
+    - kind: Form
+      id: user_create_form
+      submit_label: "@t/system.user.create.submit"
+      action:
+        name: system.create_user
+      model: []

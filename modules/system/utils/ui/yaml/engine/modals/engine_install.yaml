@@ -1,0 +1,28 @@
+- kind: Dialog
+  id: engine_install_dialog
+  title: ""
+  children:
+    - kind: Text
+      id: engine_install_dependencies
+      text: ""
+      style: "font-size: 13px;"
+    - kind: Progress
+      id: engine_install_progress
+      value: 0
+      label: "@t/system.engine.activation.progress.label"
+    - kind: Text
+      id: engine_install_status
+      text: ""
+    - kind: Row
+      id: engine_install_footer
+      spacing: 8
+      children:
+        - kind: Button
+          id: engine_install_approve_btn
+          label: "@t/system.engine.activation.modal.approve"
+          action: "system.approve_engine_install"
+          variant: "primary"
+        - kind: Button
+          id: engine_install_close_btn
+          label: "@t/system.engine.activation.modal.close"
+          action: "system.close_engine_install_modal"

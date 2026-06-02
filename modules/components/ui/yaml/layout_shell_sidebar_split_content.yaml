@@ -1,0 +1,72 @@
+- kind: Column
+  id: components_layout_shell_sidebar_split_content_yaml_root
+  align: fill
+  padding: [20, 20, 20, 20]
+  style: "height: 520px; min-height: 520px; background-color: #20242b;"
+  children:
+    - kind: Row
+      id: components_layout_shell_sidebar_split_content_yaml_shell
+      align: fill
+      spacing: 12
+      stretch: true
+      style: "height: 100%; min-height: 0;"
+      children:
+        - kind: Sidebar
+          id: components_layout_shell_sidebar_split_content_yaml_sidebar
+          width: 220
+          padding: [18, 18, 18, 18]
+          style: "background-color: #eef4f8; border-right: 1px solid #d8e6ee;"
+          children:
+            - kind: ScrollArea
+              id: components_layout_shell_sidebar_split_content_yaml_nav_scroll
+              scroll_x: false
+              transparent: true
+              stretch: true
+              children:
+                - kind: Column
+                  id: components_layout_shell_sidebar_split_content_yaml_nav_stack
+                  spacing: 10
+                  children: []
+        - kind: ContentArea
+          id: components_layout_shell_sidebar_split_content_yaml_content
+          stretch: true
+          children:
+            - kind: Splitter
+              id: components_layout_shell_sidebar_split_content_yaml_splitter
+              stretch: true
+              sizes: [650, 350]
+              children:
+                - kind: Column
+                  id: components_layout_shell_sidebar_split_content_yaml_primary_pane
+                  align: fill
+                  stretch: true
+                  style: "min-height: 0; background-color: #f7f3ec;"
+                  children:
+                    - kind: ScrollArea
+                      id: components_layout_shell_sidebar_split_content_yaml_primary_scroll
+                      scroll_x: false
+                      transparent: true
+                      stretch: true
+                      children:
+                        - kind: Column
+                          id: components_layout_shell_sidebar_split_content_yaml_primary_stack
+                          spacing: 12
+                          padding: [24, 24, 24, 24]
+                          children: []
+                - kind: Column
+                  id: components_layout_shell_sidebar_split_content_yaml_secondary_pane
+                  align: fill
+                  stretch: true
+                  style: "min-height: 0; background-color: #eef6f1;"
+                  children:
+                    - kind: ScrollArea
+                      id: components_layout_shell_sidebar_split_content_yaml_secondary_scroll
+                      scroll_x: false
+                      transparent: true
+                      stretch: true
+                      children:
+                        - kind: Column
+                          id: components_layout_shell_sidebar_split_content_yaml_secondary_stack
+                          spacing: 12
+                          padding: [24, 24, 24, 24]
+                          children: []

@@ -1,0 +1,167 @@
+- kind: Column
+  id: engine_models_tab_available
+  spacing: 12
+  children:
+    - kind: Alert
+      id: engine_models_available_error
+      title: "@t/system.engine.models.available.error.title"
+      description: "@state/page/engine_models_available/error"
+      variant: danger
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /engine_models_available/error, default: ""}
+            op: "!="
+            right: ""
+    - kind: Row
+      id: engine_models_available_toolbar
+      spacing: 8
+      align: left
+      height: 56
+      style: "max-width: 860px; margin-bottom: 8px;"
+      children:
+        - kind: TextField
+          id: engine_models_available_name_filter
+          placeholder: "@t/system.engine.models.available.filter.name"
+          value: ""
+        - kind: TextField
+          id: engine_models_available_capability_filter
+          placeholder: "@t/system.engine.models.available.filter.capability"
+          value: ""
+        - kind: Button
+          id: engine_models_available_load_btn
+          label: "@t/system.engine.models.available.load.action"
+          icon: "ric.refresh-line"
+          action: system.load_engine_available_models
+          params:
+            engine_id: "@state/page/instance/id"
+          collect_input_ids:
+            - engine_models_available_name_filter
+            - engine_models_available_capability_filter
+          track_loading: system.load_engine_available_models
+        - kind: Button
+          id: engine_models_available_filter_btn
+          label: "@t/system.engine.models.available.filter.action"
+          icon: "ric.search-line"
+          action: system.filter_engine_available_models
+          params:
+            engine_id: "@state/page/instance/id"
+            items: "@state/page/engine_models_available/all"
+          collect_input_ids:
+            - engine_models_available_name_filter
+            - engine_models_available_capability_filter
+          track_loading: system.filter_engine_available_models
+    - kind: List
+      id: engine_models_available_list
+      orientation: vertical
+      template: title_text
+      item_actions:
+        - label: "@t/system.engine.models.available.action.deactivate"
+          icon: "ric.pause-circle-line"
+          action:
+            name: system.deactivate_engine_model
+            context:
+              model_row_id: "$item.model_row_id"
+              items: "@state/page/engine_models_available/all"
+              engine_models_available_name_filter: "@state/page/engine_models_available/filters/name"
+              engine_models_available_capability_filter: "@state/page/engine_models_available/filters/capability"
+          show_if:
+            conditions:
+              - left: "$item.activated"
+                op: "=="
+                right: true
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.engine.model.test.action.open"
+          icon: "ric.speed-up-line"
+          action:
+            name: nav
+            context:
+              type: nav
+              path: "/system/engine/model/$item.model_row_id/view"
+          show_if:
+            conditions:
+              - left: "$item.activated"
+                op: "=="
+                right: true
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.engine.models.available.action.activate"
+          icon: "ric.play-circle-line"
+          action:
+            name: system.configure_available_model_for_engine
+            context:
+              engine_id: "@state/page/instance/id"
+              available_model_id: "$item.available_model_id"
+              model_id: "$item.model_id"
+              model_label: "$item.model_label"
+              source_kind: "$item.source_kind"
+              format: "$item.format"
+              capabilities: "$item.capabilities"
+              runtime: "$item.runtime"
+              features: "$item.features"
+              provisioning: "$item.provisioning"
+              items: "@state/page/engine_models_available/all"
+              engine_models_available_name_filter: "@state/page/engine_models_available/filters/name"
+              engine_models_available_capability_filter: "@state/page/engine_models_available/filters/capability"
+          show_if:
+            conditions:
+              - left: "$item.activation_kind"
+                op: "=="
+                right: inventory
+              - left: "$item.activated"
+                op: "=="
+                right: false
+              - left: "$item.is_downloaded"
+                op: "=="
+                right: true
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.engine.models.available.action.activate"
+          icon: "ric.play-circle-line"
+          action:
+            name: system.configure_remote_engine_model
+            context:
+              engine_id: "@state/page/instance/id"
+              model_id: "$item.model_id"
+              model_label: "$item.model_label"
+              source_kind: "$item.source_kind"
+              format: "$item.format"
+              capabilities: "$item.capabilities"
+              runtime: "$item.runtime"
+              features: "$item.features"
+              items: "@state/page/engine_models_available/all"
+              engine_models_available_name_filter: "@state/page/engine_models_available/filters/name"
+              engine_models_available_capability_filter: "@state/page/engine_models_available/filters/capability"
+          show_if:
+            conditions:
+              - left: "$item.activation_kind"
+                op: "=="
+                right: provider
+              - left: "$item.activated"
+                op: "=="
+                right: false
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.engine.models.available.action.register"
+          icon: "ric.add-circle-line"
+          action:
+            name: system.configure_remote_engine_model_registration
+            context:
+              engine_id: "@state/page/instance/id"
+              model_id: "$item.model_id"
+              model_label: "$item.model_label"
+              source_kind: "$item.source_kind"
+              format: "$item.format"
+              runtime: "$item.runtime"
+              features: "$item.features"
+              items: "@state/page/engine_models_available/all"
+              engine_models_available_name_filter: "@state/page/engine_models_available/filters/name"
+              engine_models_available_capability_filter: "@state/page/engine_models_available/filters/capability"
+          show_if:
+            conditions:
+              - left: "$item.activation_kind"
+                op: "=="
+                right: registration
+              - left: "$item.activated"
+                op: "=="
+                right: false
+          required_permissions: [system.engine.model.manage]
+      data_source:
+        type: binding
+        data: {type: store, scope: page, path: /engine_models_available/filtered, default: []}

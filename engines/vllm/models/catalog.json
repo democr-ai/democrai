@@ -1,0 +1,317 @@
+{
+  "engine_id": "vllm",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "qwen3.5-4b",
+      "label": "Qwen3.5 4B",
+      "engine_id": "vllm",
+      "family": "qwen3.5",
+      "summary": "Small Qwen3.5 model for vLLM chat and reasoning on lower VRAM GPUs.",
+      "tags": [
+        "vllm",
+        "chat",
+        "reasoning",
+        "local",
+        "huggingface",
+        "qwen",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 12,
+        "storage_gb": 10
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/Qwen3.5-4B",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3.5-4B",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen/Qwen3.5-4B",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "top_k": 20,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "dtype": "auto",
+            "enable_prefix_caching": true,
+            "enforce_eager": true,
+            "gpu_util": 0.9,
+            "context_length": 8192,
+            "reasoning_parser": "qwen3",
+            "output_parser": "vllm_qwen",
+            "trust_remote_code": true
+          }
+        }
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "default": false,
+            "values": [
+              true,
+              false
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "source": "qwen"
+      }
+    },
+    {
+      "id": "qwen3.5-9b",
+      "label": "Qwen3.5 9B",
+      "engine_id": "vllm",
+      "family": "qwen3.5",
+      "summary": "Dense multimodal Qwen3.5 model with vLLM reasoning parser support; first modern vLLM candidate for 24 GB GPUs.",
+      "tags": [
+        "vllm",
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "local",
+        "huggingface",
+        "qwen",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "vram_gb": 18,
+        "storage_gb": 20
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/Qwen3.5-9B",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3.5-9B",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "Qwen/Qwen3.5-9B",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "top_k": 20,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "dtype": "auto",
+            "enable_prefix_caching": true,
+            "enforce_eager": true,
+            "gpu_util": 0.92,
+            "context_length": 8192,
+            "reasoning_parser": "qwen3",
+            "output_parser": "vllm_qwen",
+            "trust_remote_code": true
+          }
+        }
+      },
+      "features": {
+        "image_to_text": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        },
+        "reasoning": {
+          "supported": true,
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "default": false,
+            "values": [
+              true,
+              false
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "source": "qwen",
+        "vllm_recipe": "https://recipes.vllm.ai/Qwen/Qwen3.5-9B"
+      }
+    },
+    {
+      "id": "gemma-4-e4b-it",
+      "label": "Gemma 4 E4B IT",
+      "engine_id": "vllm",
+      "family": "gemma4",
+      "summary": "Gemma 4 E4B IT for local vLLM inference.",
+      "tags": [
+        "vllm",
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "local",
+        "huggingface",
+        "gemma4",
+        "tool_calling"
+      ],
+      "capabilities": [
+        "chat",
+        "reasoning",
+        "image_to_text",
+        "tool_calling"
+      ],
+      "extended_capabilities": [
+        "offline"
+      ],
+      "interfaces": [
+        "text_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 17,
+        "storage_gb": 16
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/gemma-4-E4B-it",
+          "source": {
+            "type": "huggingface",
+            "repo": "google/gemma-4-E4B-it",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "artifact_ref": "weights",
+        "model_ref": "google/gemma-4-E4B-it",
+        "defaults": {
+          "generation": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 512
+          },
+          "runtime": {
+            "dtype": "auto",
+            "enable_prefix_caching": true,
+            "enforce_eager": true,
+            "gpu_util": 0.9,
+            "context_length": 16384,
+            "trust_remote_code": true,
+            "reasoning_parser": "gemma4",
+            "output_parser": "vllm_gemma"
+          }
+        }
+      },
+      "features": {
+        "reasoning": {
+          "supported": true,
+          "activation": {
+            "mode": "extra_param",
+            "param": "reasoning",
+            "type": "boolean",
+            "default": false,
+            "values": [
+              true,
+              false
+            ]
+          }
+        },
+        "image_to_text": {
+          "supported": true,
+          "mime_types": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      },
+      "metadata": {
+        "source": "google",
+        "vllm_recipe": "https://docs.vllm.ai/projects/recipes/en/latest/Google/Gemma4.html"
+      }
+    }
+  ]
+}

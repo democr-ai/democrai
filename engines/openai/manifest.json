@@ -1,0 +1,91 @@
+{
+  "id": "openai",
+  "name": "OpenAI",
+  "kind": "llm",
+  "entrypoint": "engines.openai.engine:OpenAIEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    }
+  },
+  "runtime": {
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ],
+    "access": [
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://api.openai.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "send",
+        "target": "https://api.openai.com/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://api.openai.com/*"
+      }
+    ]
+  },
+  "provider": {
+    "id": "openai",
+    "label": "OpenAI",
+    "kind": "llm",
+    "deployment": "remote",
+    "model_source": "provider_api",
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream",
+      "embed_texts"
+    ],
+    "icon_url": "engines/openai/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "openai",
+        "module": "openai",
+        "label": "openai",
+        "pip_packages": [
+          "openai"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "sk-...",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "API key is required"
+          }
+        ]
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Use OpenAI APIs with a dedicated API key.",
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text",
+      "embedding"
+    ],
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text",
+      "embedding"
+    ]
+  }
+}

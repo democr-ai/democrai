@@ -1,0 +1,66 @@
+- kind: Column
+  id: setup_step_mode
+  spacing: 16
+  show_if:
+    conditions:
+      - left: {type: store, scope: page, path: /system/setup/step, default: 1}
+        op: "=="
+        right: 1
+  children:
+    - kind: Text
+      id: mode_info
+      text: "@t/system.setup.mode.info"
+      style: "color: #5f6b7a; margin-bottom: 6px;"
+    - kind: Row
+      id: mode_cards
+      spacing: 16
+      align: fill
+      children:
+        - kind: Card
+          id: mode_card_local
+          variant: outlined
+          padding: [20, 20, 20, 20]
+          stretch: true
+          item_actions:
+            - label: "@t/system.setup.mode.local.action"
+              variant: primary
+              action:
+                name: system.setup_next
+                context: {step: 1, install_mode: local}
+          children:
+            - kind: Text
+              id: mode_local_title
+              text: "@t/system.setup.mode.local.title"
+              style: "font-size: 18px; font-weight: 700;"
+            - kind: Text
+              id: mode_local_desc
+              text: "@t/system.setup.mode.local.description"
+              style: "color: #5f6b7a; margin-bottom: 8px;"
+            - kind: Text
+              id: mode_local_points
+              text: "@t/system.setup.mode.local.points"
+              style: "white-space: pre-line; color: #4b5563;"
+        - kind: Card
+          id: mode_card_distributed
+          variant: outlined
+          padding: [20, 20, 20, 20]
+          stretch: true
+          item_actions:
+            - label: "@t/system.setup.mode.distributed.action"
+              variant: primary
+              action:
+                name: system.setup_next
+                context: {step: 1, install_mode: distributed}
+          children:
+            - kind: Text
+              id: mode_distributed_title
+              text: "@t/system.setup.mode.distributed.title"
+              style: "font-size: 18px; font-weight: 700;"
+            - kind: Text
+              id: mode_distributed_desc
+              text: "@t/system.setup.mode.distributed.description"
+              style: "color: #5f6b7a; margin-bottom: 8px;"
+            - kind: Text
+              id: mode_distributed_points
+              text: "@t/system.setup.mode.distributed.points"
+              style: "white-space: pre-line; color: #4b5563;"

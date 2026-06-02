@@ -1,0 +1,59 @@
+- kind: Column
+  id: organization_modules_section
+  spacing: 10
+  children:
+    - kind: Title
+      id: organization_modules_title
+      text: "@t/system.organization.modules.title"
+      level: 3
+    - kind: Text
+      id: organization_modules_subtitle
+      text: "@t/system.organization.modules.subtitle"
+      style: "margin-bottom: 12px;"
+    - kind: DataTable
+      id: organization_modules_table
+      show_row_numbers: true
+      paginated: false
+      model:
+        - field: module_name
+          header: "@t/system.organization.modules.field.module_name"
+          type: str
+          editable: false
+          filterable: true
+          filter_type: text
+        - field: label
+          header: "@t/system.organization.modules.field.label"
+          type: str
+          editable: false
+        - field: version
+          header: "@t/system.organization.modules.field.version"
+          type: str
+          editable: false
+        - field: locked
+          header: "@t/system.organization.modules.field.locked"
+          type: bool
+          editable: false
+      rows: []
+      row_actions:
+        - label: "@t/system.organization.modules.action.disable"
+          icon: ric.lock-line
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: false
+          action:
+            name: system.disable_organization_module
+            context: {}
+        - label: "@t/system.organization.modules.action.enable"
+          icon: ric.lock-unlock-line
+          required_permissions:
+            - system.organization.update
+          show_if:
+            left: "{{locked}}"
+            op: "=="
+            right: true
+          action:
+            name: system.enable_organization_module
+            context: {}

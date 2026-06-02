@@ -1,0 +1,382 @@
+- kind: Column
+  id: components_charts_base_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_charts_base_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_charts_base_eyebrow
+      text: '@t/components.charts.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_charts_base_title
+      text: '@t/components.charts.base.title'
+      level: 1
+    - kind: Text
+      id: components_charts_base_description
+      text: '@t/components.charts.base.description'
+      muted: true
+  - kind: Card
+    id: components_charts_base_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_charts_base_preview_title
+      text: '@t/components.charts.preview.title'
+      level: 3
+    - kind: Row
+      id: components_charts_base_preview_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Chart
+        id: components_charts_base_bar
+        chart_type: bar
+        data:
+        - 10
+        - 45
+        - 20
+        - 80
+        - 50
+        - 90
+        - 60
+        labels:
+        - Mon
+        - Tue
+        - Wed
+        - Thu
+        - Fri
+        - Sat
+        - Sun
+        title: '@t/components.charts.base.bar'
+        max_height: 300
+      - kind: Chart
+        id: components_charts_base_line
+        chart_type: line
+        data:
+        - 10
+        - 45
+        - 20
+        - 80
+        - 50
+        - 90
+        - 60
+        labels:
+        - Mon
+        - Tue
+        - Wed
+        - Thu
+        - Fri
+        - Sat
+        - Sun
+        title: '@t/components.charts.base.line'
+        max_height: 300
+      - kind: Chart
+        id: components_charts_base_area
+        chart_type: area
+        data:
+        - 10
+        - 45
+        - 20
+        - 80
+        - 50
+        - 90
+        - 60
+        labels:
+        - Mon
+        - Tue
+        - Wed
+        - Thu
+        - Fri
+        - Sat
+        - Sun
+        title: '@t/components.charts.base.area'
+        max_height: 300
+  - kind: Card
+    id: components_charts_base_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_charts_base_runtime_title
+      text: '@t/components.charts.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_charts_base_runtime_description
+      text: '@t/components.charts.base.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_charts_base_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_charts_base_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_base_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Chart
+            id: components_charts_base_page
+            chart_type:
+              type: store
+              scope: page
+              path: /components_charts/base/chart_type
+            data:
+              type: store
+              scope: page
+              path: /components_charts/base/data
+            labels:
+              type: store
+              scope: page
+              path: /components_charts/base/labels
+            title:
+              type: store
+              scope: page
+              path: /components_charts/base/title
+            max_height: 300
+          - kind: Button
+            id: components_charts_base_page_button
+            label: '@t/components.charts.usage.page_store_button'
+            variant: default
+            action:
+              name: components.chart_base_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_charts_base_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Chart
+            id: components_charts_base_data
+            chart_type: '@data/components_charts/base_model/chart_type'
+            data: '@data/components_charts/base_model/data'
+            labels: '@data/components_charts/base_model/labels'
+            title: '@data/components_charts/base_model/title'
+            max_height: 300
+          - kind: Button
+            id: components_charts_base_data_button
+            label: '@t/components.charts.usage.data_button'
+            variant: default
+            action:
+              name: components.chart_base_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_charts_base_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_charts_base_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Chart
+            id: components_charts_base_global
+            chart_type:
+              type: store
+              scope: global
+              path: /components_charts/base/chart_type
+            data:
+              type: store
+              scope: global
+              path: /components_charts/base/data
+            labels:
+              type: store
+              scope: global
+              path: /components_charts/base/labels
+            title:
+              type: store
+              scope: global
+              path: /components_charts/base/title
+            max_height: 300
+          - kind: Button
+            id: components_charts_base_global_button
+            label: '@t/components.charts.usage.global_store_button'
+            variant: default
+            action:
+              name: components.chart_base_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_charts_base_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Chart
+            id: components_charts_base_direct
+            chart_type: bar
+            data:
+            - 12
+            - 24
+            - 20
+            - 36
+            - 48
+            - 42
+            - 60
+            labels:
+            - Mon
+            - Tue
+            - Wed
+            - Thu
+            - Fri
+            - Sat
+            - Sun
+            title: '@t/components.charts.base.direct'
+            max_height: 300
+            capabilities:
+            - chartType.set
+            - data.set
+            - labels.set
+            - title.set
+          - kind: Button
+            id: components_charts_base_direct_button
+            label: '@t/components.charts.usage.direct_button'
+            variant: default
+            action:
+              name: components.chart_base_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_charts_base_live_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: StreamBinding
+      id: components_charts_base_gpu_binding
+      stream: system.runtime.metrics.events
+      event: runtime.metrics.sample
+      target:
+        store: page
+        path: /components_charts/base/gpu
+        mode: append_window
+        window: 30
+        mappings:
+          data: $.vram_used_percent
+          labels: $.label
+    - kind: Title
+      id: components_charts_base_live_title
+      text: '@t/components.charts.live.title'
+      level: 3
+    - kind: Text
+      id: components_charts_base_live_description
+      text: '@t/components.charts.live.description'
+      muted: true
+    - kind: Chart
+      id: components_charts_base_gpu_chart
+      chart_type: line
+      data:
+        type: store
+        scope: page
+        path: /components_charts/base/gpu/data
+      labels:
+        type: store
+        scope: page
+        path: /components_charts/base/gpu/labels
+      title: '@t/components.charts.live.chart_title'
+      max_height: 300
+  - kind: Card
+    id: components_charts_base_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_base_definition_title
+      text: '@t/components.charts.definition.title'
+      level: 3
+    - kind: Row
+      id: components_charts_base_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_charts_base_python_code
+        text: '@t/components.charts.base.definition.python'
+      - kind: Markdown
+        id: components_charts_base_yaml_code
+        text: '@t/components.charts.base.definition.yaml'
+  - kind: Card
+    id: components_charts_base_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_base_binding_title
+      text: '@t/components.charts.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_base_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/base_bindings'
+      model:
+      - field: binding
+        header: '@t/components.charts.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.charts.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.charts.table.source'
+        type: str
+  - kind: Card
+    id: components_charts_base_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_charts_base_properties_title
+      text: '@t/components.charts.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_charts_base_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_charts/base_properties'
+      model:
+      - field: property
+        header: '@t/components.charts.table.property'
+        type: str
+      - field: type
+        header: '@t/components.charts.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.charts.table.usage'
+        type: str

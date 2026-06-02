@@ -1,0 +1,378 @@
+/* =========================
+   Component: Card + List + Tabs + Scrollbars + Feedback + Link Buttons
+   ========================= */
+
+// ── Tree ─────────────────────────────────────────────────────────────────────
+QTreeWidget[ui_role="tree_container"]{
+    color: @text-soft;
+    border: none;
+    background-color: transparent;
+    outline: none;
+    padding: 4px 2px;
+    show-decoration-selected: 1;
+    selection-background-color: transparent;
+    selection-color: #ffffff;
+
+    &::item {
+        margin: 0;
+        padding: 6px 8px;
+        border-radius: 4px;
+        color: @text-soft;
+    }
+
+    &::item:hover {
+        color: @text-soft;
+        background-color: lighten(@surface, 5%);//@surface-active;
+    }
+
+    &::item:selected {
+        color: #ffffff;
+        background-color: @color-info;
+        border-left: none;
+        padding-left: 8px;
+        border-radius: 4px;
+    }
+
+    &::branch:!has-children {
+        margin-right: -10px;
+        border-radius: 4px;
+    }
+    &::branch:!has-children:hover {
+        background-color: lighten(@surface, 5%);
+    }
+    &::branch:selected,
+    &::branch:open:selected,
+    &::branch:closed:selected,
+    &::branch:has-children:selected,
+    &::branch:has-siblings:selected {
+        background-color: @color-info;
+    }
+
+    QHeaderView::section {
+        background-color: #333;
+        color: #ccc;
+        padding: 4px;
+        border: 1px solid #444;
+    }
+}
+
+// ── Card ─────────────────────────────────────────────────────────────────────
+QFrame[type="card"] {
+    background-color: @surface;
+    border-radius: @card-radius;
+    border: 1px solid @border;
+    margin-bottom: 12px;
+
+    &[variant="elevated"] {
+        background-color: @surface-raised;
+        border-color: @border-strong;
+    }
+}
+
+QFrame[ui_role="card_footer"] {
+    background-color: @surface-active;
+    border-top: 1px solid @border;
+    border-radius: 0 0 @card-radius @card-radius;
+}
+
+// ── List ──────────────────────────────────────────────────────────────────────
+QFrame[type="list_item"] {
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid @border;
+
+    QLabel {
+        padding: 4px 8px;
+        //margin: 0;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: @text-disabled;
+        background-color: transparent;
+        border-bottom: none;
+
+        &:hover {
+            color: @text-soft;
+            background-color: @surface-active;
+        }
+    }
+
+    QLabel[ui_role="media_image"] {
+        padding: 0;
+        margin: 0;
+        border: none;
+        background-color: transparent;
+    }
+
+    QLabel[ui_role="list_item_title"] {
+        color: @text;
+        font-weight: 600;
+        padding-bottom: 0;
+    }
+
+    QLabel[ui_role="list_item_text"] {
+        color: @text-soft;
+        font-weight: 400;
+        padding-top: 0;
+    }
+
+    &[active="true"] QLabel {
+        color: #ffffff !important;
+        background-color: @color-info;
+    }
+}
+
+[type="list"] QFrame[type="list_item"][active="true"] {
+    border-left: 3px solid @color-info !important;
+}
+
+QCheckBox[ui_role="list_row_checkbox"] {
+    spacing: 0;
+}
+
+QCheckBox[ui_role="list_row_checkbox"]::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background-color: @surface-muted;
+    border: 1px solid @border;
+}
+
+QCheckBox[ui_role="list_row_checkbox"]::indicator:hover {
+    border-color: @border-focus;
+}
+
+QCheckBox[ui_role="list_row_checkbox"]::indicator:checked {
+    background-color: @color-info;
+    border: 1px solid @color-info;
+    image: url(ric.check-line);
+}
+
+QCheckBox[ui_role="list_row_checkbox"]::indicator:disabled {
+    background-color: @surface-active;
+    border-color: @border-subtle;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+// Pill / chip style — matches shadcn Tabs default variant.
+QTabWidget::pane {
+    background-color: transparent;
+    border: none;
+}
+
+// The tab bar itself acts as the muted container (shadcn TabsList bg-muted).
+QTabBar {
+    background-color: @surface-active;
+    border-radius: 9px;
+}
+
+QTabBar::tab {
+    background-color: transparent;
+    color: @text-muted;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 4px 12px;
+    margin: 2px 2px;
+    font-size: 13px;
+    font-weight: 500;
+
+    &:hover {
+        color: @text-soft;
+    }
+
+    &:selected {
+        background-color: @surface;
+        color: @text;
+        border-color: @border;
+        font-weight: 600;
+    }
+}
+
+// ── Splitter ──────────────────────────────────────────────────────────────────
+QSplitter::handle {
+    background-color: @border;
+}
+
+// ── Scrollbars ────────────────────────────────────────────────────────────────
+QScrollBar:vertical {
+    background: #1e1f22;
+    width: 6px;
+    margin: 5px 0 5px 0;
+    border: none;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:vertical {
+    background: #5c6370;
+    min-height: 28px;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #7a8291;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: #8f98a8;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    background: #1e1f22;
+    height: 16px;
+    border: none;
+    border-radius: 7px;
+}
+
+QScrollBar::add-line:vertical:hover,
+QScrollBar::sub-line:vertical:hover {
+    background: #2a2c31;
+}
+
+QScrollBar::up-arrow:vertical,
+QScrollBar::down-arrow:vertical {
+    width: 0px;
+    height: 0px;
+    background: none;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+
+QScrollBar:horizontal {
+    background: #1e1f22;
+    height: 8px;
+    margin: 0 16px 0 16px;
+    border: none;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #5c6370;
+    min-width: 28px;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #7a8291;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: #8f98a8;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    background: #1e1f22;
+    width: 16px;
+    border: none;
+    border-radius: 7px;
+}
+
+QScrollBar::add-line:horizontal:hover,
+QScrollBar::sub-line:horizontal:hover {
+    background: #2a2c31;
+}
+
+QScrollBar::left-arrow:horizontal,
+QScrollBar::right-arrow:horizontal {
+    width: 0px;
+    height: 0px;
+    background: none;
+}
+
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+// ── Tooltip, Menu ─────────────────────────────────────────────────────────────
+QToolTip {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border-strong;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+QMenu {
+    background-color: @surface;
+    color: @text;
+    border: 1px solid @border;
+    border-radius: 10px;
+    padding: 6px;
+
+    &::item:selected {
+        background-color: @border;
+    }
+}
+
+// ── State badges ──────────────────────────────────────────────────────────────
+QLabel {
+    &[state="ok"] {
+        background: @color-success-bg;
+        border: 1px solid @color-success-border;
+        color: @color-success-text;
+        border-radius: @badge-radius;
+        padding: 3px 8px;
+    }
+
+    &[state="warn"] {
+        background: @color-warning-bg;
+        border: 1px solid @color-warning-border;
+        color: @color-warning-text;
+        border-radius: @badge-radius;
+        padding: 3px 8px;
+    }
+
+    &[state="bad"] {
+        background: @color-danger-bg;
+        border: 1px solid @color-danger-border;
+        color: @color-danger-text;
+        border-radius: @badge-radius;
+        padding: 3px 8px;
+    }
+}
+
+// ── Link button overrides ─────────────────────────────────────────────────────
+// Must override all variant/appearance/state combinations — Qt specificity rules.
+QPushButton[mode="link"],
+QPushButton[appearance="link"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+
+    &[variant],
+    &:hover,
+    &:pressed,
+    &:checked {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+    }
+
+    &[variant="default"] {
+        color: @text-soft !important;
+    }
+
+    &[variant="primary"],
+    &[variant="info"] {
+        color: @color-info !important;
+    }
+
+    &[variant="destructive"],
+    &[variant="danger"] {
+        color: @color-danger !important;
+    }
+
+    &[variant="success"] {
+        color: @color-success !important;
+    }
+
+    &[variant="warning"] {
+        color: @color-warning !important;
+    }
+}

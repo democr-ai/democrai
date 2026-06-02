@@ -1,0 +1,14 @@
+- kind: Row
+  id: included_stats_row
+  spacing: 15
+  children:
+    - kind: Card
+      title: "Uptime"
+      children:
+        - kind: Text
+          text: "99.9%"
+    - kind: Card
+      title: "Status"
+      children:
+        - kind: Text
+          text: "Active"

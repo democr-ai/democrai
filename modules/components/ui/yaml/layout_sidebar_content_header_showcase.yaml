@@ -1,0 +1,62 @@
+- kind: Column
+  id: components_layout_sidebar_content_header_showcase_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_layout_sidebar_content_header_showcase_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_layout_sidebar_content_header_showcase_eyebrow
+      text: '@t/components.layout.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_layout_sidebar_content_header_showcase_title
+      text: '@t/components.layout.shell.sidebar_content_header.title'
+      level: 1
+    - kind: Text
+      id: components_layout_sidebar_content_header_showcase_description
+      text: '@t/components.layout.shell.sidebar_content_header.description'
+      muted: true
+  - kind: Card
+    id: components_layout_sidebar_content_header_showcase_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_layout_sidebar_content_header_showcase_preview_title
+      text: '@t/components.layout.preview.title'
+      level: 3
+    - components_layout_shell_sidebar_content_header_yaml_root
+  - kind: Card
+    id: components_layout_sidebar_content_header_showcase_yaml_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_layout_sidebar_content_header_showcase_yaml_title
+      text: '@t/components.layout.shell.yaml.title'
+      level: 3
+    - kind: Markdown
+      id: components_layout_sidebar_content_header_showcase_yaml
+      text: "```yaml\n- kind: Row\n  id: app_shell\n  align: fill\n  spacing: 12\n  stretch: true\n  children:\n    - kind:\
+        \ Sidebar\n      id: app_sidebar\n      width: 220\n      children:\n        - kind: ScrollArea\n          id: app_nav_scroll\n\
+        \          transparent: true\n          stretch: true\n          children:\n            - kind: Column\n         \
+        \     id: app_nav_stack\n              children: []\n    - kind: ContentArea\n      id: app_content\n      stretch:\
+        \ true\n      children:\n        - kind: Column\n          id: app_content_shell\n          align: fill\n        \
+        \  stretch: true\n          children:\n            - kind: Header\n              id: app_content_header\n        \
+        \      left: []\n              center: []\n              right: []\n            - kind: Column\n              id:\
+        \ app_content_body\n              align: fill\n              stretch: true\n              children:\n            \
+        \    - kind: ScrollArea\n                  id: app_content_scroll\n                  transparent: true\n         \
+        \         stretch: true\n                  children:\n                    - kind: Column\n                      id:\
+        \ app_content_stack\n                      padding: [24, 24, 24, 24]\n                      children: []\n```\n"

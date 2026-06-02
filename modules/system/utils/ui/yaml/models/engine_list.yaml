@@ -1,0 +1,29 @@
+- kind: Column
+  id: engine_list_page
+  spacing: 14
+  children:
+    - kind: Breadcrumb
+      id: engine_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: "System"
+          path: "/system/index"
+        - label: "@t/system.engine.list.title"
+          current: true
+    - kind: Column
+      id: engine_list_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: engine_list_title
+          text: "@t/system.engine.list.title"
+          level: 2
+        - kind: Text
+          id: engine_list_subtitle
+          text: "@t/system.engine.list.subtitle"
+          style: "font-size: 13px;"
+    - kind: Tabs
+      id: engine_provider_tabs
+      style: "margin-top: 12px;"
+      tabs: []
+      children: []

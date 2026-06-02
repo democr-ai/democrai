@@ -1,0 +1,54 @@
+Vincoli operativi per questo task:
+
+Le pagine in docs/reference/components/* vanno scritte come documentazione tecnica finale per sviluppatori di moduli.
+sdui_doc non va usato come fonte funzionale per queste pagine.
+Le fonti corrette sono, in ordine:
+docs/reference/sdk/* quando pertinente
+sdk/components/...
+modules/components/ui/...
+renderer desktop
+renderer web
+Si lavora un componente alla volta.
+Per ogni componente devo:
+verificare il contratto reale nel codice
+aggiornare la pagina docs
+costruire o aggiornare la pagina di test del modulo components
+replicare nella pagina test gli stessi esempi pubblicati in docs
+La pagina demo non è cumulativa. Per ogni componente posso riscrivere da zero:
+modules/components/ui/test.py
+modules/components/ui/yaml/test.yaml
+modules/components/actions/test.py
+Regole sugli esempi:
+
+Ogni esempio documentato deve esistere davvero nella pagina test.
+Se il componente supporta sia Python sia YAML, in docs gli esempi vanno messi con tab code block.
+Nella pagina test devo mettere sia la forma Python sia la forma YAML quando entrambe sono supportate.
+Python e YAML devono usare gli stessi binding e le stesse action quando possibile.
+Se un esempio non è più presente nella pagina test, non deve restare documentato come flow attivo.
+Regole di scrittura docs:
+
+Niente riferimenti al nostro processo.
+Niente frasi come “working demo”, “abbiamo verificato”, “abbiamo aggiornato”.
+Niente tradeoff interni o note di lavorazione.
+Focus su cosa il componente fa e come si usa.
+Parlare dei limiti solo quando servono per usare correttamente il componente.
+Tono neutro e operativo.
+Regole su bug e fix:
+
+Se emerge un bug che tocca core, desktop o webclient, prima devo analizzare e comunicare un piano breve.
+Solo dopo posso modificare client o core.
+Niente fix “a intuito” su aree sensibili.
+Regole di verifica:
+
+Non dichiarare mai “funziona” solo dal diff.
+Prima di eseguire suite di test del repository devo avere conferma esplicita.
+Posso fare verifiche leggere come py_compile.
+Per UI e bug devo basarmi su comportamento reale osservato, non su inferenze.
+Convenzioni operative:
+
+Screenshot in docs/assets/screen/<component>/...
+Quando gli screenshot vengono aggiunti, li collego nella pagina docs del componente.
+I file docs devono restare coerenti con lo stato reale della pagina test.
+Vincolo di fondo:
+
+Ogni proprietà, esempio, binding, action o comportamento documentato deve corrispondere a qualcosa di reale nel codice e riproducibile nel modulo components. Plausibilità non basta.

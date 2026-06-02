@@ -1,0 +1,23 @@
+- kind: Card
+  id: components_complex_tabs_route_settings_root
+  variant: outlined
+  padding: [16, 16, 16, 16]
+  spacing: 10
+  children:
+    - kind: Title
+      id: components_complex_tabs_route_settings_title
+      text: Settings route
+      level: 4
+    - kind: Text
+      id: components_complex_tabs_route_settings_region
+      text: "Region: eu-west-1"
+    - kind: Text
+      id: components_complex_tabs_route_settings_mode
+      text: "Mode: nested route surface"
+    - kind: Button
+      id: components_complex_tabs_route_settings_button
+      label: Route action
+      variant: default
+      action:
+        name: components.tabs_toast
+        context: {source: route_settings}

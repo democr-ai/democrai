@@ -1,0 +1,36 @@
+- kind: Column
+  id: sys_notif_root
+  align: fill
+  stretch: true
+  spacing: 8
+  padding: [16, 16, 16, 16]
+  style: "min-width: 420px;"
+  children:
+    - kind: Title
+      id: sys_notif_title
+      text: "@t/system.notifications.title"
+      level: 3
+    - kind: Text
+      id: sys_notif_subtitle
+      text: "@t/system.notifications.subtitle"
+      style: "font-size: 13px; margin-bottom: 10px;"
+    - kind: Badge
+      id: sys_notif_count
+      text: "@state/global/core/notifications/pending_count"
+      variant: warning
+    - kind: ScrollArea
+      id: sys_notif_scroll
+      stretch: true
+      transparent: true
+      scroll_x: false
+      scroll_y: true
+      children:
+        - kind: Column
+          id: sys_notif_body
+          align: top
+          children:
+            - kind: Column
+              id: sys_notif_list
+              align: fill
+              spacing: 10
+              children: []

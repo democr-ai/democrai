@@ -1,0 +1,12 @@
+from modules.system.actions import agents as _agents  # noqa: F401
+from modules.system.actions import environment as _environment  # noqa: F401
+from modules.system.actions import mcp as _mcp  # noqa: F401
+from modules.system.actions.model import index as _model_index  # noqa: F401
+from modules.system.actions.organization import index as _organization_index  # noqa: F401
+from modules.system.actions import setup as _setup  # noqa: F401
+from modules.system.actions.capabilities import index as _capabilities_index  # noqa: F401
+from modules.system.actions import engine as _engine  # noqa: F401
+from modules.system.actions import knowledge as _knowledge  # noqa: F401
+from modules.system.actions.role import index as _role_index  # noqa: F401
+from modules.system.actions.user import index as _user_index  # noqa: F401
+from modules.system.actions.user import module as _user_module  # noqa: F401

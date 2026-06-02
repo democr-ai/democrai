@@ -1,0 +1,69 @@
+- kind: Column
+  id: system_mcp_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: system_mcp_breadcrumb
+      segments:
+        - label: System
+          path: /system/index
+        - label: "@t/system.mcp.title"
+          current: true
+    - kind: Row
+      id: system_mcp_actions
+      spacing: 8
+      align: left
+      style: "margin-top: 12px;"
+      children:
+        - kind: Button
+          id: system_mcp_add
+          label: "@t/system.mcp.action.add"
+          icon: ric.add-line
+          variant: primary
+          action: open_drawer
+          params:
+            path: /system/mcp/form/new
+            position: right
+            dim: 760
+    - kind: DataTable
+      id: system_mcp_servers_table
+      style: "margin-top: 12px;"
+      show_row_numbers: true
+      paginated: true
+      page: "@data/system/mcp/list/page"
+      page_size: "@data/system/mcp/list/page_size"
+      total_rows: "@data/system/mcp/list/total_rows"
+      remote_service: system.list_mcp_servers
+      model: "@data/system/mcp/list/model"
+      rows: "@data/system/mcp/list/rows"
+      row_actions:
+        - label: "@t/system.mcp.test.action.open"
+          icon: ric.speed-up-line
+          action:
+            name: nav
+            context:
+              type: nav
+              path: /system/mcp/test/$item.id
+          show_if:
+            conditions:
+              - left: "$item.enabled"
+                op: "=="
+                right: true
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.mcp.action.edit"
+          icon: ric.edit-line
+          action:
+            name: open_drawer
+            context:
+              path: /system/mcp/form/$item.id
+              position: right
+              dim: 760
+        - label: "@t/system.mcp.action.delete"
+          icon: ric.delete-bin-line
+          variant: danger
+          action:
+            name: system.delete_mcp_server
+            confirm:
+              text: "@t/system.mcp.delete.confirm.text"
+              confirm_text: "@t/system.mcp.delete.confirm.accept"
+              cancel_text: "@t/system.mcp.delete.confirm.cancel"

@@ -1,0 +1,1334 @@
+{
+  "engine_id": "whisper",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "faster-whisper-tiny",
+      "label": "Faster Whisper Tiny",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Small CTranslate2 Whisper model for fast local transcription tests.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 1,
+        "vram_gb": 0,
+        "storage_gb": 0.1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-tiny",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-tiny",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-tiny",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-tiny-en",
+      "label": "Faster Whisper Tiny EN",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "English-only CTranslate2 Whisper Tiny model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2",
+        "english"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "english",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 1,
+        "vram_gb": 0,
+        "storage_gb": 0.1
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-tiny-en",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-tiny.en",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-tiny.en",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": "en"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "en",
+              "options": [
+                {
+                  "label": "English",
+                  "value": "en"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-base",
+      "label": "Faster Whisper Base",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Base CTranslate2 Whisper model for local transcription.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "vram_gb": 0,
+        "storage_gb": 0.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-base",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-base",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-base",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-base-en",
+      "label": "Faster Whisper Base EN",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "English-only CTranslate2 Whisper Base model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2",
+        "english"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "english",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 2,
+        "vram_gb": 0,
+        "storage_gb": 0.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-base-en",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-base.en",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-base.en",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": "en"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "en",
+              "options": [
+                {
+                  "label": "English",
+                  "value": "en"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-small",
+      "label": "Faster Whisper Small",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Small CTranslate2 Whisper model for better local transcription quality.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 3,
+        "vram_gb": 1,
+        "storage_gb": 0.6
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-small",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-small",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-small",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-small-en",
+      "label": "Faster Whisper Small EN",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "English-only CTranslate2 Whisper Small model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2",
+        "english"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "english",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 3,
+        "vram_gb": 1,
+        "storage_gb": 0.6
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-small-en",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-small.en",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-small.en",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": "en"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "en",
+              "options": [
+                {
+                  "label": "English",
+                  "value": "en"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-medium",
+      "label": "Faster Whisper Medium",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Medium CTranslate2 Whisper model for higher local transcription quality.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "vram_gb": 3,
+        "storage_gb": 1.7
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-medium",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-medium",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-medium",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-medium-en",
+      "label": "Faster Whisper Medium EN",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "English-only CTranslate2 Whisper Medium model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2",
+        "english"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "english",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 6,
+        "vram_gb": 3,
+        "storage_gb": 1.7
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-medium-en",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-medium.en",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-medium.en",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": "en"
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "en",
+              "options": [
+                {
+                  "label": "English",
+                  "value": "en"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-large-v2",
+      "label": "Faster Whisper Large v2",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Large v2 CTranslate2 Whisper model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 10,
+        "vram_gb": 6,
+        "storage_gb": 3.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-large-v2",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-large-v2",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-large-v2",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-whisper-large-v3",
+      "label": "Faster Whisper Large v3",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Large v3 CTranslate2 Whisper model.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 10,
+        "vram_gb": 6,
+        "storage_gb": 3.2
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-whisper-large-v3",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-whisper-large-v3",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-whisper-large-v3",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "faster-distil-whisper-large-v3",
+      "label": "Faster Distil Whisper Large v3",
+      "engine_id": "whisper",
+      "family": "whisper",
+      "summary": "Distilled CTranslate2 Whisper Large v3 model with faster inference.",
+      "tags": [
+        "stt",
+        "local",
+        "huggingface",
+        "ctranslate2",
+        "distilled"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "timestamps"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "vram_gb": 4,
+        "storage_gb": 1.8
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/faster-distil-whisper-large-v3",
+          "source": {
+            "type": "huggingface",
+            "repo": "Systran/faster-distil-whisper-large-v3",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Systran/faster-distil-whisper-large-v3",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "device": "auto",
+            "compute_type": "int8",
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": ""
+                },
+                {
+                  "label": "Italian",
+                  "value": "it"
+                },
+                {
+                  "label": "English",
+                  "value": "en"
+                },
+                {
+                  "label": "French",
+                  "value": "fr"
+                },
+                {
+                  "label": "German",
+                  "value": "de"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "es"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "pt"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "timestamps": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "word_timestamps",
+            "type": "boolean"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg"
+          ]
+        }
+      }
+    }
+  ]
+}

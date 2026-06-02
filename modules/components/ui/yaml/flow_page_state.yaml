@@ -1,0 +1,137 @@
+- kind: Column
+  id: components_flow_page_state_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_flow_page_state_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_flow_page_state_eyebrow
+      text: '@t/components.flow.state.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_flow_page_state_title
+      text: '@t/components.flow.page_state.title'
+      level: 1
+    - kind: Text
+      id: components_flow_page_state_description
+      text: '@t/components.flow.page_state.description'
+      muted: true
+  - kind: Card
+    id: components_flow_page_state_overview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_page_state_overview_title
+      text: '@t/components.flow.state.overview.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_page_state_overview_text
+      text: '@t/components.flow.page_state.overview'
+    - kind: DataTable
+      id: components_flow_page_state_comparison_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/page_state/comparison'
+      model:
+      - field: topic
+        header: '@t/components.flow.state.table.topic'
+        type: str
+      - field: page
+        header: '@t/components.flow.page_state.short'
+        type: str
+      - field: global
+        header: '@t/components.flow.global_state.short'
+        type: str
+  - kind: Card
+    id: components_flow_page_state_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_page_state_definition_title
+      text: '@t/components.flow.state.definition.title'
+      level: 3
+    - kind: Row
+      id: components_flow_page_state_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_flow_page_state_python_code
+        text: '@t/components.flow.page_state.definition.python'
+      - kind: Markdown
+        id: components_flow_page_state_yaml_code
+        text: '@t/components.flow.page_state.definition.yaml'
+  - kind: Card
+    id: components_flow_page_state_update_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_page_state_update_title
+      text: '@t/components.flow.state.update.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_page_state_update_text
+      text: '@t/components.flow.page_state.update'
+  - kind: Card
+    id: components_flow_page_state_lifecycle_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_page_state_lifecycle_title
+      text: '@t/components.flow.state.lifecycle.title'
+      level: 3
+    - kind: Markdown
+      id: components_flow_page_state_lifecycle_text
+      text: '@t/components.flow.page_state.lifecycle'
+  - kind: Card
+    id: components_flow_page_state_api_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_flow_page_state_api_title
+      text: '@t/components.flow.state.api.title'
+      level: 3
+    - kind: DataTable
+      id: components_flow_page_state_api_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_flow/page_state/api'
+      model:
+      - field: operation
+        header: '@t/components.flow.state.table.operation'
+        type: str
+      - field: usage
+        header: '@t/components.flow.state.table.usage'
+        type: str

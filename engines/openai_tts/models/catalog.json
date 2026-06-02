@@ -1,0 +1,217 @@
+{
+  "engine_id": "openai_tts",
+  "schema": "engine-model-catalog/v1",
+  "models": [
+    {
+      "id": "tts-1",
+      "label": "tts-1",
+      "engine_id": "openai_tts",
+      "family": "openai",
+      "summary": "OpenAI text-to-speech model.",
+      "capabilities": ["tts"],
+      "interfaces": ["text_to_audio"],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "tts-1",
+        "defaults": {
+          "runtime": {
+            "voice": "alloy",
+            "response_format": "wav",
+            "speed": 1.0
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "Voice",
+              "type": "select",
+              "default": "alloy",
+              "options": [
+                {"label": "alloy", "value": "alloy"},
+                {"label": "ash", "value": "ash"},
+                {"label": "coral", "value": "coral"},
+                {"label": "echo", "value": "echo"},
+                {"label": "fable", "value": "fable"},
+                {"label": "onyx", "value": "onyx"},
+                {"label": "nova", "value": "nova"},
+                {"label": "sage", "value": "sage"},
+                {"label": "shimmer", "value": "shimmer"}
+              ]
+            },
+            {
+              "name": "response_format",
+              "label": "Response format",
+              "type": "select",
+              "default": "wav",
+              "options": [
+                {"label": "wav", "value": "wav"},
+                {"label": "mp3", "value": "mp3"},
+                {"label": "opus", "value": "opus"},
+                {"label": "aac", "value": "aac"},
+                {"label": "flac", "value": "flac"},
+                {"label": "pcm", "value": "pcm"}
+              ]
+            },
+            {
+              "name": "speed",
+              "label": "Speed",
+              "type": "number",
+              "default": 1.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tts-1-hd",
+      "label": "tts-1-hd",
+      "engine_id": "openai_tts",
+      "family": "openai",
+      "summary": "OpenAI higher-quality text-to-speech model.",
+      "capabilities": ["tts"],
+      "interfaces": ["text_to_audio"],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "tts-1-hd",
+        "defaults": {
+          "runtime": {
+            "voice": "alloy",
+            "response_format": "wav",
+            "speed": 1.0
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "Voice",
+              "type": "select",
+              "default": "alloy",
+              "options": [
+                {"label": "alloy", "value": "alloy"},
+                {"label": "ash", "value": "ash"},
+                {"label": "coral", "value": "coral"},
+                {"label": "echo", "value": "echo"},
+                {"label": "fable", "value": "fable"},
+                {"label": "onyx", "value": "onyx"},
+                {"label": "nova", "value": "nova"},
+                {"label": "sage", "value": "sage"},
+                {"label": "shimmer", "value": "shimmer"}
+              ]
+            },
+            {
+              "name": "response_format",
+              "label": "Response format",
+              "type": "select",
+              "default": "wav",
+              "options": [
+                {"label": "wav", "value": "wav"},
+                {"label": "mp3", "value": "mp3"},
+                {"label": "opus", "value": "opus"},
+                {"label": "aac", "value": "aac"},
+                {"label": "flac", "value": "flac"},
+                {"label": "pcm", "value": "pcm"}
+              ]
+            },
+            {
+              "name": "speed",
+              "label": "Speed",
+              "type": "number",
+              "default": 1.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gpt-4o-mini-tts",
+      "label": "GPT-4o Mini TTS",
+      "engine_id": "openai_tts",
+      "family": "gpt-4o-audio",
+      "summary": "OpenAI GPT-4o mini text-to-speech model.",
+      "capabilities": ["tts"],
+      "interfaces": ["text_to_audio"],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gpt-4o-mini-tts",
+        "defaults": {
+          "runtime": {
+            "voice": "coral",
+            "response_format": "wav",
+            "speed": 1.0
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "Voice",
+              "type": "select",
+              "default": "coral",
+              "options": [
+                {"label": "alloy", "value": "alloy"},
+                {"label": "ash", "value": "ash"},
+                {"label": "ballad", "value": "ballad"},
+                {"label": "coral", "value": "coral"},
+                {"label": "echo", "value": "echo"},
+                {"label": "fable", "value": "fable"},
+                {"label": "onyx", "value": "onyx"},
+                {"label": "nova", "value": "nova"},
+                {"label": "sage", "value": "sage"},
+                {"label": "shimmer", "value": "shimmer"},
+                {"label": "verse", "value": "verse"},
+                {"label": "marin", "value": "marin"},
+                {"label": "cedar", "value": "cedar"}
+              ]
+            },
+            {
+              "name": "response_format",
+              "label": "Response format",
+              "type": "select",
+              "default": "wav",
+              "options": [
+                {"label": "wav", "value": "wav"},
+                {"label": "mp3", "value": "mp3"},
+                {"label": "opus", "value": "opus"},
+                {"label": "aac", "value": "aac"},
+                {"label": "flac", "value": "flac"},
+                {"label": "pcm", "value": "pcm"}
+              ]
+            },
+            {
+              "name": "speed",
+              "label": "Speed",
+              "type": "number",
+              "default": 1.0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

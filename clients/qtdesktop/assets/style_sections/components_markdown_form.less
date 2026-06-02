@@ -1,0 +1,214 @@
+/* =========================
+   Component: Markdown
+   ========================= */
+QWidget[ui_role="markdown_container"] {
+    //padding: 8px;
+    font-size: 14px;
+    background-color: transparent;
+
+    QPlainTextEdit{
+        color: @text-soft;
+        border: none;
+        background-color: lighten(@card-bg, 10%);
+        padding: 12px;
+        border: 1px solid @card-border;
+        border-radius: @card-radius;
+        margin: 0;
+    }
+}
+
+
+QTextBrowser[ui_role="markdown_browser"] {
+    background: transparent;
+    border: none;
+}
+
+/* =========================
+   Component: Form
+   ========================= */
+QFrame[ui_role="form_card"] {
+    background-color: @surface-raised;
+    border: 1px solid @border;
+    border-radius: @card-radius;
+}
+
+QFrame[ui_role="form_separator"] {
+    background-color: @border;
+}
+
+QLabel[ui_role="form_label"] {
+    color: @text-muted;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+
+    &[invalid="true"],
+    &[error="true"] {
+        color: @color-danger;
+    }
+}
+
+QLineEdit[ui_role="form_input"],
+QTextEdit[ui_role="form_textarea"],
+QComboBox[ui_role="form_select"],
+QListWidget[ui_role="form_select_multi"] {
+    background-color: @input-bg;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: @input-padding;
+    color: @text;
+    font-size: 13px;
+
+    &:focus {
+        border-color: @border-focus;
+    }
+
+    &[invalid="true"],
+    &[error="true"] {
+        border-color: @color-danger;
+    }
+}
+
+QCheckBox[ui_role="form_checkbox"],
+QRadioButton[ui_role="form_radio"] {
+    color: @text-soft;
+}
+
+QRadioButton[ui_role="form_radio"] {
+    spacing: 8px;
+
+    &::indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background-color: @bg;
+        border: 1px solid @border;
+    }
+
+    &::indicator:hover {
+        border-color: @border-focus;
+    }
+
+    &::indicator:checked {
+        background-color: qradialgradient(
+            cx: 0.5, cy: 0.5, radius: 0.5,
+            fx: 0.5, fy: 0.5,
+            stop: 0 @color-info,
+            stop: 0.20 @color-info,
+            stop: 0.21 @bg,
+            stop: 1 @bg
+        );
+        border: 1px solid @color-info;
+    }
+}
+
+QRadioButton[ui_role="form_radio"][invalid="true"] {
+    color: @color-danger;
+
+    &::indicator {
+        border: 1px solid @color-danger;
+    }
+
+    &::indicator:checked {
+        background-color: qradialgradient(
+            cx: 0.5, cy: 0.5, radius: 0.5,
+            fx: 0.5, fy: 0.5,
+            stop: 0 @color-info,
+            stop: 0.20 @color-info,
+            stop: 0.21 @bg,
+            stop: 1 @bg
+        );
+        border: 1px solid @color-info;
+    }
+}
+
+QPushButton[ui_role="form_submit_btn"] {
+    background-color: @color-info;
+    border: none;
+    border-radius: @input-radius;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-weight: 700;
+
+    &:hover {
+        background-color: darken(@color-info, 8%);
+    }
+}
+
+QPushButton[ui_role="form_browse_btn"] {
+    background-color: @surface-muted;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    padding: 8px 12px;
+    color: @text-soft;
+
+    &:hover {
+        background-color: @surface-active;
+        border-color: @border-strong;
+    }
+}
+
+QFrame[ui_role="attachment_upload_btn"] {
+    background-color: @color-info;
+    border: 1px solid @color-info;
+    border-radius: 10px;
+    padding: 6px;
+
+    &[hovered="true"] {
+        background-color: darken(@color-info, 8%);
+        border-color: darken(@color-info, 8%);
+    }
+
+    &[error="true"] {
+        background-color: @color-danger;
+        border-color: @color-danger;
+    }
+}
+
+QLabel[ui_role="attachment_upload_btn_text"] {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 13px;
+    max-height: 30px;
+}
+
+QFrame[ui_role="attachment_upload_btn"][error="true"] QLabel[ui_role="attachment_upload_btn_text"] {
+    color: #ffffff;
+}
+
+QFrame[ui_role="attachment_item"] {
+    background-color: @surface-muted;
+    border: 1px solid @border;
+    border-radius: 10px;
+}
+
+QFrame[ui_role="attachment_item"][attachment_kind="image"] {
+    background-color: @surface-muted;
+    border: 1px solid @border;
+    border-radius: 10px;
+}
+
+QLabel[ui_role="attachment_item_label"] {
+    color: @text-soft;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QToolButton[ui_role="attachment_remove_btn"] {
+    background: fade(@bg, 95%);
+    border: 1px solid @border;
+    border-radius: 9px;
+    padding: 0;
+}
+
+QFrame[ui_role="attachment_item"][attachment_kind="image"] QToolButton[ui_role="attachment_remove_btn"] {
+    background: fade(@bg, 95%);
+    border: 1px solid @border;
+}
+
+QLabel[ui_role="form_error_msg"],
+QLabel[ui_role="form_error_label"] {
+    color: @color-danger;
+    font-size: 11px;
+}

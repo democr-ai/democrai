@@ -1,0 +1,42 @@
+- kind: Column
+  stretch: False
+  align: top
+  spacing: 16
+  children:
+    - kind: Title
+      id: monitor_tasks_title
+      text: "@t/monitor.task.title"
+      level: 2
+    - kind: Text
+      id: monitor_tasks_description
+      text: "@t/monitor.task.description"
+      muted: true
+    - kind: DataTable
+      id: monitor_tasks_table
+      model: [
+          {"field": "id",     "header": "@t/monitor.table.id",     "type": "str",  "editable": False},
+          {"field": "module",   "header": "@t/monitor.table.module",   "type": "str",  "editable": False},
+          {"field": "label",   "header": "@t/monitor.table.label",   "type": "str",  "editable": False},
+          {"field": "status",   "header": "@t/monitor.table.status",   "type": "enum", "editable": False,
+           "options": ["pending", "running", "completed", "failed", "interrupted", "waiting_confirmation"]},
+          {"field": "progress", "header": "@t/monitor.table.progress", "type": "float", "editable": False},
+          {"field": "updated_at", "header": "@t/monitor.table.updated", "type": "str", "editable": False}
+      ]
+      page: 0
+      page_size: 40
+      total_rows: 0
+      remote_service: "monitor.list_tasks"
+      pagination: true
+      sort:
+        field: updated_at
+        direction: desc
+      auto_refresh: 30
+      row_actions:
+        - label: "@t/monitor.common.details"
+          icon: ric.eye-line
+          action:
+            name: open_drawer
+            context:
+              path: "/monitor/task/$item.id/view"
+              position: right
+              dim: 760

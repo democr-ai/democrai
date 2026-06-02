@@ -1,0 +1,220 @@
+{
+  "engine_id": "openai_whisper",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "gpt-4o-transcribe",
+      "label": "GPT-4o Transcribe",
+      "engine_id": "openai_whisper",
+      "family": "gpt-4o-audio",
+      "summary": "Remote speech-to-text model exposed by OpenAI APIs.",
+      "tags": [
+        "api",
+        "stt"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gpt-4o-transcribe",
+        "defaults": {
+          "runtime": {
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {"label": "auto", "value": ""},
+                {"label": "Italian", "value": "it"},
+                {"label": "English", "value": "en"},
+                {"label": "French", "value": "fr"},
+                {"label": "German", "value": "de"},
+                {"label": "Spanish", "value": "es"},
+                {"label": "Portuguese", "value": "pt"}
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/ogg",
+            "audio/wav"
+          ]
+        }
+      }
+    },
+    {
+      "id": "gpt-4o-mini-transcribe",
+      "label": "GPT-4o Mini Transcribe",
+      "engine_id": "openai_whisper",
+      "family": "gpt-4o-audio",
+      "summary": "Remote lower-latency speech-to-text model exposed by OpenAI APIs.",
+      "tags": [
+        "api",
+        "stt"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "gpt-4o-mini-transcribe",
+        "defaults": {
+          "runtime": {
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {"label": "auto", "value": ""},
+                {"label": "Italian", "value": "it"},
+                {"label": "English", "value": "en"},
+                {"label": "French", "value": "fr"},
+                {"label": "German", "value": "de"},
+                {"label": "Spanish", "value": "es"},
+                {"label": "Portuguese", "value": "pt"}
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/ogg",
+            "audio/wav"
+          ]
+        }
+      }
+    },
+    {
+      "id": "whisper-1",
+      "label": "Whisper-1",
+      "engine_id": "openai_whisper",
+      "family": "whisper",
+      "summary": "Remote Whisper speech-to-text model exposed by OpenAI APIs.",
+      "tags": [
+        "api",
+        "stt",
+        "whisper"
+      ],
+      "capabilities": [
+        "stt"
+      ],
+      "extended_capabilities": [
+        "multilingual"
+      ],
+      "interfaces": [
+        "audio_to_text"
+      ],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "whisper-1",
+        "defaults": {
+          "runtime": {
+            "language": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "Language",
+              "type": "select",
+              "value": "",
+              "options": [
+                {"label": "auto", "value": ""},
+                {"label": "Italian", "value": "it"},
+                {"label": "English", "value": "en"},
+                {"label": "French", "value": "fr"},
+                {"label": "German", "value": "de"},
+                {"label": "Spanish", "value": "es"},
+                {"label": "Portuguese", "value": "pt"}
+              ]
+            }
+          ]
+        }
+      },
+      "features": {
+        "language_hint": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "language",
+            "type": "string"
+          }
+        },
+        "stt": {
+          "supported": true,
+          "mime_types": [
+            "audio/ogg",
+            "audio/wav"
+          ]
+        }
+      }
+    }
+  ]
+}

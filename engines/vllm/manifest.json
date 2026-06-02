@@ -1,0 +1,258 @@
+{
+  "id": "vllm",
+  "name": "vLLM",
+  "kind": "llm",
+  "entrypoint": "engines.vllm.engine:VLLMEngine",
+  "install": {
+    "env": {
+      "VLLM_CONFIG_ROOT": "{engine_config}/vllm",
+      "VLLM_TUNED_CONFIG_FOLDER": "{engine_config}/vllm/tuned",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "TRITON_CACHE_DIR": "{engine_cache}/triton",
+      "FLASHINFER_WORKSPACE_BASE": "{engine_cache}",
+      "VLLM_NO_USAGE_STATS": "1",
+      "VLLM_DO_NOT_TRACK": "1",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "runtime": {
+    "env": {
+      "VLLM_CONFIG_ROOT": "{engine_config}/vllm",
+      "VLLM_TUNED_CONFIG_FOLDER": "{engine_config}/vllm/tuned",
+      "TORCH_HOME": "{engine_cache}/torch",
+      "TRITON_CACHE_DIR": "{engine_cache}/triton",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec",
+      "VLLM_HOST_IP": "127.0.0.1",
+      "HOST_IP": "127.0.0.1",
+      "VLLM_NO_USAGE_STATS": "1",
+      "VLLM_DO_NOT_TRACK": "1",
+      "FLASHINFER_WORKSPACE_BASE": "{engine_cache}"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/vllm"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/triton"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/.cache/flashinfer"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "_cffi_backend",
+      "cffi"
+    ]
+  },
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "source_modes": [
+      "catalog",
+      "definition"
+    ],
+    "custom_definition": {
+      "enabled": false
+    },
+    "artifact_upload": {
+      "enabled": false
+    }
+  },
+  "provider": {
+    "id": "vllm",
+    "label": "vLLM",
+    "kind": "llm",
+    "deployment": "local",
+    "model_source": "inventory",
+    "accepted_model_formats": [
+      "hf_snapshot"
+    ],
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning"
+    ],
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream"
+    ],
+    "runtime_batch_sizes": {
+      "generate_completion": 4,
+      "generate_stream": 4
+    },
+    "local_section": "local_llm",
+    "icon_url": "engines/vllm/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "vllm",
+        "module": "vllm",
+        "label": "vLLM",
+        "pip_packages": [
+          "vllm<0.20",
+          "bitsandbytes"
+        ]
+      }
+    ],
+    "install_timeout_seconds": 1800,
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Optimized local serving engine for high-throughput LLM inference.",
+    "capabilities": [
+      "chat",
+      "reasoning",
+      "high_throughput"
+    ]
+  }
+}

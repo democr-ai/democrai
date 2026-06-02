@@ -1,0 +1,254 @@
+- kind: Column
+  id: monitor_pipeline_detail_page
+  spacing: 14
+  stretch: true
+  children:
+    - kind: Column
+      id: monitor_pipeline_detail_header
+      spacing: 4
+      padding: [8, 12, 12, 12]
+      style: "border-bottom: 1px solid var(--border);"
+      children:
+        - kind: Row
+          id: monitor_pipeline_detail_title_row
+          spacing: 8
+          align: left
+          children:
+            - kind: Button
+              id: monitor_pipeline_detail_back
+              label: "@t/monitor.common.back"
+              icon: ric.arrow-left-line
+              variant: primary
+              action:
+                name: navigate
+                context:
+                  type: nav
+                  path: "/monitor/index?tab_nav_tabs=pipeline"
+            - kind: Title
+              id: monitor_pipeline_detail_title
+              text: "@data/pipeline/title"
+              level: 2
+        - kind: Text
+          id: monitor_pipeline_detail_subtitle
+          text: "@data/pipeline/subtitle"
+          muted: true
+    - kind: Row
+      id: monitor_pipeline_detail_body
+      spacing: 12
+      align: fill
+      stretch: true
+      style: "min-height: 0; min-width: 0;"
+      children:
+        - kind: Column
+          id: monitor_pipeline_detail_left_wrap
+          stretch: true
+          width: 440
+          style: "flex: 0 0 440px; background: transparent;"
+          children:
+            - kind: ScrollArea
+              id: monitor_pipeline_detail_left_scroll
+              stretch: true
+              transparent: true
+              scroll_x: false
+              scroll_y: true
+              style: "background: transparent;"
+              content_style: "background: transparent;"
+              children:
+                - kind: Column
+                  id: monitor_pipeline_detail_left
+                  spacing: 12
+                  padding: [12, 12, 12, 12]
+                  style: "background: transparent;"
+                  children:
+                    - kind: Descriptions
+                      id: monitor_pipeline_detail_summary
+                      borders: true
+                      key_header: "@t/monitor.detail.metric"
+                      value_header: "@t/monitor.detail.value"
+                      model:
+                        - field: pipeline_id
+                          label: "@t/monitor.detail.pipeline"
+                          type: str
+                        - field: request_id
+                          label: "@t/monitor.detail.request"
+                          type: str
+                        - field: steps
+                          label: "@t/monitor.detail.steps"
+                          type: int
+                        - field: status
+                          label: "@t/monitor.detail.status"
+                          type: str
+                        - field: duration_ms
+                          label: "@t/monitor.detail.duration_ms"
+                          type: float
+                        - field: total_tokens
+                          label: "@t/monitor.detail.total_tokens"
+                          type: int
+                      data: "@data/pipeline/summary"
+                    - kind: Column
+                      id: monitor_pipeline_step_details_mount
+                      spacing: 10
+                      children:
+                        - kind: List
+                          id: monitor_pipeline_steps_list
+                          data_source:
+                            type: binding
+                            data: "@data/pipeline/steps"
+                          orientation: vertical
+                          selectable: false
+                          item_template:
+                            kind: Accordion
+                            id: monitor_pipeline_step_accordion_item
+                            multiple: false
+                            collapsible: true
+                            items:
+                              - title: "{{accordion_title}}"
+                                meta: "{{accordion_meta}}"
+                                open: "{{open}}"
+                            children:
+                              - kind: Column
+                                id: monitor_pipeline_step_content
+                                spacing: 10
+                                children:
+                                  - kind: Descriptions
+                                    id: monitor_pipeline_step_description
+                                    borders: true
+                                    key_header: "@t/monitor.detail.field"
+                                    value_header: "@t/monitor.detail.value"
+                                    model:
+                                      - field: step_id
+                                        label: "@t/monitor.detail.step_id"
+                                        type: str
+                                      - field: parent_step_id
+                                        label: "@t/monitor.detail.parent"
+                                        type: str
+                                      - field: type
+                                        label: "@t/monitor.detail.type"
+                                        type: str
+                                      - field: name
+                                        label: "@t/monitor.detail.action"
+                                        type: str
+                                      - field: status
+                                        label: "@t/monitor.detail.status"
+                                        type: str
+                                      - field: timestamp
+                                        label: "@t/monitor.detail.timestamp"
+                                        type: str
+                                      - field: duration_ms
+                                        label: "@t/monitor.detail.duration_ms"
+                                        type: float
+                                      - field: prompt_tokens
+                                        label: "@t/monitor.detail.prompt_tokens"
+                                        type: int
+                                      - field: completion_tokens
+                                        label: "@t/monitor.detail.completion_tokens"
+                                        type: int
+                                      - field: total_tokens
+                                        label: "@t/monitor.detail.total_tokens"
+                                        type: int
+                                      - field: tokens_per_second
+                                        label: "@t/monitor.detail.tokens_per_second"
+                                        type: float
+                                      - field: provider
+                                        label: "@t/monitor.detail.provider"
+                                        type: str
+                                      - field: engine
+                                        label: "@t/monitor.detail.engine"
+                                        type: str
+                                      - field: model_name
+                                        label: "@t/monitor.detail.model"
+                                        type: str
+                                      - field: root_method
+                                        label: "@t/monitor.detail.root_method"
+                                        type: str
+                                      - field: request_id
+                                        label: "@t/monitor.detail.request"
+                                        type: str
+                                      - field: input_size_bytes
+                                        label: "@t/monitor.detail.input_size"
+                                        type: int
+                                      - field: output_size_bytes
+                                        label: "@t/monitor.detail.output_size"
+                                        type: int
+                                      - field: input_hash
+                                        label: "@t/monitor.detail.input_hash"
+                                        type: str
+                                      - field: output_hash
+                                        label: "@t/monitor.detail.output_hash"
+                                        type: str
+                                      - field: archive_status
+                                        label: "@t/monitor.detail.archive_status"
+                                        type: str
+                                      - field: archive_media_path
+                                        label: "@t/monitor.detail.archive_media_path"
+                                        type: str
+                                      - field: archive_error
+                                        label: "@t/monitor.detail.archive_error"
+                                        type: str
+                                      - field: error
+                                        label: "@t/monitor.detail.error"
+                                        type: str
+                                    data:
+                                      step_id: "{{step_id}}"
+                                      parent_step_id: "{{parent_step_id}}"
+                                      type: "{{type}}"
+                                      name: "{{name}}"
+                                      status: "{{status}}"
+                                      timestamp: "{{timestamp}}"
+                                      duration_ms: "{{duration_ms}}"
+                                      prompt_tokens: "{{prompt_tokens}}"
+                                      completion_tokens: "{{completion_tokens}}"
+                                      total_tokens: "{{total_tokens}}"
+                                      tokens_per_second: "{{tokens_per_second}}"
+                                      provider: "{{provider}}"
+                                      engine: "{{engine}}"
+                                      model_name: "{{model_name}}"
+                                      root_method: "{{root_method}}"
+                                      request_id: "{{request_id}}"
+                                      input_size_bytes: "{{input_size_bytes}}"
+                                      output_size_bytes: "{{output_size_bytes}}"
+                                      input_hash: "{{input_hash}}"
+                                      output_hash: "{{output_hash}}"
+                                      archive_status: "{{archive_status}}"
+                                      archive_media_path: "{{archive_media_path}}"
+                                      archive_error: "{{archive_error}}"
+                                      error: "{{error}}"
+                                  - kind: Button
+                                    id: monitor_pipeline_step_trace_payload
+                                    label: "@t/monitor.detail.trace_payload"
+                                    icon: ric.file-code-line
+                                    variant: secondary
+                                    disabled: "{{archive_open_disabled}}"
+                                    action: open_drawer
+                                    params:
+                                      path: "/monitor/pipeline/trace/{{id}}"
+                                      position: right
+                                      dim: 980
+        - kind: Column
+          id: monitor_pipeline_detail_right_wrap
+          stretch: true
+          style: "flex: 1 1 auto; min-width: 0; background: transparent;"
+          children:
+            - kind: ScrollArea
+              id: monitor_pipeline_detail_right_scroll
+              stretch: true
+              transparent: true
+              scroll_x: true
+              scroll_y: true
+              style: "background: transparent;"
+              content_style: "background: transparent;"
+              children:
+                - kind: Column
+                  id: monitor_pipeline_detail_right
+                  spacing: 12
+                  padding: [12, 12, 12, 12]
+                  style: "background: transparent;"
+                  children:
+                    - kind: Gantt
+                      id: monitor_pipeline_gantt
+                      title: "@data/pipeline/gantt_title"
+                      height: 560
+                      scale: "@data/pipeline/gantt/scale"
+                      start: "@data/pipeline/gantt/start"
+                      end: "@data/pipeline/gantt/end"
+                      items: "@data/pipeline/gantt/items"

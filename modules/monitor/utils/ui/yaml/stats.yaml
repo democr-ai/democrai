@@ -1,0 +1,117 @@
+- kind: ScrollArea
+  id: monitor_stats_scroll
+  stretch: true
+  transparent: true
+  scroll_x: false
+  scroll_y: true
+  children:
+    - kind: Column
+      id: monitor_stats_root
+      stretch: true
+      spacing: 18
+      padding: [12, 12, 12, 12]
+      children:
+        - kind: Title
+          id: monitor_stats_title
+          text: "@t/monitor.stats.title"
+          level: 2
+        - kind: Text
+          id: monitor_stats_subtitle
+          text: "@t/monitor.stats.description"
+          muted: true
+        - kind: Row
+          id: monitor_stats_summary_row
+          spacing: 14
+          align: fill
+          children:
+            - kind: Card
+              id: monitor_stats_connected_users_card
+              variant: outlined
+              padding: [18, 18, 18, 18]
+              spacing: 6
+              children:
+                - kind: Text
+                  id: monitor_stats_connected_users_label
+                  text: "@t/monitor.stats.connected_users"
+                  muted: true
+                - kind: Title
+                  id: monitor_stats_connected_users_value
+                  text: "@data/stats/active_users"
+                  level: 2
+                - kind: Text
+                  id: monitor_stats_connected_users_note
+                  text: "@t/monitor.stats.connected_users_note"
+                  muted: true
+            - kind: Card
+              id: monitor_stats_connections_card
+              variant: outlined
+              padding: [18, 18, 18, 18]
+              spacing: 6
+              children:
+                - kind: Text
+                  id: monitor_stats_connections_label
+                  text: "@t/monitor.stats.active_clients"
+                  muted: true
+                - kind: Title
+                  id: monitor_stats_connections_value
+                  text: "@data/stats/active_connections"
+                  level: 2
+                - kind: Text
+                  id: monitor_stats_connections_note
+                  text: "@t/monitor.stats.active_clients_note"
+                  muted: true
+            - kind: Card
+              id: monitor_stats_failed_card
+              variant: outlined
+              padding: [18, 18, 18, 18]
+              spacing: 6
+              children:
+                - kind: Text
+                  id: monitor_stats_failed_label
+                  text: "@t/monitor.stats.failed_tasks"
+                  muted: true
+                - kind: Title
+                  id: monitor_stats_failed_value
+                  text: "@data/stats/failed_tasks"
+                  level: 2
+                - kind: Text
+                  id: monitor_stats_failed_note
+                  text: "@t/monitor.stats.failed_tasks_note"
+                  muted: true
+            - kind: Card
+              id: monitor_stats_completed_card
+              variant: outlined
+              padding: [18, 18, 18, 18]
+              spacing: 6
+              children:
+                - kind: Text
+                  id: monitor_stats_completed_label
+                  text: "@t/monitor.stats.completed_tasks"
+                  muted: true
+                - kind: Title
+                  id: monitor_stats_completed_value
+                  text: "@data/stats/completed_tasks"
+                  level: 2
+                - kind: Text
+                  id: monitor_stats_completed_note
+                  text: "@t/monitor.stats.completed_tasks_note"
+                  muted: true
+        - kind: Column
+          id: monitor_stats_live_nodes_section
+          spacing: 16
+          children:
+            - kind: Title
+              id: monitor_stats_live_nodes_title
+              text: "@t/monitor.stats.runtime_nodes"
+              level: 3
+            - kind: Text
+              id: monitor_stats_live_nodes_description
+              text: "@t/monitor.stats.runtime_nodes_description"
+              muted: true
+            - kind: Text
+              id: monitor_stats_no_nodes
+              text: "@data/stats/runtime_nodes_note"
+              muted: true
+            - kind: Column
+              id: monitor_stats_node_rows
+              spacing: 14

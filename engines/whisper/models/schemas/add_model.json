@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Whisper model definition",
+  "type": "object",
+  "required": ["id", "label", "artifacts", "runtime"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "label": {"type": "string", "minLength": 1},
+    "artifacts": {"type": "array", "minItems": 1},
+    "runtime": {"type": "object", "required": ["model_ref"], "properties": {"model_ref": {"type": "string"}}, "additionalProperties": true}
+  },
+  "additionalProperties": true
+}

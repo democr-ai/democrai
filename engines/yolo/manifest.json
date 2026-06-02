@@ -1,0 +1,257 @@
+{
+  "id": "yolo",
+  "name": "YOLO",
+  "kind": "detection",
+  "entrypoint": "engines.yolo.engine:YoloEngine",
+  "install": {
+    "env": {
+      "TORCH_HOME": "{engine_cache}/torch",
+      "HOME": "{engine_config}/home",
+      "MPLCONFIGDIR": "{engine_config}/matplotlib",
+      "XDG_CACHE_HOME": "{engine_config}/xdg_cache",
+      "XDG_CONFIG_HOME": "{engine_config}/xdg_config",
+      "YOLO_CONFIG_DIR": "{engine_config}/ultralytics",
+      "ULTRALYTICS_CONFIG_DIR": "{engine_config}/ultralytics",
+      "YOLO_OFFLINE": "true",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ],
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ]
+  },
+  "runtime": {
+    "env": {
+      "TORCH_HOME": "{engine_cache}/torch",
+      "HOME": "{engine_config}/home",
+      "MPLCONFIGDIR": "{engine_config}/matplotlib",
+      "XDG_CACHE_HOME": "{engine_config}/xdg_cache",
+      "XDG_CONFIG_HOME": "{engine_config}/xdg_config",
+      "YOLO_CONFIG_DIR": "{engine_config}/ultralytics",
+      "ULTRALYTICS_CONFIG_DIR": "{engine_config}/ultralytics",
+      "YOLO_OFFLINE": "true",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ],
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/torch"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/ultralytics/Ultralytics"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ]
+  },
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "source_modes": [
+      "catalog",
+      "definition",
+      "artifact"
+    ],
+    "custom_definition": {
+      "enabled": true,
+      "schema": "models/schemas/add_model.json"
+    },
+    "artifact_upload": {
+      "enabled": true,
+      "schema": "models/schemas/upload_model.json",
+      "accepted_formats": [
+        ".pt"
+      ]
+    }
+  },
+  "provider": {
+    "id": "yolo",
+    "label": "YOLO",
+    "kind": "detection",
+    "deployment": "local",
+    "model_source": "inventory",
+    "accepted_model_formats": [
+      "pt"
+    ],
+    "model_capabilities": [
+      "detection"
+    ],
+    "runtime_methods": [
+      "detect"
+    ],
+    "local_section": "local_detection",
+    "icon_url": "engines/yolo/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "ultralytics",
+        "module": "ultralytics",
+        "label": "ultralytics",
+        "pip_packages": [
+          "ultralytics"
+        ]
+      },
+      {
+        "dependency_key": "opencv",
+        "module": "cv2",
+        "label": "opencv-python-headless",
+        "pip_packages": [
+          "opencv-python-headless"
+        ]
+      },
+      {
+        "dependency_key": "sahi",
+        "module": "sahi",
+        "label": "sahi",
+        "pip_packages": [
+          "sahi"
+        ]
+      },
+      {
+        "dependency_key": "numpy",
+        "module": "numpy",
+        "label": "numpy",
+        "pip_packages": [
+          "numpy"
+        ]
+      },
+      {
+        "dependency_key": "torch",
+        "module": "torch",
+        "label": "torch",
+        "pip_packages": [
+          "torch"
+        ]
+      }
+    ],
+    "configurable": false,
+    "encrypted_keys": [],
+    "description": "Local computer vision provider for object detection workloads.",
+    "capabilities": [
+      "detection",
+      "offline"
+    ]
+  }
+}

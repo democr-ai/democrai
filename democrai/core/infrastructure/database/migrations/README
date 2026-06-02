@@ -1,0 +1,28 @@
+# Core Database Migrations
+
+Alembic revisions for the core database.
+
+These migrations belong to `democrai.core` and only change the internal runtime
+database schema: users, roles, preferences, registries, sessions, tasks and
+technical core state.
+
+Use the runner:
+
+```bash
+python main.py create-migration db -m "description" --autogenerate
+python main.py migrate db
+python main.py rollback db --steps 1
+python main.py migration-status db
+```
+
+Do not add module migrations here. Module migrations live in:
+
+```text
+modules/<module>/migrations/
+```
+
+Generate module migrations with:
+
+```bash
+python main.py create-migration data --module <module> -m "description" --autogenerate
+```

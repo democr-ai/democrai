@@ -1,0 +1,18 @@
+- kind: Card
+  id: components_complex_tabs_route_summary_root
+  variant: outlined
+  padding: [16, 16, 16, 16]
+  spacing: 10
+  children:
+    - kind: Badge
+      id: components_complex_tabs_route_summary_badge
+      text: Route
+      variant: info
+    - kind: Title
+      id: components_complex_tabs_route_summary_title
+      text: Summary route
+      level: 4
+    - kind: Text
+      id: components_complex_tabs_route_summary_text
+      text: This pane is rendered by a dedicated minimal route mounted inside the Tabs component.
+      muted: true

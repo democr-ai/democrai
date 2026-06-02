@@ -1,0 +1,75 @@
+- kind: Column
+  id: user_view_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: user_view_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments: "@state/page/user_view/breadcrumb_segments"
+    - kind: Row
+      id: user_view_header
+      spacing: 10
+      align: "left"
+      children:
+        - kind: Title
+          id: user_view_title
+          text: ""
+          level: 2
+        - kind: Button
+          id: user_open_update_btn
+          label: "@t/system.user.view.edit_user"
+          icon: ric.edit-line
+          variant: info
+          required_permissions:
+            - system.user.update
+        - kind: Button
+          id: user_open_password_btn
+          label: "@t/system.user.view.change_password"
+          icon: ric.lock-password-line
+          variant: warning
+          required_permissions:
+            - system.user.change_password
+    - kind: Card
+      id: user_info_card
+      variant: outlined
+      style: "padding: 0px; margin-bottom: 12px;"
+      children:
+        - kind: Descriptions
+          id: user_info_descriptions
+          key_header: "@t/system.user.view.descriptions.key"
+          value_header: "@t/system.user.view.descriptions.value"
+          borders: true
+          model:
+            - field: id
+              label: "@t/system.user.view.field.id"
+              type: int
+            - field: username
+              label: "@t/system.user.view.field.username"
+              type: str
+            - field: email
+              label: "@t/system.user.view.field.email"
+              type: str
+            - field: role
+              label: "@t/system.user.view.field.role"
+              type: str
+            - field: access_level
+              label: "@t/system.user.view.field.access_level"
+              type: int
+              transform: "get_stub:access_levels"
+            - field: organization_id
+              label: "@t/system.user.view.field.organization_id"
+              type: int
+            - field: created_at
+              label: "@t/system.user.view.field.created_at"
+              type: date
+              format: "%d/%m/%Y %H:%M"
+          data: {}
+    - kind: Card
+      id: user_modules_card
+      variant: outlined
+      style: "padding: 8px;"
+      children:
+        - kind: Column
+          id: user_modules_mount
+          children:
+            - user_modules_section

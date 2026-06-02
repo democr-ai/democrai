@@ -1,0 +1,16 @@
+- kind: Column
+  id: system_model_import_drawer
+  spacing: 14
+  style: "min-width: 720px;"
+  children:
+    - kind: Title
+      id: system_model_import_title
+      text: ""
+      level: 3
+    - kind: Form
+      id: system_model_import_form
+      submit_label: "@t/system.model.inventory.add_submit"
+      action: "system.create_available_model"
+      params: {}
+      track_loading: "system.create_available_model"
+      model: []

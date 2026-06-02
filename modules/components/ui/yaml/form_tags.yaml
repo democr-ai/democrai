@@ -1,0 +1,270 @@
+- kind: Column
+  id: components_forms_tags_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_tags_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_tags_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_tags_title
+      text: '@t/components.forms.tags.title'
+      level: 1
+    - kind: Text
+      id: components_forms_tags_description
+      text: '@t/components.forms.tags.description'
+      muted: true
+  - kind: Card
+    id: components_forms_tags_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_tags_preview_title
+      text: '@t/components.forms.preview.title'
+      level: 3
+    - kind: TagsInput
+      id: components_forms_tags_preview
+      label: '@t/components.forms.tags.preview.text'
+      value:
+      - image/png
+      - image/jpeg
+      placeholder: image/webp
+      item_schema:
+        type: text
+    - kind: TagsInput
+      id: components_forms_tags_select_preview
+      label: '@t/components.forms.tags.preview.select'
+      value:
+      - image/png
+      item_schema:
+        type: select
+        options: '@data/components_forms/mime_options'
+    - kind: Button
+      id: components_forms_tags_read_button
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        input_id: components_forms_tags_preview
+        label: tags
+      collect_input_ids:
+      - components_forms_tags_preview
+  - kind: Card
+    id: components_forms_tags_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_tags_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_tags_runtime_description
+      text: '@t/components.forms.tags.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_tags_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_tags_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_tags_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TagsInput
+            id: components_forms_tags_page
+            label: '@t/components.forms.usage.page_store'
+            value:
+              type: store
+              scope: page
+              path: /components_forms/tags/value
+              default: []
+            item_schema:
+              type: select
+              options: '@data/components_forms/mime_options'
+          - kind: Button
+            id: components_forms_tags_page_button
+            label: '@t/components.forms.usage.page_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: tags
+                mode: page_store
+        - kind: Column
+          id: components_forms_tags_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TagsInput
+            id: components_forms_tags_data
+            label: '@t/components.forms.usage.data_model'
+            value: '@data/components_forms/tags_model/value'
+            item_schema:
+              type: select
+              options: '@data/components_forms/mime_options'
+          - kind: Button
+            id: components_forms_tags_data_button
+            label: '@t/components.forms.usage.data_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: tags
+                mode: data
+      - kind: Column
+        id: components_forms_tags_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_tags_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TagsInput
+            id: components_forms_tags_global
+            label: '@t/components.forms.usage.global_store'
+            value:
+              type: store
+              scope: global
+              path: /components_forms/tags/value
+              default: []
+            item_schema:
+              type: select
+              options: '@data/components_forms/mime_options'
+          - kind: Button
+            id: components_forms_tags_global_button
+            label: '@t/components.forms.usage.global_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: tags
+                mode: global_store
+        - kind: Column
+          id: components_forms_tags_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: TagsInput
+            id: components_forms_tags_direct
+            label: '@t/components.forms.usage.direct'
+            value:
+            - image/png
+            item_schema:
+              type: select
+              options: '@data/components_forms/mime_options'
+            capabilities:
+            - value.set
+          - kind: Button
+            id: components_forms_tags_direct_button
+            label: '@t/components.forms.usage.direct_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: tags
+                mode: direct
+  - kind: Card
+    id: components_forms_tags_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_tags_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_tags_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_tags_python_code
+        text: '@t/components.forms.tags.definition.python'
+      - kind: Markdown
+        id: components_forms_tags_yaml_code
+        text: '@t/components.forms.tags.definition.yaml'
+  - kind: Card
+    id: components_forms_tags_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_tags_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_tags_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/tags_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_tags_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_tags_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_tags_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/tags_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

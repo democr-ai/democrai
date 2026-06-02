@@ -1,0 +1,128 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "democrai"
+version = "0.0.1b1"
+description = "A Python framework for building agentic AI applications with server-driven UI, observability, and sandboxed extensibility."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Democr.ai", email = "development@democr.ai" },
+]
+license = "AGPL-3.0-only AND Apache-2.0"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "aiohttp",
+    "alembic",
+    "boto3",
+    "clickhouse-connect",
+    "cryptography",
+    "fastapi",
+    "filelock",
+    "filetype",
+    "grpcio",
+    "grpcio-health-checking",
+    "httpx",
+    "jsonpath-ng",
+    "jsonschema",
+    "ladybug",
+    "neo4j",
+    "numpy",
+    "nvidia-ml-py",
+    "opentelemetry-exporter-otlp",
+    "opentelemetry-sdk",
+    "pandas",
+    "pillow",
+    "psutil",
+    "psycopg2-binary",
+    "py-bcrypt",
+    "pydantic",
+    "pymilvus",
+    "pypdfium2",
+    "PyJWT",
+    "python-magic; sys_platform != 'win32'",
+    "python-magic-bin; sys_platform == 'win32'",
+    "python-multipart",
+    "pyyaml",
+    "qrcode",
+    "redis",
+    "sqlite-vec",
+    "sqliteai-vector",
+    "sqlalchemy",
+    "supervision",
+    "uvicorn",
+    "websockets",
+]
+
+[project.optional-dependencies]
+desktop = [
+    "PySide6",
+    "pyqtgraph",
+    "qtawesome",
+]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "watchfiles",
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocs-mermaid2-plugin",
+    "mkdocs-shadcn",
+]
+hot-reload = [
+    "watchfiles",
+]
+all = [
+    "democrai[desktop,dev,docs,hot-reload]",
+]
+
+[project.urls]
+Homepage = "https://democr.ai"
+Documentation = "https://democr.ai/docs/"
+Repository = "https://github.com/democr-ai/democrai"
+
+[project.scripts]
+democrai = "democrai.core.runtime.launcher:main"
+democrai-os-sandbox-helper = "democrai.core.infrastructure.sandbox.os.helper_entrypoint:main"
+
+[tool.setuptools.packages.find]
+include = ["democrai*"]
+
+[tool.setuptools.package-data]
+"democrai" = [
+    "config.example.yaml",
+    "config.distributed.example.yaml",
+    "core/LICENSE",
+    "sdk/LICENSE",
+    "core/application/locales/*.json",
+    "core/application/ai/chat_templates/templates/*.jinja",
+    "core/application/ai/engine/orchestrator/proto/*.proto",
+    "core/application/knowledge/query/proto/*.proto",
+    "core/application/runtime_prompt/grpc/proto/*.proto",
+    "core/infrastructure/**/alembic.ini",
+    "core/infrastructure/**/migrations/*.py",
+    "core/infrastructure/**/migrations/script.py.mako",
+]
+
+[tool.mypy]
+python_version = "3.11"
+explicit_package_bases = true
+namespace_packages = true
+ignore_missing_imports = true
+follow_imports = "silent"
+pretty = true
+show_error_codes = true
+warn_unused_ignores = true

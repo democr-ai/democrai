@@ -1,0 +1,16 @@
+- kind: Column
+  id: engine_config_dialog
+  title: ""
+  children:
+    - kind: Text
+      id: engine_config_subtitle
+      text: ""
+      style: "font-size: 13px;"
+    - kind: Form
+      id: engine_config_form
+      submit_label: "@t/system.engine.config.action.save"
+      action: 
+        name: "system.save_engine_config"
+        context: {"engine_id": "@state/page/current_provider/id"}
+      params: {}
+      model: []

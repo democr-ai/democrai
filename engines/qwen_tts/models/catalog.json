@@ -1,0 +1,1521 @@
+{
+  "engine_id": "qwen_tts",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "qwen3-tts-12hz-1-7b-customvoice",
+      "label": "Qwen3 TTS 12Hz 1.7B CustomVoice",
+      "engine_id": "qwen_tts",
+      "family": "qwen_tts",
+      "summary": "Qwen3 TTS 12Hz 1.7B checkpoint for custom voice synthesis.",
+      "tags": [
+        "tts",
+        "local",
+        "huggingface",
+        "custom_voice"
+      ],
+      "capabilities": [
+        "tts"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "custom_voice",
+        "12hz"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "vram_gb": 6,
+        "storage_gb": 6
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/qwen3-tts-12hz-1-7b-customvoice",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "tokenizer_ref": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "qwen_tts_method": "custom_voice",
+            "language": "Auto",
+            "dtype": "auto",
+            "device_map": "auto",
+            "attn_implementation": "",
+            "non_streaming_mode": true,
+            "do_sample": true,
+            "top_k": 50,
+            "top_p": 1.0,
+            "temperature": 0.9,
+            "repetition_penalty": 1.05,
+            "max_new_tokens": 2048,
+            "subtalker_dosample": true,
+            "subtalker_top_k": 50,
+            "subtalker_top_p": 1.0,
+            "subtalker_temperature": 0.9,
+            "voice": "serena",
+            "instruction": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "voice",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Aiden",
+                  "value": "aiden"
+                },
+                {
+                  "label": "Dylan",
+                  "value": "dylan"
+                },
+                {
+                  "label": "Eric",
+                  "value": "eric"
+                },
+                {
+                  "label": "Ono Anna",
+                  "value": "ono_anna"
+                },
+                {
+                  "label": "Ryan",
+                  "value": "ryan"
+                },
+                {
+                  "label": "Serena",
+                  "value": "serena"
+                },
+                {
+                  "label": "Sohee",
+                  "value": "sohee"
+                },
+                {
+                  "label": "Uncle Fu",
+                  "value": "uncle_fu"
+                },
+                {
+                  "label": "Vivian",
+                  "value": "vivian"
+                }
+              ]
+            },
+            {
+              "name": "language",
+              "label": "language",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Chinese",
+                  "value": "Chinese"
+                },
+                {
+                  "label": "English",
+                  "value": "English"
+                },
+                {
+                  "label": "Japanese",
+                  "value": "Japanese"
+                },
+                {
+                  "label": "Korean",
+                  "value": "Korean"
+                },
+                {
+                  "label": "French",
+                  "value": "French"
+                },
+                {
+                  "label": "German",
+                  "value": "German"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "Spanish"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "Portuguese"
+                },
+                {
+                  "label": "Russian",
+                  "value": "Russian"
+                }
+              ]
+            },
+            {
+              "name": "instruction",
+              "label": "instruction",
+              "type": "textarea"
+            },
+            {
+              "name": "dtype",
+              "label": "dtype",
+              "type": "select",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "bfloat16",
+                  "value": "bfloat16"
+                },
+                {
+                  "label": "float16",
+                  "value": "float16"
+                },
+                {
+                  "label": "float32",
+                  "value": "float32"
+                }
+              ]
+            },
+            {
+              "name": "device_map",
+              "label": "device map",
+              "type": "text"
+            },
+            {
+              "name": "attn_implementation",
+              "label": "attention implementation",
+              "type": "select",
+              "options": [
+                {
+                  "label": "default",
+                  "value": ""
+                },
+                {
+                  "label": "flash_attention_2",
+                  "value": "flash_attention_2"
+                },
+                {
+                  "label": "sdpa",
+                  "value": "sdpa"
+                },
+                {
+                  "label": "eager",
+                  "value": "eager"
+                }
+              ]
+            },
+            {
+              "name": "non_streaming_mode",
+              "label": "non streaming mode",
+              "type": "boolean"
+            },
+            {
+              "name": "do_sample",
+              "label": "do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "top_k",
+              "label": "top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "top_p",
+              "label": "top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "temperature",
+              "label": "temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "repetition_penalty",
+              "label": "repetition penalty",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "max_new_tokens",
+              "label": "max new tokens",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_dosample",
+              "label": "subtalker do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "subtalker_top_k",
+              "label": "subtalker top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_top_p",
+              "label": "subtalker top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "subtalker_temperature",
+              "label": "subtalker temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            }
+          ]
+        }
+      },
+      "features": {
+        "voice": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "voice",
+            "type": "string",
+            "values": [
+              "aiden",
+              "dylan",
+              "eric",
+              "ono_anna",
+              "ryan",
+              "serena",
+              "sohee",
+              "uncle_fu",
+              "vivian"
+            ]
+          }
+        },
+        "custom_voice": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "custom_voice",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3-tts-12hz-1-7b-voicedesign",
+      "label": "Qwen3 TTS 12Hz 1.7B VoiceDesign",
+      "engine_id": "qwen_tts",
+      "family": "qwen_tts",
+      "summary": "Qwen3 TTS 12Hz 1.7B checkpoint for voice design workflows.",
+      "tags": [
+        "tts",
+        "local",
+        "huggingface",
+        "voice_design"
+      ],
+      "capabilities": [
+        "tts"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "voice_design",
+        "12hz"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "vram_gb": 6,
+        "storage_gb": 6
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/qwen3-tts-12hz-1-7b-voicedesign",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+        "tokenizer_ref": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "qwen_tts_method": "voice_design",
+            "language": "Auto",
+            "dtype": "auto",
+            "device_map": "auto",
+            "attn_implementation": "",
+            "non_streaming_mode": true,
+            "do_sample": true,
+            "top_k": 50,
+            "top_p": 1.0,
+            "temperature": 0.9,
+            "repetition_penalty": 1.05,
+            "max_new_tokens": 2048,
+            "subtalker_dosample": true,
+            "subtalker_top_k": 50,
+            "subtalker_top_p": 1.0,
+            "subtalker_temperature": 0.9,
+            "instruction": "A clear, natural voice with neutral tone and stable pacing."
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "language",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Chinese",
+                  "value": "Chinese"
+                },
+                {
+                  "label": "English",
+                  "value": "English"
+                },
+                {
+                  "label": "Japanese",
+                  "value": "Japanese"
+                },
+                {
+                  "label": "Korean",
+                  "value": "Korean"
+                },
+                {
+                  "label": "French",
+                  "value": "French"
+                },
+                {
+                  "label": "German",
+                  "value": "German"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "Spanish"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "Portuguese"
+                },
+                {
+                  "label": "Russian",
+                  "value": "Russian"
+                }
+              ]
+            },
+            {
+              "name": "instruction",
+              "label": "voice design instruction",
+              "type": "textarea"
+            },
+            {
+              "name": "dtype",
+              "label": "dtype",
+              "type": "select",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "bfloat16",
+                  "value": "bfloat16"
+                },
+                {
+                  "label": "float16",
+                  "value": "float16"
+                },
+                {
+                  "label": "float32",
+                  "value": "float32"
+                }
+              ]
+            },
+            {
+              "name": "device_map",
+              "label": "device map",
+              "type": "text"
+            },
+            {
+              "name": "attn_implementation",
+              "label": "attention implementation",
+              "type": "select",
+              "options": [
+                {
+                  "label": "default",
+                  "value": ""
+                },
+                {
+                  "label": "flash_attention_2",
+                  "value": "flash_attention_2"
+                },
+                {
+                  "label": "sdpa",
+                  "value": "sdpa"
+                },
+                {
+                  "label": "eager",
+                  "value": "eager"
+                }
+              ]
+            },
+            {
+              "name": "non_streaming_mode",
+              "label": "non streaming mode",
+              "type": "boolean"
+            },
+            {
+              "name": "do_sample",
+              "label": "do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "top_k",
+              "label": "top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "top_p",
+              "label": "top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "temperature",
+              "label": "temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "repetition_penalty",
+              "label": "repetition penalty",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "max_new_tokens",
+              "label": "max new tokens",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_dosample",
+              "label": "subtalker do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "subtalker_top_k",
+              "label": "subtalker top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_top_p",
+              "label": "subtalker top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "subtalker_temperature",
+              "label": "subtalker temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            }
+          ]
+        }
+      },
+      "features": {
+        "voice_design": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "voice_design",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3-tts-12hz-1-7b-base",
+      "label": "Qwen3 TTS 12Hz 1.7B Base",
+      "engine_id": "qwen_tts",
+      "family": "qwen_tts",
+      "summary": "Qwen3 TTS 12Hz 1.7B base checkpoint.",
+      "tags": [
+        "tts",
+        "local",
+        "huggingface",
+        "base"
+      ],
+      "capabilities": [
+        "tts"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "12hz"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {
+        "ram_gb": 8,
+        "vram_gb": 6,
+        "storage_gb": 6
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/qwen3-tts-12hz-1-7b-base",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "tokenizer_ref": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "qwen_tts_method": "voice_clone",
+            "language": "Auto",
+            "dtype": "auto",
+            "device_map": "auto",
+            "attn_implementation": "",
+            "non_streaming_mode": true,
+            "do_sample": true,
+            "top_k": 50,
+            "top_p": 1.0,
+            "temperature": 0.9,
+            "repetition_penalty": 1.05,
+            "max_new_tokens": 2048,
+            "subtalker_dosample": true,
+            "subtalker_top_k": 50,
+            "subtalker_top_p": 1.0,
+            "subtalker_temperature": 0.9,
+            "voice_clone_x_vector_only_mode": false
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "language",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Chinese",
+                  "value": "Chinese"
+                },
+                {
+                  "label": "English",
+                  "value": "English"
+                },
+                {
+                  "label": "Japanese",
+                  "value": "Japanese"
+                },
+                {
+                  "label": "Korean",
+                  "value": "Korean"
+                },
+                {
+                  "label": "French",
+                  "value": "French"
+                },
+                {
+                  "label": "German",
+                  "value": "German"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "Spanish"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "Portuguese"
+                },
+                {
+                  "label": "Russian",
+                  "value": "Russian"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_ref_audio",
+              "label": "voice clone reference audio",
+              "type": "audio_recorder",
+              "accept": "audio/*",
+              "multiple": false,
+              "ingest": false,
+              "validations": [
+                {
+                  "rule": "required"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_ref_text",
+              "label": "voice clone reference text",
+              "type": "textarea",
+              "validations": [
+                {
+                  "rule": "required"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_x_vector_only_mode",
+              "label": "voice clone x-vector only mode",
+              "type": "boolean"
+            },
+            {
+              "name": "dtype",
+              "label": "dtype",
+              "type": "select",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "bfloat16",
+                  "value": "bfloat16"
+                },
+                {
+                  "label": "float16",
+                  "value": "float16"
+                },
+                {
+                  "label": "float32",
+                  "value": "float32"
+                }
+              ]
+            },
+            {
+              "name": "device_map",
+              "label": "device map",
+              "type": "text"
+            },
+            {
+              "name": "attn_implementation",
+              "label": "attention implementation",
+              "type": "select",
+              "options": [
+                {
+                  "label": "default",
+                  "value": ""
+                },
+                {
+                  "label": "flash_attention_2",
+                  "value": "flash_attention_2"
+                },
+                {
+                  "label": "sdpa",
+                  "value": "sdpa"
+                },
+                {
+                  "label": "eager",
+                  "value": "eager"
+                }
+              ]
+            },
+            {
+              "name": "non_streaming_mode",
+              "label": "non streaming mode",
+              "type": "boolean"
+            },
+            {
+              "name": "do_sample",
+              "label": "do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "top_k",
+              "label": "top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "top_p",
+              "label": "top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "temperature",
+              "label": "temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "repetition_penalty",
+              "label": "repetition penalty",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "max_new_tokens",
+              "label": "max new tokens",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_dosample",
+              "label": "subtalker do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "subtalker_top_k",
+              "label": "subtalker top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_top_p",
+              "label": "subtalker top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "subtalker_temperature",
+              "label": "subtalker temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            }
+          ]
+        }
+      },
+      "features": {
+        "voice_clone": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "voice_clone",
+            "type": "audio"
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3-tts-12hz-0-6b-customvoice",
+      "label": "Qwen3 TTS 12Hz 0.6B CustomVoice",
+      "engine_id": "qwen_tts",
+      "family": "qwen_tts",
+      "summary": "Qwen3 TTS 12Hz 0.6B checkpoint for custom voice synthesis.",
+      "tags": [
+        "tts",
+        "local",
+        "huggingface",
+        "custom_voice"
+      ],
+      "capabilities": [
+        "tts"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "custom_voice",
+        "12hz"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 4,
+        "storage_gb": 4
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/qwen3-tts-12hz-0-6b-customvoice",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        "tokenizer_ref": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "qwen_tts_method": "custom_voice",
+            "language": "Auto",
+            "dtype": "auto",
+            "device_map": "auto",
+            "attn_implementation": "",
+            "non_streaming_mode": true,
+            "do_sample": true,
+            "top_k": 50,
+            "top_p": 1.0,
+            "temperature": 0.9,
+            "repetition_penalty": 1.05,
+            "max_new_tokens": 2048,
+            "subtalker_dosample": true,
+            "subtalker_top_k": 50,
+            "subtalker_top_p": 1.0,
+            "subtalker_temperature": 0.9,
+            "voice": "serena",
+            "instruction": ""
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "voice",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Aiden",
+                  "value": "aiden"
+                },
+                {
+                  "label": "Dylan",
+                  "value": "dylan"
+                },
+                {
+                  "label": "Eric",
+                  "value": "eric"
+                },
+                {
+                  "label": "Ono Anna",
+                  "value": "ono_anna"
+                },
+                {
+                  "label": "Ryan",
+                  "value": "ryan"
+                },
+                {
+                  "label": "Serena",
+                  "value": "serena"
+                },
+                {
+                  "label": "Sohee",
+                  "value": "sohee"
+                },
+                {
+                  "label": "Uncle Fu",
+                  "value": "uncle_fu"
+                },
+                {
+                  "label": "Vivian",
+                  "value": "vivian"
+                }
+              ]
+            },
+            {
+              "name": "language",
+              "label": "language",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Chinese",
+                  "value": "Chinese"
+                },
+                {
+                  "label": "English",
+                  "value": "English"
+                },
+                {
+                  "label": "Japanese",
+                  "value": "Japanese"
+                },
+                {
+                  "label": "Korean",
+                  "value": "Korean"
+                },
+                {
+                  "label": "French",
+                  "value": "French"
+                },
+                {
+                  "label": "German",
+                  "value": "German"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "Spanish"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "Portuguese"
+                },
+                {
+                  "label": "Russian",
+                  "value": "Russian"
+                }
+              ]
+            },
+            {
+              "name": "instruction",
+              "label": "instruction",
+              "type": "textarea"
+            },
+            {
+              "name": "dtype",
+              "label": "dtype",
+              "type": "select",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "bfloat16",
+                  "value": "bfloat16"
+                },
+                {
+                  "label": "float16",
+                  "value": "float16"
+                },
+                {
+                  "label": "float32",
+                  "value": "float32"
+                }
+              ]
+            },
+            {
+              "name": "device_map",
+              "label": "device map",
+              "type": "text"
+            },
+            {
+              "name": "attn_implementation",
+              "label": "attention implementation",
+              "type": "select",
+              "options": [
+                {
+                  "label": "default",
+                  "value": ""
+                },
+                {
+                  "label": "flash_attention_2",
+                  "value": "flash_attention_2"
+                },
+                {
+                  "label": "sdpa",
+                  "value": "sdpa"
+                },
+                {
+                  "label": "eager",
+                  "value": "eager"
+                }
+              ]
+            },
+            {
+              "name": "non_streaming_mode",
+              "label": "non streaming mode",
+              "type": "boolean"
+            },
+            {
+              "name": "do_sample",
+              "label": "do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "top_k",
+              "label": "top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "top_p",
+              "label": "top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "temperature",
+              "label": "temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "repetition_penalty",
+              "label": "repetition penalty",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "max_new_tokens",
+              "label": "max new tokens",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_dosample",
+              "label": "subtalker do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "subtalker_top_k",
+              "label": "subtalker top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_top_p",
+              "label": "subtalker top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "subtalker_temperature",
+              "label": "subtalker temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            }
+          ]
+        }
+      },
+      "features": {
+        "voice": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "voice",
+            "type": "string",
+            "values": [
+              "aiden",
+              "dylan",
+              "eric",
+              "ono_anna",
+              "ryan",
+              "serena",
+              "sohee",
+              "uncle_fu",
+              "vivian"
+            ]
+          }
+        },
+        "custom_voice": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "custom_voice",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "qwen3-tts-12hz-0-6b-base",
+      "label": "Qwen3 TTS 12Hz 0.6B Base",
+      "engine_id": "qwen_tts",
+      "family": "qwen_tts",
+      "summary": "Qwen3 TTS 12Hz 0.6B base checkpoint.",
+      "tags": [
+        "tts",
+        "local",
+        "huggingface",
+        "base"
+      ],
+      "capabilities": [
+        "tts"
+      ],
+      "extended_capabilities": [
+        "multilingual",
+        "12hz"
+      ],
+      "interfaces": [
+        "text_to_audio"
+      ],
+      "requirements": {
+        "ram_gb": 4,
+        "vram_gb": 4,
+        "storage_gb": 4
+      },
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": [
+            "weights"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "models/qwen3-tts-12hz-0-6b-base",
+          "source": {
+            "type": "huggingface",
+            "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "tokenizer_ref": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        "artifact_ref": "weights",
+        "defaults": {
+          "runtime": {
+            "qwen_tts_method": "voice_clone",
+            "language": "Auto",
+            "dtype": "auto",
+            "device_map": "auto",
+            "attn_implementation": "",
+            "non_streaming_mode": true,
+            "do_sample": true,
+            "top_k": 50,
+            "top_p": 1.0,
+            "temperature": 0.9,
+            "repetition_penalty": 1.05,
+            "max_new_tokens": 2048,
+            "subtalker_dosample": true,
+            "subtalker_top_k": 50,
+            "subtalker_top_p": 1.0,
+            "subtalker_temperature": 0.9,
+            "voice_clone_x_vector_only_mode": false
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "language",
+              "label": "language",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Chinese",
+                  "value": "Chinese"
+                },
+                {
+                  "label": "English",
+                  "value": "English"
+                },
+                {
+                  "label": "Japanese",
+                  "value": "Japanese"
+                },
+                {
+                  "label": "Korean",
+                  "value": "Korean"
+                },
+                {
+                  "label": "French",
+                  "value": "French"
+                },
+                {
+                  "label": "German",
+                  "value": "German"
+                },
+                {
+                  "label": "Spanish",
+                  "value": "Spanish"
+                },
+                {
+                  "label": "Portuguese",
+                  "value": "Portuguese"
+                },
+                {
+                  "label": "Russian",
+                  "value": "Russian"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_ref_audio",
+              "label": "voice clone reference audio",
+              "type": "audio_recorder",
+              "accept": "audio/*",
+              "multiple": false,
+              "ingest": false,
+              "validations": [
+                {
+                  "rule": "required"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_ref_text",
+              "label": "voice clone reference text",
+              "type": "textarea",
+              "validations": [
+                {
+                  "rule": "required"
+                }
+              ]
+            },
+            {
+              "name": "voice_clone_x_vector_only_mode",
+              "label": "voice clone x-vector only mode",
+              "type": "boolean"
+            },
+            {
+              "name": "dtype",
+              "label": "dtype",
+              "type": "select",
+              "options": [
+                {
+                  "label": "auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "bfloat16",
+                  "value": "bfloat16"
+                },
+                {
+                  "label": "float16",
+                  "value": "float16"
+                },
+                {
+                  "label": "float32",
+                  "value": "float32"
+                }
+              ]
+            },
+            {
+              "name": "device_map",
+              "label": "device map",
+              "type": "text"
+            },
+            {
+              "name": "attn_implementation",
+              "label": "attention implementation",
+              "type": "select",
+              "options": [
+                {
+                  "label": "default",
+                  "value": ""
+                },
+                {
+                  "label": "flash_attention_2",
+                  "value": "flash_attention_2"
+                },
+                {
+                  "label": "sdpa",
+                  "value": "sdpa"
+                },
+                {
+                  "label": "eager",
+                  "value": "eager"
+                }
+              ]
+            },
+            {
+              "name": "non_streaming_mode",
+              "label": "non streaming mode",
+              "type": "boolean"
+            },
+            {
+              "name": "do_sample",
+              "label": "do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "top_k",
+              "label": "top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "top_p",
+              "label": "top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "temperature",
+              "label": "temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "repetition_penalty",
+              "label": "repetition penalty",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            },
+            {
+              "name": "max_new_tokens",
+              "label": "max new tokens",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_dosample",
+              "label": "subtalker do sample",
+              "type": "boolean"
+            },
+            {
+              "name": "subtalker_top_k",
+              "label": "subtalker top k",
+              "type": "integer",
+              "min": 1,
+              "step": 1
+            },
+            {
+              "name": "subtalker_top_p",
+              "label": "subtalker top p",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            },
+            {
+              "name": "subtalker_temperature",
+              "label": "subtalker temperature",
+              "type": "number",
+              "min": 0,
+              "step": 0.01
+            }
+          ]
+        }
+      },
+      "features": {
+        "voice_clone": {
+          "supported": true,
+          "activation": {
+            "mode": "option_mapping",
+            "param": "voice_clone",
+            "type": "audio"
+          }
+        }
+      }
+    }
+  ]
+}

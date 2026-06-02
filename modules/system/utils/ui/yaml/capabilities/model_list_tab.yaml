@@ -1,0 +1,45 @@
+- kind: Column
+  id: capability_priority_pane
+  align: top
+  stretch: true
+  spacing: 12
+  style: "margin-top: 12px; min-height: 0; height: 100%; max-width: 720px;"
+  children:
+    - kind: Text
+      id: capability_priority_empty
+      text: "@t/system.capabilities.tab.empty"
+      style: "font-size: 13px;"
+    - kind: Column
+      id: capability_priority_editor
+      spacing: 12
+      children:
+        - kind: Select
+          id: capability_priority_1_select
+          label: "@t/system.capabilities.priority.1.label"
+          placeholder: "@t/system.capabilities.priority.placeholder"
+          options: []
+          value: ""
+        - kind: Select
+          id: capability_priority_2_select
+          label: "@t/system.capabilities.priority.2.label"
+          placeholder: "@t/system.capabilities.priority.placeholder"
+          options: []
+          value: ""
+        - kind: Select
+          id: capability_priority_3_select
+          label: "@t/system.capabilities.priority.3.label"
+          placeholder: "@t/system.capabilities.priority.placeholder"
+          options: []
+          value: ""
+    - kind: Button
+      id: capability_priority_save
+      label: "@t/system.capabilities.priority.save"
+      icon: ric.save-3-line
+      variant: primary
+      style: "margin-top: 8px;"
+      action:
+        name: system.save_capability_priorities
+        context: {}
+      track_loading: system.save_capability_priorities
+      collect_input_ids: []
+      required_permissions: [system.model.capability.update]

@@ -1,0 +1,65 @@
+/* =========================
+   Component: Dialog / Header
+   ========================= */
+QDialog[ui_role="dialog_shell"] {
+    background-color: @surface-raised;
+    color: @text;
+    border: 1px solid @border;
+}
+
+QFrame[ui_role="header_status_dot"] {
+    border-radius: 4px;
+    background-color: @color-danger;
+
+    &[connected="true"] {
+        background-color: @color-success;
+    }
+}
+
+/* =========================
+   Component: Chart
+   ========================= */
+QLabel[ui_role="chart_title"] {
+    font-weight: 600;
+    color: @text;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+QLabel[ui_role="chart_placeholder"] {
+    color: @text-muted;
+    font-weight: 600;
+    border: 1px dashed @border;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+/* =========================
+   Component: VerticalButton (Main Sidebar icons)
+   ========================= */
+#main_sidebar QToolButton[ui_role="vertical_button"] {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 45px;
+    max-width: 45px;
+    min-height: 45px;
+    max-height: 45px;
+    font-size: 10px;
+    font-weight: 500;
+    color: @main-sidebar-icon-idle;
+
+    &:hover {
+        background-color: transparent;
+        color: @main-sidebar-icon-active;
+    }
+
+    &[active="true"] {
+        background-color: transparent;
+        border-left: 3px solid @main-sidebar-active-marker;
+        color: @main-sidebar-icon-active;
+    }
+}

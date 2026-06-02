@@ -1,0 +1,75 @@
+- kind: Column
+  id: user_list_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: user_list_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: System
+          type: nav
+          path: /system/index
+        - label: "@t/system.user.list.title"
+          current: true
+    - kind: Row
+      id: user_list_header
+      spacing: 12
+      align: "left"
+      children:
+        - kind: Title
+          id: user_list_title
+          text: "@t/system.user.list.title"
+          level: 2
+        - kind: Button
+          id: user_new_btn
+          label: "@t/system.user.list.new_user"
+          icon: ric.add-line
+          variant: success
+          mode: ghost
+          required_permissions:
+            - system.user.create
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/user/create
+    - kind: DataTable
+      id: user_list_table
+      show_row_numbers: true
+      paginated: true
+      page: "@data/system/user/list/page"
+      page_size: "@data/system/user/list/page_size"
+      total_rows: "@data/system/user/list/total_rows"
+      remote_service: system.list_user
+      model: "@data/system/user/list/model"
+      rows: "@data/system/user/list/rows"
+      row_actions:
+        - label: "@t/system.user.list.action.view"
+          icon: ric.eye-line
+          required_permissions:
+            - system.user.view
+          action:
+            name: system.view_user
+            context:
+              op: open
+        - label: "@t/system.user.list.action.change_password"
+          icon: ric.lock-password-line
+          required_permissions:
+            - system.user.change_password
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/user/$item.id/change_password
+        - label: "@t/system.organization.users.action.delete"
+          icon: ric.delete-bin-6-line
+          variant: danger
+          required_permissions:
+            - system.user.delete
+          action:
+            name: system.delete_user
+            context: {}
+            confirm:
+              text: "@t/system.user.delete.confirm.text"
+              confirm_text: "@t/system.user.delete.confirm.accept"
+              cancel_text: "@t/system.user.delete.confirm.cancel"

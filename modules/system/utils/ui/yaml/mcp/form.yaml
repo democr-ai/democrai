@@ -1,0 +1,14 @@
+- kind: Column
+  id: system_mcp_form_page
+  spacing: 14
+  children:
+    - kind: Title
+      id: system_mcp_form_title
+      text: "@t/system.mcp.form.title"
+      level: 3
+    - kind: Form
+      id: system_mcp_form
+      submit_label: "@t/system.mcp.form.submit"
+      action:
+        name: system.save_mcp_server
+      model: []

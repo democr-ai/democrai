@@ -1,0 +1,248 @@
+- kind: Column
+  id: components_qrcode_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_qrcode_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_qrcode_eyebrow
+      text: '@t/components.content.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_qrcode_title
+      text: '@t/components.content.qrcode.title'
+      level: 1
+    - kind: Text
+      id: components_qrcode_description
+      text: '@t/components.content.qrcode.description'
+      muted: true
+  - kind: Card
+    id: components_qrcode_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_qrcode_preview_title
+      text: '@t/components.content.preview.title'
+      level: 3
+    - kind: Row
+      id: components_qrcode_preview_row
+      spacing: 18
+      align: left
+      children:
+      - kind: QRCode
+        id: components_qrcode_static_url
+        content: https://democrai.example
+        size: 160
+      - kind: QRCode
+        id: components_qrcode_static_wifi
+        content: WIFI:S:Democrai Demo;T:WPA;P:demo-password;;
+        size: 160
+        border: 3
+        fill_color: '#1d4ed8'
+        back_color: '#ffffff'
+  - kind: Card
+    id: components_qrcode_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_qrcode_runtime_title
+      text: '@t/components.content.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_qrcode_runtime_description
+      text: '@t/components.content.qrcode.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_qrcode_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_qrcode_runtime_left
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_qrcode_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: QRCode
+            id: components_qrcode_page
+            content:
+              type: store
+              scope: page
+              path: /components_content/qrcode/content
+              default: https://democrai.example/page
+            size: 150
+          - kind: Button
+            id: components_qrcode_page_button
+            label: '@t/components.content.usage.page_store_button'
+            variant: default
+            action:
+              name: components.qrcode_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_qrcode_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: QRCode
+            id: components_qrcode_data
+            content: '@data/components_content/qrcode_model/content'
+            size: 150
+          - kind: Button
+            id: components_qrcode_data_button
+            label: '@t/components.content.usage.data_button'
+            variant: default
+            action:
+              name: components.qrcode_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_qrcode_runtime_right
+        spacing: 18
+        children:
+        - kind: Column
+          id: components_qrcode_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: QRCode
+            id: components_qrcode_global
+            content:
+              type: store
+              scope: global
+              path: /components_content/qrcode/content
+              default: https://democrai.example/global
+            size: 150
+          - kind: Button
+            id: components_qrcode_global_button
+            label: '@t/components.content.usage.global_store_button'
+            variant: default
+            action:
+              name: components.qrcode_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_qrcode_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: QRCode
+            id: components_qrcode_direct
+            content: https://democrai.example/direct
+            size: 150
+            capabilities:
+            - content.set
+            - size.set
+            - border.set
+            - fill_color.set
+            - back_color.set
+          - kind: Button
+            id: components_qrcode_direct_button
+            label: '@t/components.content.usage.direct_button'
+            variant: default
+            action:
+              name: components.qrcode_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_qrcode_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_qrcode_definition_title
+      text: '@t/components.content.definition.title'
+      level: 3
+    - kind: Row
+      id: components_qrcode_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_qrcode_python_code
+        text: '@t/components.content.qrcode.definition.python'
+      - kind: Markdown
+        id: components_qrcode_yaml_code
+        text: '@t/components.content.qrcode.definition.yaml'
+  - kind: Card
+    id: components_qrcode_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_qrcode_binding_title
+      text: '@t/components.content.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_qrcode_binding_table
+      paginated: false
+      pagination: false
+      total_rows: 4
+      rows: '@data/components_content/qrcode_bindings'
+      model:
+      - field: binding
+        header: '@t/components.content.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.content.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.content.table.source'
+        type: str
+  - kind: Card
+    id: components_qrcode_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_qrcode_properties_title
+      text: '@t/components.content.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_qrcode_properties_table
+      paginated: false
+      pagination: false
+      total_rows: 5
+      rows: '@data/components_content/qrcode_properties'
+      model:
+      - field: property
+        header: '@t/components.content.table.property'
+        type: str
+      - field: type
+        header: '@t/components.content.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.content.table.usage'
+        type: str

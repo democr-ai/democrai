@@ -1,0 +1,437 @@
+- kind: Column
+  id: components_layout_header_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_layout_header_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_layout_header_eyebrow
+      text: '@t/components.layout.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_layout_header_title
+      text: '@t/components.layout.header.title'
+      level: 1
+    - kind: Text
+      id: components_layout_header_description
+      text: '@t/components.layout.header.description'
+      muted: true
+  - kind: Card
+    id: components_layout_header_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_header_preview_title
+      text: '@t/components.layout.preview.title'
+      level: 3
+    - kind: Header
+      id: components_layout_header_static
+      style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+      left:
+      - kind: Title
+        id: components_layout_header_brand
+        text: '@t/components.layout.brand'
+        level: 3
+      center:
+      - kind: Text
+        id: components_layout_header_center
+        text: '@t/components.layout.header.center'
+      right:
+      - kind: Badge
+        id: components_layout_header_status
+        text: '@t/components.layout.badge.live'
+        variant: success
+    - kind: Row
+      id: components_layout_header_store_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Header
+        id: components_layout_header_store
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+        - kind: Text
+          id: components_layout_header_store_left
+          text: '@t/components.layout.badge.store'
+        right:
+          type: store
+          scope: page
+          path: /components_layout/header_right
+          default: []
+      - kind: Button
+        id: components_layout_header_update_store
+        label: '@t/components.layout.usage.store_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: header
+            mode: store
+    - kind: Row
+      id: components_layout_header_data_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Header
+        id: components_layout_header_data
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+        - kind: Text
+          id: components_layout_header_data_left
+          text: '@t/components.layout.badge.data'
+        right: '@data/components_layout/header_model/right'
+      - kind: Button
+        id: components_layout_header_update_data
+        label: '@t/components.layout.usage.data_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: header
+            mode: data
+    - kind: Row
+      id: components_layout_header_direct_line
+      spacing: 12
+      align: fill
+      children:
+      - kind: Header
+        id: components_layout_header_direct
+        capabilities:
+        - right.set
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+        - kind: Text
+          id: components_layout_header_direct_left
+          text: '@t/components.layout.badge.direct'
+        right:
+        - kind: Badge
+          id: components_layout_header_direct_initial
+          text: '@t/components.layout.badge.idle'
+          variant: secondary
+      - kind: Button
+        id: components_layout_header_update_direct
+        label: '@t/components.layout.usage.direct_button'
+        variant: default
+        action:
+          name: components.layout_update
+          context:
+            component: header
+            mode: direct
+  - kind: Card
+    id: components_layout_header_slots_card
+    variant: outlined
+    padding:
+    - 22
+    - 22
+    - 22
+    - 22
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_layout_header_slots_title
+      text: '@t/components.layout.header.slots.title'
+      level: 3
+    - kind: Text
+      id: components_layout_header_slots_description
+      text: '@t/components.layout.header.slots.description'
+      muted: true
+    - kind: Column
+      id: components_layout_header_slots_stack
+      spacing: 16
+      children:
+      - kind: Header
+        id: components_layout_header_slots_page
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+          type: store
+          scope: page
+          path: /components_layout/header_left
+          default: []
+        center:
+          type: store
+          scope: page
+          path: /components_layout/header_center
+          default: []
+        right:
+          type: store
+          scope: page
+          path: /components_layout/header_right
+          default: []
+      - kind: Row
+        id: components_layout_header_slots_page_buttons
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Button
+          id: components_layout_header_page_left_button
+          label: '@t/components.layout.header.add_left_page'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: left
+              mode: page_store
+        - kind: Button
+          id: components_layout_header_page_center_button
+          label: '@t/components.layout.header.add_center_page'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: center
+              mode: page_store
+        - kind: Button
+          id: components_layout_header_page_right_button
+          label: '@t/components.layout.header.add_right_page'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: right
+              mode: page_store
+      - kind: Header
+        id: components_layout_header_slots_global
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+          type: store
+          scope: global
+          path: /components_layout/header_left
+          default: []
+        center:
+          type: store
+          scope: global
+          path: /components_layout/header_center
+          default: []
+        right:
+          type: store
+          scope: global
+          path: /components_layout/header_right
+          default: []
+      - kind: Row
+        id: components_layout_header_slots_global_buttons
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Button
+          id: components_layout_header_global_left_button
+          label: '@t/components.layout.header.add_left_global'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: left
+              mode: global_store
+        - kind: Button
+          id: components_layout_header_global_center_button
+          label: '@t/components.layout.header.add_center_global'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: center
+              mode: global_store
+        - kind: Button
+          id: components_layout_header_global_right_button
+          label: '@t/components.layout.header.add_right_global'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: right
+              mode: global_store
+      - kind: Header
+        id: components_layout_header_slots_data
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left: '@data/components_layout/header_model/left'
+        center: '@data/components_layout/header_model/center'
+        right: '@data/components_layout/header_model/right'
+      - kind: Row
+        id: components_layout_header_slots_data_buttons
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Button
+          id: components_layout_header_data_left_button
+          label: '@t/components.layout.header.add_left_data'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: left
+              mode: data
+        - kind: Button
+          id: components_layout_header_data_center_button
+          label: '@t/components.layout.header.add_center_data'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: center
+              mode: data
+        - kind: Button
+          id: components_layout_header_data_right_button
+          label: '@t/components.layout.header.add_right_data'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: right
+              mode: data
+      - kind: Header
+        id: components_layout_header_slots_direct
+        capabilities:
+        - left.append
+        - center.append
+        - right.append
+        style: 'padding: 10px; border: 1px solid #d0d7de; border-radius: 6px;'
+        left:
+        - kind: Badge
+          id: components_layout_header_direct_left_initial
+          text: '@t/components.layout.header.slot_left'
+          variant: secondary
+        center:
+        - kind: Text
+          id: components_layout_header_direct_center_initial
+          text: '@t/components.layout.header.slot_center'
+        right:
+        - kind: Badge
+          id: components_layout_header_direct_right_initial
+          text: '@t/components.layout.header.slot_right'
+          variant: secondary
+      - kind: Row
+        id: components_layout_header_slots_direct_buttons
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Button
+          id: components_layout_header_direct_left_button
+          label: '@t/components.layout.header.add_left_direct'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: left
+              mode: direct
+        - kind: Button
+          id: components_layout_header_direct_center_button
+          label: '@t/components.layout.header.add_center_direct'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: center
+              mode: direct
+        - kind: Button
+          id: components_layout_header_direct_right_button
+          label: '@t/components.layout.header.add_right_direct'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: header
+              prop: right
+              mode: direct
+  - kind: Card
+    id: components_layout_header_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_header_definition_title
+      text: '@t/components.layout.definition.title'
+      level: 3
+    - kind: Row
+      id: components_layout_header_definition_codes
+      spacing: 14
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_layout_header_python
+        text: '@t/components.layout.header.definition.python'
+      - kind: Markdown
+        id: components_layout_header_yaml
+        text: '@t/components.layout.header.definition.yaml'
+  - kind: Card
+    id: components_layout_header_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_header_binding_title
+      text: '@t/components.layout.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_header_binding_table
+      rows: '@data/components_layout/header_bindings'
+      paginated: false
+      pagination: false
+      total_rows: 3
+      model:
+      - field: binding
+        header: '@t/components.layout.table.binding'
+      - field: yaml
+        header: '@t/components.layout.table.yaml'
+      - field: source
+        header: '@t/components.layout.table.source'
+  - kind: Card
+    id: components_layout_header_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_header_properties_title
+      text: '@t/components.layout.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_header_properties_table
+      rows: '@data/components_layout/header_properties'
+      paginated: false
+      pagination: false
+      total_rows: 6
+      model:
+      - field: property
+        header: '@t/components.layout.table.property'
+      - field: type
+        header: '@t/components.layout.table.type'
+      - field: page_store
+        header: '@t/components.layout.table.page_store'
+      - field: global_store
+        header: '@t/components.layout.table.global_store'
+      - field: data
+        header: '@t/components.layout.table.data'
+      - field: direct
+        header: '@t/components.layout.table.direct'

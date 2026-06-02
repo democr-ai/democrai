@@ -1,0 +1,56 @@
+- kind: Column
+  id: system_agents_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: system_agents_breadcrumb
+      segments:
+        - label: System
+          path: /system/index
+        - label: "@t/system.agents.title"
+          current: true
+    - kind: DataTable
+      id: system_agents_table
+      style: "margin-top: 12px;"
+      show_row_numbers: true
+      paginated: false
+      remote_service: system.list_agents
+      model:
+        - field: name
+          header: "@t/system.agents.table.agent"
+          type: str
+          filterable: true
+          filter_type: text
+        - field: module_name
+          header: "@t/system.agents.table.module"
+          type: str
+        - field: objective
+          header: "@t/system.agents.table.objective"
+          type: str
+        - field: model_policy
+          header: "@t/system.agents.table.policy"
+          type: str
+        - field: model
+          header: "@t/system.agents.table.model"
+          type: str
+        - field: configured
+          header: "@t/system.agents.table.configured"
+          type: bool
+      rows: []
+      row_actions:
+        - label: "@t/system.agents.test.action.open"
+          icon: ric.speed-up-line
+          action:
+            name: nav
+            context:
+              type: nav
+              path: /system/agents/test/$item.name
+          required_permissions: [system.engine.model.manage]
+        - label: "@t/system.agents.action.configure"
+          icon: ric.settings-3-line
+          action:
+            name: open_drawer
+            context:
+              path: /system/agents/config/$item.name
+              position: right
+              dim: 640

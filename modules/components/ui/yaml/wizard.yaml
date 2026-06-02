@@ -1,0 +1,289 @@
+- kind: Column
+  id: components_complex_wizard_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_wizard_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_wizard_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_wizard_title
+      text: '@t/components.complex.wizard.title'
+      level: 1
+    - kind: Text
+      id: components_complex_wizard_description
+      text: '@t/components.complex.wizard.description'
+      muted: true
+  - kind: Card
+    id: components_complex_wizard_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 16
+    children:
+    - kind: Title
+      id: components_complex_wizard_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Wizard
+      id: components_complex_wizard_preview
+      action: components.wizard_dispatch
+      params:
+        mode: direct
+        target_wizard: components_complex_wizard_preview
+      allow_step_click: true
+      show_controls: true
+      prev_label: '@t/components.complex.wizard.prev'
+      next_label: '@t/components.complex.wizard.next'
+      active_step_id: workspace
+      validated_steps:
+      - profile
+      steps:
+      - id: profile
+        title: Account
+        description: Capture owner profile and billing contact.
+        content: Already validated in this static preview.
+      - id: workspace
+        title: Workspace
+        description: Choose workspace settings and default policies.
+        content: This step is active. Validate it to unlock Access.
+      - id: access
+        title: Access
+        description: Invite users and assign initial roles.
+        content: Locked until Workspace is validated.
+      - id: review
+        title: Review
+        description: Confirm the configuration before activation.
+        content: Final confirmation.
+  - kind: Card
+    id: components_complex_wizard_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_wizard_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_wizard_runtime_description
+      text: '@t/components.complex.wizard.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_wizard_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_wizard_runtime_main
+        spacing: 10
+        style: 'margin-top: 6px; margin-bottom: 10px;'
+        children:
+        - kind: Wizard
+          id: components_complex_wizard_live
+          capabilities:
+          - steps.set
+          - active_step_id.set
+          - validated_steps.set
+          action: components.wizard_dispatch
+          params:
+            target_wizard: components_complex_wizard_live
+          active_step_id: profile
+          validated_steps: []
+          prev_label: '@t/components.complex.wizard.prev'
+          next_label: '@t/components.complex.wizard.next'
+          steps:
+          - id: profile
+            title: Account
+            description: Capture owner profile and billing contact.
+            content: Forward navigation stays locked until this step is validated.
+          - id: workspace
+            title: Workspace
+            description: Choose workspace settings and default policies.
+            content: Backward navigation remains available without another validation.
+          - id: access
+            title: Access
+            description: Invite users and assign initial roles.
+            content: Direct forward jumps require every previous step to be validated.
+          - id: review
+            title: Review
+            description: Confirm the configuration before activation.
+            content: Final confirmation.
+        - kind: Row
+          id: components_complex_wizard_live_controls
+          spacing: 8
+          children:
+          - kind: Button
+            id: components_complex_wizard_live_validate
+            label: '@t/components.complex.wizard.validate'
+            variant: success
+            action:
+              name: components.wizard_validate_current
+              context:
+                target_wizard: components_complex_wizard_live
+          - kind: Button
+            id: components_complex_wizard_live_reset
+            label: '@t/components.complex.wizard.reset'
+            variant: default
+            action:
+              name: components.wizard_reset
+              context:
+                target_wizard: components_complex_wizard_live
+  - kind: Card
+    id: components_complex_wizard_validation_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_wizard_validation_title
+      text: '@t/components.complex.wizard.validation.title'
+      level: 3
+    - kind: Text
+      id: components_complex_wizard_validation_text
+      text: '@t/components.complex.wizard.validation.description'
+      muted: true
+    - kind: Row
+      id: components_complex_wizard_validation_controls
+      spacing: 10
+      children:
+      - kind: Button
+        id: components_complex_wizard_try_jump
+        label: '@t/components.complex.wizard.jump_review'
+        action:
+          name: components.wizard_go_to
+          context:
+            target_wizard: components_complex_wizard_live
+            step_id: review
+      - kind: Button
+        id: components_complex_wizard_validate_direct
+        label: '@t/components.complex.wizard.validate_direct'
+        variant: success
+        action:
+          name: components.wizard_validate_current
+          context:
+            target_wizard: components_complex_wizard_live
+  - kind: Card
+    id: components_complex_wizard_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_wizard_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_wizard_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_wizard_python_code
+        text: '@t/components.complex.wizard.definition.python'
+      - kind: Markdown
+        id: components_complex_wizard_yaml_code
+        text: '@t/components.complex.wizard.definition.yaml'
+  - kind: Card
+    id: components_complex_wizard_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_wizard_binding_title
+      text: '@t/components.complex.wizard.runtime_state.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_wizard_binding_table
+      paginated: false
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+      rows: '@data/components_complex/wizard_bindings'
+  - kind: Card
+    id: components_complex_wizard_schema_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_wizard_schema_title
+      text: '@t/components.complex.wizard.schema.card_title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_wizard_schema_table
+      paginated: false
+      model:
+      - field: field
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/wizard_step_schema'
+  - kind: Card
+    id: components_complex_wizard_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 12
+    children:
+    - kind: Title
+      id: components_complex_wizard_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_wizard_properties_table
+      paginated: false
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str
+      rows: '@data/components_complex/wizard_properties'

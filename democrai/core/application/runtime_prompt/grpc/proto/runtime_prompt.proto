@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package democrai.runtime_prompt.v1;
+
+service RuntimePrompt {
+  rpc AskRuntimePrompt(RuntimePromptRequest) returns (RuntimePromptResponse);
+}
+
+message RuntimePromptRequest {
+  string request_id = 1;
+  string question = 2;
+  string actions_json = 3;
+  string required_role = 4;
+  int32 required_access_level = 5;
+  string required_permissions_json = 6;
+  string request_context_json = 7;
+  string metadata_json = 8;
+  double timeout_seconds = 9;
+  string form_model_json = 10;
+  string form_values_json = 11;
+}
+
+message RuntimePromptResponse {
+  bool ok = 1;
+  string prompt_id = 2;
+  string action = 3;
+  string error = 4;
+  string metadata_json = 5;
+  string data_json = 6;
+}

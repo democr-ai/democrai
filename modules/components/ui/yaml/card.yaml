@@ -1,0 +1,546 @@
+- kind: Column
+  id: components_complex_card_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_complex_card_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_complex_card_eyebrow
+      text: '@t/components.complex.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_complex_card_title
+      text: '@t/components.complex.card.title'
+      level: 1
+    - kind: Text
+      id: components_complex_card_description
+      text: '@t/components.complex.card.description'
+      muted: true
+  - kind: Card
+    id: components_complex_card_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_card_preview_title
+      text: '@t/components.complex.preview.title'
+      level: 3
+    - kind: Row
+      id: components_complex_card_template_row_a
+      spacing: 16
+      align: top
+      children:
+      - kind: Card
+        id: components_complex_card_simple
+        variant: outlined
+        padding:
+        - 18
+        - 18
+        - 18
+        - 18
+        item_actions:
+        - label: Edit
+          icon: ric.edit-line
+          variant: ghost
+          action:
+            name: components.card_action_event
+            context:
+              source: card_edit
+        - label: Delete
+          icon: ric.delete-bin-2-line
+          variant: danger
+          action:
+            name: components.card_action_event
+            context:
+              source: card_delete
+            confirm:
+              text: Delete this card item?
+              confirm_text: Delete
+              cancel_text: Cancel
+        data:
+          id: card_simple_1
+          title: Simple Card
+          status: draft
+        children:
+        - kind: Column
+          id: components_complex_card_simple_body
+          spacing: 8
+          children:
+          - kind: Title
+            id: components_complex_card_simple_title
+            text: Simple Card
+            level: 4
+          - kind: Text
+            id: components_complex_card_simple_text
+            text: Minimal content card with footer item actions.
+            muted: true
+      - kind: Card
+        id: components_complex_card_stats
+        variant: elevated
+        padding:
+        - 18
+        - 18
+        - 18
+        - 18
+        item_actions:
+        - label: Details
+          icon: ric.eye-line
+          variant: ghost
+          action:
+            name: components.card_action_event
+            context:
+              source: card_stats_details
+        - label: Export
+          icon: ric.download-line
+          variant: default
+          show_if:
+            conditions:
+            - left: $item.status
+              op: ==
+              right: ready
+          action:
+            name: components.card_action_event
+            context:
+              source: card_stats_export
+        data:
+          id: card_stats_1
+          metric: monthly_revenue
+          status: ready
+        children:
+        - kind: Column
+          id: components_complex_card_stats_body
+          spacing: 6
+          children:
+          - kind: Text
+            id: components_complex_card_stats_label
+            text: Monthly Revenue
+            muted: true
+          - kind: Title
+            id: components_complex_card_stats_value
+            text: $48,295
+            level: 2
+          - kind: Badge
+            id: components_complex_card_stats_delta
+            text: +12.4% vs last month
+            variant: success
+    - kind: Row
+      id: components_complex_card_template_row_b
+      spacing: 16
+      align: top
+      children:
+      - kind: Card
+        id: components_complex_card_profile
+        variant: elevated
+        padding:
+        - 18
+        - 18
+        - 18
+        - 18
+        data:
+          id: user_1
+          name: Fabio Rossi
+          role: Platform Admin
+        item_actions:
+        - label: Contact
+          icon: ric.mail-line
+          variant: ghost
+          action:
+            name: components.card_action_event
+            context:
+              source: card_profile_contact
+        children:
+        - kind: Row
+          id: components_complex_card_profile_body
+          spacing: 12
+          align: center
+          children:
+          - kind: Badge
+            id: components_complex_card_profile_avatar
+            text: FR
+            variant: info
+          - kind: Column
+            id: components_complex_card_profile_text
+            spacing: 4
+            children:
+            - kind: Title
+              id: components_complex_card_profile_name
+              text: Fabio Rossi
+              level: 4
+            - kind: Text
+              id: components_complex_card_profile_role
+              text: Platform Admin
+              muted: true
+      - kind: Card
+        id: components_complex_card_notification
+        variant: flat
+        padding:
+        - 18
+        - 18
+        - 18
+        - 18
+        data:
+          id: notification_42
+          event: deploy_ok
+          severity: info
+        item_actions:
+        - label: Mark read
+          icon: ric.check-line
+          variant: ghost
+          action:
+            name: components.card_action_event
+            context:
+              source: card_notification_read
+        - label: Dismiss
+          icon: ric.close-line
+          variant: ghost
+          action:
+            name: components.card_action_event
+            context:
+              source: card_notification_dismiss
+        children:
+        - kind: Column
+          id: components_complex_card_notification_body
+          spacing: 8
+          children:
+          - kind: Badge
+            id: components_complex_card_notification_badge
+            text: Deploy
+            variant: info
+          - kind: Title
+            id: components_complex_card_notification_title
+            text: Deployment succeeded
+            level: 4
+          - kind: Text
+            id: components_complex_card_notification_text
+            text: Module sandbox v2.4 reached production without errors.
+            muted: true
+    - kind: Row
+      id: components_complex_card_template_row_c
+      spacing: 16
+      align: top
+      children:
+      - kind: Card
+        id: components_complex_card_media
+        variant: outlined
+        background_image: assets/demo-image.png
+        padding:
+        - 26
+        - 26
+        - 26
+        - 26
+        data:
+          id: release_v24
+          release: v2.4
+        item_actions:
+        - label: Open changelog
+          icon: ric.external-link-line
+          variant: default
+          action:
+            name: components.card_action_event
+            context:
+              source: card_media_open
+        children:
+        - kind: Column
+          id: components_complex_card_media_body
+          spacing: 8
+          children:
+          - kind: Badge
+            id: components_complex_card_media_badge
+            text: Release
+            variant: warning
+          - kind: Title
+            id: components_complex_card_media_title
+            text: Runtime Hardening
+            level: 3
+          - kind: Text
+            id: components_complex_card_media_text
+            text: Background image, content and footer actions stay in the same card contract.
+      - kind: Card
+        id: components_complex_card_plain
+        variant: outlined
+        padding:
+        - 18
+        - 18
+        - 18
+        - 18
+        children:
+        - kind: Column
+          id: components_complex_card_plain_body
+          spacing: 8
+          children:
+          - kind: Title
+            id: components_complex_card_plain_title
+            text: Plain Card
+            level: 4
+          - kind: Text
+            id: components_complex_card_plain_text
+            text: Without itemActions the card renders only its children.
+            muted: true
+  - kind: Card
+    id: components_complex_card_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_complex_card_runtime_title
+      text: '@t/components.complex.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_complex_card_runtime_description
+      text: '@t/components.complex.card.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_complex_card_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_complex_card_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_card_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Card
+            id: components_complex_card_page
+            variant:
+              type: store
+              scope: page
+              path: /components_complex/card/variant
+            padding:
+              type: store
+              scope: page
+              path: /components_complex/card/padding
+            children:
+            - kind: Column
+              id: components_complex_card_page_body
+              spacing: 6
+              children:
+              - kind: Title
+                id: components_complex_card_page_title
+                text:
+                  type: store
+                  scope: page
+                  path: /components_complex/card/title
+                level: 4
+              - kind: Text
+                id: components_complex_card_page_text
+                text:
+                  type: store
+                  scope: page
+                  path: /components_complex/card/body
+          - kind: Button
+            id: components_complex_card_page_button
+            label: '@t/components.complex.usage.page_store_button'
+            variant: default
+            action:
+              name: components.card_update
+              context:
+                mode: page_store
+        - kind: Column
+          id: components_complex_card_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Card
+            id: components_complex_card_data
+            variant: '@data/components_complex/card_model/variant'
+            padding: '@data/components_complex/card_model/padding'
+            children:
+            - kind: Column
+              id: components_complex_card_data_body
+              spacing: 6
+              children:
+              - kind: Title
+                id: components_complex_card_data_title
+                text: '@data/components_complex/card_model/title'
+                level: 4
+              - kind: Text
+                id: components_complex_card_data_text
+                text: '@data/components_complex/card_model/body'
+          - kind: Button
+            id: components_complex_card_data_button
+            label: '@t/components.complex.usage.data_button'
+            variant: default
+            action:
+              name: components.card_update
+              context:
+                mode: data
+      - kind: Column
+        id: components_complex_card_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_complex_card_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Card
+            id: components_complex_card_global
+            variant:
+              type: store
+              scope: global
+              path: /components_complex/card/variant
+            padding:
+              type: store
+              scope: global
+              path: /components_complex/card/padding
+            children:
+            - kind: Column
+              id: components_complex_card_global_body
+              spacing: 6
+              children:
+              - kind: Title
+                id: components_complex_card_global_title
+                text:
+                  type: store
+                  scope: global
+                  path: /components_complex/card/title
+                level: 4
+              - kind: Text
+                id: components_complex_card_global_text
+                text:
+                  type: store
+                  scope: global
+                  path: /components_complex/card/body
+          - kind: Button
+            id: components_complex_card_global_button
+            label: '@t/components.complex.usage.global_store_button'
+            variant: default
+            action:
+              name: components.card_update
+              context:
+                mode: global_store
+        - kind: Column
+          id: components_complex_card_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: Card
+            id: components_complex_card_direct
+            variant: outlined
+            padding:
+            - 18
+            - 18
+            - 18
+            - 18
+            capabilities:
+            - variant.set
+            - padding.set
+            children:
+            - kind: Column
+              id: components_complex_card_direct_body
+              spacing: 6
+              children:
+              - kind: Title
+                id: components_complex_card_direct_title
+                text: Direct card
+                level: 4
+              - kind: Text
+                id: components_complex_card_direct_text
+                text: Direct property updates target this card and its child text.
+          - kind: Button
+            id: components_complex_card_direct_button
+            label: '@t/components.complex.usage.direct_button'
+            variant: default
+            action:
+              name: components.card_update
+              context:
+                mode: direct
+  - kind: Card
+    id: components_complex_card_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_card_definition_title
+      text: '@t/components.complex.definition.title'
+      level: 3
+    - kind: Row
+      id: components_complex_card_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_complex_card_python_code
+        text: '@t/components.complex.card.definition.python'
+      - kind: Markdown
+        id: components_complex_card_yaml_code
+        text: '@t/components.complex.card.definition.yaml'
+  - kind: Card
+    id: components_complex_card_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_card_binding_title
+      text: '@t/components.complex.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_card_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/card_bindings'
+      model:
+      - field: binding
+        header: '@t/components.complex.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.complex.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.complex.table.source'
+        type: str
+  - kind: Card
+    id: components_complex_card_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_complex_card_properties_title
+      text: '@t/components.complex.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_complex_card_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_complex/card_properties'
+      model:
+      - field: property
+        header: '@t/components.complex.table.property'
+        type: str
+      - field: type
+        header: '@t/components.complex.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.complex.table.usage'
+        type: str

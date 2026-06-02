@@ -1,0 +1,110 @@
+{
+  "engine_id": "rebel",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "babelscape-rebel-large",
+      "label": "Babelscape REBEL Large",
+      "engine_id": "rebel",
+      "family": "rebel",
+      "summary": "BART-based sequence-to-sequence model for end-to-end relation extraction.",
+      "tags": ["kg", "triples", "relation_extraction", "local", "huggingface"],
+      "capabilities": ["triples_extractor"],
+      "extended_capabilities": ["offline"],
+      "interfaces": ["text_to_kg"],
+      "requirements": {"ram_gb": 8, "storage_gb": 2},
+      "compatible_engines": ["rebel"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "rebel",
+          "source": {
+            "type": "huggingface",
+            "repo": "Babelscape/rebel-large",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Babelscape/rebel-large",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "runtime_model_ref": "Babelscape/rebel-large",
+            "max_length": 256,
+            "num_beams": 3,
+            "num_return_sequences": 3,
+            "length_penalty": 0
+          }
+        }
+      },
+      "features": {
+        "triples_extractor": {"supported": true}
+      },
+      "metadata": {"source": "Babelscape/rebel-large", "license": "cc-by-nc-sa-4.0", "usage": "non-commercial"}
+    },
+    {
+      "id": "babelscape-mrebel-large",
+      "label": "Babelscape mREBEL Large",
+      "engine_id": "rebel",
+      "family": "rebel",
+      "summary": "Multilingual sequence-to-sequence model for relation extraction into knowledge-graph triples.",
+      "tags": ["kg", "triples", "relation_extraction", "multilingual", "local", "huggingface"],
+      "capabilities": ["triples_extractor"],
+      "extended_capabilities": ["offline"],
+      "interfaces": ["text_to_kg"],
+      "requirements": {"ram_gb": 10, "storage_gb": 3},
+      "compatible_engines": ["rebel"],
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "huggingface_snapshot",
+          "artifacts_required": ["weights"]
+        }
+      },
+      "artifacts": [
+        {
+          "id": "weights",
+          "kind": "model",
+          "format": "hf_snapshot",
+          "required": true,
+          "target": "rebel",
+          "source": {
+            "type": "huggingface",
+            "repo": "Babelscape/mrebel-large",
+            "snapshot": true
+          }
+        }
+      ],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "Babelscape/mrebel-large",
+        "defaults": {
+          "generation": {},
+          "runtime": {
+            "runtime_model_ref": "Babelscape/mrebel-large",
+            "max_length": 256,
+            "num_beams": 3,
+            "num_return_sequences": 3,
+            "length_penalty": 0
+          }
+        }
+      },
+      "features": {
+        "triples_extractor": {"supported": true}
+      },
+      "metadata": {"source": "Babelscape/mrebel-large", "license": "cc-by-nc-sa-4.0", "usage": "non-commercial", "multilingual": true}
+    }
+  ]
+}

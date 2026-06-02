@@ -1,0 +1,241 @@
+- kind: Column
+  id: system_index_page
+  align: fill
+  spacing: 22
+  style: "padding: 24px 28px;"
+  children:
+    - kind: Breadcrumb
+      id: system_index_breadcrumb
+      segments:
+        - label: "@t/system.index.title"
+          current: true
+    - kind: Column
+      id: system_index_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: system_index_title
+          level: 2
+          text: "@t/system.index.title"
+        - kind: Text
+          id: system_index_subtitle
+          text: "@t/system.index.subtitle"
+          style: "font-size: 13px; opacity: 0.74;"
+    - kind: Column
+      id: system_index_quick_section
+      spacing: 10
+      children:
+        - kind: Title
+          id: system_index_quick_title
+          level: 4
+          text: "@t/system.index.quick_access"
+        - kind: Card
+          id: system_index_quick_card
+          variant: elevated
+          padding: [12, 12, 12, 12]
+          style: "max-width: 760px;"
+          children:
+            - kind: List
+              id: system_index_quick_list
+              orientation: vertical
+              template: title_text
+              item_actions:
+                - label: "@t/system.open"
+                  icon: "ric.arrow-right-line"
+                  variant: secondary
+                  action:
+                    name: nav
+                    context:
+                      type: nav
+                      path: "$item.path"
+              data_source:
+                type: inline
+                data:
+                  - title: "@t/system.index.item.models.title"
+                    text: "@t/system.index.item.models.text"
+                    icon: "ric.database-2-line"
+                    path: "/system/model/list"
+                  - title: "@t/system.index.item.engines.title"
+                    text: "@t/system.index.item.engines.text"
+                    icon: "ric.cpu-line"
+                    path: "/system/engine/list"
+                  - title: "@t/system.index.item.agents.title"
+                    text: "@t/system.index.item.agents.text"
+                    icon: "ric.robot-2-line"
+                    path: "/system/agents/list"
+                  - title: "@t/system.index.item.mcp.title"
+                    text: "@t/system.index.item.mcp.text"
+                    icon: "ric.plug-line"
+                    path: "/system/mcp/list"
+    - kind: Flow
+      id: system_index_groups
+      spacing: 26
+      children:
+        - kind: Column
+          id: system_index_access_group
+          spacing: 10
+          style: "width: 360px;"
+          children:
+            - kind: Title
+              id: system_index_access_title
+              level: 4
+              text: "@t/system.index.group.access"
+            - kind: Card
+              id: system_index_access_card
+              variant: elevated
+              padding: [12, 12, 12, 12]
+              children:
+                - kind: List
+                  id: system_index_access_list
+                  orientation: vertical
+                  template: title_text
+                  item_actions:
+                    - label: "@t/system.open"
+                      icon: "ric.arrow-right-line"
+                      variant: secondary
+                      action:
+                        name: nav
+                        context:
+                          type: nav
+                          path: "$item.path"
+                  data_source:
+                    type: inline
+                    data:
+                      - title: "@t/system.index.item.users.title"
+                        text: "@t/system.index.item.users.text"
+                        icon: "ric.user-line"
+                        path: "/system/user/list"
+                      - title: "@t/system.index.item.roles.title"
+                        text: "@t/system.index.item.roles.text"
+                        icon: "ric.shield-user-line"
+                        path: "/system/role/list"
+                      - title: "@t/system.index.item.organizations.title"
+                        text: "@t/system.index.item.organizations.text"
+                        icon: "ric.organization-chart"
+                        path: "/system/organization/list"
+        - kind: Column
+          id: system_index_ai_group
+          spacing: 10
+          style: "width: 360px;"
+          children:
+            - kind: Title
+              id: system_index_ai_title
+              level: 4
+              text: "@t/system.index.group.ai_runtime"
+            - kind: Card
+              id: system_index_ai_card
+              variant: elevated
+              padding: [12, 12, 12, 12]
+              children:
+                - kind: List
+                  id: system_index_ai_list
+                  orientation: vertical
+                  template: title_text
+                  item_actions:
+                    - label: "@t/system.open"
+                      icon: "ric.arrow-right-line"
+                      variant: secondary
+                      action:
+                        name: nav
+                        context:
+                          type: nav
+                          path: "$item.path"
+                  data_source:
+                    type: inline
+                    data:
+                      - title: "@t/system.index.item.capabilities.title"
+                        text: "@t/system.index.item.capabilities.text"
+                        icon: "ric.flashlight-line"
+                        path: "/system/capabilities/list"
+                      - title: "@t/system.index.item.models.title"
+                        text: "@t/system.index.item.models.text"
+                        icon: "ric.database-2-line"
+                        path: "/system/model/list"
+                      - title: "@t/system.index.item.engines.title"
+                        text: "@t/system.index.item.engines.text"
+                        icon: "ric.cpu-line"
+                        path: "/system/engine/list"
+                      - title: "@t/system.index.item.agents.title"
+                        text: "@t/system.index.item.agents.text"
+                        icon: "ric.robot-2-line"
+                        path: "/system/agents/list"
+                      - title: "@t/system.index.item.mcp.title"
+                        text: "@t/system.index.item.mcp.text"
+                        icon: "ric.plug-line"
+                        path: "/system/mcp/list"
+        - kind: Column
+          id: system_index_knowledge_group
+          spacing: 10
+          style: "width: 360px;"
+          children:
+            - kind: Title
+              id: system_index_knowledge_title
+              level: 4
+              text: "@t/system.index.group.knowledge"
+            - kind: Card
+              id: system_index_knowledge_card
+              variant: elevated
+              padding: [12, 12, 12, 12]
+              children:
+                - kind: List
+                  id: system_index_knowledge_list
+                  orientation: vertical
+                  template: title_text
+                  item_actions:
+                    - label: "@t/system.open"
+                      icon: "ric.arrow-right-line"
+                      variant: secondary
+                      action:
+                        name: nav
+                        context:
+                          type: nav
+                          path: "$item.path"
+                  data_source:
+                    type: inline
+                    data:
+                      - title: "@t/system.index.item.extractor_engines.title"
+                        text: "@t/system.index.item.extractor_engines.text"
+                        icon: "ric.node-tree"
+                        path: "/system/knowledge/extractors/list"
+                      - title: "@t/system.index.item.knowledge_config.title"
+                        text: "@t/system.index.item.knowledge_config.text"
+                        icon: "ric.settings-3-line"
+                        path: "/system/knowledge/config"
+                      - title: "@t/system.index.item.extractor_mime.title"
+                        text: "@t/system.index.item.extractor_mime.text"
+                        icon: "ric.file-list-3-line"
+                        path: "/system/knowledge/extractor_config"
+        - kind: Column
+          id: system_index_runtime_group
+          spacing: 10
+          style: "width: 360px;"
+          children:
+            - kind: Title
+              id: system_index_runtime_title
+              level: 4
+              text: "@t/system.index.group.runtime"
+            - kind: Card
+              id: system_index_runtime_card
+              variant: elevated
+              padding: [12, 12, 12, 12]
+              children:
+                - kind: List
+                  id: system_index_runtime_list
+                  orientation: vertical
+                  template: title_text
+                  item_actions:
+                    - label: "@t/system.open"
+                      icon: "ric.arrow-right-line"
+                      variant: secondary
+                      action:
+                        name: nav
+                        context:
+                          type: nav
+                          path: "$item.path"
+                  data_source:
+                    type: inline
+                    data:
+                      - title: "@t/system.index.item.environment.title"
+                        text: "@t/system.index.item.environment.text"
+                        icon: "ric.terminal-box-line"
+                        path: "/system/environment/list"

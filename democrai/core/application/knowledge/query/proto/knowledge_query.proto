@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package democrai.knowledge.query.v1;
+
+service KnowledgeQuery {
+  rpc Status(KnowledgeQueryStatusRequest) returns (KnowledgeQueryStatusResponse);
+  rpc Retrieve(KnowledgeRetrieveRequest) returns (KnowledgeRetrieveResponse);
+}
+
+message KnowledgeQueryStatusRequest {}
+
+message KnowledgeQueryStatusResponse {
+  bool ok = 1;
+  string node_id = 2;
+  int32 pid = 3;
+  string started_at = 4;
+  bool configured = 5;
+}
+
+message KnowledgeRetrieveRequest {
+  string request_id = 1;
+  string query_text = 2;
+  string query_vector_json = 3;
+  int32 top_k = 4;
+  int32 lexical_limit = 5;
+  int32 graph_neighbors_limit = 6;
+  string metadata_filters_json = 7;
+  string request_context_json = 8;
+}
+
+message KnowledgeRetrieveResponse {
+  bool ok = 1;
+  string result_json = 2;
+  string error = 3;
+  string traceback = 4;
+}

@@ -1,0 +1,67 @@
+/* Final override: link buttons must never have a filled background/border. */
+QPushButton[mode="link"],
+QPushButton[appearance="link"],
+QPushButton[mode="link"][variant],
+QPushButton[appearance="link"][variant],
+QPushButton[mode="link"]:hover,
+QPushButton[appearance="link"]:hover,
+QPushButton[mode="link"]:pressed,
+QPushButton[appearance="link"]:pressed,
+QPushButton[mode="link"]:checked,
+QPushButton[appearance="link"]:checked,
+QPushButton[mode="link"][variant]:hover,
+QPushButton[appearance="link"][variant]:hover,
+QPushButton[mode="link"][variant]:pressed,
+QPushButton[appearance="link"][variant]:pressed,
+QPushButton[mode="link"][variant]:checked,
+QPushButton[appearance="link"][variant]:checked {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+QPushButton[mode="link"][variant="default"],
+QPushButton[appearance="link"][variant="default"] {
+    color: #e4e4e7 !important;
+}
+
+QPushButton[mode="link"][variant="primary"],
+QPushButton[appearance="link"][variant="primary"],
+QPushButton[mode="link"][variant="info"],
+QPushButton[appearance="link"][variant="info"],
+QPushButton[mode="link"][variant="primary"]:hover,
+QPushButton[appearance="link"][variant="primary"]:hover,
+QPushButton[mode="link"][variant="info"]:hover,
+QPushButton[appearance="link"][variant="info"]:hover,
+QPushButton[mode="link"][variant="primary"]:pressed,
+QPushButton[appearance="link"][variant="primary"]:pressed,
+QPushButton[mode="link"][variant="info"]:pressed,
+QPushButton[appearance="link"][variant="info"]:pressed,
+QPushButton[mode="link"][variant="primary"]:checked,
+QPushButton[appearance="link"][variant="primary"]:checked,
+QPushButton[mode="link"][variant="info"]:checked,
+QPushButton[appearance="link"][variant="info"]:checked {
+    color: #3B82F6 !important;
+}
+
+QPushButton[mode="link"][variant="secondary"],
+QPushButton[appearance="link"][variant="secondary"] {
+    color: #d4d4d8 !important;
+}
+
+QPushButton[mode="link"][variant="destructive"],
+QPushButton[appearance="link"][variant="destructive"],
+QPushButton[mode="link"][variant="danger"],
+QPushButton[appearance="link"][variant="danger"] {
+    color: #ef4444 !important;
+}
+
+QPushButton[mode="link"][variant="success"],
+QPushButton[appearance="link"][variant="success"] {
+    color: #22c55e !important;
+}
+
+QPushButton[mode="link"][variant="warning"],
+QPushButton[appearance="link"][variant="warning"] {
+    color: #f59e0b !important;
+}

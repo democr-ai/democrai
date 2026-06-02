@@ -1,0 +1,288 @@
+- kind: Column
+  id: components_forms_editable_list_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_forms_editable_list_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_forms_editable_list_eyebrow
+      text: '@t/components.forms.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_forms_editable_list_title
+      text: '@t/components.forms.editable_list.title'
+      level: 1
+    - kind: Text
+      id: components_forms_editable_list_description
+      text: '@t/components.forms.editable_list.description'
+      muted: true
+  - kind: Card
+    id: components_forms_editable_list_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_editable_list_preview_title
+      text: '@t/components.forms.preview.title'
+      level: 3
+    - kind: EditableList
+      id: components_forms_editable_list_preview
+      item_label: '@t/components.forms.editable_list.preview.text'
+      value:
+      - text_to_text
+      - image_to_text
+      placeholder: text_to_audio
+      add_label: Add interface
+      remove_label: Remove
+      submit_label: Save interfaces
+      item_schema:
+        type: text
+    - kind: EditableList
+      id: components_forms_editable_list_select_preview
+      item_label: '@t/components.forms.editable_list.preview.select'
+      value:
+      - chat
+      add_label: Add capability
+      remove_label: Remove
+      submit_label: Save capabilities
+      item_schema:
+        type: select
+        options: '@data/components_forms/capability_options'
+    - kind: Button
+      id: components_forms_editable_list_read_button
+      label: '@t/components.forms.usage.read_button'
+      variant: default
+      action: components.form_preview_show_value
+      params:
+        input_id: components_forms_editable_list_preview
+        label: editable_list
+      collect_input_ids:
+      - components_forms_editable_list_preview
+  - kind: Card
+    id: components_forms_editable_list_runtime_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 18
+    children:
+    - kind: Title
+      id: components_forms_editable_list_runtime_title
+      text: '@t/components.forms.runtime.title'
+      level: 3
+    - kind: Text
+      id: components_forms_editable_list_runtime_description
+      text: '@t/components.forms.editable_list.runtime.description'
+      muted: true
+    - kind: Row
+      id: components_forms_editable_list_runtime_grid
+      spacing: 18
+      align: fill
+      children:
+      - kind: Column
+        id: components_forms_editable_list_runtime_left
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_editable_list_page_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: EditableList
+            id: components_forms_editable_list_page
+            label: '@t/components.forms.usage.page_store'
+            value:
+              type: store
+              scope: page
+              path: /components_forms/editable_list/value
+              default: []
+            item_schema:
+              type: select
+              options: '@data/components_forms/capability_options'
+            add_label: Add capability
+            remove_label: Remove
+            submit_label: Save capabilities
+          - kind: Button
+            id: components_forms_editable_list_page_button
+            label: '@t/components.forms.usage.page_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: editable_list
+                mode: page_store
+        - kind: Column
+          id: components_forms_editable_list_data_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: EditableList
+            id: components_forms_editable_list_data
+            label: '@t/components.forms.usage.data_model'
+            value: '@data/components_forms/editable_list_model/value'
+            item_schema:
+              type: select
+              options: '@data/components_forms/capability_options'
+            add_label: Add capability
+            remove_label: Remove
+            submit_label: Save capabilities
+          - kind: Button
+            id: components_forms_editable_list_data_button
+            label: '@t/components.forms.usage.data_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: editable_list
+                mode: data
+      - kind: Column
+        id: components_forms_editable_list_runtime_right
+        spacing: 16
+        children:
+        - kind: Column
+          id: components_forms_editable_list_global_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: EditableList
+            id: components_forms_editable_list_global
+            label: '@t/components.forms.usage.global_store'
+            value:
+              type: store
+              scope: global
+              path: /components_forms/editable_list/value
+              default: []
+            item_schema:
+              type: select
+              options: '@data/components_forms/capability_options'
+            add_label: Add capability
+            remove_label: Remove
+            submit_label: Save capabilities
+          - kind: Button
+            id: components_forms_editable_list_global_button
+            label: '@t/components.forms.usage.global_store_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: editable_list
+                mode: global_store
+        - kind: Column
+          id: components_forms_editable_list_direct_line
+          spacing: 10
+          style: 'margin-top: 6px; margin-bottom: 10px;'
+          children:
+          - kind: EditableList
+            id: components_forms_editable_list_direct
+            label: '@t/components.forms.usage.direct'
+            value:
+            - chat
+            item_schema:
+              type: select
+              options: '@data/components_forms/capability_options'
+            add_label: Add capability
+            remove_label: Remove
+            submit_label: Save capabilities
+            capabilities:
+            - value.set
+          - kind: Button
+            id: components_forms_editable_list_direct_button
+            label: '@t/components.forms.usage.direct_button'
+            variant: default
+            action:
+              name: components.form_input_update
+              context:
+                component: editable_list
+                mode: direct
+  - kind: Card
+    id: components_forms_editable_list_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_editable_list_definition_title
+      text: '@t/components.forms.definition.title'
+      level: 3
+    - kind: Row
+      id: components_forms_editable_list_definition_grid
+      spacing: 16
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_forms_editable_list_python_code
+        text: '@t/components.forms.editable_list.definition.python'
+      - kind: Markdown
+        id: components_forms_editable_list_yaml_code
+        text: '@t/components.forms.editable_list.definition.yaml'
+  - kind: Card
+    id: components_forms_editable_list_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_editable_list_binding_title
+      text: '@t/components.forms.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_editable_list_binding_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/editable_list_bindings'
+      model:
+      - field: binding
+        header: '@t/components.forms.table.binding'
+        type: str
+      - field: yaml
+        header: '@t/components.forms.table.yaml'
+        type: str
+      - field: source
+        header: '@t/components.forms.table.source'
+        type: str
+  - kind: Card
+    id: components_forms_editable_list_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_forms_editable_list_properties_title
+      text: '@t/components.forms.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_forms_editable_list_properties_table
+      paginated: false
+      pagination: false
+      rows: '@data/components_forms/editable_list_properties'
+      model:
+      - field: property
+        header: '@t/components.forms.table.property'
+        type: str
+      - field: type
+        header: '@t/components.forms.table.type'
+        type: str
+      - field: usage
+        header: '@t/components.forms.table.usage'
+        type: str

@@ -1,0 +1,43 @@
+- kind: Column
+  stretch: false
+  align: top
+  spacing: 16
+  children:
+    - kind: Title
+      id: monitor_pipeline_title
+      text: "@t/monitor.pipeline.title"
+      level: 2
+    - kind: Text
+      id: monitor_pipeline_description
+      text: "@t/monitor.pipeline.description"
+      muted: true
+    - kind: DataTable
+      id: monitor_pipeline_table
+      model:
+        - {"field": "timestamp", "header": "@t/monitor.table.when", "type": "str", "editable": false}
+        - {"field": "pipeline_id", "header": "@t/monitor.table.pipeline", "type": "str", "editable": false}
+        - {"field": "request_id", "header": "@t/monitor.table.request", "type": "str", "editable": false}
+        - {"field": "type", "header": "@t/monitor.table.type", "type": "str", "editable": false}
+        - {"field": "name", "header": "@t/monitor.table.step", "type": "str", "editable": false}
+        - {"field": "status", "header": "@t/monitor.table.status", "type": "str", "editable": false}
+        - {"field": "duration_ms", "header": "@t/monitor.table.duration_ms", "type": "float", "editable": false}
+        - {"field": "provider", "header": "@t/monitor.table.provider", "type": "str", "editable": false}
+        - {"field": "model_name", "header": "@t/monitor.table.model", "type": "str", "editable": false}
+        - {"field": "archive_status", "header": "@t/monitor.table.archive", "type": "str", "editable": false}
+      page: 0
+      page_size: 40
+      total_rows: 0
+      remote_service: "monitor.list_pipeline_steps"
+      pagination: true
+      sort:
+        field: timestamp
+        direction: asc
+      auto_refresh: 30
+      row_actions:
+        - label: "@t/monitor.common.details"
+          icon: ric.git-branch-line
+          action:
+            name: navigate
+            context:
+              type: nav
+              path: "/monitor/pipeline/$item.pipeline_id/view"

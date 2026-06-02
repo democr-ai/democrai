@@ -1,0 +1,311 @@
+site_name: Democr.ai Plugin Developer Docs
+site_description: Documentation for building Democr.ai modules/plugins from zero
+site_dir: docs_html/
+docs_dir: docs
+use_directory_urls: false
+
+theme:
+  name: shadcn
+  custom_dir: docs/theme_overrides
+  favicon: assets/favicon.png
+  show_title: true
+  show_stargazers: false
+  topbar_sections: false
+  show_datetime: false
+  accent: neutral
+  pygments_style:
+    light: shadcn-light
+    dark: github-dark
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra_javascript:
+  - assets/js/sidebar-nav-fix.js
+  - assets/js/code-groups.js
+  - assets/js/search-file-fallback.js
+
+plugins:
+  - search
+
+hooks:
+  - docs/hooks/shiki_build.py
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+
+  - Start Here:
+      - Getting Started: start/getting-started.md
+      - First Module in 15 Minutes: start/first-module-15-minutes.md
+      - Core Concepts: start/core-concepts.md
+      - Runtime Configuration: start/runtime-configuration.md
+      - Providers: start/providers.md
+      - Operational Tools: start/operational-tools.md
+
+  - Module Guides:
+      - Module Foundations:
+          - Module Structure: guides/module-foundations/module-structure.md
+          - Manifest: guides/module-foundations/manifest.md
+          - Render and Routing: guides/module-foundations/render-and-routing.md
+          - Actions: guides/module-foundations/actions.md
+          - Commands: guides/module-foundations/commands.md
+          - Agents: guides/module-foundations/agents.md
+          - Tools: guides/module-foundations/tools.md
+          - Skills: guides/module-foundations/skills.md
+      - Real Module:
+          - Building Chat Module: guides/module-construction/building-chat-module.md
+          - Chat Module Models: guides/module-construction/chat-module-models.md
+          - Chat Module RBAC And Locales: guides/module-construction/chat-module-rbac-locales.md
+          - Chat Module Home UI: guides/module-construction/chat-module-home-ui.md
+          - Chat Module Actions: guides/module-construction/chat-module-actions.md
+          - Chat Module Thread UI: guides/module-construction/chat-module-thread-ui.md
+          - Chat Module Orchestration: guides/module-construction/chat-module-orchestration.md
+          - Chat Module Tools: guides/module-construction/chat-module-tools.md
+          - Chat Module Agents And Skills: guides/module-construction/chat-module-agents-skills.md
+          - Chat Module Attachment Preview: guides/module-construction/chat-module-attachment-preview.md
+          - Chat Module Integration: guides/module-construction/chat-module-integration.md
+
+  - Sandbox:
+      - Overview: sandbox/index.md
+      - Developer Quickstart: sandbox/quickstart.md
+      - Runtime Restrictions: sandbox/runtime-restrictions.md
+      - Runtime Contexts: sandbox/runtime-contexts.md
+      - Allowed Targets: sandbox/allowed-targets.md
+      - Access Policy Contract: sandbox/access-policy-contract.md
+      - External Access: sandbox/external-access.md
+      - OS-Level Enforcement: sandbox/os-level-enforcement.md
+      - Troubleshooting: sandbox/troubleshooting.md
+
+  - SDK Reference:
+      - SDK Overview: reference/sdk/overview.md
+      - Public Boundary: reference/sdk/public-boundary.md
+      - Runtime Start and Stop: reference/sdk/runtime.md
+      - UI Builder and A2UI:
+          - Overview: reference/sdk/ui-builder-and-a2ui.md
+          - Builder and Stores: reference/sdk/ui-builder-and-a2ui-builder-and-stores.md
+          - Builder Methods: reference/sdk/ui-builder-and-a2ui-builder-methods.md
+          - Bindings and Conditions: reference/sdk/ui-builder-and-a2ui-bindings-and-conditions.md
+          - Samples and Notes: reference/sdk/ui-builder-and-a2ui-samples-and-notes.md
+      - Domains:
+          - access:
+              - Overview: reference/sdk/access/index.md
+              - Permissions and Resource Types: reference/sdk/access/permissions-and-resource-types.md
+              - External Access Checks: reference/sdk/access/external-access-checks.md
+              - Approvals and Administration: reference/sdk/access/approvals-and-administration.md
+          - ai:
+              - Overview: reference/sdk/ai/index.md
+              - Provider Resolution: reference/sdk/ai/provider-resolution.md
+              - Composer Options: reference/sdk/ai/composer-options.md
+              - Runtime Discovery: reference/sdk/ai/runtime-discovery.md
+              - Runtime Execution: reference/sdk/ai/runtime-execution.md
+              - Core Agent Tools: reference/sdk/ai/core-agent-tools.md
+          - auth:
+              - Overview: reference/sdk/auth/index.md
+              - Tokens: reference/sdk/auth/tokens.md
+              - Action Authorization: reference/sdk/auth/action-authorization.md
+          - database:
+              - Overview: reference/sdk/database/index.md
+              - Models and Scope: reference/sdk/database/models-and-scope.md
+              - CRUD Operations: reference/sdk/database/crud-operations.md
+              - Advanced Notes: reference/sdk/database/advanced-notes.md
+          - decorators:
+              - Overview: reference/sdk/decorators/index.md
+              - Actions and Functions: reference/sdk/decorators/actions-and-functions.md
+              - Commands: reference/sdk/decorators/commands.md
+              - UI and Pages: reference/sdk/decorators/ui-and-pages.md
+              - Events: reference/sdk/decorators/events.md
+              - Agent and Runtime Assets: reference/sdk/decorators/agent-and-runtime-assets.md
+              - Helpers and Notes: reference/sdk/decorators/helpers-and-notes.md
+          - dependencies: reference/sdk/dependencies.md
+          - effects:
+              - Overview: reference/sdk/effects/index.md
+              - Response and Navigation: reference/sdk/effects/response-and-navigation.md
+              - UI Messages and Patching: reference/sdk/effects/ui-messages-and-patching.md
+              - Streams and Runtime Effects: reference/sdk/effects/streams-and-runtime-effects.md
+          - engines:
+              - Overview: reference/sdk/engines/index.md
+              - Constants and Contracts: reference/sdk/engines/constants-and-contracts.md
+              - Provider Discovery: reference/sdk/engines/provider-discovery.md
+              - Installation and Runtime: reference/sdk/engines/installation-and-runtime.md
+              - Model Catalog and Resolution: reference/sdk/engines/model-catalog-and-resolution.md
+              - Engine Runtime Media: reference/sdk/engines/runtime-media.md
+          - environment:
+              - Overview: reference/sdk/environment/index.md
+          - events:
+              - Overview: reference/sdk/events/index.md
+              - Event Names and Contracts: reference/sdk/events/event-names-and-contracts.md
+              - Emitting Events: reference/sdk/events/emitting-events.md
+              - Listener Execution and Runtime Behavior: reference/sdk/events/listener-execution-and-runtime-behavior.md
+          - extractors:
+              - Overview: reference/sdk/extractors/index.md
+              - Discovery and Resolution: reference/sdk/extractors/discovery-and-resolution.md
+              - Installation and Runtime: reference/sdk/extractors/installation-and-runtime.md
+              - Running Extraction: reference/sdk/extractors/running-extraction.md
+          - hooks:
+              - Overview: reference/sdk/hooks/index.md
+              - Hook Names and Slots: reference/sdk/hooks/hook-names-and-slots.md
+              - Resolving Hook Content: reference/sdk/hooks/resolving-hook-content.md
+              - Provider Callbacks and Runtime Behavior: reference/sdk/hooks/provider-callbacks-and-runtime-behavior.md
+          - i18n:
+              - Overview: reference/sdk/i18n/index.md
+              - Language Resolution: reference/sdk/i18n/language-resolution.md
+              - Translating Keys: reference/sdk/i18n/translating-keys.md
+          - knowledge:
+              - Overview: reference/sdk/knowledge/index.md
+              - Document Extraction: reference/sdk/knowledge/document-extraction.md
+              - Working With Registered Extractors: reference/sdk/knowledge/working-with-registered-extractors.md
+              - Ingesting Documents: reference/sdk/knowledge/ingesting-documents.md
+              - Retrieving Knowledge: reference/sdk/knowledge/retrieving-knowledge.md
+              - Runtime Storage: reference/sdk/knowledge/runtime-storage.md
+          - media:
+              - Overview: reference/sdk/media/index.md
+              - Uploads and Stored Files: reference/sdk/media/uploads-and-stored-files.md
+              - Public URLs and UI Consumption: reference/sdk/media/materialization-and-provider-interop.md
+          - models:
+              - Overview: reference/sdk/models/index.md
+              - Working With Core Model Proxies: reference/sdk/models/working-with-core-model-proxies.md
+              - users: reference/sdk/models/users.md
+              - roles: reference/sdk/models/roles.md
+              - module_locks: reference/sdk/models/module-locks.md
+              - engine_registry: reference/sdk/models/engine-registry.md
+              - engine_node_install_registry: reference/sdk/models/engine-node-install-registry.md
+              - environment_variable_registry: reference/sdk/models/environment-variable-registry.md
+              - model_registry: reference/sdk/models/model-registry.md
+              - available_model_registry: reference/sdk/models/available-model-registry.md
+              - model_capability_priority: reference/sdk/models/model-capability-priority.md
+              - objective_mappings: reference/sdk/models/objective-mappings.md
+              - extractor_registry: reference/sdk/models/extractor-registry.md
+              - extractor_mime_type_binding: reference/sdk/models/extractor-mime-type-binding.md
+              - extractor_node_install_registry: reference/sdk/models/extractor-node-install-registry.md
+              - mcp_server_registry: reference/sdk/models/mcp-server-registry.md
+              - background_tasks: reference/sdk/models/background-tasks.md
+              - audit_events: reference/sdk/models/audit-events.md
+              - ai_model_usage: reference/sdk/models/llm-usage.md
+          - pages: reference/sdk/pages.md
+          - system:
+              - Overview: reference/sdk/system/index.md
+              - Runtime Identity and Logging: reference/sdk/system/runtime-identity-and-logging.md
+              - Modules: reference/sdk/system/modules.md
+              - Sessions and Metrics: reference/sdk/system/sessions-and-metrics.md
+              - Setup Mode: reference/sdk/system/setup-mode.md
+          - tasks:
+              - Overview: reference/sdk/tasks.md
+              - Running Background Work: reference/sdk/tasks/running-background-work.md
+              - Progress and Confirmation: reference/sdk/tasks/progress-and-confirmation.md
+              - Querying Task State: reference/sdk/tasks/querying-task-state.md
+          - ui:
+              - Overview: reference/sdk/ui/index.md
+              - Builder and Surface Messages: reference/sdk/ui/builder-and-surface-messages.md
+              - YAML, Resources, and Routing Helpers: reference/sdk/ui/yaml-resources-and-routing.md
+
+  - UI Components:
+      - Components Index: reference/components/index.md
+      - Common Properties: reference/components/common-properties.md
+      - Visibility And Permissions: reference/components/visibility-and-permissions.md
+      - Binding, Store, and Capabilities: reference/components/binding-store-capabilities.md
+      - Action Dispatch: reference/components/action-dispatch.md
+      - AI:
+          - Overview: reference/components/ai/index.md
+          - Threads: reference/components/ai/threads.md
+          - Messages And Runtime Updates: reference/components/ai/messages-and-runtime-updates.md
+          - Composer: reference/components/ai/composer.md
+          - Suggestions: reference/components/ai/suggestions.md
+          - Attachment Preview: reference/components/ai/attachment-preview.md
+      - Charts:
+          - Overview: reference/components/charts/index.md
+          - Chart: reference/components/charts/chart.md
+          - Gantt: reference/components/charts/gantt.md
+          - GitGraph: reference/components/charts/gitgraph.md
+          - SequenceDiagram: reference/components/charts/sequencediagram.md
+      - Complex:
+          - Overview: reference/components/complex/index.md
+          - Accordion: reference/components/complex/accordion.md
+          - Calendar: reference/components/complex/calendar.md
+          - Card: reference/components/complex/card.md
+          - Carousel: reference/components/complex/carousel.md
+          - CodeDiff: reference/components/complex/codediff.md
+          - Collapsible: reference/components/complex/collapsible.md
+          - DataTable: reference/components/complex/datatable.md
+          - Descriptions: reference/components/complex/descriptions.md
+          - FlexContainer: reference/components/complex/flexcontainer.md
+          - Grid: reference/components/complex/grid.md
+          - List: reference/components/complex/list.md
+          - Tabs: reference/components/complex/tabs.md
+          - TreeView: reference/components/complex/treeview.md
+          - Wizard: reference/components/complex/wizard.md
+      - Content:
+          - Overview: reference/components/content/index.md
+          - Audio: reference/components/content/audio.md
+          - Breadcrumb: reference/components/content/breadcrumb.md
+          - Image: reference/components/content/image.md
+          - Markdown: reference/components/content/markdown.md
+          - PdfViewer: reference/components/content/pdfviewer.md
+          - Progress: reference/components/content/progress.md
+          - QRCode: reference/components/content/qrcode.md
+          - Status & Badges: reference/components/content/status-and-badges.md
+          - Text: reference/components/content/text.md
+          - Title: reference/components/content/title.md
+          - Video: reference/components/content/video.md
+      - Effects:
+          - Overview: reference/components/effects/index.md
+          - Toast: reference/components/effects/toast.md
+          - Modal: reference/components/effects/modal.md
+          - Drawer: reference/components/effects/drawer.md
+          - DropdownMenu: reference/components/effects/dropdownmenu.md
+          - BackgroundTask: reference/components/effects/backgroundtask.md
+          - StreamBinding: reference/components/effects/streambinding.md
+      - Forms:
+          - Overview: reference/components/forms/index.md
+          - Button: reference/components/forms/button.md
+          - Attachment: reference/components/forms/attachment.md
+          - Checkbox: reference/components/forms/checkbox.md
+          - Combobox: reference/components/forms/combobox.md
+          - DatePicker: reference/components/forms/datepicker.md
+          - FolderSelector: reference/components/forms/folderselector.md
+          - Form: reference/components/forms/form.md
+          - RadioGroup: reference/components/forms/radiogroup.md
+          - Select: reference/components/forms/select.md
+          - TextArea: reference/components/forms/textarea.md
+          - TextField: reference/components/forms/textfield.md
+          - Toggle: reference/components/forms/toggle.md
+      - Layout:
+          - Overview: reference/components/layout/index.md
+          - Composition Primitives: reference/components/layout/composition-primitives.md
+          - Column: reference/components/layout/column.md
+          - Row: reference/components/layout/row.md
+          - Shell Sections: reference/components/layout/shell-sections.md
+          - Ready Layouts:
+              - Overview: reference/components/layout/ready-layouts/index.md
+              - Sidebar + Content: reference/components/layout/ready-layouts/sidebar-content.md
+              - Header + Content: reference/components/layout/ready-layouts/header-content.md
+              - Header + Sidebar + Content: reference/components/layout/ready-layouts/header-sidebar-content.md
+              - Sidebar + Content Header: reference/components/layout/ready-layouts/sidebar-content-header.md
+              - Sidebar + Splitted Content: reference/components/layout/ready-layouts/sidebar-splitted-content.md
+          - Header: reference/components/layout/header.md
+          - Sidebar: reference/components/layout/sidebar.md
+          - Container: reference/components/layout/container.md
+          - ContentArea: reference/components/layout/contentarea.md
+          - ScrollArea: reference/components/layout/scrollarea.md
+          - Splitter: reference/components/layout/splitter.md
+          - SurfaceHost: reference/components/layout/surfacehost.md
+
+  - Operations:
+      - Troubleshooting: ops/troubleshooting.md
+      - Developer Checklists: ops/checklists.md
+      - Packaging Contract: ops/packaging.md

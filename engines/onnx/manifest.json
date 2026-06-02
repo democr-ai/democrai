@@ -1,0 +1,238 @@
+{
+  "id": "onnx",
+  "name": "ONNX Runtime",
+  "kind": "llm",
+  "entrypoint": "engines.onnx.engine:OnnxEngine",
+  "install": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HUGGINGFACE_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "ORT_CACHE_DIR": "{engine_cache}/onnxruntime",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
+  "runtime": {
+    "env": {
+      "HF_HOME": "{engine_cache}/huggingface",
+      "HUGGINGFACE_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_HUB_CACHE": "{engine_cache}/huggingface/hub",
+      "HF_DATASETS_CACHE": "{engine_cache}/huggingface/datasets",
+      "ORT_CACHE_DIR": "{engine_cache}/onnxruntime",
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/huggingface"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_cache}/onnxruntime"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "source_modes": [
+      "catalog"
+    ],
+    "custom_definition": {
+      "enabled": false
+    },
+    "artifact_upload": {
+      "enabled": false
+    }
+  },
+  "provider": {
+    "id": "onnx",
+    "label": "ONNX Runtime",
+    "kind": "llm",
+    "deployment": "local",
+    "model_source": "inventory",
+    "accepted_model_formats": [
+      "onnx",
+      "hf_snapshot"
+    ],
+    "model_capabilities": [
+      "chat",
+      "reasoning",
+      "embedding",
+      "reranking",
+      "classification",
+      "token_extraction"
+    ],
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream",
+      "embed_texts",
+      "rerank",
+      "classify",
+      "extract_tokens"
+    ],
+    "local_section": "local_llm",
+    "icon_url": "engines/onnx/assets/icon.png",
+    "dependencies": [
+      {
+        "dependency_key": "diffusers",
+        "module": "diffusers",
+        "label": "ONNX diffusers",
+        "pip_packages": [
+          "diffusers",
+          "accelerate",
+          "safetensors",
+          "huggingface-hub>=0.34,<1.0"
+        ]
+      },
+      {
+        "dependency_key": "onnx",
+        "module": "optimum.onnxruntime",
+        "label": "Optimum ONNX Runtime",
+        "pip_packages": [
+          "optimum",
+          "onnxruntime",
+          "onnxruntime-gpu",
+          "accelerate",
+          "safetensors",
+          "huggingface-hub>=0.34,<1.0"
+        ],
+        "allow_source": true
+      },
+      {
+        "dependency_key": "sentence-transformers",
+        "module": "sentence_transformers",
+        "label": "Sentence Transformers ONNX",
+        "pip_packages": [
+          "sentence-transformers",
+          "accelerate",
+          "safetensors",
+          "huggingface-hub>=0.34,<1.0"
+        ]
+      },
+      {
+        "dependency_key": "transformers",
+        "module": "transformers",
+        "label": "Transformers",
+        "pip_packages": [
+          "transformers",
+          "accelerate",
+          "safetensors",
+          "huggingface-hub>=0.34,<1.0"
+        ]
+      }
+    ],
+    "configurable": false,
+    "config_schema": [],
+    "encrypted_keys": [],
+    "description": "Executes ONNX language models with efficient CPU/GPU support.",
+    "capabilities": [
+      "chat",
+      "embedding",
+      "reranking",
+      "classification",
+      "token_extraction",
+      "cpu_friendly",
+      "offline"
+    ]
+  }
+}

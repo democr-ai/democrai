@@ -1,0 +1,150 @@
+- kind: Column
+  id: engine_instance_overview_page
+  spacing: 14
+  main_axis_alignment: start
+  cross_axis_alignment: start
+  children:
+    - kind: Breadcrumb
+      id: engine_instance_overview_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments: []
+    - kind: Alert
+      id: engine_instance_overview_info_alert
+      title: "@t/system.engine.instance.page.info.title"
+      description: "@t/system.engine.instance.page.info.description"
+      variant: info
+      style: "margin-bottom: 12px;"
+    - kind: Text
+      id: engine_instance_overview_invalid
+      text: "@t/system.engine.instance.page.invalid"
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /instance/invalid, default: false}
+            op: "=="
+            right: true
+    - kind: Card
+      id: engine_instance_overview_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /instance/valid, default: false}
+            op: "=="
+            right: true
+      item_actions: []
+      children:
+        - kind: Row
+          id: engine_instance_overview_header_row
+          spacing: 12
+          children:
+            - kind: Image
+              id: engine_instance_overview_icon
+              alt: "engine icon"
+              url: "@state/page/instance/icon_url"
+              width: 48
+              height: 48
+              style: "min-width: 48px; min-height: 48px; max-width: 48px; max-height: 48px; border-radius: 8px;"
+            - kind: Column
+              id: engine_instance_overview_identity_col
+              spacing: 6
+              children:
+                - kind: Title
+                  id: engine_instance_overview_title
+                  text: "@state/page/instance/name"
+                  level: 3
+                - kind: Text
+                  id: engine_instance_overview_provider
+                  text: "@state/page/instance/provider_name"
+                  style: "font-size: 13px;"
+                - kind: Text
+                  id: engine_instance_overview_description
+                  text: "@state/page/instance/description"
+                  style: "font-size: 13px;"
+        - kind: Row
+          id: engine_instance_overview_status_row
+          spacing: 8
+          children: []
+        - kind: Flow
+          id: engine_instance_overview_capabilities
+          spacing: 8
+          children: []
+        - kind: Column
+          id: engine_instance_overview_task_mount_col
+          spacing: 10
+          children: []
+        - kind: Column
+          id: engine_instance_install_nodes_col
+          spacing: 8
+          show_if:
+            conditions:
+              - left: {type: store, scope: page, path: /instance/install_status_visible, default: false}
+                op: "=="
+                right: true
+          children:
+            - kind: Title
+              id: engine_instance_install_nodes_title
+              text: "@t/system.engine.instance.page.install_nodes.title"
+              level: 5
+            - kind: Text
+              id: engine_instance_install_nodes_summary
+              text: "@state/page/instance/install_summary_text"
+              style: "font-size: 13px;"
+            - kind: List
+              id: engine_instance_install_nodes_list
+              template: title_text
+              data_source:
+                type: binding
+                data: {type: store, scope: page, path: /instance/install_nodes, default: []}
+    - kind: Card
+      id: engine_instance_models_card
+      variant: elevated
+      padding: [18, 18, 18, 18]
+      show_if:
+        conditions:
+          - left: {type: store, scope: page, path: /instance/models_visible, default: false}
+            op: "=="
+            right: true
+      children:
+        - kind: Column
+          id: engine_instance_models_card_body
+          spacing: 12
+          children:
+            - kind: Title
+              id: engine_instance_models_title
+              text: "@t/system.engine.models.title"
+              level: 4
+            - kind: Flow
+              id: engine_instance_models_import_actions
+              spacing: 10
+              show_if:
+                conditions:
+                  - left: {type: store, scope: page, path: /instance/model_import_visible, default: false}
+                    op: "=="
+                    right: true
+              children:
+                - kind: Button
+                  id: engine_instance_model_import_upload_btn
+                  label: "@t/system.model.manual_import.local_file.title"
+                  icon: "ric.upload-cloud-2-line"
+                  action: open_drawer
+                  params:
+                    path: "@state/page/instance/import_local_file_path"
+                    position: right
+                    dim: 820
+                - kind: Button
+                  id: engine_instance_model_import_hf_btn
+                  label: "@t/system.model.manual_import.huggingface.title"
+                  icon: "ric.git-repository-line"
+                  action: open_drawer
+                  params:
+                    path: "@state/page/instance/import_huggingface_path"
+                    position: right
+                    dim: 820
+            - kind: Column
+              id: engine_instance_models_route_content
+              spacing: 8
+              children: []
+            - kind: Column
+              id: engine_instance_models_task_mount_col
+              spacing: 10
+              children: []

@@ -1,0 +1,191 @@
+- kind: Column
+  id: components_forms_audio_recorder_root
+  spacing: 22
+  children:
+    - kind: Column
+      id: components_forms_audio_recorder_header
+      spacing: 8
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_eyebrow
+          text: "@t/components.forms.eyebrow"
+          level: 4
+        - kind: Title
+          id: components_forms_audio_recorder_title
+          text: "@t/components.forms.audio_recorder.title"
+          level: 1
+        - kind: Text
+          id: components_forms_audio_recorder_description
+          text: "@t/components.forms.audio_recorder.description"
+          muted: true
+
+    - kind: Card
+      id: components_forms_audio_recorder_preview_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_preview_title
+          text: "@t/components.forms.preview.title"
+          level: 3
+        - kind: Form
+          id: components_forms_audio_recorder_preview_form
+          submit_label: "@t/components.forms.audio_recorder.preview.submit"
+          action: components.form_model_submit
+          model:
+            - name: voice_sample
+              label: "@t/components.forms.audio_recorder.preview.label"
+              type: audio_recorder
+              ingest: true
+              validations:
+                - rule: required
+                  message: Audio sample is required
+        - kind: Button
+          id: components_forms_audio_recorder_read_button
+          label: "@t/components.forms.usage.read_button"
+          variant: default
+          action: components.form_preview_show_value
+          params:
+            label: audio_recorder
+            form_id: components_forms_audio_recorder_preview_form
+            field_ids: [voice_sample]
+          collect_input_ids: [components_forms_audio_recorder_preview_form_voice_sample]
+
+    - kind: Card
+      id: components_forms_audio_recorder_runtime_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 18
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_runtime_title
+          text: "@t/components.forms.runtime.title"
+          level: 3
+        - kind: Text
+          id: components_forms_audio_recorder_runtime_description
+          text: "@t/components.forms.audio_recorder.runtime.description"
+          muted: true
+        - kind: Row
+          id: components_forms_audio_recorder_runtime_grid
+          spacing: 18
+          align: fill
+          children:
+            - kind: Column
+              id: components_forms_audio_recorder_runtime_left
+              spacing: 16
+              children:
+                - kind: Form
+                  id: components_forms_audio_recorder_page_form
+                  values: {type: store, scope: page, path: /components_forms/audio_recorder/page_values}
+                  submit_label: "@t/components.forms.model.runtime.submit"
+                  action: components.form_model_submit
+                  model:
+                    - name: voice_sample
+                      label: "@t/components.forms.usage.page_store"
+                      type: audio_recorder
+                - kind: Form
+                  id: components_forms_audio_recorder_data_form
+                  values: "@data/components_forms/audio_recorder_model/values"
+                  submit_label: "@t/components.forms.model.runtime.submit"
+                  action: components.form_model_submit
+                  model:
+                    - name: voice_sample
+                      label: "@t/components.forms.usage.data_model"
+                      type: audio_recorder
+            - kind: Column
+              id: components_forms_audio_recorder_runtime_right
+              spacing: 16
+              children:
+                - kind: Form
+                  id: components_forms_audio_recorder_global_form
+                  values: {type: store, scope: global, path: /components_forms/audio_recorder/global_values}
+                  submit_label: "@t/components.forms.model.runtime.submit"
+                  action: components.form_model_submit
+                  model:
+                    - name: voice_sample
+                      label: "@t/components.forms.usage.global_store"
+                      type: audio_recorder
+                - kind: Form
+                  id: components_forms_audio_recorder_literal_form
+                  values: {voice_sample: []}
+                  submit_label: "@t/components.forms.model.runtime.submit"
+                  action: components.form_model_submit
+                  model:
+                    - name: voice_sample
+                      label: "@t/components.forms.audio_recorder.usage.literal"
+                      type: audio_recorder
+
+    - kind: Card
+      id: components_forms_audio_recorder_definition_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_definition_title
+          text: "@t/components.forms.definition.title"
+          level: 3
+        - kind: Row
+          id: components_forms_audio_recorder_definition_grid
+          spacing: 16
+          align: fill
+          children:
+            - kind: Markdown
+              id: components_forms_audio_recorder_python_code
+              text: "@t/components.forms.audio_recorder.definition.python"
+            - kind: Markdown
+              id: components_forms_audio_recorder_yaml_code
+              text: "@t/components.forms.audio_recorder.definition.yaml"
+
+    - kind: Card
+      id: components_forms_audio_recorder_binding_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_binding_title
+          text: "@t/components.forms.binding.title"
+          level: 3
+        - kind: DataTable
+          id: components_forms_audio_recorder_binding_table
+          paginated: false
+          pagination: false
+          rows: "@data/components_forms/audio_recorder_bindings"
+          model:
+            - field: binding
+              header: "@t/components.forms.table.binding"
+              type: str
+            - field: yaml
+              header: "@t/components.forms.table.yaml"
+              type: str
+            - field: source
+              header: "@t/components.forms.table.source"
+              type: str
+
+    - kind: Card
+      id: components_forms_audio_recorder_properties_card
+      variant: outlined
+      padding: [20, 20, 20, 20]
+      spacing: 14
+      children:
+        - kind: Title
+          id: components_forms_audio_recorder_properties_title
+          text: "@t/components.forms.properties.title"
+          level: 3
+        - kind: DataTable
+          id: components_forms_audio_recorder_properties_table
+          paginated: false
+          pagination: false
+          rows: "@data/components_forms/audio_recorder_properties"
+          model:
+            - field: property
+              header: "@t/components.forms.table.property"
+              type: str
+            - field: type
+              header: "@t/components.forms.table.type"
+              type: str
+            - field: usage
+              header: "@t/components.forms.table.usage"
+              type: str

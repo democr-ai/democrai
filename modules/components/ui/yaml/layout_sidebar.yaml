@@ -1,0 +1,340 @@
+- kind: Column
+  id: components_layout_sidebar_root
+  spacing: 22
+  children:
+  - kind: Column
+    id: components_layout_sidebar_header
+    spacing: 8
+    children:
+    - kind: Title
+      id: components_layout_sidebar_eyebrow
+      text: '@t/components.layout.eyebrow'
+      level: 4
+    - kind: Title
+      id: components_layout_sidebar_title
+      text: '@t/components.layout.sidebar.title'
+      level: 1
+    - kind: Text
+      id: components_layout_sidebar_description
+      text: '@t/components.layout.sidebar.description'
+      muted: true
+  - kind: Card
+    id: components_layout_sidebar_preview_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_sidebar_preview_title
+      text: '@t/components.layout.preview.title'
+      level: 3
+    - kind: Row
+      id: components_layout_sidebar_static_shell
+      align: fill
+      style: 'border: 1px solid #d0d7de; border-radius: 6px; overflow: hidden;'
+      children:
+      - kind: Sidebar
+        id: components_layout_sidebar_static
+        width: 220
+        max_width: 220
+        padding:
+        - 12
+        - 12
+        - 12
+        - 12
+        style: 'min-height: 180px;'
+        children:
+        - kind: Column
+          id: components_layout_sidebar_static_nav
+          spacing: 6
+          children:
+          - kind: Badge
+            id: components_layout_sidebar_static_brand
+            text: '@t/components.layout.brand'
+            variant: default
+          - kind: Button
+            id: components_layout_sidebar_static_home
+            label: '@t/components.layout.sidebar.home'
+            icon: ric.home-4-line
+            variant: ghost
+          - kind: Button
+            id: components_layout_sidebar_static_settings
+            label: '@t/components.layout.sidebar.settings'
+            icon: ric.settings-3-line
+            variant: ghost
+      - kind: Text
+        id: components_layout_sidebar_static_content
+        text: '@t/components.layout.sidebar.content'
+        style: 'padding: 24px;'
+    - kind: Column
+      id: components_layout_sidebar_runtime_stack
+      spacing: 16
+      children:
+      - kind: Row
+        id: components_layout_sidebar_store_line
+        spacing: 16
+        align: left
+        children:
+        - kind: Sidebar
+          id: components_layout_sidebar_store
+          width:
+            type: store
+            scope: page
+            path: /components_layout/sidebar_width
+            default: 220
+          max_width:
+            type: store
+            scope: page
+            path: /components_layout/sidebar_width
+            default: 220
+          padding:
+          - 12
+          - 12
+          - 12
+          - 12
+          style: 'min-height: 120px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Column
+            id: components_layout_sidebar_store_body
+            spacing: 8
+            children:
+            - kind: Badge
+              id: components_layout_sidebar_store_badge
+              text: '@t/components.layout.item.store_a'
+              variant: info
+            - kind: Button
+              id: components_layout_sidebar_update_store
+              label: '@t/components.layout.usage.store_button'
+              variant: default
+              action:
+                name: components.layout_update
+                context:
+                  component: sidebar
+                  mode: store
+        - kind: Sidebar
+          id: components_layout_sidebar_global
+          width:
+            type: store
+            scope: global
+            path: /components_layout/sidebar_width
+            default: 220
+          max_width:
+            type: store
+            scope: global
+            path: /components_layout/sidebar_width
+            default: 220
+          padding:
+          - 12
+          - 12
+          - 12
+          - 12
+          style: 'min-height: 120px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Column
+            id: components_layout_sidebar_global_body
+            spacing: 8
+            children:
+            - kind: Badge
+              id: components_layout_sidebar_global_badge
+              text: '@t/components.layout.item.global_a'
+              variant: info
+            - kind: Button
+              id: components_layout_sidebar_update_global
+              label: '@t/components.layout.usage.global_store_button'
+              variant: default
+              action:
+                name: components.layout_update
+                context:
+                  component: sidebar
+                  mode: global_store
+      - kind: Row
+        id: components_layout_sidebar_data_line
+        spacing: 16
+        align: left
+        children:
+        - kind: Sidebar
+          id: components_layout_sidebar_data
+          width: '@data/components_layout/sidebar_model/width'
+          max_width: '@data/components_layout/sidebar_model/width'
+          padding:
+          - 12
+          - 12
+          - 12
+          - 12
+          style: 'min-height: 120px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Column
+            id: components_layout_sidebar_data_body
+            spacing: 8
+            children:
+            - kind: Badge
+              id: components_layout_sidebar_data_badge
+              text: '@t/components.layout.item.data_a'
+              variant: success
+            - kind: Button
+              id: components_layout_sidebar_update_data
+              label: '@t/components.layout.usage.data_button'
+              variant: default
+              action:
+                name: components.layout_update
+                context:
+                  component: sidebar
+                  mode: data
+        - kind: Sidebar
+          id: components_layout_sidebar_direct
+          width: 220
+          max_width: 220
+          capabilities:
+          - width.set
+          - max_width.set
+          padding:
+          - 12
+          - 12
+          - 12
+          - 12
+          style: 'min-height: 120px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Column
+            id: components_layout_sidebar_direct_body
+            spacing: 8
+            children:
+            - kind: Badge
+              id: components_layout_sidebar_direct_badge
+              text: '@t/components.layout.item.direct_a'
+              variant: warning
+            - kind: Button
+              id: components_layout_sidebar_update_direct
+              label: '@t/components.layout.usage.direct_button'
+              variant: default
+              action:
+                name: components.layout_update
+                context:
+                  component: sidebar
+                  mode: direct
+      - kind: Row
+        id: components_layout_sidebar_children_direct_line
+        spacing: 16
+        align: left
+        style: 'margin-top: 6px;'
+        children:
+        - kind: Sidebar
+          id: components_layout_sidebar_dynamic
+          width: 220
+          max_width: 220
+          padding:
+          - 12
+          - 12
+          - 12
+          - 12
+          style: 'min-height: 120px; border: 1px solid #d0d7de; border-radius: 6px;'
+          children:
+          - kind: Column
+            id: components_layout_sidebar_dynamic_nav
+            capabilities:
+            - children.append
+            - children.remove
+            spacing: 6
+            children:
+            - kind: Badge
+              id: components_layout_sidebar_dynamic_initial
+              text: '@t/components.layout.sidebar.home'
+              variant: info
+        - kind: Button
+          id: components_layout_sidebar_children_direct_button
+          label: '@t/components.layout.usage.direct_children_button'
+          variant: default
+          action:
+            name: components.layout_update
+            context:
+              component: sidebar
+              prop: children
+              mode: direct
+  - kind: Card
+    id: components_layout_sidebar_definition_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_sidebar_definition_title
+      text: '@t/components.layout.definition.title'
+      level: 3
+    - kind: Row
+      id: components_layout_sidebar_definition_codes
+      spacing: 14
+      align: fill
+      children:
+      - kind: Markdown
+        id: components_layout_sidebar_python
+        text: '@t/components.layout.sidebar.definition.python'
+      - kind: Markdown
+        id: components_layout_sidebar_yaml
+        text: '@t/components.layout.sidebar.definition.yaml'
+  - kind: Card
+    id: components_layout_sidebar_binding_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_sidebar_binding_title
+      text: '@t/components.layout.binding.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_sidebar_binding_table
+      rows: '@data/components_layout/sidebar_bindings'
+      paginated: false
+      pagination: false
+      total_rows: 3
+      model:
+      - field: binding
+        header: '@t/components.layout.table.binding'
+      - field: yaml
+        header: '@t/components.layout.table.yaml'
+      - field: source
+        header: '@t/components.layout.table.source'
+  - kind: Card
+    id: components_layout_sidebar_properties_card
+    variant: outlined
+    padding:
+    - 20
+    - 20
+    - 20
+    - 20
+    spacing: 14
+    children:
+    - kind: Title
+      id: components_layout_sidebar_properties_title
+      text: '@t/components.layout.properties.title'
+      level: 3
+    - kind: DataTable
+      id: components_layout_sidebar_properties_table
+      rows: '@data/components_layout/sidebar_properties'
+      paginated: false
+      pagination: false
+      total_rows: 5
+      model:
+      - field: property
+        header: '@t/components.layout.table.property'
+      - field: type
+        header: '@t/components.layout.table.type'
+      - field: page_store
+        header: '@t/components.layout.table.page_store'
+      - field: global_store
+        header: '@t/components.layout.table.global_store'
+      - field: data
+        header: '@t/components.layout.table.data'
+      - field: direct
+        header: '@t/components.layout.table.direct'

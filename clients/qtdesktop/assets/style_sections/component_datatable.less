@@ -1,0 +1,311 @@
+/* =========================
+   Component: DataTable
+   ========================= */
+QFrame[ui_role="datatable_card"] {
+    background-color: @surface-raised;
+    border: 1px solid @border-subtle;
+    border-radius: @card-radius;
+}
+
+QLabel[ui_role="datatable_info_label"] {
+    color: @text-muted;
+    font-size: 11px;
+}
+
+QPushButton[ui_role="datatable_add_btn"] {
+    background-color: transparent;
+    border: 1px solid @color-success;
+    border-radius: 6px;
+    padding: 6px 14px;
+    color: @color-success;
+
+    &:hover {
+        background-color: @color-success-bg;
+    }
+}
+
+QTableWidget[ui_role="datatable_table"] {
+    background-color: @surface-raised;
+    alternate-background-color: @surface;
+    border: 1px solid @border;
+    border-radius: @input-radius;
+    gridline-color: @border;
+    color: @text;
+    selection-background-color: @color-info-bg;
+    selection-color: @text;
+
+    &::item {
+        padding: 8px 12px;
+        color: @text;
+        background-color: transparent;
+        border-bottom: 1px solid @border;
+    }
+
+    &::item:selected {
+        background-color: @surface-active;
+        color: @text;
+    }
+
+    QLineEdit {
+        background-color: @surface-muted;
+        color: @text;
+        border: 1px solid @border;
+        padding: 0 4px;
+        border-radius: 2px;
+    }
+
+    QHeaderView::section {
+        background-color: @surface-active;
+        color: @text-muted;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 10px 12px;
+        border: none;
+        border-bottom: 2px solid @border;
+        border-right: 1px solid @border;
+    }
+}
+
+QWidget[ui_role="datatable_table_section"] {
+    border: none;
+    background: transparent;
+}
+
+QWidget[ui_role="datatable_header_bar"] {
+    background-color: @surface-active;
+    border-bottom: 1px solid @border;
+}
+
+QLabel[ui_role="datatable_header_label"],
+QPushButton[ui_role="datatable_header_label"] {
+    color: @text-soft;
+    font-size: 11px;
+    font-weight: 700;
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+}
+
+QPushButton[ui_role="datatable_header_label"] {
+    text-align: left;
+
+    &:hover {
+        color: @text;
+        background: transparent;
+    }
+}
+
+QComboBox[ui_role="datatable_cell_combo"] {
+    background-color: @input-bg;
+    border: 1px solid @border;
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: @text;
+}
+
+QLineEdit[ui_role="datatable_filter_input"],
+QComboBox[ui_role="datatable_filter_select"] {
+    background-color: @surface-muted;
+    color: @text;
+    border: 1px solid @border;
+    padding: 0 4px;
+    border-radius: 2px;
+}
+
+QPushButton[ui_role="datatable_pager_btn"] {
+    background-color: @surface-muted;
+    border: 1px solid @border;
+    border-radius: 6px;
+    padding: 6px 16px;
+    color: @text-muted;
+    font-size: 12px;
+
+    &:hover {
+        background-color: @surface-active;
+        color: @text;
+    }
+}
+
+QLabel[ui_role="datatable_page_label"] {
+    color: @text-muted;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QPushButton[ui_role="datatable_delete_btn"] {
+    background: transparent;
+    color: @text-muted;
+    border: none;
+    font-size: 14px;
+    padding: 4px;
+
+    &:hover {
+        color: @color-danger;
+    }
+}
+
+QCheckBox[ui_role="datatable_row_checkbox"] {
+    spacing: 0;
+}
+
+QCheckBox[ui_role="datatable_row_checkbox"]::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background-color: @surface-muted;
+    border: 1px solid @border;
+}
+
+QCheckBox[ui_role="datatable_row_checkbox"]::indicator:hover {
+    border-color: @border-focus;
+}
+
+QCheckBox[ui_role="datatable_row_checkbox"]::indicator:checked {
+    background-color: @color-info;
+    border: 1px solid @color-info;
+    image: url(ric.check-line);
+}
+
+QCheckBox[ui_role="datatable_row_checkbox"]::indicator:disabled {
+    background-color: @surface-active;
+    border-color: @border-subtle;
+}
+
+QToolButton[ui_role="datatable_action_btn"],
+QToolButton[ui_role="list_action_btn"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 2px;
+    margin: 0;
+}
+
+QToolButton[ui_role="datatable_action_btn"]:hover,
+QToolButton[ui_role="list_action_btn"]:hover {
+    background: @surface-active;
+    border-color: @border;
+}
+
+QToolButton[ui_role="datatable_action_btn"]::menu-indicator,
+QToolButton[ui_role="list_action_btn"]::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
+/* =========================
+   Component: Descriptions
+   ========================= */
+QFrame[ui_role="descriptions_card"] {
+    background-color: @surface-raised;
+    //border: 1px solid @border;
+    border-radius: @card-radius;
+}
+
+QFrame[ui_role="descriptions_card"][borders="false"] {
+    border: none;
+}
+
+QTableWidget[ui_role="descriptions_table"] {
+    background-color: @surface-raised;
+    border: 0;
+    gridline-color: @border;
+    color: @text;
+
+    &::item {
+        padding: 0;
+        border: none;
+    }
+
+    QHeaderView::section {
+        background-color: @descriptions-header-bg;
+        color: @text-muted;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 8px 10px;
+        border: none;
+        border-bottom: 1px solid @border;
+        border-right: 1px solid @border;
+    }
+}
+
+QLabel[ui_role="descriptions_key_cell"] {
+    background-color: @descriptions-key-bg;
+    color: @descriptions-key-text;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 8px;
+    border-bottom: 1px solid @border;
+}
+
+QLabel[ui_role="descriptions_key_cell"][last_row="true"] {
+    border-bottom: none;
+}
+
+QLabel[ui_role="descriptions_value_cell"] {
+    background-color: transparent;
+    color: @text;
+    font-size: 12px;
+    font-weight: 400;
+    padding: 0 8px;
+    border-bottom: 1px solid @border;
+}
+
+QLabel[ui_role="descriptions_value_cell"][last_row="true"] {
+    border-bottom: none;
+}
+
+QTableWidget[ui_role="descriptions_table"][borders="false"] {
+    border: none;
+    gridline-color: transparent;
+
+    &::item {
+        border-bottom: none;
+    }
+
+    QHeaderView::section {
+        border: none;
+        border-bottom: none;
+        border-right: none;
+    }
+
+    QLabel[ui_role="descriptions_key_cell"],
+    QLabel[ui_role="descriptions_value_cell"] {
+        border-bottom: none;
+    }
+}
+
+/* =========================
+   Component: Gantt / CodeDiff
+   ========================= */
+QLabel[ui_role="gantt_empty"] {
+    color: @text-muted;
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 12px;
+}
+
+QScrollArea[ui_role="gantt_scroll"] {
+    background-color: @surface;
+    border: none;
+}
+
+QLabel[ui_role="code_diff_header"] {
+    padding: 8px 12px;
+    background-color: @surface-muted;
+    color: @text-soft;
+    border-bottom: 1px solid @border;
+}
+
+QTableWidget[ui_role="code_diff_table"] {
+    background-color: @surface;
+    color: @text-soft;
+    border: none;
+
+    QHeaderView::section {
+        background-color: @surface-muted;
+        color: @text-disabled;
+        border: none;
+        padding: 4px 8px;
+    }
+}

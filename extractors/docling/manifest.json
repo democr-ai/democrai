@@ -1,0 +1,238 @@
+{
+  "manifest_version": "1",
+  "id": "docling",
+  "name": "Docling Extractor",
+  "kind": "extractor",
+  "entrypoint": "extractors.docling.extractor:DoclingExtractor",
+  "icon_url": "extractors/docling/assets/icon.png",
+  "file_extensions": [
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".pptx",
+    ".md",
+    ".markdown",
+    ".adoc",
+    ".asciidoc",
+    ".tex",
+    ".latex",
+    ".html",
+    ".htm",
+    ".xhtml",
+    ".csv",
+    ".txt",
+    ".json",
+    ".eml",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".webp"
+  ],
+  "mime_types": [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/markdown",
+    "text/plain",
+    "text/csv",
+    "text/html",
+    "application/json",
+    "message/rfc822",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/bmp",
+    "image/tiff"
+  ],
+  "dependencies": [
+    {
+      "dependency_key": "docling",
+      "module": "docling",
+      "label": "docling",
+      "pip_packages": [
+        "docling[rapidocr]"
+      ]
+    },
+    {
+      "dependency_key": "rapidocr",
+      "module": "rapidocr",
+      "label": "rapidocr",
+      "pip_packages": [
+        "docling[rapidocr]"
+      ]
+    },
+    {
+      "dependency_key": "onnxruntime",
+      "module": "onnxruntime",
+      "label": "onnxruntime",
+      "pip_packages": [
+        "docling[rapidocr]"
+      ]
+    }
+  ],
+  "install": {
+    "environment": {
+      "HF_HUB_DISABLE_XET": "1"
+    },
+    "config_schema": [
+      {
+        "name": "ocr_engine",
+        "label": "OCR engine",
+        "type": "select",
+        "value": "tesserocr",
+        "options": [
+          {
+            "label": "Tesseract OCR",
+            "value": "tesserocr"
+          },
+          {
+            "label": "RapidOCR",
+            "value": "rapidocr"
+          }
+        ],
+        "validations": [
+          {
+            "rule": "required",
+            "message": "OCR engine is required"
+          }
+        ]
+      }
+    ],
+    "access": [
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://huggingface.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://huggingface.co"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cas-bridge.xethub.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cas-bridge.xethub.hf.co"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://pypi.org/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://files.pythonhosted.org/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://download.pytorch.org/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://raw.githubusercontent.com"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://www.modelscope.cn/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://*.modelscope.cn/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cdn-lfs-cn-1.modelscope.cn/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://cdn-lfs-cn-2.modelscope.cn/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://www.modelscope.cn"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://*.modelscope.cn"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cdn-lfs-cn-1.modelscope.cn"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://cdn-lfs-cn-2.modelscope.cn"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "execute",
+        "target": "/sbin/ldconfig"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "execute",
+        "target": "/usr/sbin/ldconfig"
+      }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "runtime": {
+    "config_schema": [
+      {
+        "name": "ocr_enabled",
+        "label": "Enable OCR",
+        "type": "checkbox",
+        "value": true
+      },
+      {
+        "name": "chunk_size",
+        "label": "Chunk size",
+        "type": "number",
+        "value": 1200,
+        "min": 100,
+        "step": 100
+      },
+      {
+        "name": "chunk_overlap",
+        "label": "Chunk overlap",
+        "type": "number",
+        "value": 150,
+        "min": 0,
+        "step": 10
+      }
+    ],
+    "access": [],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  }
+}

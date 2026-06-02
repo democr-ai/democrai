@@ -1,0 +1,21 @@
+{
+  "permissions": [
+    "chat.view",
+    "chat.write"
+  ],
+  "assignments": {
+    "super": [
+      "chat.view",
+      "chat.write"
+    ],
+    "organization": [
+      "chat.view",
+      "chat.write"
+    ],
+    "user": [
+      "chat.view",
+      "chat.write"
+    ],
+    "guest": []
+  }
+}

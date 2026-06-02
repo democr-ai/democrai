@@ -1,0 +1,24 @@
+- kind: Column
+  id: overlay_drawer_root
+  spacing: 12
+  padding: [16, 16, 16, 16]
+  children:
+    - kind: Title
+      id: overlay_drawer_title
+      text: "@t/components.effects.drawer.sample.title"
+      level: 2
+    - kind: Text
+      id: overlay_drawer_text
+      text: "@t/components.effects.drawer.sample.text"
+      muted: true
+    - kind: Badge
+      id: overlay_drawer_badge
+      text: "@t/components.effects.drawer.sample.badge"
+      variant: success
+    - kind: Button
+      id: overlay_drawer_close_btn
+      label: "@t/components.effects.drawer.sample.close"
+      action: close_drawer
+      variant: primary
+      icon: ric.close-line
+      style: "margin-top: 12px;"

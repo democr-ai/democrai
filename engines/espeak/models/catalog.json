@@ -1,0 +1,58 @@
+{
+  "engine_id": "espeak",
+  "schema": "engine-model-catalog/v1",
+  "models": [
+    {
+      "id": "espeak",
+      "label": "eSpeak",
+      "engine_id": "espeak",
+      "family": "espeak",
+      "summary": "Offline eSpeak/eSpeak-NG text-to-speech runtime. Voice is selected in runtime configuration.",
+      "capabilities": ["tts"],
+      "interfaces": ["text_to_audio"],
+      "requirements": {},
+      "provisioning": {
+        "mode": "catalog",
+        "download": {
+          "strategy": "none"
+        }
+      },
+      "artifacts": [],
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "espeak",
+        "defaults": {
+          "runtime": {
+            "voice": "en-us",
+            "wpm": 175,
+            "pitch": 50,
+            "amplitude": 100,
+            "word_gap": 0
+          }
+        },
+        "options_schema": {
+          "fields": [
+            {
+              "name": "voice",
+              "label": "voice",
+              "type": "select",
+              "value": "en-us",
+              "options": [
+                {"label": "English US", "value": "en-us"},
+                {"label": "Italian", "value": "it"},
+                {"label": "German", "value": "de"},
+                {"label": "French", "value": "fr"},
+                {"label": "Spanish", "value": "es"},
+                {"label": "Portuguese", "value": "pt"}
+              ]
+            },
+            {"name": "wpm", "label": "words per minute", "type": "integer", "value": 175, "min": 80, "max": 500},
+            {"name": "pitch", "label": "pitch", "type": "integer", "value": 50, "min": 0, "max": 99},
+            {"name": "amplitude", "label": "amplitude", "type": "integer", "value": 100, "min": 0, "max": 200},
+            {"name": "word_gap", "label": "word gap", "type": "integer", "value": 0, "min": 0}
+          ]
+        }
+      }
+    }
+  ]
+}

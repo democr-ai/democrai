@@ -1,0 +1,36 @@
+- kind: Column
+  id: knowledge_extractor_config_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: knowledge_extractor_config_breadcrumb
+      segments:
+        - label: "@t/system.index.title"
+          path: /system/index
+        - label: "@t/system.knowledge.common.breadcrumb.knowledge"
+          current: false
+        - label: "@t/system.knowledge.extractor_config.breadcrumb"
+          current: true
+    - kind: Column
+      id: knowledge_extractor_config_header
+      spacing: 6
+      children:
+        - kind: Title
+          id: knowledge_extractor_config_title
+          text: "@t/system.knowledge.extractor_config.title"
+          level: 2
+        - kind: Text
+          id: knowledge_extractor_config_subtitle
+          text: "@t/system.knowledge.extractor_config.subtitle"
+          style: "font-size: 13px;"
+    - kind: DataTable
+      id: knowledge_extractor_mime_config_table
+      show_row_numbers: true
+      paginated: false
+      page: 0
+      page_size: 100
+      total_rows: 0
+      on_cell_edit:
+        name: system.set_extractor_mime_binding
+      model: []
+      rows: []
