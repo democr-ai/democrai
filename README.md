@@ -197,6 +197,13 @@ From the repository root:
 ./setup_venv.sh
 ```
 
+For the React web client and the Tauri desktop client, install their frontend dependencies before running them:
+
+```bash
+yarn --cwd clients/webclient install
+yarn --cwd clients/tauri install
+```
+
 ### Run
 
 Default startup is desktop mode with the Qt client:
