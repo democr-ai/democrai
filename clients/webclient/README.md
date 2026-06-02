@@ -1,16 +1,45 @@
-# React + Vite
+# Democr.ai Web Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite web client for the Democr.ai runtime.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Install dependencies from the repository root:
 
-## React Compiler
+```bash
+yarn --cwd clients/webclient install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Runtime configuration
 
-## Expanding the ESLint configuration
+Before running or serving the web client, configure:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```text
+clients/webclient/public/env.js
+```
+
+The file is loaded by `index.html` and must define the HTTP and WebSocket endpoints of the Democr.ai core runtime:
+
+```js
+window.__CFG__ = {
+  base_server_http_url: "http://localhost:8000",
+  base_server_ws_url: "ws://localhost:8000/ws"
+}
+```
+
+Use the host, port, and scheme that match your running core instance. For HTTPS deployments, the WebSocket URL should use `wss://`.
+
+## Development
+
+Start the core in server mode, then run the web client:
+
+```bash
+python main.py --mode server --host 127.0.0.1 --port 8000
+yarn --cwd clients/webclient dev
+```
+
+## Build
+
+```bash
+yarn --cwd clients/webclient build
+```
