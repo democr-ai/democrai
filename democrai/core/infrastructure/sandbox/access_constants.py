@@ -46,6 +46,12 @@ LINUX_SYSTEM_READ_PATHS = (
 DARWIN_SYSTEM_READ_PATHS = (
     "/private/etc",
     "/private/var",
+    "/etc/zoneinfo",
+    "/usr/lib/zoneinfo",
+    "/usr/share/lib/zoneinfo",
+    "/usr/share/zoneinfo",
+    "/usr/share/zoneinfo.default",
+    "/var/db/timezone/zoneinfo",
     "/opt/homebrew",
     "/opt/local",
 )

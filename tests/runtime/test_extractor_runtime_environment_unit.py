@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from contextlib import nullcontext
+from pathlib import Path
 
 import pytest
 
@@ -50,3 +52,66 @@ def test_extractor_environment_rejects_invalid_manifest_values(monkeypatch):
 
     with pytest.raises(ValueError, match="invalid_extractor_environment"):
         mod.get_extractor_environment("docling", "install")
+
+
+def test_extractor_access_by_os_filters_linux_only_paths(monkeypatch, tmp_path):
+    import democrai.core.application.knowledge.extractor.runtime as mod
+
+    section = {
+        "access": [
+            {
+                "resource_type": "network",
+                "operation": "receive",
+                "target": "https://pypi.org/*",
+            },
+        ],
+        "access_by_os": {
+            "linux": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/sbin/ldconfig",
+                },
+            ],
+        },
+    }
+    monkeypatch.setattr(mod, "_extractor_phase_section", lambda *_args: section)
+    monkeypatch.setattr(mod, "get_extractor_local_env_path", lambda _id=None: tmp_path / "env")
+    monkeypatch.setattr(mod, "get_extractor_local_cache_path", lambda _id=None: tmp_path / "cache")
+    monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
+    monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
+    monkeypatch.setattr(mod, "extractor_runtime_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_create_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_modify_paths", lambda: ())
+
+    monkeypatch.setattr(mod, "os_key", lambda: "linux")
+    linux_targets = {
+        rule.resource.target
+        for rule in mod.get_extractor_access("docling", "install")
+    }
+    assert "/sbin/ldconfig" in linux_targets
+
+    monkeypatch.setattr(mod, "os_key", lambda: "darwin")
+    darwin_targets = {
+        rule.resource.target
+        for rule in mod.get_extractor_access("docling", "install")
+    }
+    assert "/sbin/ldconfig" not in darwin_targets
+    assert section["access"] == [
+        {
+            "resource_type": "network",
+            "operation": "receive",
+            "target": "https://pypi.org/*",
+        },
+    ]
+
+
+def test_docling_manifest_does_not_declare_ineffective_execute_allowlist():
+    manifest = json.loads(Path("extractors/docling/manifest.json").read_text(encoding="utf-8"))
+    install = manifest["install"]
+
+    assert all(
+        item.get("target") not in {"/sbin/ldconfig", "/usr/sbin/ldconfig"}
+        for item in install["access"]
+    )
+    assert "access_by_os" not in install

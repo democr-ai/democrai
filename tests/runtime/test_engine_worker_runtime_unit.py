@@ -37,6 +37,7 @@ def test_engine_worker_logging_config_contains_only_logger_keys(monkeypatch):
 
 
 def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: Path):
+    timezone_path = "/var/db/timezone/zoneinfo"
     engine_access = (
         AccessManifestRule(
             subject=AccessSubject.create("engine", "demo"),
@@ -48,6 +49,8 @@ def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: 
         ),
     )
     monkeypatch.setattr(subject_mod, "get_engine_access", lambda *_a, **_k: engine_access)
+    monkeypatch.setattr(subject_mod, "system_read_paths", lambda: (timezone_path,))
+    monkeypatch.setattr(subject_mod.os.path, "exists", lambda _path: True)
     monkeypatch.setattr(subject_mod, "logs_dir", lambda: tmp_path / "logs")
 
     access = subject_mod.worker_runtime_access(
@@ -67,6 +70,7 @@ def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: 
         )
         for rule in access
     ]
+    assert ("filesystem", "read", timezone_path) in resources
     assert ("filesystem", "read", str(tmp_path / "engine-cache")) in resources
     assert ("filesystem", "modify", str((tmp_path / "logs").resolve())) in resources
     assert (
@@ -103,7 +107,12 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
     monkeypatch.setattr(worker_mod, "engine_env_context", _env)
     monkeypatch.setattr(worker_mod, "isolate_engine_imports", lambda engine_id: None)
     monkeypatch.setattr(worker_mod, "load_engine_class", lambda engine_id: _Engine)
-    monkeypatch.setattr(worker_mod, "runtime_system_read_paths", lambda: [str(tmp_path / "system")])
+    timezone_path = "/var/db/timezone/zoneinfo"
+    monkeypatch.setattr(
+        worker_mod,
+        "runtime_system_read_paths",
+        lambda: [str(tmp_path / "system"), timezone_path],
+    )
     monkeypatch.setattr(worker_mod, "_configure_engine_path_overrides", lambda engine_id: calls.append(("paths", engine_id)))
     monkeypatch.setattr(worker_mod, "_apply_worker_landlock", lambda **kwargs: calls.append(("landlock", kwargs)))
 
@@ -149,6 +158,7 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
         for rule in guard_call[1]["access"]
     ]
     assert ("filesystem", "read", str(tmp_path / "system")) in guard_access
+    assert ("filesystem", "read", timezone_path) in guard_access
     assert not any(item[2] == str(tmp_path) for item in guard_access)
     assert isinstance(worker._engine, _Engine)
 

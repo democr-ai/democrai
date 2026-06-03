@@ -189,9 +189,9 @@
         "module": "optimum.onnxruntime",
         "label": "Optimum ONNX Runtime",
         "pip_packages": [
-          "optimum",
+          "optimum==2.1.0",
+          "optimum-onnx[onnxruntime]==0.1.0",
           "onnxruntime",
-          "onnxruntime-gpu",
           "accelerate",
           "safetensors",
           "huggingface-hub>=0.34,<1.0"
@@ -214,7 +214,7 @@
         "module": "transformers",
         "label": "Transformers",
         "pip_packages": [
-          "transformers",
+          "transformers>=4.36,<4.58",
           "accelerate",
           "safetensors",
           "huggingface-hub>=0.34,<1.0"

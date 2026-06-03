@@ -437,7 +437,7 @@ def runtime_system_read_paths() -> list[str]:
         raw = str(item or "").strip()
         if raw:
             paths.append(raw)
-    for key in ("stdlib", "platstdlib", "purelib", "platlib"):
+    for key in ("stdlib", "platstdlib", "purelib", "platlib", "data", "include", "scripts"):
         raw = sysconfig.get_paths().get(key)
         if raw:
             paths.append(raw)
@@ -1151,6 +1151,23 @@ def _wrap_os_default_path(original, default_path: str, operation: str, attr: str
     return wrapper
 
 
+def _wrap_os_makedirs(original):
+    def wrapper(name, *args, **kwargs):
+        _profile_count("process_guard.wrapper.os_makedirs.calls")
+        if _PATH_CHECK_DEPTH.get() > 0:
+            return original(name, *args, **kwargs)
+        with _profile_span("process_guard.wrapper.os_makedirs.guard"):
+            _check_path(name, operation="create")
+        depth = _PATH_CHECK_DEPTH.get()
+        token = _PATH_CHECK_DEPTH.set(depth + 1)
+        try:
+            return original(name, *args, **kwargs)
+        finally:
+            _PATH_CHECK_DEPTH.reset(token)
+
+    return wrapper
+
+
 def _wrap_path_pair(original, source_operation: str, target_operation: str):
     def wrapper(src, dst, *args, **kwargs):
         _profile_count("process_guard.wrapper.path_pair.calls")
@@ -1224,13 +1241,12 @@ def _wrap_shutil_make_archive(original):
 def _wrap_import(original):
     def wrapper(name, globals=None, locals=None, fromlist=(), level=0):
         _profile_count("process_guard.wrapper.import.calls")
-        module = original(name, globals, locals, fromlist, level)
         with _profile_span("process_guard.wrapper.import.guard"):
             if _bypass_enabled():
-                return module
+                return original(name, globals, locals, fromlist, level)
             current_state = _state()
             if not current_state:
-                return module
+                return original(name, globals, locals, fromlist, level)
             root_name = str(name or "").split(".", 1)[0]
             allowed_imports = current_state.get("allowed_import_roots") or set()
             if not allowed_imports:
@@ -1239,7 +1255,7 @@ def _wrap_import(original):
                 )
             if root_name in _SENSITIVE_IMPORT_ROOTS and root_name not in allowed_imports:
                 raise PermissionError(f"sandbox_module_denied:{root_name}")
-            return module
+            return original(name, globals, locals, fromlist, level)
 
     return wrapper
 
@@ -1736,7 +1752,7 @@ def enable_process_guard(
         _patch_attr(os, "mkdir", lambda original: _wrap_os_optional_path(original, "create", "mkdir"))
         for attr in ("remove", "unlink", "rmdir"):
             _patch_attr(os, attr, lambda original, op="delete", name=attr: _wrap_os_optional_path(original, op, name))
-        _patch_attr(os, "makedirs", lambda original: _wrap_os_default_path(original, ".", "create", "makedirs"))
+        _patch_attr(os, "makedirs", _wrap_os_makedirs)
         _patch_attr(os, "removedirs", lambda original: _wrap_os_default_path(original, ".", "delete", "removedirs"))
         _patch_attr(os, "link", lambda original: _wrap_path_pair(original, "read", "create"))
         for attr in ("rename", "renames", "replace"):

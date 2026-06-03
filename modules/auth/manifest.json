@@ -11,26 +11,5 @@
   },
   "priority": 100,
   "allowed_imports": [],
-  "access": [
-    {
-      "resource_type": "filesystem",
-      "operation": "read",
-      "target": "/etc/zoneinfo/CEST"
-    },
-    {
-      "resource_type": "filesystem",
-      "operation": "create",
-      "target": "/etc/zoneinfo/CEST"
-    },
-    {
-      "resource_type": "filesystem",
-      "operation": "modify",
-      "target": "/etc/zoneinfo/CEST"
-    },
-    {
-      "resource_type": "filesystem",
-      "operation": "delete",
-      "target": "/etc/zoneinfo/CEST"
-    }
-  ]
+  "access": []
 }

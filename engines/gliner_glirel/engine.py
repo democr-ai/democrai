@@ -74,6 +74,7 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
                 "seqeval>=1.2.2",
                 "transformers",
                 "huggingface-hub>=0.34,<1.0",
+                "fsspec<=2025.10.0,>=2023.1.0",
                 "safetensors",
             ],
             modules=["gliner", "glirel", "loguru", "seqeval.metrics.v1", "transformers"],

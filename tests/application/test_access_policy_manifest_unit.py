@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from democrai.core.application.access_policy import AccessOperation
@@ -72,6 +75,41 @@ def test_parse_access_manifest_rules_resolves_data_dir_token(monkeypatch, tmp_pa
     assert len(rules) == 1
     assert rules[0].resource.target == str(data_root.resolve())
     assert rules[0].resource.normalized_target == str(data_root.resolve())
+
+
+def test_parse_access_manifest_rules_rejects_unresolved_filesystem_token():
+    with pytest.raises(ValueError, match="access_manifest_unresolved_filesystem_token"):
+        parse_access_manifest_rules(
+            {
+                "access": [
+                    {
+                        "resource_type": "filesystem",
+                        "operation": "read",
+                        "target": "{unknown}",
+                    },
+                ],
+            },
+            subject_type="module",
+            subject_name="demo",
+        )
+
+
+def test_parse_access_manifest_rules_keeps_network_token_text():
+    rules = parse_access_manifest_rules(
+        {
+            "access": [
+                {
+                    "resource_type": "network",
+                    "operation": "receive",
+                    "target": "https://{tenant}.example.test/*",
+                },
+            ],
+        },
+        subject_type="module",
+        subject_name="demo",
+    )
+
+    assert rules[0].resource.target == "https://{tenant}.example.test/*"
 
 
 def test_parse_access_manifest_rules_rejects_non_canonical_shapes():
@@ -195,3 +233,23 @@ def test_parse_access_manifest_rules_filters_by_resource_and_operation_without_h
         if rule.resource.resource_type == ResourceType.FILESYSTEM
         and rule.resource.operation in {AccessOperation.READ, AccessOperation.MODIFY}
     ] == ["/tmp/models"]
+
+
+def test_module_and_extractor_manifests_do_not_use_ungated_absolute_filesystem_paths():
+    violations: list[str] = []
+    for base in ("modules", "extractors"):
+        for path in Path(base).glob("*/manifest.json"):
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            sections = [("root", manifest)]
+            sections.extend(
+                (key, value)
+                for key, value in manifest.items()
+                if isinstance(value, dict)
+            )
+            for section_name, section in sections:
+                for item in section.get("access") or ():
+                    target = str(item.get("target") or "")
+                    if target.startswith("/"):
+                        violations.append(f"{path}:{section_name}:{target}")
+
+    assert violations == []

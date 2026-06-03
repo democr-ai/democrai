@@ -7,7 +7,7 @@ name = "democrai"
 version = "0.0.1b2"
 description = "A Python framework for building agentic AI applications with server-driven UI, observability, and sandboxed extensibility."
 readme = "democrai/README_PYPI.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
     { name = "Democr.ai", email = "development@democr.ai" },
 ]
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
@@ -119,7 +118,7 @@ include = ["democrai*"]
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 explicit_package_bases = true
 namespace_packages = true
 ignore_missing_imports = true

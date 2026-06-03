@@ -759,11 +759,30 @@ def test_process_guard_all_paths(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod, "cache_dir", lambda: tmp_path)
     monkeypatch.setattr(mod, "state_dir", lambda: tmp_path)
     monkeypatch.setattr(mod, "logs_dir", lambda: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setattr(mod.sysconfig, "get_paths", lambda: {"stdlib": str(tmp_path), "platstdlib": "", "purelib": str(tmp_path), "platlib": str(tmp_path)})
+    python_include = tmp_path / "python-include"
+    python_data = tmp_path / "python-data"
+    python_scripts = tmp_path / "python-scripts"
+    monkeypatch.setattr(
+        mod.sysconfig,
+        "get_paths",
+        lambda: {
+            "stdlib": str(tmp_path),
+            "platstdlib": "",
+            "purelib": str(tmp_path),
+            "platlib": str(tmp_path),
+            "data": str(python_data),
+            "include": str(python_include),
+            "scripts": str(python_scripts),
+        },
+    )
     monkeypatch.setattr(mod.sys, "path", [str(tmp_path), ""])
     monkeypatch.setattr(mod, "system_read_paths", lambda: ("/system/base",))
-    assert "/system/base" in mod._runtime_filesystem_read_paths()
-    assert mod._runtime_filesystem_read_paths()
+    runtime_read_paths = mod._runtime_filesystem_read_paths()
+    assert "/system/base" in runtime_read_paths
+    assert str(python_data.resolve()) in runtime_read_paths
+    assert str(python_include.resolve()) in runtime_read_paths
+    assert str(python_scripts.resolve()) in runtime_read_paths
+    assert runtime_read_paths
     runtime_rules = mod._runtime_access()
     log_delete_rule = _access_rule(
         mod,
@@ -869,6 +888,207 @@ def test_process_guard_all_paths(monkeypatch, tmp_path: Path):
     st = mod._STATE.set({"subject": "s"})
     with pytest.raises(PermissionError):
         wrapped_import("ctypes")
+    mod._STATE.reset(st)
+
+
+def test_process_guard_denies_sensitive_import_before_original_import(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    module_name = "cffi"
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    calls = []
+
+    def _original(name, g=None, l=None, fromlist=(), level=0):
+        calls.append(name)
+        sys.modules[name] = SimpleNamespace(name=name)
+        return sys.modules[name]
+
+    wrapped_import = mod._wrap_import(_original)
+    st = mod._STATE.set({"subject": "s"})
+    try:
+        with pytest.raises(PermissionError, match="sandbox_module_denied:cffi"):
+            wrapped_import(module_name)
+    finally:
+        mod._STATE.reset(st)
+
+    assert calls == []
+    assert module_name not in sys.modules
+
+
+def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
+    access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+
+    monkeypatch.setattr(access_constants.sys, "platform", "darwin")
+
+    paths = access_constants.system_read_paths()
+    assert "/etc/zoneinfo" in paths
+    assert "/usr/lib/zoneinfo" in paths
+    assert "/usr/share/lib/zoneinfo" in paths
+    assert "/usr/share/zoneinfo" in paths
+    assert "/usr/share/zoneinfo.default" in paths
+    assert "/var/db/timezone/zoneinfo" in paths
+
+
+def test_path_allowed_accepts_zoneinfo_symlink_and_realpath_variants(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    target = "/usr/share/zoneinfo/CEST"
+    monkeypatch.setattr(
+        mod,
+        "_normalized_path_variants",
+        lambda _path: [
+            "/usr/share/zoneinfo/CEST",
+            "/usr/share/zoneinfo.default/CEST",
+        ],
+    )
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {
+                "read": (
+                    "/usr/lib/zoneinfo",
+                    "/etc/zoneinfo",
+                    "/usr/share/lib/zoneinfo",
+                    "/usr/share/zoneinfo",
+                    "/usr/share/zoneinfo.default",
+                ),
+            },
+        }
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod._STATE.reset(st)
+
+
+def test_path_allowed_accepts_homebrew_python_zoneinfo_path(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    target = "/usr/share/lib/zoneinfo/CEST"
+    monkeypatch.setattr(
+        mod,
+        "_normalized_path_variants",
+        lambda _path: ["/usr/share/lib/zoneinfo/CEST"],
+    )
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {
+                "read": ("/usr/share/lib/zoneinfo",),
+            },
+        }
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod._STATE.reset(st)
+
+
+@pytest.mark.parametrize(
+    "relative_data_root",
+    [
+        ("home", "user", ".local", "share", "democrai"),
+        ("home", "user", "Library", "Application Support", "democrai"),
+        ("Users", "user", "AppData", "Roaming", "democrai"),
+    ],
+)
+def test_system_manifest_data_dir_token_allows_only_resolved_data_dir(
+    monkeypatch,
+    tmp_path: Path,
+    relative_data_root: tuple[str, ...],
+):
+    from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
+    import democrai.core.application.access_policy.manifest as manifest_mod
+
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    data_root = tmp_path.joinpath(*relative_data_root)
+    data_root.mkdir(parents=True)
+    system_manifest = json.loads(Path("modules/system/manifest.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(manifest_mod, "data_dir", lambda: data_root)
+
+    access = parse_access_manifest_rules(
+        system_manifest,
+        subject_type="module",
+        subject_name="system",
+    )
+    target = data_root / "config.yaml"
+    outside = tmp_path / "outside" / "config.yaml"
+    outside.parent.mkdir()
+
+    with mod.process_guard_context(
+        subject="system",
+        subject_kind="module",
+        access=access,
+        include_runtime_access=False,
+    ):
+        target.write_text("ok", encoding="utf-8")
+        with pytest.raises(PermissionError):
+            outside.write_text("blocked", encoding="utf-8")
+
+    with mod.process_guard_context(
+        subject="generic",
+        subject_kind="module",
+        access=[],
+        include_runtime_access=False,
+    ):
+        with pytest.raises(PermissionError):
+            target.write_text("blocked", encoding="utf-8")
+
+
+def test_os_makedirs_allows_authorized_data_dir_with_missing_parents(monkeypatch, tmp_path: Path):
+    from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
+    import democrai.core.application.access_policy.manifest as manifest_mod
+
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    data_root = tmp_path / "Users" / "fabio" / "Library" / "Application Support" / "democrai"
+    system_manifest = json.loads(Path("modules/system/manifest.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(manifest_mod, "data_dir", lambda: data_root)
+    access = parse_access_manifest_rules(
+        system_manifest,
+        subject_type="module",
+        subject_name="system",
+    )
+
+    with mod.process_guard_context(
+        subject="system",
+        subject_kind="module",
+        access=access,
+        include_runtime_access=False,
+    ):
+        os.makedirs(data_root, exist_ok=True)
+        (data_root / "config.yaml").write_text("ok: true\n", encoding="utf-8")
+        with pytest.raises(PermissionError):
+            os.mkdir(data_root.parent)
+        with pytest.raises(PermissionError):
+            os.makedirs(tmp_path / "Users" / "fabio" / "Library" / "Other App", exist_ok=True)
+
+    assert data_root.is_dir()
+    assert (data_root / "config.yaml").read_text(encoding="utf-8") == "ok: true\n"
+
+
+def test_yaml_config_provider_save_allows_authorized_data_dir_with_missing_parents(monkeypatch, tmp_path: Path):
+    from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
+    import democrai.core.application.access_policy.manifest as manifest_mod
+    from democrai.core.platform.config.yaml_config import YamlConfigProvider
+
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    data_root = tmp_path / "Users" / "fabio" / "Library" / "Application Support" / "democrai"
+    system_manifest = json.loads(Path("modules/system/manifest.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(manifest_mod, "data_dir", lambda: data_root)
+    access = parse_access_manifest_rules(
+        system_manifest,
+        subject_type="module",
+        subject_name="system",
+    )
+    provider = YamlConfigProvider(str(data_root / "config.yaml"))
+    provider.set("setup.completed", True)
+
+    with mod.process_guard_context(
+        subject="system",
+        subject_kind="module",
+        access=access,
+        include_runtime_access=False,
+    ):
+        provider.save()
+
+    assert (data_root / "config.yaml").exists()
 
 
 def test_process_guard_runtime_access_allows_configured_http_logger(monkeypatch):

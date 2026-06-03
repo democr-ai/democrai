@@ -187,16 +187,6 @@
         "resource_type": "network",
         "operation": "connect",
         "target": "https://cdn-lfs-cn-2.modelscope.cn"
-      },
-      {
-        "resource_type": "filesystem",
-        "operation": "execute",
-        "target": "/sbin/ldconfig"
-      },
-      {
-        "resource_type": "filesystem",
-        "operation": "execute",
-        "target": "/usr/sbin/ldconfig"
       }
     ],
     "allowed_imports": [

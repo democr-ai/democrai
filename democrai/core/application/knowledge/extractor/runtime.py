@@ -7,6 +7,7 @@ and the trusted execution context required to run third-party extraction code.
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import os
 import sys
 import threading
@@ -39,6 +40,7 @@ from democrai.core.application.knowledge.extractor.worker_subject import (
     worker_runtime_config,
 )
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+from democrai.core.platform.utils.normalize import os_key
 
 _EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV = "DEMOCRAI_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET"
 
@@ -47,6 +49,21 @@ def _extractor_phase_section(extractor_id: str, phase: str) -> dict[str, Any]:
     manifest = get_extractor_manifest(extractor_id) or {}
     section = manifest.get(phase) if isinstance(manifest, dict) else None
     return section if isinstance(section, dict) else {}
+
+
+def _extractor_phase_access_section(extractor_id: str, phase: str) -> dict[str, Any]:
+    section = deepcopy(_extractor_phase_section(extractor_id, phase))
+    access = [
+        item
+        for item in section.get("access", [])
+    ]
+    raw_access_by_os = section.get("access_by_os")
+    if isinstance(raw_access_by_os, dict):
+        os_access = raw_access_by_os.get(os_key())
+        if isinstance(os_access, list):
+            access.extend(os_access)
+    section["access"] = access
+    return section
 
 
 def get_extractor_allowed_imports(extractor_id: str, phase: str) -> list[str]:
@@ -78,7 +95,7 @@ def get_extractor_access(
     subject = AccessSubject.create("extractor", extractor_id)
     rules = list(
         parse_access_manifest_rules(
-            _extractor_phase_section(extractor_id, phase),
+            _extractor_phase_access_section(extractor_id, phase),
             subject_type="extractor",
             subject_name=extractor_id,
         )

@@ -59,6 +59,7 @@ def test_gliner_glirel_install_uses_torch_and_packages(monkeypatch):
     packages, kwargs = calls[0]
     assert "gliner" in packages
     assert "glirel" in packages
+    assert "fsspec<=2025.10.0,>=2023.1.0" in packages
     assert kwargs["modules"] == [
         "gliner",
         "glirel",

@@ -77,7 +77,7 @@
         "dependency_key": "transformers",
         "module": "transformers",
         "label": "Transformers",
-        "pip_packages": ["transformers", "huggingface-hub>=0.34,<1.0", "safetensors"]
+        "pip_packages": ["transformers", "huggingface-hub>=0.34,<1.0", "fsspec<=2025.10.0,>=2023.1.0", "safetensors"]
       }
     ],
     "configurable": false,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
 from democrai.core.application.access_policy.models import AccessResource
@@ -11,6 +12,7 @@ from democrai.core.runtime.foundation.paths import data_dir
 _FILESYSTEM_TARGET_TOKENS = {
     "data_dir": lambda: str(data_dir().resolve()),
 }
+_UNRESOLVED_TOKEN_PATTERN = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,8 @@ def _resolve_manifest_target(*, resource_type: str, target: str) -> str:
     resolved = target
     for key, resolver in _FILESYSTEM_TARGET_TOKENS.items():
         resolved = resolved.replace("{" + key + "}", resolver())
+    if _UNRESOLVED_TOKEN_PATTERN.search(resolved):
+        raise ValueError(f"access_manifest_unresolved_filesystem_token:{target}")
     return resolved
 
 

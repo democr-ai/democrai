@@ -30,6 +30,11 @@ from democrai.sdk.dependencies import (
     write_installed_torch_constraint,
 )
 
+_HF_HUB_PACKAGE = "huggingface-hub>=0.34,<1.0"
+_OPTIMUM_PACKAGE = "optimum==2.1.0"
+_OPTIMUM_ONNX_VERSION = "0.1.0"
+_TRANSFORMERS_PACKAGE = "transformers>=4.36,<4.58"
+
 
 class OnnxEngine(BaseEngine, LLMProvider):
     engine_id = "onnx"
@@ -41,7 +46,21 @@ class OnnxEngine(BaseEngine, LLMProvider):
     @staticmethod
     def _optimum_onnx_package(torch_profile: str) -> str:
         extra = "onnxruntime" if str(torch_profile or "") == "cpu" else "onnxruntime-gpu"
-        return f"optimum-onnx[{extra}]"
+        return f"optimum-onnx[{extra}]=={_OPTIMUM_ONNX_VERSION}"
+
+    @classmethod
+    def _install_packages(cls, torch_profile: str) -> list[str]:
+        return [
+            "diffusers",
+            "accelerate",
+            "safetensors",
+            _HF_HUB_PACKAGE,
+            _OPTIMUM_PACKAGE,
+            cls._optimum_onnx_package(torch_profile),
+            cls._onnxruntime_package(torch_profile),
+            "sentence-transformers",
+            _TRANSFORMERS_PACKAGE,
+        ]
 
     @staticmethod
     def _resolve_execution_provider(
@@ -75,20 +94,50 @@ class OnnxEngine(BaseEngine, LLMProvider):
         return major == 0 and minor >= 34
 
     @classmethod
+    def _transformers_version_supported(cls) -> bool:
+        try:
+            version = importlib.metadata.version("transformers")
+        except importlib.metadata.PackageNotFoundError:
+            return False
+        parts = version.split("+", 1)[0].split(".", 2)
+        try:
+            major = int(parts[0])
+            minor = int(parts[1]) if len(parts) > 1 else 0
+        except (TypeError, ValueError):
+            return False
+        return (major, minor) >= (4, 36) and (major, minor) < (4, 58)
+
+    @classmethod
+    def _optimum_onnx_export_supported(cls) -> bool:
+        try:
+            from optimum.exporters.onnx import main_export
+        except Exception:
+            return False
+        return callable(main_export)
+
+    @classmethod
     def _missing_module_labels(cls) -> list[str]:
         checks = [
             ("diffusers", "diffusers"),
-            ("optimum", "optimum[onnxruntime]"),
             ("sentence_transformers", "sentence-transformers"),
-            ("transformers", "transformers"),
         ]
         missing_local: list[str] = []
         for module_name, label in checks:
             found = importlib.util.find_spec(module_name) is not None
             if not found:
                 missing_local.append(label)
+        if (
+            importlib.util.find_spec("optimum.onnxruntime") is None
+            or not cls._optimum_onnx_export_supported()
+        ):
+            missing_local.append(f"optimum-onnx[onnxruntime]=={_OPTIMUM_ONNX_VERSION}")
+        if (
+            importlib.util.find_spec("transformers") is None
+            or not cls._transformers_version_supported()
+        ):
+            missing_local.append(_TRANSFORMERS_PACKAGE)
         if not cls._huggingface_hub_version_supported():
-            missing_local.append("huggingface-hub>=0.34,<1.0")
+            missing_local.append(_HF_HUB_PACKAGE)
         try:
             torch_ready = torch_runtime_matches_plan()
         except Exception:
@@ -107,20 +156,8 @@ class OnnxEngine(BaseEngine, LLMProvider):
     ) -> None:
         torch_plan = install_torch_runtime(force=force)
         torch_constraint = write_installed_torch_constraint()
-        onnxruntime_package = cls._onnxruntime_package(torch_plan.profile)
-        optimum_onnx_package = cls._optimum_onnx_package(torch_plan.profile)
         install_python_packages(
-            [
-                "diffusers",
-                "accelerate",
-                "safetensors",
-                "huggingface-hub>=0.34,<1.0",
-                "optimum",
-                optimum_onnx_package,
-                onnxruntime_package,
-                "sentence-transformers",
-                "transformers",
-            ],
+            cls._install_packages(torch_plan.profile),
             modules=[
                 "diffusers",
                 "optimum.onnxruntime",

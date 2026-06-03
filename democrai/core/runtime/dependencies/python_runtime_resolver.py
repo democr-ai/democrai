@@ -35,6 +35,15 @@ _TORCH_DISTRIBUTION_MODULES = {
     "torchvision": "torchvision",
 }
 
+_DARWIN_TORCH_PACKAGE_PINS = {
+    "torch": "2.2.2",
+    "torchaudio": "2.2.2",
+    "torchvision": "0.17.2",
+}
+
+_NUMPY_V1_PACKAGE = "numpy<2"
+_FSSPEC_DATASETS_PACKAGE = "fsspec<=2025.10.0,>=2023.1.0"
+
 
 @dataclass(frozen=True)
 class TorchRuntimePlan:
@@ -78,8 +87,16 @@ def resolve_torch_runtime_plan(
     modules: list[str] | tuple[str, ...] | None = None,
     env: dict[str, Any] | None = None,
 ) -> TorchRuntimePlan:
-    profile = resolve_torch_cuda_profile(env)
-    resolved_packages = tuple(packages or ("torch",))
+    effective_env = dict(env or runtime_env())
+    profile = resolve_torch_cuda_profile(effective_env)
+    resolved_packages = _resolve_torch_packages_for_platform(
+        tuple(packages or ("torch",)),
+        env=effective_env,
+    )
+    resolved_packages = _include_numpy_constraint_for_torch(
+        resolved_packages,
+        env=effective_env,
+    )
     resolved_modules = tuple(modules or ("torch",))
     return TorchRuntimePlan(
         profile=profile,
@@ -87,6 +104,66 @@ def resolve_torch_runtime_plan(
         modules=resolved_modules,
         index_url=f"https://download.pytorch.org/whl/{profile}",
     )
+
+
+def _resolve_torch_packages_for_platform(
+    packages: tuple[str, ...],
+    *,
+    env: dict[str, Any],
+) -> tuple[str, ...]:
+    os_name = str(env.get("os") or "").strip().lower()
+    if os_name != "darwin":
+        return packages
+    return tuple(_resolve_darwin_torch_package(package) for package in packages)
+
+
+def _resolve_darwin_torch_package(package: str) -> str:
+    raw = str(package or "").strip()
+    name = raw
+    separator = ""
+    for candidate in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+        if candidate in raw:
+            name, separator, _version = raw.partition(candidate)
+            break
+    normalized_name = name.split("[", 1)[0].strip().lower().replace("_", "-")
+    resolved_version = _DARWIN_TORCH_PACKAGE_PINS.get(normalized_name)
+    if not resolved_version:
+        return package
+    if separator and separator != "==":
+        return package
+    return f"{name.strip()}=={resolved_version}"
+
+
+def _include_numpy_constraint_for_torch(
+    packages: tuple[str, ...],
+    *,
+    env: dict[str, Any],
+) -> tuple[str, ...]:
+    if not _torch_plan_requires_numpy_v1(packages, env=env):
+        return packages
+    if any(_package_name(package) == "numpy" for package in packages):
+        return packages
+    return (*packages, _NUMPY_V1_PACKAGE)
+
+
+def _torch_plan_requires_numpy_v1(
+    packages: tuple[str, ...],
+    *,
+    env: dict[str, Any],
+) -> bool:
+    del env
+    requested_torch_version = _exact_requested_versions(packages).get("torch")
+    version_pair = _parse_version_pair(requested_torch_version)
+    return version_pair is not None and version_pair < (2, 4)
+
+
+def _package_name(package: str) -> str:
+    name = str(package or "")
+    for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+        if separator in name:
+            name = name.split(separator, 1)[0]
+            break
+    return name.split("[", 1)[0].strip().lower().replace("_", "-")
 
 
 def install_torch_runtime(
@@ -168,10 +245,23 @@ def _installed_torch_matches_plan(plan: TorchRuntimePlan) -> bool:
         return False
     if not _installed_versions_match_requested_packages(plan.packages, target):
         return False
+    if not _installed_numpy_matches_plan(plan, target):
+        return False
     normalized = version.lower()
     if plan.profile == "cpu":
         return "+cu" not in normalized
     return normalized.endswith(f"+{plan.profile}")
+
+
+def _installed_numpy_matches_plan(plan: TorchRuntimePlan, target: Path) -> bool:
+    if _NUMPY_V1_PACKAGE not in plan.packages:
+        return True
+    try:
+        version = _installed_package_version("numpy", target)
+    except Exception:
+        return False
+    version_pair = _parse_version_pair(version)
+    return version_pair is not None and version_pair < (2, 0)
 
 
 def _installed_versions_match_requested_packages(
@@ -247,5 +337,13 @@ def write_installed_torch_constraint(
         f"{distribution}=={_installed_package_version(distribution, target)}"
         for distribution in distributions
     ]
+    try:
+        torch_version = _installed_package_version("torch", target)
+    except Exception:
+        torch_version = ""
+    version_pair = _parse_version_pair(torch_version)
+    if version_pair is not None and version_pair < (2, 4):
+        lines.append(_NUMPY_V1_PACKAGE)
+    lines.append(_FSSPEC_DATASETS_PACKAGE)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return str(Path(path).resolve())
