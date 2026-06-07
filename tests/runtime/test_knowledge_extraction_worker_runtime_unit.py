@@ -4,6 +4,7 @@ import asyncio
 from contextlib import contextmanager
 from contextlib import ExitStack
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -116,6 +117,65 @@ def test_start_extraction_queue_worker_process_skips_setup_mode():
     assert mod.start_extraction_queue_worker_process(ctx) is None
 
 
+def test_extractor_worker_module_keeps_heavy_core_imports_lazy():
+    source = Path(worker_mod.__file__).read_text(encoding="utf-8")
+    forbidden = (
+        "from democrai.core.application.knowledge.extractor.manifests",
+        "from democrai.core.infrastructure.sandbox.process_guard",
+        "from democrai.core.runtime.dependencies.extractor_env",
+        "from democrai.core.runtime.foundation.app",
+        "from democrai.core.application.ai.engine.runtime.serialization",
+    )
+
+    for item in forbidden:
+        assert item not in "\n".join(
+            line for line in source.splitlines() if line.startswith("from ")
+        )
+
+
+def test_extractor_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_path: Path):
+    access = (
+        AccessManifestRule(
+            subject=AccessSubject.create("extractor", "demo"),
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation="read",
+                target=str(tmp_path / "source"),
+            ),
+        ),
+    )
+    monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {"auth.jwt_algorithm": "HS256"})
+    monkeypatch.setattr(
+        subject_mod,
+        "worker_path_overrides",
+        lambda _extractor_id: {
+            "env": "env",
+            "cache": "cache",
+            "config": "config",
+            "tmp": "tmp",
+        },
+    )
+
+    payload = subject_mod.build_extractor_worker_init_payload(
+        extractor_id="demo",
+        phase="runtime",
+        config={"chunk_size": 1000},
+        access=access,
+        allowed_imports=["docling"],
+    )
+
+    assert payload["runtime_config"] == {"auth.jwt_algorithm": "HS256"}
+    assert payload["env"] == {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
+    assert payload["path_overrides"] == {
+        "env": "env",
+        "cache": "cache",
+        "config": "config",
+        "tmp": "tmp",
+    }
+    assert payload["allowed_imports"] == ["docling"]
+    assert payload["access"][0]["resource"]["target"] == str(tmp_path / "source")
+
+
 def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypatch):
     calls = []
 
@@ -133,10 +193,28 @@ def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypa
         calls.append(("env", extractor_id, env))
         yield
 
-    monkeypatch.setattr(worker_mod, "process_guard_context", _guard)
-    monkeypatch.setattr(worker_mod, "extractor_env_context", _env)
-    monkeypatch.setattr(worker_mod, "isolate_extractor_imports", lambda extractor_id: None)
-    monkeypatch.setattr(worker_mod, "load_extractor_class", lambda extractor_id: _Extractor)
+    def _set_paths(extractor_id, **kwargs):
+        calls.append(("paths", extractor_id, kwargs))
+
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.infrastructure.sandbox.process_guard",
+        SimpleNamespace(process_guard_context=_guard),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.runtime.dependencies.extractor_env",
+        SimpleNamespace(
+            extractor_env_context=_env,
+            isolate_extractor_imports=lambda extractor_id: None,
+            set_extractor_local_path_overrides=_set_paths,
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.application.knowledge.extractor.manifests",
+        SimpleNamespace(load_extractor_class=lambda extractor_id: _Extractor),
+    )
 
     worker = worker_mod._Worker.__new__(worker_mod._Worker)
     worker._stack = ExitStack()
@@ -151,6 +229,13 @@ def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypa
                 "extractor_id": "ai_audio",
                 "phase": "runtime",
                 "config": {"model_registry_id": 1},
+                "env": {"HF_HUB_OFFLINE": "1"},
+                "path_overrides": {
+                    "env": "env",
+                    "cache": "cache",
+                    "config": "config",
+                    "tmp": "tmp",
+                },
                 "access": [],
                 "allowed_imports": [],
             }
@@ -162,7 +247,18 @@ def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypa
     assert "user_id" not in guard_call[1]
     assert "organization_id" not in guard_call[1]
     assert "session_key" not in guard_call[1]
+    assert ("paths", "ai_audio", {
+        "env_path": "env",
+        "cache_path": "cache",
+        "config_path": "config",
+        "tmp_path": "tmp",
+    }) in calls
     assert isinstance(worker._extractor, _Extractor)
+
+
+def test_extractor_worker_init_requires_path_overrides():
+    with pytest.raises(RuntimeError, match="extractor_worker_path_overrides_required"):
+        worker_mod._configure_extractor_path_overrides("demo", {"env": "env"})
 
 
 def test_extractor_worker_extract_requires_request_context():
@@ -274,6 +370,9 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
         def poll(self):
             return None
 
+        def wait(self, timeout=None):
+            return 0
+
     class _Thread:
         def __init__(self, *args, **kwargs):
             pass
@@ -303,6 +402,16 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
     monkeypatch.setattr(
         subject_mod,
+        "worker_path_overrides",
+        lambda _extractor_id: {
+            "env": "env",
+            "cache": "cache",
+            "config": "config",
+            "tmp": "tmp",
+        },
+    )
+    monkeypatch.setattr(
+        subject_mod,
         "_clean_worker_env",
         lambda: {},
     )
@@ -318,7 +427,11 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     monkeypatch.setattr(runtime_mod, "get_extractor_access", lambda *_args: ())
     monkeypatch.setattr(runtime_mod, "get_extractor_allowed_imports", lambda *_args: [])
 
-    subject = subject_mod.ExtractorWorkerSubject("demo", phase="runtime", config={})
+    subject = subject_mod.ExtractorWorkerSubject(
+        extractor_id="demo",
+        phase="runtime",
+        config={},
+    )
     try:
         env = popen_calls[0][1]["env"]
         assert "pass" + "_fds" not in popen_calls[0][1]

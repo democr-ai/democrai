@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from democrai.core.application.ai.engine.schemas.audio import SpeechResponse
 from democrai.core.application.ai.engine.schemas.audio import SpeechUsage
@@ -56,26 +56,29 @@ _MODEL_TYPES = {
 }
 
 
-def json_value(value: Any) -> Any:
+BinaryPacker = Callable[[bytes | bytearray], Any]
+
+
+def json_value(value: Any, *, binary_packer: BinaryPacker | None = None) -> Any:
     if isinstance(value, EngineMethodResponse):
         return {
             "__model__": "EngineMethodResponse",
             "value": {
-                "result": json_value(value.result),
-                "usage": json_value(value.usage),
+                "result": json_value(value.result, binary_packer=binary_packer),
+                "usage": json_value(value.usage, binary_packer=binary_packer),
                 "duration_ms": value.duration_ms,
                 "tokens_per_second": value.tokens_per_second,
-                "metadata": json_value(value.metadata),
+                "metadata": json_value(value.metadata, binary_packer=binary_packer),
             },
         }
     if isinstance(value, EngineStreamFinal):
         return {
             "__model__": "EngineStreamFinal",
             "value": {
-                "usage": json_value(value.usage),
+                "usage": json_value(value.usage, binary_packer=binary_packer),
                 "duration_ms": value.duration_ms,
                 "tokens_per_second": value.tokens_per_second,
-                "metadata": json_value(value.metadata),
+                "metadata": json_value(value.metadata, binary_packer=binary_packer),
             },
         }
     if isinstance(value, EngineUsage):
@@ -86,22 +89,32 @@ def json_value(value: Any) -> Any:
     if hasattr(value, "model_dump"):
         return {
             "__model__": value.__class__.__name__,
-            "value": json_value(value.model_dump(mode="python")),
+            "value": json_value(
+                value.model_dump(mode="python"),
+                binary_packer=binary_packer,
+            ),
         }
     if isinstance(value, bytes):
+        if binary_packer is not None:
+            return binary_packer(value)
         return {
             "__bytes__": base64.b64encode(value).decode("ascii"),
         }
     if isinstance(value, bytearray):
+        if binary_packer is not None:
+            return binary_packer(value)
         return {
             "__bytes__": base64.b64encode(bytes(value)).decode("ascii"),
         }
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, dict):
-        return {str(key): json_value(current) for key, current in value.items()}
+        return {
+            str(key): json_value(current, binary_packer=binary_packer)
+            for key, current in value.items()
+        }
     if isinstance(value, (list, tuple)):
-        return [json_value(item) for item in value]
+        return [json_value(item, binary_packer=binary_packer) for item in value]
     if hasattr(value, "tolist"):
         return value.tolist()
     return value

@@ -4,43 +4,10 @@ import asyncio
 import contextlib
 import inspect
 import os
-import sys
-import sysconfig
-import threading
 import traceback
 from typing import Any
 
-from democrai.core.application.access_policy import AccessManifestRule
-from democrai.core.application.access_policy import AccessResource
-from democrai.core.application.access_policy import AccessSubject
-from democrai.core.application.ai.engine.manifests import load_engine_class
-from democrai.core.application.ai.engine.base.llm import ai_call_context
-from democrai.core.application.ai.engine.schemas.audio import TTSOptions
-from democrai.core.application.ai.engine.schemas.completion import CompletionOptions
-from democrai.core.application.ai.engine.schemas.completion import ClassificationOptions
-from democrai.core.application.ai.engine.schemas.completion import RerankOptions
-from democrai.core.application.ai.engine.schemas.kg import KGExtractionOptions
-from democrai.core.application.ai.engine.runtime.serialization import json_value
-from democrai.core.application.ai.engine.runtime.serialization import python_value
-from democrai.core.application.ai.security.prompt.messages import (
-    normalize_prompt_messages,
-)
-from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
-from democrai.core.infrastructure.sandbox.process_guard import runtime_system_read_paths
-from democrai.core.infrastructure.observability.logger.manager import LoggerManager
-from democrai.core.runtime.foundation.app import app_ctx
-from democrai.core.runtime.foundation.app import request_context_scope
-from democrai.core.runtime.dependencies.engine_env import engine_env_context
-from democrai.core.runtime.dependencies.engine_env import get_engine_local_cache_path
-from democrai.core.runtime.dependencies.engine_env import get_engine_local_config_path
-from democrai.core.runtime.dependencies.engine_env import get_engine_local_env_path
-from democrai.core.runtime.dependencies.engine_env import get_engine_local_tmp_path
-from democrai.core.runtime.dependencies.engine_env import isolate_engine_imports
-from democrai.core.runtime.dependencies.engine_env import set_engine_local_path_overrides
-from democrai.core.runtime.foundation.paths import get_base_dir
-from democrai.core.runtime.foundation.paths import get_runtime_engine_dirs
-from democrai.core.runtime.foundation.paths import get_runtime_module_dirs
-from democrai.core.runtime.foundation.paths import logs_dir
+from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
@@ -49,6 +16,18 @@ _WORKER_LOGGING_CONFIG_KEYS = {
     "logging.url",
     "logging.method",
 }
+
+
+def _json_value(value: Any, **kwargs: Any) -> Any:
+    from democrai.core.application.ai.engine.runtime.serialization import json_value
+
+    return json_value(value, **kwargs)
+
+
+def _python_value(value: Any) -> Any:
+    from democrai.core.application.ai.engine.runtime.serialization import python_value
+
+    return python_value(value)
 
 
 class _WorkerRuntimeConfig:
@@ -84,7 +63,11 @@ def _payload_list(payload: dict[str, Any], key: str) -> list[Any]:
     return value
 
 
-def _access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]:
+def _access_rules(items: list[dict[str, Any]]):
+    from democrai.core.application.access_policy import AccessManifestRule
+    from democrai.core.application.access_policy import AccessResource
+    from democrai.core.application.access_policy import AccessSubject
+
     rules: list[AccessManifestRule] = []
     for item in items:
         subject = item.get("subject") if isinstance(item, dict) else None
@@ -107,34 +90,34 @@ def _access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]
     return tuple(rules)
 
 
-def _engine_system_read_access_rules(engine_id: str) -> tuple[AccessManifestRule, ...]:
-    subject = AccessSubject.create("engine", engine_id)
-    return tuple(
-        AccessManifestRule(
-            subject=subject,
-            resource=AccessResource.create(
-                resource_type="filesystem",
-                operation="read",
-                target=path,
-            ),
-        )
-        for path in runtime_system_read_paths()
-    )
+def _configure_worker_logging(logging_config: dict[str, Any], log_dir: str) -> None:
+    from democrai.core.infrastructure.observability.logger.manager import LoggerManager
+    from democrai.core.runtime.foundation.app import app_ctx
 
+    resolved_log_dir = str(log_dir or "").strip()
+    if not resolved_log_dir:
+        raise RuntimeError("engine_worker_log_dir_required")
 
-def _configure_worker_logging(logging_config: dict[str, Any]) -> None:
     ctx = app_ctx()
     ctx.config = _WorkerRuntimeConfig(logging_config)
-    ctx.logger = LoggerManager(log_dir=str(logs_dir()), config=ctx.config)
+    ctx.logger = LoggerManager(log_dir=resolved_log_dir, config=ctx.config)
 
 
-def _configure_engine_path_overrides(engine_id: str) -> None:
+def _configure_engine_path_overrides(engine_id: str, path_overrides: dict[str, Any]) -> None:
+    from democrai.core.runtime.dependencies.engine_env import set_engine_local_path_overrides
+
+    env_path = str(path_overrides.get("env") or "").strip()
+    cache_path = str(path_overrides.get("cache") or "").strip()
+    config_path = str(path_overrides.get("config") or "").strip()
+    tmp_path = str(path_overrides.get("tmp") or "").strip()
+    if not all((env_path, cache_path, config_path, tmp_path)):
+        raise RuntimeError("engine_worker_path_overrides_required")
     set_engine_local_path_overrides(
         engine_id,
-        env_path=str(get_engine_local_env_path(engine_id)),
-        cache_path=str(get_engine_local_cache_path(engine_id)),
-        config_path=str(get_engine_local_config_path(engine_id)),
-        tmp_path=str(get_engine_local_tmp_path(engine_id)),
+        env_path=env_path,
+        cache_path=cache_path,
+        config_path=config_path,
+        tmp_path=tmp_path,
     )
 
 
@@ -156,52 +139,8 @@ def _existing_paths(values: list[str]) -> list[str]:
     return paths
 
 
-def _worker_landlock_read_only_paths() -> list[str]:
-    candidates: list[str] = [
-        "/proc",
-        "/sys",
-        "/etc",
-        "/usr",
-        "/lib",
-        "/lib32",
-        "/lib64",
-        "/run",
-        "/dev",
-    ]
-    for key in (
-        "stdlib",
-        "platstdlib",
-        "purelib",
-        "platlib",
-        "data",
-        "include",
-        "scripts",
-    ):
-        path = sysconfig.get_paths().get(key)
-        if path:
-            candidates.append(path)
-    candidates.extend(path for path in sys.path if path)
-    for attr in ("prefix", "base_prefix", "exec_prefix"):
-        path = getattr(sys, attr, None)
-        if path:
-            candidates.append(path)
-    try:
-        candidates.append(str(get_base_dir()))
-    except Exception:
-        pass
-    try:
-        candidates.extend(get_runtime_module_dirs())
-    except Exception:
-        pass
-    try:
-        candidates.extend(get_runtime_engine_dirs())
-    except Exception:
-        pass
-    return _existing_paths(candidates)
-
-
 def _worker_landlock_access_paths(
-    access: tuple[AccessManifestRule, ...],
+    access,
 ) -> tuple[list[str], list[str]]:
     read_only: list[str] = []
     read_write: list[str] = []
@@ -223,7 +162,9 @@ def _worker_landlock_access_paths(
 def _apply_worker_landlock(
     *,
     enabled: bool,
-    access: tuple[AccessManifestRule, ...],
+    access,
+    read_only_paths: list[str],
+    read_write_paths: list[str],
 ) -> None:
     if not enabled:
         return
@@ -231,29 +172,33 @@ def _apply_worker_landlock(
         apply_landlock_filesystem_rules,
         is_landlock_supported,
     )
-
     if not is_landlock_supported():
         return
     access_ro, access_rw = _worker_landlock_access_paths(access)
     apply_landlock_filesystem_rules(
         read_only_paths=_existing_paths(
             [
-                *_worker_landlock_read_only_paths(),
+                *read_only_paths,
                 *access_ro,
             ]
         ),
         read_write_paths=_existing_paths(
             [
+                *read_write_paths,
                 *access_rw,
-                str(logs_dir().resolve()),
             ]
         ),
     )
 
 
 def _method_payload(method: str, payload: dict[str, Any]) -> dict[str, Any]:
-    data = python_value(payload)
+    data = _python_value(payload)
     if method in {"generate_completion", "generate_stream"}:
+        from democrai.core.application.ai.engine.schemas.completion import CompletionOptions
+        from democrai.core.application.ai.security.prompt.messages import (
+            normalize_prompt_messages,
+        )
+
         messages = data.get("messages")
         options = data.get("options")
         if isinstance(messages, list):
@@ -265,24 +210,34 @@ def _method_payload(method: str, payload: dict[str, Any]) -> dict[str, Any]:
                 raise TypeError("completion_options_expected")
             data["options"] = CompletionOptions(**options)
     if method in {"synthesize", "synthesize_stream"}:
+        from democrai.core.application.ai.engine.schemas.audio import TTSOptions
+
         options = data.get("options")
         if options is not None and not isinstance(options, TTSOptions):
             if not isinstance(options, dict):
                 raise TypeError("tts_options_expected")
             data["options"] = TTSOptions(**options)
     if method == "rerank":
+        from democrai.core.application.ai.engine.schemas.completion import RerankOptions
+
         options = data.get("options")
         if options is not None and not isinstance(options, RerankOptions):
             if not isinstance(options, dict):
                 raise TypeError("rerank_options_expected")
             data["options"] = RerankOptions(**options)
     if method == "classify":
+        from democrai.core.application.ai.engine.schemas.completion import (
+            ClassificationOptions,
+        )
+
         options = data.get("options")
         if options is not None and not isinstance(options, ClassificationOptions):
             if not isinstance(options, dict):
                 raise TypeError("classification_options_expected")
             data["options"] = ClassificationOptions(**options)
     if method == "extract_triples":
+        from democrai.core.application.ai.engine.schemas.kg import KGExtractionOptions
+
         options = data.get("options")
         if options is not None and not isinstance(options, KGExtractionOptions):
             if not isinstance(options, dict):
@@ -337,6 +292,8 @@ async def _send_stream_result(
         )
     except Exception as exc:
         try:
+            from democrai.core.runtime.foundation.app import app_ctx
+
             app_ctx().logger.error(
                 "[EngineWorker] Stream task failed "
                 f"engine_id={getattr(worker, '_engine_id', '')} "
@@ -361,7 +318,7 @@ async def _send_stream_result(
 class _Worker:
     def __init__(self, conn) -> None:
         self._conn = conn
-        self._send_lock = threading.Lock()
+        self._channel = LocalBinaryPayloadChannel(conn)
         self._stack = contextlib.ExitStack()
         self._engine: Any = None
         self._engine_cls: Any = None
@@ -371,8 +328,7 @@ class _Worker:
         self._invoke_semaphore = asyncio.Semaphore(1)
 
     def _send(self, payload: dict[str, Any]) -> None:
-        with self._send_lock:
-            self._conn.send(json_value(payload))
+        self._channel.send_json(payload, _json_value)
 
     async def _send_task_result(
         self,
@@ -395,6 +351,8 @@ class _Worker:
             )
         except Exception as exc:
             try:
+                from democrai.core.runtime.foundation.app import app_ctx
+
                 app_ctx().logger.error(
                     "[EngineWorker] Task failed "
                     f"engine_id={self._engine_id} response_id={response_id} "
@@ -438,16 +396,30 @@ class _Worker:
             concurrency_limit if concurrency_enabled else 1
         )
         os.environ["DEMOCRAI_ENGINE_WORKER"] = "1"
-        access = (
-            *_access_rules(_payload_list(payload, "access")),
-            *_engine_system_read_access_rules(engine_id),
+        access = _access_rules(_payload_list(payload, "access"))
+        _configure_worker_logging(
+            _payload_dict(payload, "logging_config"),
+            str(payload.get("log_dir") or ""),
         )
-        _configure_worker_logging(_payload_dict(payload, "logging_config"))
-        _configure_engine_path_overrides(self._engine_id)
+        _configure_engine_path_overrides(
+            self._engine_id,
+            _payload_dict(payload, "path_overrides"),
+        )
         _apply_worker_landlock(
             enabled=bool(payload.get("landlock_enabled", False)),
             access=access,
+            read_only_paths=[
+                str(item) for item in _payload_list(payload, "landlock_read_only_paths")
+            ],
+            read_write_paths=[
+                str(item) for item in _payload_list(payload, "landlock_read_write_paths")
+            ],
         )
+        from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+        from democrai.core.runtime.dependencies.engine_env import engine_env_context
+        from democrai.core.runtime.dependencies.engine_env import isolate_engine_imports
+        from democrai.core.application.ai.engine.manifests import load_engine_class
+
         self._stack.enter_context(
             process_guard_context(
                 subject=engine_id,
@@ -508,6 +480,8 @@ class _Worker:
         call_payload = _method_payload(method, raw_payload)
         async with self._invoke_semaphore:
             if isinstance(context, dict) and context:
+                from democrai.core.application.ai.engine.base.llm import ai_call_context
+
                 with ai_call_context(**context):
                     return await _collect_result(
                         await self._call_engine_method(target, call_payload)
@@ -532,6 +506,8 @@ class _Worker:
         async def _invoke_items():
             async with self._invoke_semaphore:
                 if isinstance(context, dict) and context:
+                    from democrai.core.application.ai.engine.base.llm import ai_call_context
+
                     with ai_call_context(**context):
                         result = await self._call_engine_method(target, call_payload)
                         async for item in _stream_items(result):
@@ -546,17 +522,19 @@ class _Worker:
     async def run(self) -> int:
         while True:
             try:
-                request = await asyncio.to_thread(self._conn.recv)
+                request = await asyncio.to_thread(self._channel.recv)
             except EOFError:
                 return 0
             if not isinstance(request, dict):
                 raise TypeError("engine_worker_request_dict_expected")
-            request = python_value(request)
+            request = _python_value(request)
             request_id = request.get("id", "")
             try:
                 request_context = request.get("request_context") or {}
                 if not isinstance(request_context, dict):
                     raise TypeError("engine_worker_request_context_dict_expected")
+                from democrai.core.runtime.foundation.app import request_context_scope
+
                 with request_context_scope(request_context):
                     operation = request.get("operation", "")
                     if operation == "init":
@@ -611,6 +589,8 @@ class _Worker:
                     raise RuntimeError(f"engine_worker_operation_unknown:{operation}")
             except Exception as exc:
                 try:
+                    from democrai.core.runtime.foundation.app import app_ctx
+
                     app_ctx().logger.error(
                         "[EngineWorker] Request failed "
                         f"engine_id={self._engine_id} operation={request.get('operation', '')} "
@@ -636,9 +616,12 @@ class _Worker:
         if callable(cleanup):
             cleanup()
         self._stack.close()
+        self._channel.close()
 
 
 async def _main() -> int:
+    from democrai.core.runtime.foundation.app import app_ctx
+
     app_ctx().dev = os.environ.get("DEMOCRAI_DEV") == "1"
     conn = connect_from_env("DEMOCRAI_ENGINE_WORKER_CONTROL")
     worker = _Worker(conn)

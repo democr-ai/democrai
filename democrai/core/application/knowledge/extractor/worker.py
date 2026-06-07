@@ -6,21 +6,11 @@ import os
 import threading
 import traceback
 import uuid
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-from democrai.core.application.access_policy import AccessManifestRule
-from democrai.core.application.access_policy import AccessResource
-from democrai.core.application.access_policy import AccessSubject
-from democrai.core.application.ai.engine.runtime.serialization import json_value
-from democrai.core.application.ai.engine.runtime.serialization import python_value
-from democrai.core.application.knowledge.extractor.manifests import load_extractor_class
-from democrai.core.infrastructure.storage.media.providers.base import MaterializedMedia
-from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
-from democrai.core.runtime.foundation.app import app_ctx
-from democrai.core.runtime.foundation.app import req_ctx
-from democrai.core.runtime.foundation.app import request_context_scope
-from democrai.core.runtime.dependencies.extractor_env import extractor_env_context
-from democrai.core.runtime.dependencies.extractor_env import isolate_extractor_imports
+from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
@@ -38,7 +28,43 @@ class _WorkerRuntimeConfig:
         return None
 
 
-def _access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]:
+def _json_value(value: Any, **kwargs: Any) -> Any:
+    from democrai.core.application.ai.engine.runtime.serialization import json_value
+
+    return json_value(value, **kwargs)
+
+
+def _python_value(value: Any) -> Any:
+    from democrai.core.application.ai.engine.runtime.serialization import python_value
+
+    return python_value(value)
+
+
+@dataclass(frozen=True)
+class _RuntimeMaterializedMedia:
+    path: str
+    temporary: bool = False
+
+    def cleanup(self) -> None:
+        if not self.temporary:
+            return
+        target = Path(self.path)
+        try:
+            if target.is_dir():
+                import shutil
+
+                shutil.rmtree(target, ignore_errors=True)
+            else:
+                target.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _access_rules(items: list[dict[str, Any]]):
+    from democrai.core.application.access_policy import AccessManifestRule
+    from democrai.core.application.access_policy import AccessResource
+    from democrai.core.application.access_policy import AccessSubject
+
     rules: list[AccessManifestRule] = []
     for item in items:
         subject = item.get("subject")
@@ -61,6 +87,29 @@ def _access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]
     return tuple(rules)
 
 
+def _configure_extractor_path_overrides(
+    extractor_id: str,
+    path_overrides: dict[str, Any],
+) -> None:
+    from democrai.core.runtime.dependencies.extractor_env import (
+        set_extractor_local_path_overrides,
+    )
+
+    env_path = str(path_overrides.get("env") or "").strip()
+    cache_path = str(path_overrides.get("cache") or "").strip()
+    config_path = str(path_overrides.get("config") or "").strip()
+    tmp_path = str(path_overrides.get("tmp") or "").strip()
+    if not all((env_path, cache_path, config_path, tmp_path)):
+        raise RuntimeError("extractor_worker_path_overrides_required")
+    set_extractor_local_path_overrides(
+        extractor_id,
+        env_path=env_path,
+        cache_path=cache_path,
+        config_path=config_path,
+        tmp_path=tmp_path,
+    )
+
+
 async def _collect_result(result: Any) -> Any:
     if asyncio.iscoroutine(result):
         return await result
@@ -75,23 +124,23 @@ async def _collect_result(result: Any) -> Any:
 class _ParentMediaProxy:
     def __init__(self) -> None:
         self._conn = connect_from_env("DEMOCRAI_EXTRACTOR_WORKER_PARENT")
+        self._channel = LocalBinaryPayloadChannel(self._conn)
         self._lock = threading.Lock()
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
         request_id = uuid.uuid4().hex
         with self._lock:
-            self._conn.send(
-                json_value(
-                    {
-                        "id": request_id,
-                        "parent_request": True,
-                        "operation": operation,
-                        "payload": payload,
-                    }
-                )
+            self._channel.send_json(
+                {
+                    "id": request_id,
+                    "parent_request": True,
+                    "operation": operation,
+                    "payload": payload,
+                },
+                _json_value,
             )
             while True:
-                response = python_value(self._conn.recv())
+                response = _python_value(self._channel.recv())
                 if str(response.get("id") or "") != request_id:
                     continue
                 if not bool(response.get("ok")):
@@ -111,7 +160,7 @@ class _ParentMediaProxy:
         path: str,
         *,
         destination_dir: str | None = None,
-    ) -> MaterializedMedia:
+    ) -> _RuntimeMaterializedMedia:
         storage_path = str(path or "").strip()
         if not storage_path:
             raise ValueError("storage_path_required")
@@ -128,12 +177,13 @@ class _ParentMediaProxy:
         )
         if not isinstance(result, dict):
             raise RuntimeError("extractor_runtime_materialize_response_invalid")
-        return MaterializedMedia(
+        return _RuntimeMaterializedMedia(
             path=str(result.get("path") or ""),
             temporary=bool(result.get("temporary")),
         )
 
     def close(self) -> None:
+        self._channel.close()
         try:
             self._conn.close()
         except Exception:
@@ -143,20 +193,23 @@ class _ParentMediaProxy:
 class _Worker:
     def __init__(self, conn) -> None:
         self._conn = conn
-        self._send_lock = threading.Lock()
+        self._channel = LocalBinaryPayloadChannel(conn)
         self._stack = contextlib.ExitStack()
         self._extractor_cls: Any = None
         self._extractor: Any = None
         self._extractor_id = ""
         self._phase = ""
         self._media_proxy = _ParentMediaProxy()
+        from democrai.core.runtime.foundation.app import app_ctx
+
         app_ctx().media = self._media_proxy
 
     def _send(self, payload: dict[str, Any]) -> None:
-        with self._send_lock:
-            self._conn.send(json_value(payload))
+        self._channel.send_json(payload, _json_value)
 
     def _require_request_context(self, operation: str) -> None:
+        from democrai.core.runtime.foundation.app import req_ctx
+
         try:
             req_ctx()
         except LookupError as exc:
@@ -171,8 +224,21 @@ class _Worker:
         self._phase = phase
         runtime_config = dict(payload.get("runtime_config") or {})
         if runtime_config:
+            from democrai.core.runtime.foundation.app import app_ctx
+
             app_ctx().config = _WorkerRuntimeConfig(runtime_config)
         os.environ["DEMOCRAI_EXTRACTOR_WORKER"] = "1"
+        _configure_extractor_path_overrides(
+            extractor_id,
+            dict(payload.get("path_overrides") or {}),
+        )
+        from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+        from democrai.core.runtime.dependencies.extractor_env import extractor_env_context
+        from democrai.core.runtime.dependencies.extractor_env import isolate_extractor_imports
+        from democrai.core.application.knowledge.extractor.manifests import (
+            load_extractor_class,
+        )
+
         self._stack.enter_context(
             process_guard_context(
                 subject=extractor_id,
@@ -188,14 +254,8 @@ class _Worker:
                 inherit_parent_access=False,
             )
         )
-        env = (
-            {
-                "HF_HUB_OFFLINE": "1",
-                "TRANSFORMERS_OFFLINE": "1",
-            }
-            if phase == "runtime"
-            else None
-        )
+        env_payload = payload.get("env")
+        env = dict(env_payload) if isinstance(env_payload, dict) else None
         self._stack.enter_context(extractor_env_context(extractor_id, env=env))
         isolate_extractor_imports(extractor_id)
         extractor_cls = load_extractor_class(extractor_id)
@@ -246,11 +306,13 @@ class _Worker:
     async def run(self) -> int:
         while True:
             try:
-                request = python_value(await asyncio.to_thread(self._conn.recv))
+                request = _python_value(await asyncio.to_thread(self._channel.recv))
             except EOFError:
                 return 0
             request_id = str(request.get("id") or "")
             try:
+                from democrai.core.runtime.foundation.app import request_context_scope
+
                 with request_context_scope(dict(request.get("request_context") or {})):
                     operation = str(request.get("operation") or "").strip()
                     payload = dict(request.get("payload") or {})
@@ -272,6 +334,8 @@ class _Worker:
                     raise RuntimeError(f"extractor_worker_operation_unknown:{operation}")
             except Exception as exc:
                 try:
+                    from democrai.core.runtime.foundation.app import app_ctx
+
                     app_ctx().logger.error(
                         "[ExtractorWorker] Request failed "
                         f"extractor_id={self._extractor_id} phase={self._phase} "
@@ -296,6 +360,7 @@ class _Worker:
             cleanup()
         self._media_proxy.close()
         self._stack.close()
+        self._channel.close()
 
 
 async def _main() -> int:

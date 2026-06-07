@@ -33,7 +33,12 @@ from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import get_runtime_engine_dirs
 from democrai.core.runtime.foundation.paths import get_runtime_module_dirs
 from democrai.core.runtime.foundation.paths import logs_dir
+from democrai.core.runtime.dependencies.engine_env import get_engine_local_cache_path
+from democrai.core.runtime.dependencies.engine_env import get_engine_local_config_path
+from democrai.core.runtime.dependencies.engine_env import get_engine_local_env_path
+from democrai.core.runtime.dependencies.engine_env import get_engine_local_tmp_path
 from democrai.core.runtime.dependencies.engine_env import get_engine_venv_python_path
+from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
@@ -189,6 +194,60 @@ def worker_runtime_access(
     )
 
 
+def worker_path_overrides(engine_id: str) -> dict[str, str]:
+    return {
+        "env": str(get_engine_local_env_path(engine_id)),
+        "cache": str(get_engine_local_cache_path(engine_id)),
+        "config": str(get_engine_local_config_path(engine_id)),
+        "tmp": str(get_engine_local_tmp_path(engine_id)),
+    }
+
+
+def worker_landlock_paths() -> dict[str, list[str]]:
+    return {
+        "read_only": list(_worker_platform_read_paths()),
+        "read_write": [str(logs_dir().resolve())],
+    }
+
+
+def build_engine_worker_init_payload(
+    *,
+    engine_id: str,
+    config: dict[str, Any],
+    class_only: bool,
+) -> dict[str, Any]:
+    logging_config = worker_logging_config()
+    landlock_paths = worker_landlock_paths()
+    return {
+        "engine_id": engine_id,
+        "config": config,
+        "class_only": bool(class_only),
+        "logging_config": logging_config,
+        "log_dir": str(logs_dir().resolve()),
+        "landlock_enabled": worker_landlock_enabled(),
+        "path_overrides": worker_path_overrides(engine_id),
+        "landlock_read_only_paths": landlock_paths["read_only"],
+        "landlock_read_write_paths": landlock_paths["read_write"],
+        "env": get_engine_runtime_env(engine_id),
+        "access": [
+            rule.to_dict()
+            for rule in worker_runtime_access(
+                engine_id=engine_id,
+                config=config,
+                logging_config=logging_config,
+            )
+        ],
+        "allowed_imports": get_engine_allowed_imports(
+            engine_id,
+            "runtime",
+        ),
+        "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
+            engine_id,
+            "runtime",
+        ),
+    }
+
+
 class EngineWorkerSubject:
     def __init__(
         self,
@@ -209,11 +268,13 @@ class EngineWorkerSubject:
         self._closed = False
         self._process: subprocess.Popen[str] | None = None
         self._control_conn = None
+        self._control_channel: LocalBinaryPayloadChannel | None = None
         self._stderr_reader = None
         self._stderr_tail: list[str] = []
         self._stderr_lock = threading.Lock()
         self._stderr_thread: threading.Thread | None = None
         self._parent_conn = None
+        self._parent_channel: LocalBinaryPayloadChannel | None = None
         self._parent_request_thread: threading.Thread | None = None
         self._start(dict(config), class_only=class_only)
 
@@ -243,37 +304,18 @@ class EngineWorkerSubject:
                 env=env,
                 text=True,
             )
-            logging_config = worker_logging_config()
-            init_payload = {
-                "engine_id": self._engine_id,
-                "config": config,
-                "class_only": bool(class_only),
-                "logging_config": logging_config,
-                "landlock_enabled": worker_landlock_enabled(),
-                "env": get_engine_runtime_env(self._engine_id),
-                "access": [
-                    rule.to_dict()
-                    for rule in worker_runtime_access(
-                        engine_id=self._engine_id,
-                        config=config,
-                        logging_config=logging_config,
-                    )
-                ],
-                "allowed_imports": get_engine_allowed_imports(
-                    self._engine_id,
-                    "runtime",
-                ),
-                "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
-                    self._engine_id,
-                    "runtime",
-                ),
-            }
+            init_payload = build_engine_worker_init_payload(
+                engine_id=self._engine_id,
+                config=config,
+                class_only=class_only,
+            )
         try:
             self._control_conn = accept_connection(
                 control_endpoint,
                 process=self._process,
                 timeout_seconds=10.0,
             )
+            self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
             threading.Thread(
                 target=self._accept_parent_connection,
                 args=(parent_endpoint,),
@@ -306,6 +348,7 @@ class EngineWorkerSubject:
                 process=self._process,
                 timeout_seconds=86400.0,
             )
+            self._parent_channel = LocalBinaryPayloadChannel(self._parent_conn)
         except Exception:
             return
         self._parent_request_thread = threading.Thread(
@@ -317,8 +360,8 @@ class EngineWorkerSubject:
 
     def _read_responses(self) -> None:
         try:
-            while self._control_conn is not None:
-                response = python_value(self._control_conn.recv())
+            while self._control_channel is not None:
+                response = python_value(self._control_channel.recv())
                 response_id = str(response.get("id") or "")
                 with self._response_condition:
                     if response.get("stream"):
@@ -388,8 +431,8 @@ class EngineWorkerSubject:
 
     def _read_parent_requests(self) -> None:
         try:
-            while self._parent_conn is not None:
-                request = python_value(self._parent_conn.recv())
+            while self._parent_channel is not None:
+                request = python_value(self._parent_channel.recv())
                 self._handle_parent_request(dict(request or {}))
         except Exception:
             return
@@ -410,9 +453,9 @@ class EngineWorkerSubject:
                 "error": str(exc),
             }
         with self._write_lock:
-            if self._parent_conn is None:
+            if self._parent_channel is None:
                 return
-            self._parent_conn.send(json_value(response))
+            self._parent_channel.send_json(response, json_value)
 
     def _parent_media_request(self, operation: str, payload: dict[str, Any]) -> Any:
         from democrai.core.runtime.foundation.app import app_ctx
@@ -464,28 +507,27 @@ class EngineWorkerSubject:
         raise RuntimeError(f"engine_worker_parent_operation_unknown:{operation}")
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
-        if self._process is None or self._control_conn is None:
+        if self._process is None or self._control_channel is None:
             raise RuntimeError("engine_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"engine_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._control_conn.send(
-                json_value(
-                    {
-                        "id": request_id,
-                        "operation": operation,
-                        "payload": payload,
-                        "request_context": current_request_context_payload(
-                            f"engine_worker_subject.{operation}"
-                        ),
-                        **(
-                            {"request_id": str(payload.get("request_id") or "")}
-                            if operation == "invoke" and payload.get("request_id")
-                            else {}
-                        ),
-                    }
-                )
+            self._control_channel.send_json(
+                {
+                    "id": request_id,
+                    "operation": operation,
+                    "payload": payload,
+                    "request_context": current_request_context_payload(
+                        f"engine_worker_subject.{operation}"
+                    ),
+                    **(
+                        {"request_id": str(payload.get("request_id") or "")}
+                        if operation == "invoke" and payload.get("request_id")
+                        else {}
+                    ),
+                },
+                json_value,
             )
         with self._response_condition:
             self._response_condition.wait_for(
@@ -515,28 +557,27 @@ class EngineWorkerSubject:
         return response.get("result")
 
     def _send_request(self, operation: str, payload: dict[str, Any]) -> str:
-        if self._process is None or self._control_conn is None:
+        if self._process is None or self._control_channel is None:
             raise RuntimeError("engine_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"engine_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._control_conn.send(
-                json_value(
-                    {
-                        "id": request_id,
-                        "operation": operation,
-                        "payload": payload,
-                        "request_context": current_request_context_payload(
-                            f"engine_worker_subject.{operation}"
-                        ),
-                        **(
-                            {"request_id": str(payload.get("request_id") or "")}
-                            if operation == "invoke" and payload.get("request_id")
-                            else {}
-                        ),
-                    }
-                )
+            self._control_channel.send_json(
+                {
+                    "id": request_id,
+                    "operation": operation,
+                    "payload": payload,
+                    "request_context": current_request_context_payload(
+                        f"engine_worker_subject.{operation}"
+                    ),
+                    **(
+                        {"request_id": str(payload.get("request_id") or "")}
+                        if operation == "invoke" and payload.get("request_id")
+                        else {}
+                    ),
+                },
+                json_value,
             )
         return request_id
 
@@ -644,6 +685,12 @@ class EngineWorkerSubject:
                     except subprocess.TimeoutExpired:
                         process.kill()
         finally:
+            for channel in (self._control_channel, self._parent_channel):
+                try:
+                    if channel is not None:
+                        channel.close()
+                except Exception:
+                    pass
             for handle in (self._control_conn, self._parent_conn):
                 try:
                     if handle is not None:
@@ -652,3 +699,5 @@ class EngineWorkerSubject:
                     pass
             self._control_conn = None
             self._parent_conn = None
+            self._control_channel = None
+            self._parent_channel = None

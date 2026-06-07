@@ -8,11 +8,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from democrai.core.application.ai.engine.runtime.serialization import json_value
+from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
 _LOCK = threading.Lock()
 _CONN = None
+_CHANNEL: LocalBinaryPayloadChannel | None = None
 
 
 @dataclass(frozen=True)
@@ -41,28 +44,30 @@ def _require_engine_worker_runtime() -> None:
 
 
 def _connection():
-    global _CONN
+    global _CONN, _CHANNEL
     _require_engine_worker_runtime()
-    if _CONN is not None:
-        return _CONN
+    if _CHANNEL is not None:
+        return _CHANNEL
     _CONN = connect_from_env("DEMOCRAI_ENGINE_WORKER_PARENT")
-    return _CONN
+    _CHANNEL = LocalBinaryPayloadChannel(_CONN)
+    return _CHANNEL
 
 
 def _request(operation: str, payload: dict[str, Any]) -> Any:
-    conn = _connection()
+    channel = _connection()
     request_id = uuid.uuid4().hex
     with _LOCK:
-        conn.send(
+        channel.send_json(
             {
                 "id": request_id,
                 "parent_request": True,
                 "operation": operation,
                 "payload": payload,
-            }
+            },
+            json_value,
         )
         while True:
-            response = conn.recv()
+            response = channel.recv()
             if str(response.get("id") or "") != request_id:
                 continue
             if not bool(response.get("ok")):

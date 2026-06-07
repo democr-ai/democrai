@@ -18,7 +18,12 @@ from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import current_request_context_payload
 from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import is_frozen
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_cache_path
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_config_path
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_env_path
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_tmp_path
 from democrai.core.runtime.dependencies.extractor_env import get_extractor_venv_python_path
+from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
@@ -136,6 +141,47 @@ def worker_runtime_config() -> dict[str, Any]:
     return values
 
 
+def worker_runtime_env(phase: str) -> dict[str, str]:
+    if str(phase or "").strip().lower() != "runtime":
+        return {}
+    return {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+    }
+
+
+def worker_path_overrides(extractor_id: str) -> dict[str, str]:
+    return {
+        "env": str(get_extractor_local_env_path(extractor_id)),
+        "cache": str(get_extractor_local_cache_path(extractor_id)),
+        "config": str(get_extractor_local_config_path(extractor_id)),
+        "tmp": str(get_extractor_local_tmp_path(extractor_id)),
+    }
+
+
+def build_extractor_worker_init_payload(
+    *,
+    extractor_id: str,
+    phase: str,
+    config: dict[str, Any],
+    access: tuple[AccessManifestRule, ...],
+    allowed_imports: list[str],
+) -> dict[str, Any]:
+    return {
+        "extractor_id": extractor_id,
+        "phase": phase,
+        "config": config,
+        "runtime_config": worker_runtime_config(),
+        "env": worker_runtime_env(phase),
+        "path_overrides": worker_path_overrides(extractor_id),
+        "access": [
+            rule.to_dict()
+            for rule in access
+        ],
+        "allowed_imports": allowed_imports,
+    }
+
+
 def _network_endpoint_payloads_from_access(
     access: tuple[AccessManifestRule, ...],
 ) -> list[dict[str, Any]]:
@@ -236,7 +282,9 @@ class ExtractorWorkerSubject:
         self._process: subprocess.Popen[str] | None = None
         self._stdout_reader = None
         self._control_conn = None
+        self._control_channel: LocalBinaryPayloadChannel | None = None
         self._parent_conn = None
+        self._parent_channel: LocalBinaryPayloadChannel | None = None
         self._start(dict(config or {}))
 
     def _start(self, config: dict[str, Any]) -> None:
@@ -285,11 +333,13 @@ class ExtractorWorkerSubject:
                 process=self._process,
                 timeout_seconds=10.0,
             )
+            self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
             self._parent_conn = accept_connection(
                 parent_endpoint,
                 process=self._process,
                 timeout_seconds=10.0,
             )
+            self._parent_channel = LocalBinaryPayloadChannel(self._parent_conn)
         except Exception:
             _stop_process_after_start_failure(self._process)
             control_endpoint.close()
@@ -315,26 +365,22 @@ class ExtractorWorkerSubject:
             ).start()
         self._request(
             "init",
-            {
-                "extractor_id": self._extractor_id,
-                "phase": self._phase,
-                "config": config,
-                "runtime_config": worker_runtime_config(),
-                "access": [
-                    rule.to_dict()
-                    for rule in phase_access
-                ],
-                "allowed_imports": get_extractor_allowed_imports(
+            build_extractor_worker_init_payload(
+                extractor_id=self._extractor_id,
+                phase=self._phase,
+                config=config,
+                access=phase_access,
+                allowed_imports=get_extractor_allowed_imports(
                     self._extractor_id,
                     self._phase,
                 ),
-            },
+            ),
         )
 
     def _read_responses(self) -> None:
         try:
-            while self._control_conn is not None:
-                response = python_value(self._control_conn.recv())
+            while self._control_channel is not None:
+                response = python_value(self._control_channel.recv())
                 response_id = str(response.get("id") or "")
                 with self._response_condition:
                     self._responses[response_id] = response
@@ -348,8 +394,8 @@ class ExtractorWorkerSubject:
 
     def _read_parent_requests(self) -> None:
         try:
-            while self._parent_conn is not None:
-                request = python_value(self._parent_conn.recv())
+            while self._parent_channel is not None:
+                request = python_value(self._parent_channel.recv())
                 self._handle_parent_request(dict(request or {}))
         except Exception:
             return
@@ -375,9 +421,9 @@ class ExtractorWorkerSubject:
                 "error": str(exc),
             }
         with self._write_lock:
-            if self._parent_conn is None:
+            if self._parent_channel is None:
                 return
-            self._parent_conn.send(json_value(response))
+            self._parent_channel.send_json(response, json_value)
 
     def _parent_media_request(self, operation: str, payload: dict[str, Any]) -> Any:
         from democrai.core.runtime.dependencies.extractor_env import (
@@ -430,23 +476,22 @@ class ExtractorWorkerSubject:
                 pass
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
-        if self._process is None or self._control_conn is None:
+        if self._process is None or self._control_channel is None:
             raise RuntimeError("extractor_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"extractor_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._control_conn.send(
-                json_value(
-                    {
-                        "id": request_id,
-                        "operation": operation,
-                        "payload": payload,
-                        "request_context": current_request_context_payload(
-                            f"extractor_worker_subject.{operation}"
-                        ),
-                    }
-                )
+            self._control_channel.send_json(
+                {
+                    "id": request_id,
+                    "operation": operation,
+                    "payload": payload,
+                    "request_context": current_request_context_payload(
+                        f"extractor_worker_subject.{operation}"
+                    ),
+                },
+                json_value,
             )
         with self._response_condition:
             self._response_condition.wait_for(
@@ -515,6 +560,12 @@ class ExtractorWorkerSubject:
                     except subprocess.TimeoutExpired:
                         process.kill()
         finally:
+            for channel in (self._control_channel, self._parent_channel):
+                try:
+                    if channel is not None:
+                        channel.close()
+                except Exception:
+                    pass
             for handle in (self._stdout_reader, self._control_conn, self._parent_conn):
                 try:
                     if handle is not None:
@@ -523,3 +574,5 @@ class ExtractorWorkerSubject:
                     pass
             self._control_conn = None
             self._parent_conn = None
+            self._control_channel = None
+            self._parent_channel = None

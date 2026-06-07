@@ -14,6 +14,7 @@ from democrai.core.runtime.dependencies.env_constants import engine_runtime_comm
 from democrai.core.runtime.foundation.paths import data_dir
 
 _EXTRACTOR_ENV_ROOT = data_dir() / "extractor_env_cache"
+_EXTRACTOR_LOCAL_PATH_OVERRIDES: dict[str, dict[str, Path]] = {}
 
 
 _current_extractor_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -197,24 +198,36 @@ def get_extractor_local_env_path(extractor_id: str | None = None) -> Path:
         resolved = extractor_id_text if extractor_id_text else None
     if not resolved:
         raise RuntimeError("extractor_env_context_missing")
+    override = _extractor_path_override("env", resolved)
+    if override is not None:
+        return override
     path = _EXTRACTOR_ENV_ROOT / resolved
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def get_extractor_local_cache_path(extractor_id: str | None = None) -> Path:
+    override = _extractor_path_override("cache", extractor_id)
+    if override is not None:
+        return override
     path = get_extractor_local_env_path(extractor_id) / "cache"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def get_extractor_local_config_path(extractor_id: str | None = None) -> Path:
+    override = _extractor_path_override("config", extractor_id)
+    if override is not None:
+        return override
     path = get_extractor_local_env_path(extractor_id) / "config"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def get_extractor_local_tmp_path(extractor_id: str | None = None) -> Path:
+    override = _extractor_path_override("tmp", extractor_id)
+    if override is not None:
+        return override
     path = get_extractor_local_env_path(extractor_id) / "tmp"
     path.mkdir(parents=True, exist_ok=True)
     return path
@@ -237,6 +250,39 @@ def get_extractor_venv_site_packages_path(extractor_id: str | None = None) -> Pa
         return venv / "Lib" / "site-packages"
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     return venv / "lib" / version / "site-packages"
+
+
+def set_extractor_local_path_overrides(
+    extractor_id: str,
+    *,
+    env_path: str,
+    cache_path: str,
+    config_path: str,
+    tmp_path: str,
+) -> None:
+    resolved = extractor_id.strip().lower() if isinstance(extractor_id, str) else ""
+    if not resolved:
+        raise RuntimeError("extractor_env_context_missing")
+    _EXTRACTOR_LOCAL_PATH_OVERRIDES[resolved] = {
+        "env": Path(env_path),
+        "cache": Path(cache_path),
+        "config": Path(config_path),
+        "tmp": Path(tmp_path),
+    }
+
+
+def _extractor_path_override(kind: str, extractor_id: str | None) -> Path | None:
+    if extractor_id is None:
+        resolved = get_current_extractor_id()
+    else:
+        extractor_id_text = extractor_id.strip().lower()
+        resolved = extractor_id_text if extractor_id_text else None
+    if not resolved:
+        return None
+    values = _EXTRACTOR_LOCAL_PATH_OVERRIDES.get(resolved)
+    if not values:
+        return None
+    return values.get(kind)
 
 
 def isolate_extractor_imports(extractor_id: str | None = None) -> None:

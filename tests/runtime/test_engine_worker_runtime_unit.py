@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextlib import ExitStack
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 from democrai.core.application.access_policy import AccessManifestRule
@@ -34,6 +35,23 @@ def test_engine_worker_logging_config_contains_only_logger_keys(monkeypatch):
         "logging.method": "POST",
     }
     assert subject_mod.worker_landlock_enabled() is True
+
+
+def test_engine_worker_module_keeps_heavy_core_imports_lazy():
+    source = Path(worker_mod.__file__).read_text(encoding="utf-8")
+    forbidden = (
+        "from democrai.core.application.ai.engine.manifests",
+        "from democrai.core.infrastructure.sandbox.process_guard",
+        "from democrai.core.infrastructure.observability.logger",
+        "from democrai.core.application.ai.engine.schemas",
+        "from democrai.core.application.ai.security",
+        "from democrai.core.application.ai.engine.runtime.serialization",
+    )
+
+    for item in forbidden:
+        assert item not in "\n".join(
+            line for line in source.splitlines() if line.startswith("from ")
+        )
 
 
 def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: Path):
@@ -80,6 +98,43 @@ def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: 
     ) in resources
 
 
+def test_engine_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_path: Path):
+    access = (
+        AccessManifestRule(
+            subject=AccessSubject.create("engine", "demo"),
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation="read",
+                target=str(tmp_path / "model"),
+            ),
+        ),
+    )
+    monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {"logging.provider": "local"})
+    monkeypatch.setattr(subject_mod, "worker_landlock_enabled", lambda: True)
+    monkeypatch.setattr(subject_mod, "worker_path_overrides", lambda _engine_id: {"env": "env", "cache": "cache", "config": "config", "tmp": "tmp"})
+    monkeypatch.setattr(subject_mod, "worker_landlock_paths", lambda: {"read_only": ["ro"], "read_write": ["rw"]})
+    monkeypatch.setattr(subject_mod, "get_engine_runtime_env", lambda _engine_id: {"PATH": "runtime"})
+    monkeypatch.setattr(subject_mod, "worker_runtime_access", lambda **_kwargs: access)
+    monkeypatch.setattr(subject_mod, "get_engine_allowed_imports", lambda *_args: ["numpy"])
+    monkeypatch.setattr(subject_mod, "get_engine_allowed_subprocess_commands", lambda *_args: ["ffmpeg"])
+
+    payload = subject_mod.build_engine_worker_init_payload(
+        engine_id="demo",
+        config={"model": "tiny"},
+        class_only=False,
+    )
+
+    assert payload["logging_config"] == {"logging.provider": "local"}
+    assert payload["log_dir"]
+    assert payload["path_overrides"] == {"env": "env", "cache": "cache", "config": "config", "tmp": "tmp"}
+    assert payload["landlock_read_only_paths"] == ["ro"]
+    assert payload["landlock_read_write_paths"] == ["rw"]
+    assert payload["env"] == {"PATH": "runtime"}
+    assert payload["allowed_imports"] == ["numpy"]
+    assert payload["allowed_subprocess_commands"] == ["ffmpeg"]
+    assert payload["access"][0]["resource"]["target"] == str(tmp_path / "model")
+
+
 def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch, tmp_path: Path):
     calls = []
 
@@ -101,20 +156,35 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
         calls.append(("env", engine_id, env))
         yield
 
-    monkeypatch.setattr(worker_mod, "LoggerManager", _Logger)
-    monkeypatch.setattr(worker_mod, "logs_dir", lambda: tmp_path / "logs")
-    monkeypatch.setattr(worker_mod, "process_guard_context", _guard)
-    monkeypatch.setattr(worker_mod, "engine_env_context", _env)
-    monkeypatch.setattr(worker_mod, "isolate_engine_imports", lambda engine_id: None)
-    monkeypatch.setattr(worker_mod, "load_engine_class", lambda engine_id: _Engine)
-    timezone_path = "/var/db/timezone/zoneinfo"
     monkeypatch.setattr(
         worker_mod,
-        "runtime_system_read_paths",
-        lambda: [str(tmp_path / "system"), timezone_path],
+        "_configure_worker_logging",
+        lambda logging_config, log_dir: calls.append(("logger", log_dir, worker_mod._WorkerRuntimeConfig(logging_config))),
     )
-    monkeypatch.setattr(worker_mod, "_configure_engine_path_overrides", lambda engine_id: calls.append(("paths", engine_id)))
+    monkeypatch.setattr(
+        worker_mod,
+        "_configure_engine_path_overrides",
+        lambda engine_id, path_overrides: calls.append(("paths", engine_id, path_overrides)),
+    )
     monkeypatch.setattr(worker_mod, "_apply_worker_landlock", lambda **kwargs: calls.append(("landlock", kwargs)))
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.infrastructure.sandbox.process_guard",
+        SimpleNamespace(process_guard_context=_guard),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.runtime.dependencies.engine_env",
+        SimpleNamespace(
+            engine_env_context=_env,
+            isolate_engine_imports=lambda engine_id: None,
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "democrai.core.application.ai.engine.manifests",
+        SimpleNamespace(load_engine_class=lambda engine_id: _Engine),
+    )
 
     worker = worker_mod._Worker.__new__(worker_mod._Worker)
     worker._stack = ExitStack()
@@ -131,8 +201,17 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
                     "logging.provider": "local",
                     "database.url": "must-not-be-used",
                 },
+                "log_dir": str(tmp_path / "logs"),
                 "landlock_enabled": True,
                 "env": {"XDG_CACHE_HOME": str(tmp_path / "cache")},
+                "path_overrides": {
+                    "env": str(tmp_path / "env"),
+                    "cache": str(tmp_path / "cache"),
+                    "config": str(tmp_path / "config"),
+                    "tmp": str(tmp_path / "tmp"),
+                },
+                "landlock_read_only_paths": [str(tmp_path / "system")],
+                "landlock_read_write_paths": [],
                 "access": [],
                 "allowed_imports": [],
                 "allowed_subprocess_commands": [],
@@ -157,10 +236,17 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
         )
         for rule in guard_call[1]["access"]
     ]
-    assert ("filesystem", "read", str(tmp_path / "system")) in guard_access
-    assert ("filesystem", "read", timezone_path) in guard_access
     assert not any(item[2] == str(tmp_path) for item in guard_access)
     assert isinstance(worker._engine, _Engine)
+
+
+def test_engine_worker_init_requires_path_overrides():
+    try:
+        worker_mod._configure_engine_path_overrides("demo", {"env": "env"})
+    except RuntimeError as exc:
+        assert str(exc) == "engine_worker_path_overrides_required"
+    else:
+        raise AssertionError("engine_worker_path_overrides_required")
 
 
 def test_engine_worker_landlock_paths_use_access_rules_without_global_config(tmp_path: Path):
@@ -253,6 +339,9 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
         def poll(self):
             return None
 
+        def wait(self, timeout=None):
+            return 0
+
     @contextmanager
     def _bypass():
         yield
@@ -287,6 +376,8 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
     monkeypatch.setattr(subject_mod, "get_engine_venv_python_path", lambda _engine_id: tmp_path / "python")
     monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {})
     monkeypatch.setattr(subject_mod, "worker_landlock_enabled", lambda: False)
+    monkeypatch.setattr(subject_mod, "worker_path_overrides", lambda _engine_id: {})
+    monkeypatch.setattr(subject_mod, "worker_landlock_paths", lambda: {"read_only": [], "read_write": []})
     monkeypatch.setattr(subject_mod, "get_engine_runtime_env", lambda _engine_id: {})
     monkeypatch.setattr(subject_mod, "worker_runtime_access", lambda **_kwargs: ())
     monkeypatch.setattr(subject_mod, "get_engine_allowed_imports", lambda *_args: [])
@@ -297,7 +388,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
         lambda self, operation, payload: None,
     )
 
-    subject = subject_mod.EngineWorkerSubject("demo", {"model": "tiny"})
+    subject = subject_mod.EngineWorkerSubject(engine_id="demo", config={"model": "tiny"})
     try:
         env = popen_calls[0][1]["env"]
         assert "pass" + "_fds" not in popen_calls[0][1]
