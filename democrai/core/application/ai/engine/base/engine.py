@@ -25,6 +25,13 @@ from democrai.core.runtime.dependencies.engine_env import (
 )
 
 
+_GENERIC_NOT_READY_MESSAGES = (
+    "requires shared state or local dependencies",
+    "requires shared or local dependencies",
+    "missing shared or local dependencies",
+)
+
+
 class BaseEngine(ABC):
     """Common base class for installable engines."""
 
@@ -268,8 +275,12 @@ class BaseEngine(ABC):
         ready_result = cls._check_ready_local(node_id=resolved_node_id)
         if not ready_result.get("ready"):
             raise RuntimeError(
-                ready_result.get("message")
-                or f"{cls.__name__} is not ready after install"
+                cls._not_ready_message(
+                    missing_shared=ready_result.get("missing_shared", []),
+                    missing_local=ready_result.get("missing_local", []),
+                    message=ready_result.get("message"),
+                    install_context=True,
+                )
             )
         cls._mark_installed_in_registry()
         payload = install_result.copy()
@@ -455,9 +466,70 @@ class BaseEngine(ABC):
             "message": (
                 ok_message or "Engine ready"
                 if ready
-                else error_message or "Missing shared or local dependencies"
+                else cls._not_ready_message(
+                    missing_shared=resolved_missing_shared,
+                    missing_local=resolved_missing_local,
+                    message=error_message,
+                )
             ),
         }
+
+    @classmethod
+    def _not_ready_message(
+        cls,
+        *,
+        missing_shared: list[str] | None = None,
+        missing_local: list[str] | None = None,
+        message: str | None = None,
+        install_context: bool = False,
+    ) -> str:
+        engine_label = cls.engine_id or cls.__name__
+        resolved_message = str(message or "").strip()
+        if not resolved_message or cls._is_generic_not_ready_message(resolved_message):
+            resolved_message = (
+                f"{engine_label} install completed, but the runtime is not ready"
+                if install_context
+                else f"{engine_label} is not ready"
+            )
+        details = cls._not_ready_detail_parts(
+            missing_shared=missing_shared,
+            missing_local=missing_local,
+        )
+        if details:
+            return f"{resolved_message}: {'; '.join(details)}"
+        return f"{resolved_message}: readiness check returned false without missing dependency details"
+
+    @staticmethod
+    def _is_generic_not_ready_message(message: str) -> bool:
+        normalized = str(message or "").strip().lower()
+        return any(item in normalized for item in _GENERIC_NOT_READY_MESSAGES)
+
+    @staticmethod
+    def _not_ready_detail_parts(
+        *,
+        missing_shared: list[str] | None = None,
+        missing_local: list[str] | None = None,
+    ) -> list[str]:
+        details: list[str] = []
+        shared_items = BaseEngine._unique_labels(missing_shared)
+        local_items = BaseEngine._unique_labels(missing_local)
+        if shared_items:
+            details.append(f"missing shared dependencies/state: {', '.join(shared_items)}")
+        if local_items:
+            details.append(f"missing local dependencies: {', '.join(local_items)}")
+        return details
+
+    @staticmethod
+    def _unique_labels(values: list[str] | None) -> list[str]:
+        labels: list[str] = []
+        seen: set[str] = set()
+        for value in values or []:
+            label = str(value or "").strip()
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            labels.append(label)
+        return labels
 
     @classmethod
     def _build_supported_payload(

@@ -1117,6 +1117,42 @@ def test_yolo_ready_checks_declared_runtime_chain(monkeypatch):
     assert result["missing_local"] == []
 
 
+def test_yolo_ready_reports_ultralytics_runtime_import_error(monkeypatch):
+    yolo_mod = importlib.import_module("engines.yolo.engine")
+
+    monkeypatch.setattr(yolo_mod.YoloEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(yolo_mod.YoloEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_sahi_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_opencv_runtime_supported",
+        staticmethod(lambda: True),
+    )
+
+    def _import_module(name):
+        if name == "ultralytics":
+            raise RuntimeError("torchvision operator mismatch")
+        raise AssertionError(name)
+
+    monkeypatch.setattr(yolo_mod.importlib, "import_module", _import_module)
+
+    result = yolo_mod.YoloEngine._check_ready()
+
+    assert result["ready"] is False
+    assert result["missing_local"] == [
+        "ultralytics runtime import failed: torchvision operator mismatch"
+    ]
+
+
 def test_espeak_install_installs_system_dependency_when_missing(monkeypatch):
     espeak_mod = importlib.import_module("engines.espeak.engine")
     calls = []

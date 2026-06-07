@@ -69,9 +69,47 @@ def test_base_engine_install_local_source_and_remote_paths(monkeypatch):
 
 def test_base_engine_install_raises_when_not_ready(monkeypatch):
     monkeypatch.setattr(engine_mod, "engine_env_context", lambda _eid: __import__("contextlib").nullcontext())
-    monkeypatch.setattr(_Engine, "_check_ready_local", classmethod(lambda cls, node_id=None: {"ready": False, "message": "bad"}))
-    with pytest.raises(RuntimeError):
+    monkeypatch.setattr(
+        _Engine,
+        "_check_ready_local",
+        classmethod(
+            lambda cls, node_id=None: {
+                "ready": False,
+                "message": "Demo engine requires shared state or local dependencies",
+                "missing_shared": ["model cache"],
+                "missing_local": ["onnxruntime"],
+            }
+        ),
+    )
+    with pytest.raises(RuntimeError) as exc:
         _Engine.install()
+    message = str(exc.value)
+    assert "demo install completed, but the runtime is not ready" in message
+    assert "missing shared dependencies/state: model cache" in message
+    assert "missing local dependencies: onnxruntime" in message
+
+
+def test_engine_install_event_not_ready_message_uses_base_engine_formatter():
+    install_events = __import__(
+        "democrai.core.application.ai.engine.install_events",
+        fromlist=["_engine_not_ready_message"],
+    )
+    message = install_events._engine_not_ready_message(
+        _Engine,
+        {
+            "ready": False,
+            "message": "Demo engine requires shared state or local dependencies",
+            "missing_shared": ["shared model"],
+            "missing_local": ["onnxruntime"],
+        },
+        install_context=True,
+    )
+
+    assert message == (
+        "demo install completed, but the runtime is not ready: "
+        "missing shared dependencies/state: shared model; "
+        "missing local dependencies: onnxruntime"
+    )
 
 
 def test_base_engine_invoke_install_and_helpers(monkeypatch):
@@ -100,6 +138,23 @@ def test_base_engine_invoke_install_and_helpers(monkeypatch):
     assert _Engine._missing_modules(("missing.mod", "M")) == ["M"]
     assert _Engine._missing_commands(("missingcmd", "C")) == ["C"]
     assert _Engine._build_ready_payload(missing_shared=[], missing_local=[])["ready"] is True
+    not_ready = _Engine._build_ready_payload(
+        missing_shared=["shared index"],
+        missing_local=["Missing"],
+        error_message="Demo engine requires shared state or local dependencies",
+    )
+    assert not_ready["ready"] is False
+    assert not_ready["message"] == (
+        "demo is not ready: missing shared dependencies/state: shared index; "
+        "missing local dependencies: Missing"
+    )
+    custom_not_ready = _Engine._build_ready_payload(
+        missing_local=["Missing"],
+        error_message="Demo engine failed its import check",
+    )
+    assert custom_not_ready["message"] == (
+        "Demo engine failed its import check: missing local dependencies: Missing"
+    )
     assert _Engine._build_supported_payload(supported=True)["supported"] is True
 
 

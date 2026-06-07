@@ -87,6 +87,28 @@ def _active_runtime_node_ids(session) -> list[str]:
     return [current] if current else []
 
 
+def _engine_not_ready_message(
+    engine_cls: Any,
+    ready_result: dict[str, Any],
+    *,
+    install_context: bool = False,
+) -> str:
+    formatter = getattr(engine_cls, "_not_ready_message", None)
+    if callable(formatter):
+        return str(
+            formatter(
+                missing_shared=ready_result.get("missing_shared", []),
+                missing_local=ready_result.get("missing_local", []),
+                message=ready_result.get("message"),
+                install_context=install_context,
+            )
+        )
+    message = str(ready_result.get("message") or "").strip()
+    if message:
+        return message
+    return "engine_not_ready"
+
+
 def recompute_engine_install_status(
     engine_id: str,
     *,
@@ -919,7 +941,13 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
             missing_local=ready_result.get("missing_local", []),
         )
         if not ready_result.get("ready"):
-            raise RuntimeError(ready_result.get("message") or "engine_not_ready")
+            raise RuntimeError(
+                _engine_not_ready_message(
+                    engine_cls,
+                    ready_result,
+                    install_context=True,
+                )
+            )
         _upsert_node_status(
             engine_id=engine_id,
             node_id=node_id,

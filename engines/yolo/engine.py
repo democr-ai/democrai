@@ -77,11 +77,11 @@ class YoloEngine(BaseEngine, BaseCvProvider):
         missing_local = list(payload.get("missing_local") or [])
         missing_local.extend(cls._missing_chain_versions())
         if not cls._ultralytics_runtime_supported():
-            missing_local.append("ultralytics runtime")
+            missing_local.append(cls._ultralytics_runtime_missing_label())
         if not cls._sahi_runtime_supported():
-            missing_local.append("sahi runtime")
+            missing_local.append(cls._sahi_runtime_missing_label())
         if not cls._opencv_runtime_supported():
-            missing_local.append("opencv runtime")
+            missing_local.append(cls._opencv_runtime_missing_label())
         payload["missing_local"] = missing_local
         if payload["missing_local"]:
             payload["ready"] = False
@@ -114,33 +114,52 @@ class YoloEngine(BaseEngine, BaseCvProvider):
 
     @staticmethod
     def _ultralytics_runtime_supported() -> bool:
+        return not YoloEngine._ultralytics_runtime_missing_label()
+
+    @staticmethod
+    def _ultralytics_runtime_missing_label() -> str:
         _ensure_ultralytics_config_dir()
         _disable_ultralytics_git_probe()
         try:
             ultralytics = importlib.import_module("ultralytics")
-        except Exception:
-            return False
-        return hasattr(ultralytics, "YOLO")
+        except Exception as exc:
+            return f"ultralytics runtime import failed: {exc}"
+        if not hasattr(ultralytics, "YOLO"):
+            return "ultralytics runtime missing YOLO attribute"
+        return ""
 
     @staticmethod
     def _sahi_runtime_supported() -> bool:
+        return not YoloEngine._sahi_runtime_missing_label()
+
+    @staticmethod
+    def _sahi_runtime_missing_label() -> str:
         try:
             sahi = importlib.import_module("sahi")
             predict = importlib.import_module("sahi.predict")
-        except Exception:
-            return False
-        return hasattr(sahi, "AutoDetectionModel") and hasattr(
-            predict,
-            "get_sliced_prediction",
-        )
+        except Exception as exc:
+            return f"sahi runtime import failed: {exc}"
+        if not hasattr(sahi, "AutoDetectionModel"):
+            return "sahi runtime missing AutoDetectionModel attribute"
+        if not hasattr(predict, "get_sliced_prediction"):
+            return "sahi runtime missing get_sliced_prediction attribute"
+        return ""
 
     @staticmethod
     def _opencv_runtime_supported() -> bool:
+        return not YoloEngine._opencv_runtime_missing_label()
+
+    @staticmethod
+    def _opencv_runtime_missing_label() -> str:
         try:
             cv2 = importlib.import_module("cv2")
-        except Exception:
-            return False
-        return hasattr(cv2, "imdecode") and hasattr(cv2, "VideoCapture")
+        except Exception as exc:
+            return f"opencv runtime import failed: {exc}"
+        if not hasattr(cv2, "imdecode"):
+            return "opencv runtime missing imdecode attribute"
+        if not hasattr(cv2, "VideoCapture"):
+            return "opencv runtime missing VideoCapture attribute"
+        return ""
 
     @classmethod
     def _validate_config(cls, *, config: dict | None = None) -> dict[str, object]:
