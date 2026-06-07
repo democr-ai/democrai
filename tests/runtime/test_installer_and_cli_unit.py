@@ -535,6 +535,9 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     )
     assert captured_cmds[-1][:4] == [installer_mod.sys.executable, "-m", "uv", "pip"]
     assert "--python" in captured_cmds[-1]
+    assert captured_cmds[-1][
+        captured_cmds[-1].index("--link-mode") + 1
+    ] == "hardlink"
     monkeypatch.setattr(
         installer_mod,
         "subprocess",
@@ -563,6 +566,9 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
         cache_dir=tmp_path / "cache" / "uv",
     )
     assert captured_cmds[-1][:4] == [installer_mod.sys.executable, "-m", "uv", "pip"]
+    assert captured_cmds[-1][
+        captured_cmds[-1].index("--link-mode") + 1
+    ] == "hardlink"
     monkeypatch.setattr(installer_mod.importlib.util, "find_spec", lambda _m: None)
     assert installer_mod._import_any(["a", "b"]) is False
     monkeypatch.setattr(

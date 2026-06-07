@@ -146,6 +146,8 @@ def run_pip_internal(
         "--no-python-downloads",
         "--index-strategy",
         "unsafe-best-match",
+        "--link-mode",
+        "hardlink",
         *args,
     ]
     install_env = dict(os.environ)
