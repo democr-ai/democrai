@@ -11,17 +11,18 @@ from democrai.core.application.access_policy import AccessSubject
 from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
 from democrai.core.application.ai.engine.access_constants import (
     DEFAULT_ENGINE_INSTALL_RECEIVE_URLS,
+    ENGINE_RUNTIME_DRIVER_LIBRARY_DIR_NAME,
+    ENGINE_RUNTIME_TOOLCHAIN_BIN_DIR_NAME,
+    engine_runtime_c_compiler_candidate_paths,
     engine_runtime_device_modify_paths,
     engine_runtime_device_read_paths,
+    engine_runtime_engine_env_executable_relative_paths,
+    engine_runtime_libcuda_candidate_paths,
+    engine_runtime_toolchain_program_candidate_paths,
 )
 from democrai.core.application.ai.engine.runtime.environment import (
     engine_phase_access_section,
     engine_phase_section,
-)
-from democrai.core.application.ai.engine.runtime.toolchain import (
-    engine_runtime_engine_env_executable_paths,
-    ensure_engine_runtime_driver_libs,
-    ensure_engine_runtime_toolchain,
 )
 from democrai.core.runtime.dependencies.engine_env import (
     get_engine_local_cache_path,
@@ -32,6 +33,29 @@ from democrai.core.runtime.dependencies.engine_env import (
     get_engine_venv_python_path,
 )
 from democrai.core.runtime.foundation.app import app_ctx
+
+
+def _policy_path(path: Path) -> str:
+    return os.path.normpath(os.path.abspath(str(path)))
+
+
+def _filesystem_rules(
+    subject: AccessSubject,
+    *,
+    operation: str,
+    targets: list[str] | tuple[str, ...],
+) -> list[AccessManifestRule]:
+    return [
+        AccessManifestRule(
+            subject=subject,
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation=operation,
+                target=target,
+            ),
+        )
+        for target in dict.fromkeys(target for target in targets if target)
+    ]
 
 
 def _allowed_config_url_keys(section: dict[str, Any]) -> list[str]:
@@ -121,8 +145,8 @@ def get_engine_network_access(
 
 def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessManifestRule, ...]:
     subject = AccessSubject.create("engine", engine_id)
-    engine_env_path = str(get_engine_local_env_path(engine_id).resolve())
-    engine_venv_path = str(get_engine_venv_path(engine_id).resolve())
+    engine_env_path = _policy_path(get_engine_local_env_path(engine_id, create=False))
+    engine_venv_path = _policy_path(get_engine_venv_path(engine_id, create=False))
     rules = [
         AccessManifestRule(
             subject=subject,
@@ -150,9 +174,9 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
             for operation in ("create", "modify", "delete")
         )
     if phase in {"install", "runtime"}:
-        cache_path = str(get_engine_local_cache_path(engine_id).resolve())
-        config_path = str(get_engine_local_config_path(engine_id).resolve())
-        tmp_path = str(get_engine_local_tmp_path(engine_id).resolve())
+        cache_path = _policy_path(get_engine_local_cache_path(engine_id, create=False))
+        config_path = _policy_path(get_engine_local_config_path(engine_id, create=False))
+        tmp_path = _policy_path(get_engine_local_tmp_path(engine_id, create=False))
         rules.extend(
             AccessManifestRule(
                 subject=subject,
@@ -192,8 +216,10 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 (
                     str(sys.executable),
                     os.path.realpath(str(sys.executable)),
-                    str(get_engine_venv_python_path(engine_id)),
-                    os.path.realpath(str(get_engine_venv_python_path(engine_id))),
+                    _policy_path(get_engine_venv_python_path(engine_id, create=False)),
+                    os.path.realpath(
+                        str(get_engine_venv_python_path(engine_id, create=False))
+                    ),
                 )
             )
         )
@@ -231,96 +257,91 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
             )
             for path in engine_runtime_device_modify_paths()
         )
-        driver_lib_path, driver_lib_targets = ensure_engine_runtime_driver_libs(engine_id)
-        if driver_lib_path is not None:
-            rules.append(
-                AccessManifestRule(
-                    subject=subject,
-                    resource=AccessResource.create(
-                        resource_type="filesystem",
-                        operation="read",
-                        target=str(driver_lib_path),
-                    ),
-                )
-            )
+        driver_lib_path = Path(engine_env_path) / ENGINE_RUNTIME_DRIVER_LIBRARY_DIR_NAME
         rules.extend(
-            AccessManifestRule(
-                subject=subject,
-                resource=AccessResource.create(
-                    resource_type="filesystem",
-                    operation="read",
-                    target=str(path),
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=(
+                    _policy_path(driver_lib_path),
+                    *engine_runtime_libcuda_candidate_paths(),
                 ),
             )
-            for path in driver_lib_targets
         )
-        compiler_path, compiler_targets = ensure_engine_runtime_toolchain(engine_id)
-        if compiler_path is not None:
-            toolchain_bin_path = compiler_path.parent
-            rules.append(
-                AccessManifestRule(
-                    subject=subject,
-                    resource=AccessResource.create(
-                        resource_type="filesystem",
-                        operation="read",
-                        target=str(toolchain_bin_path),
-                    ),
-                )
-            )
-            rules.append(
-                AccessManifestRule(
-                    subject=subject,
-                    resource=AccessResource.create(
-                        resource_type="filesystem",
-                        operation="execute",
-                        target=str(toolchain_bin_path),
-                    ),
-                )
-            )
+        compiler_targets = tuple(engine_runtime_c_compiler_candidate_paths())
         rules.extend(
-            AccessManifestRule(
-                subject=subject,
-                resource=AccessResource.create(
-                    resource_type="filesystem",
-                    operation="read",
-                    target=str(path),
-                ),
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=compiler_targets,
             )
-            for path in compiler_targets
         )
         rules.extend(
-            AccessManifestRule(
-                subject=subject,
-                resource=AccessResource.create(
-                    resource_type="filesystem",
-                    operation="execute",
-                    target=str(path),
-                ),
+            _filesystem_rules(
+                subject,
+                operation="execute",
+                targets=compiler_targets,
             )
-            for path in compiler_targets
         )
-        engine_env_executable_paths = engine_runtime_engine_env_executable_paths(engine_id)
-        rules.extend(
-            AccessManifestRule(
-                subject=subject,
-                resource=AccessResource.create(
-                    resource_type="filesystem",
-                    operation="read",
-                    target=str(path),
-                ),
-            )
-            for path in engine_env_executable_paths
+        toolchain_program_targets = tuple(
+            target
+            for targets in engine_runtime_toolchain_program_candidate_paths().values()
+            for target in targets
         )
         rules.extend(
-            AccessManifestRule(
-                subject=subject,
-                resource=AccessResource.create(
-                    resource_type="filesystem",
-                    operation="execute",
-                    target=str(path),
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=toolchain_program_targets,
+            )
+        )
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="execute",
+                targets=toolchain_program_targets,
+            )
+        )
+        toolchain_bin_path = Path(engine_env_path) / ENGINE_RUNTIME_TOOLCHAIN_BIN_DIR_NAME
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=(
+                    _policy_path(toolchain_bin_path),
+                    "/usr/lib/gcc",
+                    "/usr/libexec/gcc",
                 ),
             )
-            for path in engine_env_executable_paths
+        )
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="execute",
+                targets=(
+                    _policy_path(toolchain_bin_path),
+                    "/usr/lib/gcc",
+                    "/usr/libexec/gcc",
+                ),
+            )
+        )
+        engine_env_executable_paths = tuple(
+            _policy_path(Path(engine_env_path) / relative_path)
+            for relative_path in engine_runtime_engine_env_executable_relative_paths()
+        )
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=engine_env_executable_paths,
+            )
+        )
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="execute",
+                targets=engine_env_executable_paths,
+            )
         )
         media_models_path = _local_media_models_path()
         if media_models_path:

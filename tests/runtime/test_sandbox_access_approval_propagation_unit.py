@@ -300,6 +300,82 @@ def test_process_guard_external_access_denial_is_cached_per_context(
     assert rows == []
 
 
+def test_process_guard_external_access_cache_is_scoped_by_subject_access_chain(
+    tmp_path: Path,
+    monkeypatch,
+):
+    from democrai.core.application.services import external_access
+    from democrai.core.infrastructure.sandbox import process_guard
+
+    calls = {"count": 0}
+
+    def _deny(**_kwargs):
+        calls["count"] += 1
+        return SimpleNamespace(allowed=False, requires_approval=True, code="blocked")
+
+    monkeypatch.setattr(external_access, "check_external_access", _deny)
+    denied = tmp_path / "cached_chain_denial.txt"
+    denied.write_text("x", encoding="utf-8")
+    cache_token = process_guard._EXTERNAL_ACCESS_CACHE.set({})
+    try:
+        for fingerprint in (
+            (("module", "system", ()), ("engine", "onnx", (("filesystem", "read", "a"),))),
+            (("engine", "onnx", (("filesystem", "read", "a"),)),),
+        ):
+            state_token = process_guard._STATE.set(
+                {
+                    "subject": "onnx",
+                    "subject_kind": "engine",
+                    "subject_chain": [{"kind": "engine", "name": "onnx"}],
+                    "subject_access_fingerprint": fingerprint,
+                }
+            )
+            try:
+                with pytest.raises(ExternalAccessApprovalRequired):
+                    process_guard._external_filesystem_access_allowed(
+                        denied,
+                        operation="read",
+                    )
+            finally:
+                process_guard._STATE.reset(state_token)
+    finally:
+        process_guard._EXTERNAL_ACCESS_CACHE.reset(cache_token)
+
+    assert calls["count"] == 2
+
+
+def test_process_guard_filesystem_denial_message_includes_subject_chain(
+    external_access_db,
+    tmp_path: Path,
+):
+    denied = tmp_path / "engine_denied.txt"
+    denied.write_text("x", encoding="utf-8")
+
+    with process_guard_context(
+        subject="system",
+        subject_kind="module",
+        allowed_paths=[],
+        user_id=7,
+        organization_id=2,
+        session_key="sess-7",
+        include_runtime_paths=False,
+    ):
+        with process_guard_context(
+            subject="onnx",
+            subject_kind="engine",
+            allowed_paths=[],
+            include_runtime_paths=False,
+        ):
+            with pytest.raises(ExternalAccessApprovalRequired) as raised:
+                denied.read_text(encoding="utf-8")
+
+    message = str(raised.value)
+    assert "sandbox_filesystem_denied:onnx:" in message
+    assert "subject=engine:onnx" in message
+    assert "chain=module:system > engine:onnx" in message
+    assert "operation=read" in message
+
+
 def test_process_guard_blocks_democrai_env_spoofing(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("DEMOCRAI_USER_ID", raising=False)
     monkeypatch.delenv("DEMOCRAI_SESSION_KEY", raising=False)

@@ -314,6 +314,101 @@ def test_engine_env_without_overrides_uses_data_dir(monkeypatch, tmp_path: Path)
     )
 
 
+def test_invoke_engine_class_method_loads_class_inside_engine_guard(monkeypatch):
+    from democrai.core.application.ai.engine.runtime import methods as methods_mod
+
+    events = []
+
+    @contextmanager
+    def _guard(**kwargs):
+        events.append(("guard_enter", kwargs["subject"], kwargs["subject_kind"]))
+        try:
+            yield
+        finally:
+            events.append(("guard_exit", kwargs["subject"], kwargs["subject_kind"]))
+
+    class _Engine:
+        @staticmethod
+        def support_status(env):
+            events.append(("method", env))
+            return {"ok": True}
+
+    def _load(engine_id):
+        events.append(("load", engine_id, events[-1][0] if events else "none"))
+        return _Engine
+
+    monkeypatch.setattr(methods_mod, "process_guard_context", _guard)
+    monkeypatch.setattr(methods_mod, "get_engine_access", lambda *_a, **_k: ())
+    monkeypatch.setattr(methods_mod, "get_engine_allowed_imports", lambda *_a: [])
+    monkeypatch.setattr(
+        methods_mod,
+        "get_engine_allowed_subprocess_commands",
+        lambda *_a: [],
+    )
+    monkeypatch.setattr(methods_mod, "get_engine_runtime_env", lambda *_a: {})
+    monkeypatch.setattr(
+        methods_mod,
+        "engine_env_context",
+        lambda *_a, **_k: _guard(subject="env", subject_kind="env"),
+    )
+    monkeypatch.setattr(methods_mod, "load_engine_class", _load)
+
+    result = methods_mod.invoke_engine_class_method(
+        engine_id="onnx",
+        phase="runtime",
+        method="support_status",
+        payload={"env": {}},
+    )
+
+    assert result == {"ok": True}
+    assert events[0] == ("guard_enter", "onnx", "engine")
+    assert events[1] == ("load", "onnx", "guard_enter")
+
+
+def test_check_engine_ready_runtime_checks_venv_inside_engine_guard(monkeypatch):
+    from democrai.core.application.ai.engine.runtime import methods as methods_mod
+
+    state = {"inside_guard": False}
+
+    @contextmanager
+    def _guard(**_kwargs):
+        state["inside_guard"] = True
+        try:
+            yield
+        finally:
+            state["inside_guard"] = False
+
+    class _PythonPath:
+        def exists(self):
+            assert state["inside_guard"] is True
+            return False
+
+    monkeypatch.setattr(methods_mod, "_engine_guard", lambda **_kwargs: _guard())
+    monkeypatch.setattr(
+        methods_mod,
+        "get_engine_venv_python_path",
+        lambda _engine_id: _PythonPath(),
+    )
+
+    result = methods_mod.check_engine_ready_runtime(engine_id="onnx", node_id="node")
+
+    assert result["ready"] is False
+    assert result["engine_id"] == "onnx"
+    assert result["node_id"] == "node"
+
+
+def test_get_engine_runtime_access_does_not_create_engine_env(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+
+    access = access_mod.get_engine_access("onnx", "runtime", config={})
+
+    assert access
+    assert not (tmp_path / "engine_env_cache" / "onnx").exists()
+
+
 def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monkeypatch, tmp_path: Path):
     popen_calls = []
     listener_kinds = []

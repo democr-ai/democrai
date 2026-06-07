@@ -59,24 +59,21 @@ _INTERNAL_FD_PATH_DEPTH: contextvars.ContextVar[int] = contextvars.ContextVar(
     "process_guard_internal_fd_path_depth",
     default=0,
 )
-_EXTERNAL_ACCESS_CACHE: contextvars.ContextVar[dict[tuple[str, str, str, str], dict[str, Any]] | None] = contextvars.ContextVar(
-    "process_guard_external_access_cache",
-    default=None,
-)
+_EXTERNAL_ACCESS_CACHE: contextvars.ContextVar[
+    dict[tuple[Any, ...], dict[str, Any]] | None
+] = contextvars.ContextVar("process_guard_external_access_cache", default=None)
 _SENSITIVE_IMPORT_ROOTS = {"ctypes", "_ctypes", "cffi", "_cffi_backend"}
 _PROTECTED_ENV_PREFIX = "DEMOCRAI_"
 _EXTERNAL_ACCESS_CACHE_MAX = 512
 _PATH_ACCESS_CACHE_MAX = 512
 _REALPATH_CACHE_MAX = 4096
 _PATH_ACCESS_ALLOW_TTL_SECONDS = 2.0
+_PATH_ACCESS_DENY_TTL_SECONDS = 30.0
 _REALPATH_CACHE_TTL_SECONDS = _PATH_ACCESS_ALLOW_TTL_SECONDS
 _RUNTIME_ACCESS_CACHE_LOCK = threading.Lock()
 _PATH_ACCESS_CACHE_LOCK = threading.Lock()
 _REALPATH_CACHE_LOCK = threading.Lock()
-_GLOBAL_PATH_ACCESS_CACHE: OrderedDict[
-    tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
-    tuple[bool, float],
-] = OrderedDict()
+_GLOBAL_PATH_ACCESS_CACHE: OrderedDict[tuple[Any, ...], tuple[bool, float]] = OrderedDict()
 _GLOBAL_REALPATH_CACHE: OrderedDict[tuple[str, str], tuple[str, float]] = OrderedDict()
 _CONFIG_DENIED_SUBJECT_KINDS = {"agent", "mcp", "tool"}
 
@@ -284,6 +281,7 @@ def _cached_realpath(path_value: Any) -> str:
             else:
                 _profile_count("process_guard.path.realpath.cache_hits")
                 return str(resolved)
+    _profile_count("process_guard.path.realpath.calls")
     with _profile_span("process_guard.path.realpath"):
         resolved = os.path.normpath(os.path.realpath(expanded))
     with _REALPATH_CACHE_LOCK:
@@ -373,6 +371,73 @@ def _filesystem_access_fingerprint(
         normalized_roots = tuple(str(root) for root in tuple(roots or ()))
         indexed.append((str(operation), normalized_roots))
     return tuple(sorted(indexed))
+
+
+def _subject_access_chain_fingerprint(
+    subject_access_chain: list[dict[str, Any]] | tuple[Any, ...] | Any,
+) -> tuple[Any, ...]:
+    if not isinstance(subject_access_chain, (list, tuple)):
+        return ()
+    fingerprint: list[tuple[str, str, tuple[tuple[str, str, str], ...]]] = []
+    for item in subject_access_chain:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        name = str(item.get("name") or "").strip()
+        access_entries: list[tuple[str, str, str]] = []
+        raw_access = item.get("access")
+        if isinstance(raw_access, list):
+            for rule in raw_access:
+                if not isinstance(rule, dict):
+                    continue
+                resource = rule.get("resource")
+                if not isinstance(resource, dict):
+                    continue
+                access_entries.append(
+                    (
+                        str(resource.get("resource_type") or ""),
+                        str(resource.get("operation") or ""),
+                        str(resource.get("target") or ""),
+                    )
+                )
+        fingerprint.append((kind, name, tuple(sorted(access_entries))))
+    return tuple(fingerprint)
+
+
+def _filesystem_access_index(
+    filesystem_access: dict[str, tuple[str, ...]] | dict[str, Any],
+) -> dict[str, dict[str, tuple[str, ...]]]:
+    indexed: dict[str, dict[str, tuple[str, ...]]] = {}
+    for operation, roots in filesystem_access.items():
+        cheap_roots = tuple(
+            dict.fromkeys(
+                _cheap_normalized_path(root)
+                for root in tuple(roots or ())
+                if str(root or "").strip()
+            )
+        )
+        indexed[str(operation)] = {
+            "cheap_roots": cheap_roots,
+            "real_roots": (),
+        }
+    return indexed
+
+
+def _filesystem_real_roots(
+    current_state: dict[str, Any],
+    operation: str,
+    operation_index: dict[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    real_roots = operation_index.get("real_roots") or ()
+    if real_roots:
+        return tuple(real_roots)
+    filesystem_access_index = current_state.get("filesystem_access_index")
+    if not isinstance(filesystem_access_index, dict):
+        return ()
+    cheap_roots = tuple(operation_index.get("cheap_roots") or ())
+    real_roots = tuple(dict.fromkeys(_cached_realpath(root) for root in cheap_roots))
+    operation_index["real_roots"] = real_roots
+    return real_roots
 
 
 def _filesystem_access_summary(
@@ -765,34 +830,49 @@ def _path_allowed(path_value: Any, *, operation: str) -> bool:
             return True
         if isinstance(path_value, int):
             return False
-        filesystem_access = current_state.get("filesystem_access") or {}
-        allowed_roots = filesystem_access.get(operation) or ()
-        if not allowed_roots:
-            access = current_state.get("access") or ()
-            if access:
-                filesystem_access = _filesystem_access_by_operation(tuple(access))
-                allowed_roots = filesystem_access.get(operation) or ()
-        if not allowed_roots:
+        filesystem_access_index = current_state.get("filesystem_access_index")
+        if not isinstance(filesystem_access_index, dict):
+            filesystem_access = current_state.get("filesystem_access") or {}
+            if not isinstance(filesystem_access, dict):
+                filesystem_access = {}
+            filesystem_access_index = _filesystem_access_index(filesystem_access)
+            current_state["filesystem_access_index"] = filesystem_access_index
+        operation_index = filesystem_access_index.get(operation)
+        if not isinstance(operation_index, dict):
             return False
-        resolved_allowed_roots = tuple(str(root) for root in tuple(allowed_roots or ()))
-        access_fingerprint = current_state.get("filesystem_access_fingerprint")
-        if not isinstance(access_fingerprint, tuple):
-            access_fingerprint = _filesystem_access_fingerprint(filesystem_access)
+        cheap_roots = tuple(operation_index.get("cheap_roots") or ())
+        if not cheap_roots:
+            return False
+        policy_fingerprint = current_state.get("subject_access_fingerprint")
+        if not isinstance(policy_fingerprint, tuple) or not policy_fingerprint:
+            access_fingerprint = current_state.get("filesystem_access_fingerprint")
+            if not isinstance(access_fingerprint, tuple):
+                filesystem_access = current_state.get("filesystem_access") or {}
+                if not isinstance(filesystem_access, dict):
+                    filesystem_access = {}
+                access_fingerprint = _filesystem_access_fingerprint(filesystem_access)
+            policy_fingerprint = (("filesystem", access_fingerprint),)
         cache_key = _path_access_cache_key(
             path_value,
             operation=operation,
-            access_fingerprint=access_fingerprint,
+            policy_fingerprint=policy_fingerprint,
         )
         if cache_key is not None:
             cached = _path_access_cache_get(cache_key)
             if cached is not None:
                 return cached
         cheap_path = _cheap_normalized_path(path_value)
-        if not _path_under_roots(cheap_path, resolved_allowed_roots):
+        if not _path_under_roots(cheap_path, cheap_roots):
+            _profile_count("process_guard.path_allowed.cheap_deny")
             allowed_result = False
         else:
             real_path = _cached_realpath(path_value)
-            allowed_result = _path_under_roots(real_path, resolved_allowed_roots)
+            real_roots = _filesystem_real_roots(
+                current_state,
+                operation,
+                operation_index,
+            )
+            allowed_result = _path_under_roots(real_path, real_roots)
         if cache_key is not None:
             _path_access_cache_set(cache_key, allowed_result)
         return allowed_result
@@ -840,8 +920,18 @@ def _external_filesystem_access_allowed(
         if isinstance(path_value, int):
             return False
         target = os.fspath(path_value)
-        normalized_target = os.path.normpath(os.path.realpath(os.path.abspath(target)))
-        cache_key = (subject_kind, subject, operation, normalized_target)
+        normalized_target = _cheap_normalized_path(target)
+        subject_chain = _external_access_subject_chain(current_state)
+        policy_fingerprint = current_state.get("subject_access_fingerprint")
+        if not isinstance(policy_fingerprint, tuple) or not policy_fingerprint:
+            policy_fingerprint = subject_chain
+        cache_key = (
+            subject_kind,
+            subject,
+            policy_fingerprint,
+            operation,
+            normalized_target,
+        )
         cache = _EXTERNAL_ACCESS_CACHE.get()
         if cache is None:
             cache = {}
@@ -863,7 +953,16 @@ def _external_filesystem_access_allowed(
                     subject_type=subject_kind,
                     subject_name=subject,
                     target=target,
-                    message=str(cached.get("message") or f"sandbox_filesystem_denied:{subject}:{target}"),
+                    message=str(
+                        cached.get("message")
+                        or _filesystem_denial_message(
+                            subject_kind=subject_kind,
+                            subject=subject,
+                            subject_chain=subject_chain,
+                            operation=operation,
+                            target=target,
+                        )
+                    ),
                     code=str(cached.get("code") or ""),
                 )
             return False
@@ -890,7 +989,13 @@ def _external_filesystem_access_allowed(
                 cached_denial = {
                     "allowed": False,
                     "requires_approval": True,
-                    "message": f"sandbox_filesystem_denied:{subject}:{target}",
+                    "message": _filesystem_denial_message(
+                        subject_kind=subject_kind,
+                        subject=subject,
+                        subject_chain=subject_chain,
+                        operation=operation,
+                        target=target,
+                    ),
                     "code": getattr(access, "code", ""),
                 }
                 _external_access_cache_set(cache, cache_key, cached_denial)
@@ -934,9 +1039,46 @@ def _external_filesystem_access_allowed(
         return False
 
 
+def _external_access_subject_chain(
+    current_state: dict[str, Any],
+) -> tuple[tuple[str, str], ...]:
+    raw_chain = current_state.get("subject_chain")
+    if not isinstance(raw_chain, list):
+        return ()
+    chain: list[tuple[str, str]] = []
+    for item in raw_chain:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        name = str(item.get("name") or "").strip()
+        if kind and name:
+            chain.append((kind, name))
+    return tuple(chain)
+
+
+def _filesystem_denial_message(
+    *,
+    subject_kind: str,
+    subject: str,
+    subject_chain: tuple[tuple[str, str], ...],
+    operation: str,
+    target: str,
+) -> str:
+    chain_text = " > ".join(
+        f"{kind}:{name}" for kind, name in subject_chain
+    )
+    details = [
+        f"subject={subject_kind}:{subject}",
+        f"operation={operation}",
+    ]
+    if chain_text:
+        details.append(f"chain={chain_text}")
+    return f"sandbox_filesystem_denied:{subject}:{target} ({'; '.join(details)})"
+
+
 def _external_access_cache_set(
-    cache: dict[tuple[str, str, str, str], dict[str, Any]],
-    key: tuple[str, str, str, str],
+    cache: dict[tuple[Any, ...], dict[str, Any]],
+    key: tuple[Any, ...],
     value: dict[str, Any],
 ) -> None:
     if key in cache:
@@ -963,19 +1105,19 @@ def _path_access_cache_key(
     path_value: Any,
     *,
     operation: str,
-    access_fingerprint: tuple[tuple[str, tuple[str, ...]], ...],
-) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str] | None:
+    policy_fingerprint: tuple[Any, ...],
+) -> tuple[Any, ...] | None:
     if isinstance(path_value, int):
         return None
     try:
         raw = os.fsdecode(os.fspath(path_value))
     except TypeError:
         return None
-    return (access_fingerprint, operation, os.getcwd(), raw)
+    return (policy_fingerprint, operation, os.getcwd(), raw)
 
 
 def _path_access_cache_get(
-    key: tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
+    key: tuple[Any, ...],
 ) -> bool | None:
     now = time.monotonic()
     with _PATH_ACCESS_CACHE_LOCK:
@@ -994,10 +1136,11 @@ def _path_access_cache_get(
 
 
 def _path_access_cache_set(
-    key: tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
+    key: tuple[Any, ...],
     value: bool,
 ) -> None:
-    expires_at = time.monotonic() + _PATH_ACCESS_ALLOW_TTL_SECONDS if value else 0.0
+    ttl = _PATH_ACCESS_ALLOW_TTL_SECONDS if value else _PATH_ACCESS_DENY_TTL_SECONDS
+    expires_at = time.monotonic() + ttl if ttl else 0.0
     with _PATH_ACCESS_CACHE_LOCK:
         _bounded_cache_set(
             _GLOBAL_PATH_ACCESS_CACHE,
@@ -1803,21 +1946,29 @@ def enable_process_guard(
     with _profile_span("process_guard.enable.set_state"):
         filesystem_access = _filesystem_access_by_operation(merged_access)
         filesystem_access_fingerprint = _filesystem_access_fingerprint(filesystem_access)
+        filesystem_access_index = _filesystem_access_index(filesystem_access)
+        subject_chain = _merge_subject_chain(
+            parent_state.get("subject_chain"),
+            resolved_subject_entry,
+        )
+        subject_access_chain = _merge_subject_access_chain(
+            parent_state.get("subject_access_chain"),
+            resolved_subject_allow_entry,
+        )
+        subject_access_fingerprint = _subject_access_chain_fingerprint(
+            subject_access_chain
+        )
         token = _STATE.set(
             {
                 "subject": resolved_subject,
                 "subject_kind": resolved_subject_kind,
-                "subject_chain": _merge_subject_chain(
-                    parent_state.get("subject_chain"),
-                    resolved_subject_entry,
-                ),
-                "subject_access_chain": _merge_subject_access_chain(
-                    parent_state.get("subject_access_chain"),
-                    resolved_subject_allow_entry,
-                ),
+                "subject_chain": subject_chain,
+                "subject_access_chain": subject_access_chain,
+                "subject_access_fingerprint": subject_access_fingerprint,
                 "access": merged_access,
                 "filesystem_access": filesystem_access,
                 "filesystem_access_fingerprint": filesystem_access_fingerprint,
+                "filesystem_access_index": filesystem_access_index,
                 "allowed_imports": merged_imports,
                 "allowed_import_roots": set(merged_imports),
                 "allowed_subprocess_commands": merged_subprocess_commands,
@@ -2065,6 +2216,29 @@ def disable_process_guard(token: contextvars.Token | None = None) -> None:
         _EXTERNAL_ACCESS_CACHE.set(None)
 
 
+def _allowed_path_access_rules(
+    *,
+    subject_kind: str,
+    subject: str,
+    allowed_paths: list[str] | tuple[str, ...] | None,
+) -> tuple[AccessManifestRule, ...]:
+    if not allowed_paths:
+        return ()
+    access_subject = AccessSubject.create(subject_kind, subject)
+    return tuple(
+        AccessManifestRule(
+            subject=access_subject,
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation="read",
+                target=str(path),
+            ),
+        )
+        for path in allowed_paths
+        if str(path or "").strip()
+    )
+
+
 class process_guard_context:
     def __init__(
         self,
@@ -2072,11 +2246,13 @@ class process_guard_context:
         subject: str,
         subject_kind: str = "module",
         access: list[AccessManifestRule] | tuple[AccessManifestRule, ...] | None = None,
+        allowed_paths: list[str] | tuple[str, ...] | None = None,
         allowed_imports: list[str] | None = None,
         allowed_subprocess_commands: list[str] | None = None,
         allow_subprocess: bool = False,
         allow_fork: bool = False,
         include_runtime_access: bool = True,
+        include_runtime_paths: bool | None = None,
         inherit_parent_access: bool = True,
         include_network_access: bool = True,
         user_id: int | None = None,
@@ -2085,12 +2261,23 @@ class process_guard_context:
     ) -> None:
         self.subject = str(subject or "").strip()
         self.subject_kind = _normalize_subject_kind(subject_kind)
-        self.access = tuple(access or ())
+        self.access = _merge_access_rules(
+            tuple(access or ()),
+            _allowed_path_access_rules(
+                subject_kind=self.subject_kind,
+                subject=self.subject,
+                allowed_paths=allowed_paths,
+            ),
+        )
         self.allowed_imports = list(allowed_imports or [])
         self.allowed_subprocess_commands = list(allowed_subprocess_commands or [])
         self.allow_subprocess = bool(allow_subprocess)
         self.allow_fork = bool(allow_fork)
-        self.include_runtime_access = bool(include_runtime_access)
+        self.include_runtime_access = (
+            bool(include_runtime_access)
+            if include_runtime_paths is None
+            else bool(include_runtime_paths)
+        )
         self.inherit_parent_access = bool(inherit_parent_access)
         self.include_network_access = bool(include_network_access)
         self.user_id = user_id

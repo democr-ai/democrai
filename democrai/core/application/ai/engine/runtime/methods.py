@@ -57,19 +57,14 @@ def _engine_dict_result(result: Any) -> dict[str, Any]:
     return result
 
 
-def invoke_engine_class_method(
+def _engine_guard(
     *,
     engine_id: str,
     phase: str,
-    method: str,
-    payload: dict[str, Any] | None = None,
     config: dict[str, Any] | None = None,
-) -> Any:
-    engine_cls = load_engine_class(engine_id)
-    if engine_cls is None:
-        raise RuntimeError(f"engine_runtime_class_not_found:{engine_id}")
+):
     install_phase = phase == "install"
-    with process_guard_context(
+    return process_guard_context(
         subject=engine_id,
         subject_kind="engine",
         access=get_engine_access(
@@ -83,7 +78,22 @@ def invoke_engine_class_method(
             phase,
         ),
         allow_subprocess=install_phase,
-    ):
+    )
+
+
+def invoke_engine_class_method(
+    *,
+    engine_id: str,
+    phase: str,
+    method: str,
+    payload: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+) -> Any:
+    install_phase = phase == "install"
+    with _engine_guard(engine_id=engine_id, phase=phase, config=config):
+        engine_cls = load_engine_class(engine_id)
+        if engine_cls is None:
+            raise RuntimeError(f"engine_runtime_class_not_found:{engine_id}")
         phase_env = (
             get_engine_install_env(engine_id)
             if install_phase
@@ -121,30 +131,31 @@ def check_engine_ready_runtime(
     engine_id: str,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    venv_python = get_engine_venv_python_path(engine_id)
-    if not venv_python.exists():
-        return {
-            "engine_id": engine_id,
-            "node_id": node_id,
-            "ready": False,
-            "missing_shared": [],
-            "missing_local": [],
-            "message": "engine environment not provisioned",
-        }
-    subject = EngineWorkerSubject(
-        engine_id=engine_id,
-        config={},
-        class_only=True,
-    )
-    try:
-        result = invoke_engine_method(
-            subject,
-            "_check_ready_local",
-            {"node_id": node_id},
+    with _engine_guard(engine_id=engine_id, phase="runtime", config={}):
+        venv_python = get_engine_venv_python_path(engine_id)
+        if not venv_python.exists():
+            return {
+                "engine_id": engine_id,
+                "node_id": node_id,
+                "ready": False,
+                "missing_shared": [],
+                "missing_local": [],
+                "message": "engine environment not provisioned",
+            }
+        subject = EngineWorkerSubject(
+            engine_id=engine_id,
+            config={},
+            class_only=True,
         )
-        return _engine_dict_result(result)
-    finally:
-        subject.close()
+        try:
+            result = invoke_engine_method(
+                subject,
+                "_check_ready_local",
+                {"node_id": node_id},
+            )
+            return _engine_dict_result(result)
+        finally:
+            subject.close()
 
 
 def check_engine_runtime_config(

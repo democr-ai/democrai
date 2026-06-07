@@ -153,6 +153,27 @@ def test_engine_env_error_and_activation_branches(tmp_path: Path, monkeypatch):
         assert str(root) in __import__("sys").path
 
 
+def test_engine_env_paths_can_be_resolved_without_creating_dirs(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        engine_env_mod,
+        "_ENGINE_ENV_ROOT",
+        tmp_path / "engine_env_cache",
+    )
+
+    root = engine_env_mod.get_engine_local_env_path("probe", create=False)
+    cache = engine_env_mod.get_engine_local_cache_path("probe", create=False)
+    config = engine_env_mod.get_engine_local_config_path("probe", create=False)
+    tmp = engine_env_mod.get_engine_local_tmp_path("probe", create=False)
+    python = engine_env_mod.get_engine_venv_python_path("probe", create=False)
+
+    assert root == tmp_path / "engine_env_cache" / "probe"
+    assert cache == root / "cache"
+    assert config == root / "config"
+    assert tmp == root / "tmp"
+    assert python.parent == root / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+    assert not root.exists()
+
+
 def test_extractor_env_paths_and_context(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(extractor_env_mod, "data_dir", lambda: tmp_path)
     monkeypatch.setattr(

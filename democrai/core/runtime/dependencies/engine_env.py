@@ -24,7 +24,7 @@ _current_engine_env: contextvars.ContextVar[dict[str, str] | None] = contextvars
 )
 
 _ENGINE_LOCAL_PATH_OVERRIDES: dict[str, dict[str, Path]] = {}
-_ENGINE_ENV_ROOT = data_dir() / "engine_env_cache"
+_ENGINE_ENV_ROOT: Path | None = None
 
 
 _ENGINE_CACHE_ENV_KEYS = (
@@ -155,7 +155,7 @@ def engine_env_context(engine_id: str, env: dict[str, str] | None = None):
             _current_engine_id.reset(token)
 
 
-def get_engine_local_env_path(engine_id: str | None = None) -> Path:
+def _resolved_engine_id(engine_id: str | None) -> str:
     if engine_id is None:
         resolved = get_current_engine_id()
     else:
@@ -163,54 +163,73 @@ def get_engine_local_env_path(engine_id: str | None = None) -> Path:
         resolved = engine_id_text if engine_id_text else None
     if not resolved:
         raise RuntimeError("engine_env_context_missing")
+    return resolved
+
+
+def _engine_env_root() -> Path:
+    if _ENGINE_ENV_ROOT is not None:
+        return _ENGINE_ENV_ROOT
+    return data_dir() / "engine_env_cache"
+
+
+def get_engine_local_env_path(engine_id: str | None = None, *, create: bool = True) -> Path:
+    resolved = _resolved_engine_id(engine_id)
     override = _engine_path_override("env", resolved)
     if override is not None:
         return override
-    path = _ENGINE_ENV_ROOT / resolved
-    path.mkdir(parents=True, exist_ok=True)
+    path = _engine_env_root() / resolved
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def get_engine_local_cache_path(engine_id: str | None = None) -> Path:
+def get_engine_local_cache_path(engine_id: str | None = None, *, create: bool = True) -> Path:
     override = _engine_path_override("cache", engine_id)
     if override is not None:
         return override
-    path = get_engine_local_env_path(engine_id) / "cache"
-    path.mkdir(parents=True, exist_ok=True)
+    path = get_engine_local_env_path(engine_id, create=create) / "cache"
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def get_engine_local_config_path(engine_id: str | None = None) -> Path:
+def get_engine_local_config_path(engine_id: str | None = None, *, create: bool = True) -> Path:
     override = _engine_path_override("config", engine_id)
     if override is not None:
         return override
-    path = get_engine_local_env_path(engine_id) / "config"
-    path.mkdir(parents=True, exist_ok=True)
+    path = get_engine_local_env_path(engine_id, create=create) / "config"
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def get_engine_local_tmp_path(engine_id: str | None = None) -> Path:
+def get_engine_local_tmp_path(engine_id: str | None = None, *, create: bool = True) -> Path:
     override = _engine_path_override("tmp", engine_id)
     if override is not None:
         return override
-    path = get_engine_local_env_path(engine_id) / "tmp"
-    path.mkdir(parents=True, exist_ok=True)
+    path = get_engine_local_env_path(engine_id, create=create) / "tmp"
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def get_engine_venv_path(engine_id: str | None = None) -> Path:
-    return get_engine_local_env_path(engine_id) / ".venv"
+def get_engine_venv_path(engine_id: str | None = None, *, create: bool = True) -> Path:
+    return get_engine_local_env_path(engine_id, create=create) / ".venv"
 
 
-def get_engine_venv_python_path(engine_id: str | None = None) -> Path:
-    venv = get_engine_venv_path(engine_id)
+def get_engine_venv_python_path(engine_id: str | None = None, *, create: bool = True) -> Path:
+    venv = get_engine_venv_path(engine_id, create=create)
     if os.name == "nt":
         return venv / "Scripts" / "python.exe"
     return venv / "bin" / "python"
 
 
-def get_engine_venv_site_packages_path(engine_id: str | None = None) -> Path:
-    venv = get_engine_venv_path(engine_id)
+def get_engine_venv_site_packages_path(
+    engine_id: str | None = None,
+    *,
+    create: bool = True,
+) -> Path:
+    venv = get_engine_venv_path(engine_id, create=create)
     if os.name == "nt":
         return venv / "Lib" / "site-packages"
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"

@@ -26,6 +26,7 @@ from democrai.core.application.ai.engine.runtime import (
 )
 from democrai.core.application.ai.engine.runtime.environment import application_root
 from democrai.core.application.ai.engine.manifests import get_engine_manifest, load_engine_class
+from democrai.core.application.ai.engine.runtime.methods import _engine_guard
 from democrai.core.platform.utils.debug import debug_engine_install_flow
 from democrai.core.platform.utils.env import SERVER_NAME
 from democrai.core.platform.utils.timezone import utc_now_naive
@@ -791,7 +792,8 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
         node_id=node_id,
         event_id=event_id,
     )
-    engine_cls = load_engine_class(engine_id)
+    with _engine_guard(engine_id=engine_id, phase="install", config={}):
+        engine_cls = load_engine_class(engine_id)
     debug_engine_install_flow(
         "process_event.load_engine_class.end",
         engine_id=engine_id,

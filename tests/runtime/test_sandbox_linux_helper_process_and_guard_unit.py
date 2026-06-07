@@ -1158,7 +1158,7 @@ def test_path_allowed_global_cache_survives_equivalent_contexts(monkeypatch, tmp
     finally:
         mod.disable_process_guard(token)
 
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_path_allowed_global_cache_is_scoped_by_allowlist(monkeypatch, tmp_path: Path):
@@ -1189,6 +1189,59 @@ def test_path_allowed_global_cache_is_scoped_by_allowlist(monkeypatch, tmp_path:
     token = mod.enable_process_guard(
         subject="s",
         access=[_access_rule(mod, "module", "s", "filesystem", "read", str(other_root))],
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is False
+    finally:
+        mod.disable_process_guard(token)
+
+
+def test_path_allowed_global_cache_is_scoped_by_subject_chain(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.setattr(mod, "_runtime_filesystem_read_paths", lambda: [])
+    target = tmp_path / "allowed" / "file.txt"
+    outside = tmp_path / "outside" / "file.txt"
+    target.parent.mkdir()
+    outside.parent.mkdir()
+    target.write_text("ok", encoding="utf-8")
+    phase = {"escape": False}
+
+    def _realpath(path):
+        if phase["escape"] and os.fspath(path) == os.fspath(target):
+            return str(outside)
+        return os.path.normpath(os.path.abspath(os.path.expanduser(os.fspath(path))))
+
+    monkeypatch.setattr(mod.os.path, "realpath", _realpath)
+    access = [
+        _access_rule(mod, "engine", "onnx", "filesystem", "read", str(target.parent)),
+    ]
+
+    parent = mod.enable_process_guard(
+        subject="system",
+        subject_kind="module",
+        access=[],
+        include_runtime_access=False,
+    )
+    child = mod.enable_process_guard(
+        subject="onnx",
+        subject_kind="engine",
+        access=access,
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod.disable_process_guard(child)
+        mod.disable_process_guard(parent)
+
+    with mod._REALPATH_CACHE_LOCK:
+        mod._GLOBAL_REALPATH_CACHE.clear()
+    phase["escape"] = True
+    token = mod.enable_process_guard(
+        subject="onnx",
+        subject_kind="engine",
+        access=access,
         include_runtime_access=False,
     )
     try:
@@ -1242,7 +1295,7 @@ def test_path_allowed_under_root_uses_cached_realpath(monkeypatch, tmp_path: Pat
     finally:
         mod._STATE.reset(st)
 
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_path_allowed_denies_symlink_escape_after_realpath(monkeypatch, tmp_path: Path):
@@ -1256,7 +1309,11 @@ def test_path_allowed_denies_symlink_escape_after_realpath(monkeypatch, tmp_path
     monkeypatch.setattr(
         mod.os.path,
         "realpath",
-        lambda _path: str(outside_root / "file.txt"),
+        lambda path: (
+            str(outside_root / "file.txt")
+            if os.fspath(path) == os.fspath(target)
+            else os.path.normpath(os.path.abspath(os.path.expanduser(os.fspath(path))))
+        ),
     )
     st = mod._STATE.set(
         {

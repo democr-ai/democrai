@@ -129,10 +129,10 @@ def engine_phase_section(engine_id: str, phase: str) -> dict[str, Any]:
 
 
 def engine_path_tokens(engine_id: str) -> dict[str, str]:
-    local_root = get_engine_local_env_path(engine_id).resolve()
-    venv_root = get_engine_venv_path(engine_id).resolve()
-    cache_root = get_engine_local_cache_path(engine_id).resolve()
-    config_root = get_engine_local_config_path(engine_id).resolve()
+    local_root = get_engine_local_env_path(engine_id, create=False).absolute()
+    venv_root = get_engine_venv_path(engine_id, create=False).absolute()
+    cache_root = get_engine_local_cache_path(engine_id, create=False).absolute()
+    config_root = get_engine_local_config_path(engine_id, create=False).absolute()
     bin_root = venv_root / ("Scripts" if os_key() == "win32" else "bin")
     driver_lib_root = local_root / ENGINE_RUNTIME_DRIVER_LIBRARY_DIR_NAME
     toolchain_bin_root = local_root / ENGINE_RUNTIME_TOOLCHAIN_BIN_DIR_NAME
