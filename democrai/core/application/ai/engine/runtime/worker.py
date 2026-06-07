@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import signal
 import subprocess
@@ -35,6 +34,10 @@ from democrai.core.runtime.foundation.paths import get_runtime_engine_dirs
 from democrai.core.runtime.foundation.paths import get_runtime_module_dirs
 from democrai.core.runtime.foundation.paths import logs_dir
 from democrai.core.runtime.dependencies.engine_env import get_engine_venv_python_path
+from democrai.core.runtime.ipc.local_connection import (
+    accept_connection,
+    create_local_listener,
+)
 
 
 _WORKER_LOGGING_CONFIG_KEYS = (
@@ -205,99 +208,84 @@ class EngineWorkerSubject:
         self._stream_responses: dict[str, list[dict[str, Any]]] = {}
         self._closed = False
         self._process: subprocess.Popen[str] | None = None
-        self._reader = None
-        self._writer = None
+        self._control_conn = None
         self._stderr_reader = None
         self._stderr_tail: list[str] = []
         self._stderr_lock = threading.Lock()
         self._stderr_thread: threading.Thread | None = None
-        self._parent_request_reader = None
-        self._parent_request_writer = None
+        self._parent_conn = None
+        self._parent_request_thread: threading.Thread | None = None
         self._start(dict(config), class_only=class_only)
 
     def _start(self, config: dict[str, Any], *, class_only: bool = False) -> None:
-        parent_read, child_write = os.pipe()
-        child_read, parent_write = os.pipe()
-        parent_request_read, child_request_write = os.pipe()
-        child_response_read, parent_response_write = os.pipe()
+        control_endpoint = create_local_listener("engine-worker-control")
+        parent_endpoint = create_local_listener("engine-worker-parent")
+        with process_guard_bypass_context():
+            env = dict(os.environ)
+            env.update(control_endpoint.env("DEMOCRAI_ENGINE_WORKER_CONTROL"))
+            env.update(parent_endpoint.env("DEMOCRAI_ENGINE_WORKER_PARENT"))
+            env["PYTHONFAULTHANDLER"] = "1"
+            env["PYTHONUNBUFFERED"] = "1"
+            app_pythonpath = application_pythonpath()
+            env.pop("PYTHONPATH", None)
+            command = [
+                str(get_engine_venv_python_path(self._engine_id)),
+                "-c",
+                _WORKER_BOOTSTRAP_CODE,
+                "democrai.core.application.ai.engine.worker",
+                app_pythonpath,
+            ]
+            self._process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+            )
+            logging_config = worker_logging_config()
+            init_payload = {
+                "engine_id": self._engine_id,
+                "config": config,
+                "class_only": bool(class_only),
+                "logging_config": logging_config,
+                "landlock_enabled": worker_landlock_enabled(),
+                "env": get_engine_runtime_env(self._engine_id),
+                "access": [
+                    rule.to_dict()
+                    for rule in worker_runtime_access(
+                        engine_id=self._engine_id,
+                        config=config,
+                        logging_config=logging_config,
+                    )
+                ],
+                "allowed_imports": get_engine_allowed_imports(
+                    self._engine_id,
+                    "runtime",
+                ),
+                "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
+                    self._engine_id,
+                    "runtime",
+                ),
+            }
         try:
-            with process_guard_bypass_context():
-                env = dict(os.environ)
-                env["DEMOCRAI_ENGINE_WORKER_READ_FD"] = str(child_read)
-                env["DEMOCRAI_ENGINE_WORKER_WRITE_FD"] = str(child_write)
-                env["DEMOCRAI_ENGINE_WORKER_PARENT_REQUEST_FD"] = str(child_request_write)
-                env["DEMOCRAI_ENGINE_WORKER_PARENT_RESPONSE_FD"] = str(child_response_read)
-                env["PYTHONFAULTHANDLER"] = "1"
-                env["PYTHONUNBUFFERED"] = "1"
-                app_pythonpath = application_pythonpath()
-                env.pop("PYTHONPATH", None)
-                command = [
-                    str(get_engine_venv_python_path(self._engine_id)),
-                    "-c",
-                    _WORKER_BOOTSTRAP_CODE,
-                    "democrai.core.application.ai.engine.worker",
-                    app_pythonpath,
-                ]
-                self._process = subprocess.Popen(
-                    command,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                    pass_fds=(
-                        child_read,
-                        child_write,
-                        child_request_write,
-                        child_response_read,
-                    ),
-                    env=env,
-                    text=True,
-                )
-                logging_config = worker_logging_config()
-                init_payload = {
-                    "engine_id": self._engine_id,
-                    "config": config,
-                    "class_only": bool(class_only),
-                    "logging_config": logging_config,
-                    "landlock_enabled": worker_landlock_enabled(),
-                    "env": get_engine_runtime_env(self._engine_id),
-                    "access": [
-                        rule.to_dict()
-                        for rule in worker_runtime_access(
-                            engine_id=self._engine_id,
-                            config=config,
-                            logging_config=logging_config,
-                        )
-                    ],
-                    "allowed_imports": get_engine_allowed_imports(
-                        self._engine_id,
-                        "runtime",
-                    ),
-                    "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
-                        self._engine_id,
-                        "runtime",
-                    ),
-                }
-        finally:
-            os.close(child_read)
-            os.close(child_write)
-            os.close(child_request_write)
-            os.close(child_response_read)
-        self._reader = os.fdopen(parent_read, "r", encoding="utf-8", buffering=1)
-        self._writer = os.fdopen(parent_write, "w", encoding="utf-8", buffering=1)
+            self._control_conn = accept_connection(
+                control_endpoint,
+                process=self._process,
+                timeout_seconds=10.0,
+            )
+            threading.Thread(
+                target=self._accept_parent_connection,
+                args=(parent_endpoint,),
+                name=f"engine-worker-parent-accept-{self._engine_id}",
+                daemon=True,
+            ).start()
+        except Exception:
+            parent_endpoint.close()
+            self.close()
+            raise
         if self._process is not None and self._process.stderr is not None:
             self._stderr_reader = self._process.stderr
-        self._parent_request_reader = os.fdopen(
-            parent_request_read,
-            "r",
-            encoding="utf-8",
-            buffering=1,
-        )
-        self._parent_request_writer = os.fdopen(
-            parent_response_write,
-            "w",
-            encoding="utf-8",
-            buffering=1,
-        )
         threading.Thread(
             target=self._read_responses,
             name=f"engine-worker-reader-{self._engine_id}",
@@ -309,20 +297,28 @@ class EngineWorkerSubject:
             daemon=True,
         )
         self._stderr_thread.start()
-        threading.Thread(
+        self._request("init", init_payload)
+
+    def _accept_parent_connection(self, parent_endpoint) -> None:
+        try:
+            self._parent_conn = accept_connection(
+                parent_endpoint,
+                process=self._process,
+                timeout_seconds=86400.0,
+            )
+        except Exception:
+            return
+        self._parent_request_thread = threading.Thread(
             target=self._read_parent_requests,
             name=f"engine-worker-parent-request-{self._engine_id}",
             daemon=True,
-        ).start()
-        self._request("init", init_payload)
+        )
+        self._parent_request_thread.start()
 
     def _read_responses(self) -> None:
         try:
-            while self._reader is not None:
-                line = self._reader.readline()
-                if not line:
-                    break
-                response = python_value(json.loads(line))
+            while self._control_conn is not None:
+                response = python_value(self._control_conn.recv())
                 response_id = str(response.get("id") or "")
                 with self._response_condition:
                     if response.get("stream"):
@@ -330,6 +326,8 @@ class EngineWorkerSubject:
                     else:
                         self._responses[response_id] = response
                     self._response_condition.notify_all()
+        except (EOFError, OSError, BrokenPipeError):
+            pass
         finally:
             with self._response_condition:
                 self._closed = True
@@ -390,11 +388,8 @@ class EngineWorkerSubject:
 
     def _read_parent_requests(self) -> None:
         try:
-            while self._parent_request_reader is not None:
-                line = self._parent_request_reader.readline()
-                if not line:
-                    break
-                request = python_value(json.loads(line))
+            while self._parent_conn is not None:
+                request = python_value(self._parent_conn.recv())
                 self._handle_parent_request(dict(request or {}))
         except Exception:
             return
@@ -415,12 +410,9 @@ class EngineWorkerSubject:
                 "error": str(exc),
             }
         with self._write_lock:
-            if self._parent_request_writer is None:
+            if self._parent_conn is None:
                 return
-            self._parent_request_writer.write(
-                json.dumps(json_value(response), ensure_ascii=True) + "\n"
-            )
-            self._parent_request_writer.flush()
+            self._parent_conn.send(json_value(response))
 
     def _parent_media_request(self, operation: str, payload: dict[str, Any]) -> Any:
         from democrai.core.runtime.foundation.app import app_ctx
@@ -472,34 +464,29 @@ class EngineWorkerSubject:
         raise RuntimeError(f"engine_worker_parent_operation_unknown:{operation}")
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
-        if self._process is None or self._reader is None or self._writer is None:
+        if self._process is None or self._control_conn is None:
             raise RuntimeError("engine_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"engine_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._writer.write(
-                json.dumps(
-                    json_value(
-                        {
-                            "id": request_id,
-                            "operation": operation,
-                            "payload": payload,
-                            "request_context": current_request_context_payload(
-                                f"engine_worker_subject.{operation}"
-                            ),
-                            **(
-                                {"request_id": str(payload.get("request_id") or "")}
-                                if operation == "invoke" and payload.get("request_id")
-                                else {}
-                            ),
-                        }
-                    ),
-                    ensure_ascii=True,
+            self._control_conn.send(
+                json_value(
+                    {
+                        "id": request_id,
+                        "operation": operation,
+                        "payload": payload,
+                        "request_context": current_request_context_payload(
+                            f"engine_worker_subject.{operation}"
+                        ),
+                        **(
+                            {"request_id": str(payload.get("request_id") or "")}
+                            if operation == "invoke" and payload.get("request_id")
+                            else {}
+                        ),
+                    }
                 )
-                + "\n"
             )
-            self._writer.flush()
         with self._response_condition:
             self._response_condition.wait_for(
                 lambda: request_id in self._responses or self._closed
@@ -528,34 +515,29 @@ class EngineWorkerSubject:
         return response.get("result")
 
     def _send_request(self, operation: str, payload: dict[str, Any]) -> str:
-        if self._process is None or self._reader is None or self._writer is None:
+        if self._process is None or self._control_conn is None:
             raise RuntimeError("engine_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"engine_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._writer.write(
-                json.dumps(
-                    json_value(
-                        {
-                            "id": request_id,
-                            "operation": operation,
-                            "payload": payload,
-                            "request_context": current_request_context_payload(
-                                f"engine_worker_subject.{operation}"
-                            ),
-                            **(
-                                {"request_id": str(payload.get("request_id") or "")}
-                                if operation == "invoke" and payload.get("request_id")
-                                else {}
-                            ),
-                        }
-                    ),
-                    ensure_ascii=True,
+            self._control_conn.send(
+                json_value(
+                    {
+                        "id": request_id,
+                        "operation": operation,
+                        "payload": payload,
+                        "request_context": current_request_context_payload(
+                            f"engine_worker_subject.{operation}"
+                        ),
+                        **(
+                            {"request_id": str(payload.get("request_id") or "")}
+                            if operation == "invoke" and payload.get("request_id")
+                            else {}
+                        ),
+                    }
                 )
-                + "\n"
             )
-            self._writer.flush()
         return request_id
 
     def _wait_stream_response(self, request_id: str) -> dict[str, Any]:
@@ -662,15 +644,11 @@ class EngineWorkerSubject:
                     except subprocess.TimeoutExpired:
                         process.kill()
         finally:
-            for handle in (self._reader, self._writer):
+            for handle in (self._control_conn, self._parent_conn):
                 try:
                     if handle is not None:
                         handle.close()
                 except Exception:
                     pass
-            for handle in (self._parent_request_reader, self._parent_request_writer):
-                try:
-                    if handle is not None:
-                        handle.close()
-                except Exception:
-                    pass
+            self._control_conn = None
+            self._parent_conn = None

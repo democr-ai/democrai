@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
-import json
 import os
 import site
 import subprocess
@@ -20,6 +19,10 @@ from democrai.core.runtime.foundation.app import current_request_context_payload
 from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import is_frozen
 from democrai.core.runtime.dependencies.extractor_env import get_extractor_venv_python_path
+from democrai.core.runtime.ipc.local_connection import (
+    accept_connection,
+    create_local_listener,
+)
 
 
 _AUTH_SECRET_PLACEHOLDER = "change-me-with-a-long-random-secret"
@@ -215,11 +218,6 @@ def _stop_process_after_start_failure(process: subprocess.Popen[str] | None) -> 
             process.wait(timeout=2.0)
 
 
-def _close_fd_after_start_failure(fd: int) -> None:
-    with contextlib.suppress(OSError):
-        os.close(fd)
-
-
 class ExtractorWorkerSubject:
     def __init__(
         self,
@@ -237,10 +235,8 @@ class ExtractorWorkerSubject:
         self._closed = False
         self._process: subprocess.Popen[str] | None = None
         self._stdout_reader = None
-        self._reader = None
-        self._writer = None
-        self._parent_request_reader = None
-        self._parent_request_writer = None
+        self._control_conn = None
+        self._parent_conn = None
         self._start(dict(config or {}))
 
     def _start(self, config: dict[str, Any]) -> None:
@@ -249,15 +245,11 @@ class ExtractorWorkerSubject:
             get_extractor_allowed_imports,
         )
 
-        parent_read, child_write = os.pipe()
-        child_read, parent_write = os.pipe()
-        parent_request_read, child_request_write = os.pipe()
-        child_response_read, parent_response_write = os.pipe()
+        control_endpoint = create_local_listener("extractor-worker-control")
+        parent_endpoint = create_local_listener("extractor-worker-parent")
         env = _with_auth_secret_env(_clean_worker_env())
-        env["DEMOCRAI_EXTRACTOR_WORKER_READ_FD"] = str(child_read)
-        env["DEMOCRAI_EXTRACTOR_WORKER_WRITE_FD"] = str(child_write)
-        env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_REQUEST_FD"] = str(child_request_write)
-        env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_RESPONSE_FD"] = str(child_response_read)
+        env.update(control_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_CONTROL"))
+        env.update(parent_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_PARENT"))
         command = [
             str(get_extractor_venv_python_path(self._extractor_id)),
             "-c",
@@ -275,47 +267,34 @@ class ExtractorWorkerSubject:
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                pass_fds=(
-                    child_read,
-                    child_write,
-                    child_request_write,
-                    child_response_read,
-                ),
                 env=env,
                 text=True,
                 bufsize=1,
             )
-        finally:
-            os.close(child_read)
-            os.close(child_write)
-            os.close(child_request_write)
-            os.close(child_response_read)
+        except Exception:
+            control_endpoint.close()
+            parent_endpoint.close()
+            raise
         try:
             _apply_os_network_allowlist_to_worker_process(
                 self._process.pid,
                 access=phase_access,
             )
+            self._control_conn = accept_connection(
+                control_endpoint,
+                process=self._process,
+                timeout_seconds=10.0,
+            )
+            self._parent_conn = accept_connection(
+                parent_endpoint,
+                process=self._process,
+                timeout_seconds=10.0,
+            )
         except Exception:
             _stop_process_after_start_failure(self._process)
-            _close_fd_after_start_failure(parent_read)
-            _close_fd_after_start_failure(parent_write)
-            _close_fd_after_start_failure(parent_request_read)
-            _close_fd_after_start_failure(parent_response_write)
+            control_endpoint.close()
+            parent_endpoint.close()
             raise
-        self._reader = os.fdopen(parent_read, "r", encoding="utf-8", buffering=1)
-        self._writer = os.fdopen(parent_write, "w", encoding="utf-8", buffering=1)
-        self._parent_request_reader = os.fdopen(
-            parent_request_read,
-            "r",
-            encoding="utf-8",
-            buffering=1,
-        )
-        self._parent_request_writer = os.fdopen(
-            parent_response_write,
-            "w",
-            encoding="utf-8",
-            buffering=1,
-        )
         threading.Thread(
             target=self._read_responses,
             name=f"extractor-worker-reader-{self._extractor_id}",
@@ -354,15 +333,14 @@ class ExtractorWorkerSubject:
 
     def _read_responses(self) -> None:
         try:
-            while self._reader is not None:
-                line = self._reader.readline()
-                if not line:
-                    break
-                response = python_value(json.loads(line))
+            while self._control_conn is not None:
+                response = python_value(self._control_conn.recv())
                 response_id = str(response.get("id") or "")
                 with self._response_condition:
                     self._responses[response_id] = response
                     self._response_condition.notify_all()
+        except (EOFError, OSError, BrokenPipeError):
+            pass
         finally:
             with self._response_condition:
                 self._closed = True
@@ -370,11 +348,8 @@ class ExtractorWorkerSubject:
 
     def _read_parent_requests(self) -> None:
         try:
-            while self._parent_request_reader is not None:
-                line = self._parent_request_reader.readline()
-                if not line:
-                    break
-                request = python_value(json.loads(line))
+            while self._parent_conn is not None:
+                request = python_value(self._parent_conn.recv())
                 self._handle_parent_request(dict(request or {}))
         except Exception:
             return
@@ -400,12 +375,9 @@ class ExtractorWorkerSubject:
                 "error": str(exc),
             }
         with self._write_lock:
-            if self._parent_request_writer is None:
+            if self._parent_conn is None:
                 return
-            self._parent_request_writer.write(
-                json.dumps(json_value(response), ensure_ascii=True) + "\n"
-            )
-            self._parent_request_writer.flush()
+            self._parent_conn.send(json_value(response))
 
     def _parent_media_request(self, operation: str, payload: dict[str, Any]) -> Any:
         from democrai.core.runtime.dependencies.extractor_env import (
@@ -458,29 +430,24 @@ class ExtractorWorkerSubject:
                 pass
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
-        if self._process is None or self._reader is None or self._writer is None:
+        if self._process is None or self._control_conn is None:
             raise RuntimeError("extractor_worker_not_started")
         if self._process.poll() is not None:
             raise RuntimeError(f"extractor_worker_exited:{self._process.returncode}")
         request_id = uuid.uuid4().hex
         with self._write_lock:
-            self._writer.write(
-                json.dumps(
-                    json_value(
-                        {
-                            "id": request_id,
-                            "operation": operation,
-                            "payload": payload,
-                            "request_context": current_request_context_payload(
-                                f"extractor_worker_subject.{operation}"
-                            ),
-                        }
-                    ),
-                    ensure_ascii=True,
+            self._control_conn.send(
+                json_value(
+                    {
+                        "id": request_id,
+                        "operation": operation,
+                        "payload": payload,
+                        "request_context": current_request_context_payload(
+                            f"extractor_worker_subject.{operation}"
+                        ),
+                    }
                 )
-                + "\n"
             )
-            self._writer.flush()
         with self._response_condition:
             self._response_condition.wait_for(
                 lambda: request_id in self._responses or self._closed
@@ -548,15 +515,11 @@ class ExtractorWorkerSubject:
                     except subprocess.TimeoutExpired:
                         process.kill()
         finally:
-            for handle in (self._stdout_reader, self._reader, self._writer):
+            for handle in (self._stdout_reader, self._control_conn, self._parent_conn):
                 try:
                     if handle is not None:
                         handle.close()
                 except Exception:
                     pass
-            for handle in (self._parent_request_reader, self._parent_request_writer):
-                try:
-                    if handle is not None:
-                        handle.close()
-                except Exception:
-                    pass
+            self._control_conn = None
+            self._parent_conn = None

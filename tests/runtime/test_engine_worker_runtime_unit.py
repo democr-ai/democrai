@@ -226,3 +226,89 @@ def test_engine_env_without_overrides_uses_data_dir(monkeypatch, tmp_path: Path)
         engine_env_mod.get_engine_local_tmp_path("install_demo")
         == tmp_path / "engine_env_cache" / "install_demo" / "tmp"
     )
+
+
+def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monkeypatch, tmp_path: Path):
+    popen_calls = []
+    listener_kinds = []
+    accepted_prefixes = []
+
+    class _Endpoint:
+        def __init__(self, kind: str) -> None:
+            self.kind = kind
+            self.address = f"{kind}-address"
+
+        def env(self, prefix: str) -> dict[str, str]:
+            return {
+                f"{prefix}_ADDRESS": self.address,
+                f"{prefix}_AUTHKEY": f"{self.kind}-auth",
+            }
+
+        def close(self) -> None:
+            pass
+
+    class _Process:
+        stderr = None
+
+        def poll(self):
+            return None
+
+    @contextmanager
+    def _bypass():
+        yield
+
+    class _Thread:
+        def __init__(self, *, target, args=(), **kwargs):
+            self._target = target
+            self._args = args
+
+        def start(self):
+            if self._args and getattr(self._args[0], "kind", "") == "engine-worker-parent":
+                self._target(*self._args)
+
+    def _popen(command, **kwargs):
+        popen_calls.append((command, kwargs))
+        return _Process()
+
+    def _listener(kind):
+        listener_kinds.append(kind)
+        return _Endpoint(kind)
+
+    def _accept(endpoint, *, process, timeout_seconds):
+        accepted_prefixes.append(endpoint.kind)
+        return SimpleNamespace(close=lambda: None)
+
+    monkeypatch.setattr(subject_mod, "create_local_listener", _listener)
+    monkeypatch.setattr(subject_mod, "accept_connection", _accept)
+    monkeypatch.setattr(subject_mod.threading, "Thread", _Thread)
+    monkeypatch.setattr(subject_mod.subprocess, "Popen", _popen)
+    monkeypatch.setattr(subject_mod, "process_guard_bypass_context", _bypass)
+    monkeypatch.setattr(subject_mod, "application_pythonpath", lambda: str(tmp_path))
+    monkeypatch.setattr(subject_mod, "get_engine_venv_python_path", lambda _engine_id: tmp_path / "python")
+    monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {})
+    monkeypatch.setattr(subject_mod, "worker_landlock_enabled", lambda: False)
+    monkeypatch.setattr(subject_mod, "get_engine_runtime_env", lambda _engine_id: {})
+    monkeypatch.setattr(subject_mod, "worker_runtime_access", lambda **_kwargs: ())
+    monkeypatch.setattr(subject_mod, "get_engine_allowed_imports", lambda *_args: [])
+    monkeypatch.setattr(subject_mod, "get_engine_allowed_subprocess_commands", lambda *_args: [])
+    monkeypatch.setattr(
+        subject_mod.EngineWorkerSubject,
+        "_request",
+        lambda self, operation, payload: None,
+    )
+
+    subject = subject_mod.EngineWorkerSubject("demo", {"model": "tiny"})
+    try:
+        env = popen_calls[0][1]["env"]
+        assert "pass" + "_fds" not in popen_calls[0][1]
+        assert env["DEMOCRAI_ENGINE_WORKER_CONTROL_ADDRESS"] == "engine-worker-control-address"
+        assert env["DEMOCRAI_ENGINE_WORKER_CONTROL_AUTHKEY"] == "engine-worker-control-auth"
+        assert env["DEMOCRAI_ENGINE_WORKER_PARENT_ADDRESS"] == "engine-worker-parent-address"
+        assert env["DEMOCRAI_ENGINE_WORKER_PARENT_AUTHKEY"] == "engine-worker-parent-auth"
+        legacy_prefix = "DEMOCRAI_ENGINE" + "_WORKER"
+        assert legacy_prefix + "_READ_FD" not in env
+        assert legacy_prefix + "_WRITE_FD" not in env
+        assert listener_kinds == ["engine-worker-control", "engine-worker-parent"]
+        assert accepted_prefixes == ["engine-worker-control", "engine-worker-parent"]
+    finally:
+        subject.close()

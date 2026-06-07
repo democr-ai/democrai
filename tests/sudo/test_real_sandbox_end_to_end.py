@@ -389,37 +389,32 @@ def sandbox_harness(tmp_path: Path) -> Path:
             engine_media_bridge_code = generated_module('''
                 from __future__ import annotations
 
-                import json
-                import os
                 import uuid
 
                 from democrai.core.application.ai.engine.runtime.serialization import json_value
                 from democrai.core.application.ai.engine.runtime.serialization import python_value
+                from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
                 def _request(operation, payload):
-                    request_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_PARENT_REQUEST_FD"])
-                    response_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_PARENT_RESPONSE_FD"])
+                    conn = connect_from_env("DEMOCRAI_ENGINE_WORKER_PARENT")
                     request_id = uuid.uuid4().hex
-                    with os.fdopen(request_fd, "w", encoding="utf-8", buffering=1) as writer:
-                        writer.write(json.dumps(json_value({{
+                    try:
+                        conn.send(json_value({{
                             "id": request_id,
                             "parent_request": True,
                             "operation": operation,
                             "payload": payload,
-                        }}), ensure_ascii=True) + "\\\\n")
-                        writer.flush()
-                    with os.fdopen(response_fd, "r", encoding="utf-8", buffering=1) as reader:
+                        }}))
                         while True:
-                            line = reader.readline()
-                            if not line:
-                                raise RuntimeError("engine_parent_media_channel_closed")
-                            response = python_value(json.loads(line))
+                            response = python_value(conn.recv())
                             if str(response.get("id") or "") != request_id:
                                 continue
                             if not response.get("ok"):
                                 raise RuntimeError(str(response.get("error") or "engine_parent_media_error"))
                             return response.get("result")
+                    finally:
+                        conn.close()
 
 
                 def materialize(storage_path):

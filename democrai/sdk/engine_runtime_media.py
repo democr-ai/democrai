@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import threading
@@ -9,10 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from democrai.core.runtime.ipc.local_connection import connect_from_env
+
 
 _LOCK = threading.Lock()
-_READER = None
-_WRITER = None
+_CONN = None
 
 
 @dataclass(frozen=True)
@@ -40,40 +40,29 @@ def _require_engine_worker_runtime() -> None:
         raise RuntimeError("engine_runtime_media_only_available_in_engine_worker")
 
 
-def _streams():
-    global _READER, _WRITER
+def _connection():
+    global _CONN
     _require_engine_worker_runtime()
-    if _READER is not None and _WRITER is not None:
-        return _READER, _WRITER
-    request_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_PARENT_REQUEST_FD"])
-    response_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_PARENT_RESPONSE_FD"])
-    _WRITER = os.fdopen(request_fd, "w", encoding="utf-8", buffering=1)
-    _READER = os.fdopen(response_fd, "r", encoding="utf-8", buffering=1)
-    return _READER, _WRITER
+    if _CONN is not None:
+        return _CONN
+    _CONN = connect_from_env("DEMOCRAI_ENGINE_WORKER_PARENT")
+    return _CONN
 
 
 def _request(operation: str, payload: dict[str, Any]) -> Any:
-    reader, writer = _streams()
+    conn = _connection()
     request_id = uuid.uuid4().hex
     with _LOCK:
-        writer.write(
-            json.dumps(
-                {
-                    "id": request_id,
-                    "parent_request": True,
-                    "operation": operation,
-                    "payload": payload,
-                },
-                ensure_ascii=True,
-            )
-            + "\n"
+        conn.send(
+            {
+                "id": request_id,
+                "parent_request": True,
+                "operation": operation,
+                "payload": payload,
+            }
         )
-        writer.flush()
         while True:
-            line = reader.readline()
-            if not line:
-                raise RuntimeError("engine_runtime_parent_media_channel_closed")
-            response = json.loads(line)
+            response = conn.recv()
             if str(response.get("id") or "") != request_id:
                 continue
             if not bool(response.get("ok")):

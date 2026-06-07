@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import inspect
-import json
 import os
 import sys
 import sysconfig
+import threading
 import traceback
 from typing import Any
 
@@ -41,6 +41,7 @@ from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import get_runtime_engine_dirs
 from democrai.core.runtime.foundation.paths import get_runtime_module_dirs
 from democrai.core.runtime.foundation.paths import logs_dir
+from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
 _WORKER_LOGGING_CONFIG_KEYS = {
@@ -358,9 +359,9 @@ async def _send_stream_result(
 
 
 class _Worker:
-    def __init__(self, read_fd: int, write_fd: int) -> None:
-        self._reader = os.fdopen(read_fd, "r", encoding="utf-8", buffering=1)
-        self._writer = os.fdopen(write_fd, "w", encoding="utf-8", buffering=1)
+    def __init__(self, conn) -> None:
+        self._conn = conn
+        self._send_lock = threading.Lock()
         self._stack = contextlib.ExitStack()
         self._engine: Any = None
         self._engine_cls: Any = None
@@ -370,8 +371,8 @@ class _Worker:
         self._invoke_semaphore = asyncio.Semaphore(1)
 
     def _send(self, payload: dict[str, Any]) -> None:
-        self._writer.write(json.dumps(json_value(payload), ensure_ascii=True) + "\n")
-        self._writer.flush()
+        with self._send_lock:
+            self._conn.send(json_value(payload))
 
     async def _send_task_result(
         self,
@@ -544,14 +545,13 @@ class _Worker:
 
     async def run(self) -> int:
         while True:
-            line = await asyncio.to_thread(self._reader.readline)
-            if not line:
+            try:
+                request = await asyncio.to_thread(self._conn.recv)
+            except EOFError:
                 return 0
-            if not line.strip():
-                continue
-            request = json.loads(line)
             if not isinstance(request, dict):
                 raise TypeError("engine_worker_request_dict_expected")
+            request = python_value(request)
             request_id = request.get("id", "")
             try:
                 request_context = request.get("request_context") or {}
@@ -640,15 +640,15 @@ class _Worker:
 
 async def _main() -> int:
     app_ctx().dev = os.environ.get("DEMOCRAI_DEV") == "1"
-    read_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_READ_FD"])
-    write_fd = int(os.environ["DEMOCRAI_ENGINE_WORKER_WRITE_FD"])
-    worker = _Worker(read_fd, write_fd)
+    conn = connect_from_env("DEMOCRAI_ENGINE_WORKER_CONTROL")
+    worker = _Worker(conn)
     try:
         return await worker.run()
     except asyncio.CancelledError:
         return 0
     finally:
         worker.close()
+        conn.close()
 
 
 def _run_main() -> int:

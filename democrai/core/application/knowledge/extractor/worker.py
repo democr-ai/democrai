@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import os
 import threading
 import traceback
@@ -22,6 +21,7 @@ from democrai.core.runtime.foundation.app import req_ctx
 from democrai.core.runtime.foundation.app import request_context_scope
 from democrai.core.runtime.dependencies.extractor_env import extractor_env_context
 from democrai.core.runtime.dependencies.extractor_env import isolate_extractor_imports
+from democrai.core.runtime.ipc.local_connection import connect_from_env
 
 
 class _WorkerRuntimeConfig:
@@ -74,35 +74,24 @@ async def _collect_result(result: Any) -> Any:
 
 class _ParentMediaProxy:
     def __init__(self) -> None:
-        request_fd = int(os.environ["DEMOCRAI_EXTRACTOR_WORKER_PARENT_REQUEST_FD"])
-        response_fd = int(os.environ["DEMOCRAI_EXTRACTOR_WORKER_PARENT_RESPONSE_FD"])
-        self._writer = os.fdopen(request_fd, "w", encoding="utf-8", buffering=1)
-        self._reader = os.fdopen(response_fd, "r", encoding="utf-8", buffering=1)
+        self._conn = connect_from_env("DEMOCRAI_EXTRACTOR_WORKER_PARENT")
         self._lock = threading.Lock()
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
         request_id = uuid.uuid4().hex
         with self._lock:
-            self._writer.write(
-                json.dumps(
-                    json_value(
-                        {
-                            "id": request_id,
-                            "parent_request": True,
-                            "operation": operation,
-                            "payload": payload,
-                        }
-                    ),
-                    ensure_ascii=True,
+            self._conn.send(
+                json_value(
+                    {
+                        "id": request_id,
+                        "parent_request": True,
+                        "operation": operation,
+                        "payload": payload,
+                    }
                 )
-                + "\n"
             )
-            self._writer.flush()
             while True:
-                line = self._reader.readline()
-                if not line:
-                    raise RuntimeError("extractor_runtime_parent_media_channel_closed")
-                response = python_value(json.loads(line))
+                response = python_value(self._conn.recv())
                 if str(response.get("id") or "") != request_id:
                     continue
                 if not bool(response.get("ok")):
@@ -145,17 +134,16 @@ class _ParentMediaProxy:
         )
 
     def close(self) -> None:
-        for handle in (self._reader, self._writer):
-            try:
-                handle.close()
-            except Exception:
-                pass
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
 
 class _Worker:
-    def __init__(self, read_fd: int, write_fd: int) -> None:
-        self._reader = os.fdopen(read_fd, "r", encoding="utf-8", buffering=1)
-        self._writer = os.fdopen(write_fd, "w", encoding="utf-8", buffering=1)
+    def __init__(self, conn) -> None:
+        self._conn = conn
+        self._send_lock = threading.Lock()
         self._stack = contextlib.ExitStack()
         self._extractor_cls: Any = None
         self._extractor: Any = None
@@ -165,8 +153,8 @@ class _Worker:
         app_ctx().media = self._media_proxy
 
     def _send(self, payload: dict[str, Any]) -> None:
-        self._writer.write(json.dumps(json_value(payload), ensure_ascii=True) + "\n")
-        self._writer.flush()
+        with self._send_lock:
+            self._conn.send(json_value(payload))
 
     def _require_request_context(self, operation: str) -> None:
         try:
@@ -257,12 +245,10 @@ class _Worker:
 
     async def run(self) -> int:
         while True:
-            line = await asyncio.to_thread(self._reader.readline)
-            if not line:
+            try:
+                request = python_value(await asyncio.to_thread(self._conn.recv))
+            except EOFError:
                 return 0
-            if not line.strip():
-                continue
-            request = python_value(json.loads(line))
             request_id = str(request.get("id") or "")
             try:
                 with request_context_scope(dict(request.get("request_context") or {})):
@@ -313,15 +299,15 @@ class _Worker:
 
 
 async def _main() -> int:
-    read_fd = int(os.environ["DEMOCRAI_EXTRACTOR_WORKER_READ_FD"])
-    write_fd = int(os.environ["DEMOCRAI_EXTRACTOR_WORKER_WRITE_FD"])
-    worker = _Worker(read_fd, write_fd)
+    conn = connect_from_env("DEMOCRAI_EXTRACTOR_WORKER_CONTROL")
+    worker = _Worker(conn)
     try:
         return await worker.run()
     except asyncio.CancelledError:
         return 0
     finally:
         worker.close()
+        conn.close()
 
 
 def _run_main() -> int:

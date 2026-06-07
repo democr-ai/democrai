@@ -246,3 +246,90 @@ def test_extractor_worker_applies_os_allowlist_to_child_process(monkeypatch):
         ),
         ("bypass_exit",),
     ]
+
+
+def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(monkeypatch, tmp_path: Path):
+    popen_calls = []
+    listener_kinds = []
+    accepted_prefixes = []
+
+    class _Endpoint:
+        def __init__(self, kind: str) -> None:
+            self.kind = kind
+            self.address = f"{kind}-address"
+
+        def env(self, prefix: str) -> dict[str, str]:
+            return {
+                f"{prefix}_ADDRESS": self.address,
+                f"{prefix}_AUTHKEY": f"{self.kind}-auth",
+            }
+
+        def close(self) -> None:
+            pass
+
+    class _Process:
+        pid = 1234
+        stdout = None
+
+        def poll(self):
+            return None
+
+    class _Thread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    def _popen(command, **kwargs):
+        popen_calls.append((command, kwargs))
+        return _Process()
+
+    def _listener(kind):
+        listener_kinds.append(kind)
+        return _Endpoint(kind)
+
+    def _accept(endpoint, *, process, timeout_seconds):
+        accepted_prefixes.append(endpoint.kind)
+        return SimpleNamespace(close=lambda: None)
+
+    monkeypatch.setattr(subject_mod, "create_local_listener", _listener)
+    monkeypatch.setattr(subject_mod, "accept_connection", _accept)
+    monkeypatch.setattr(subject_mod.threading, "Thread", _Thread)
+    monkeypatch.setattr(subject_mod.subprocess, "Popen", _popen)
+    monkeypatch.setattr(subject_mod, "get_extractor_venv_python_path", lambda _extractor_id: tmp_path / "python")
+    monkeypatch.setattr(subject_mod, "_application_pythonpath", lambda: str(tmp_path))
+    monkeypatch.setattr(subject_mod, "_apply_os_network_allowlist_to_worker_process", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
+    monkeypatch.setattr(
+        subject_mod,
+        "_clean_worker_env",
+        lambda: {},
+    )
+    monkeypatch.setattr(
+        subject_mod.ExtractorWorkerSubject,
+        "_request",
+        lambda self, operation, payload: None,
+    )
+    runtime_mod = __import__(
+        "democrai.core.application.knowledge.extractor.runtime",
+        fromlist=["get_extractor_access", "get_extractor_allowed_imports"],
+    )
+    monkeypatch.setattr(runtime_mod, "get_extractor_access", lambda *_args: ())
+    monkeypatch.setattr(runtime_mod, "get_extractor_allowed_imports", lambda *_args: [])
+
+    subject = subject_mod.ExtractorWorkerSubject("demo", phase="runtime", config={})
+    try:
+        env = popen_calls[0][1]["env"]
+        assert "pass" + "_fds" not in popen_calls[0][1]
+        assert env["DEMOCRAI_EXTRACTOR_WORKER_CONTROL_ADDRESS"] == "extractor-worker-control-address"
+        assert env["DEMOCRAI_EXTRACTOR_WORKER_CONTROL_AUTHKEY"] == "extractor-worker-control-auth"
+        assert env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_ADDRESS"] == "extractor-worker-parent-address"
+        assert env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_AUTHKEY"] == "extractor-worker-parent-auth"
+        legacy_prefix = "DEMOCRAI_EXTRACTOR" + "_WORKER"
+        assert legacy_prefix + "_READ_FD" not in env
+        assert legacy_prefix + "_WRITE_FD" not in env
+        assert listener_kinds == ["extractor-worker-control", "extractor-worker-parent"]
+        assert accepted_prefixes == ["extractor-worker-control", "extractor-worker-parent"]
+    finally:
+        subject.close()
