@@ -344,6 +344,56 @@ def test_process_guard_external_access_cache_is_scoped_by_subject_access_chain(
     assert calls["count"] == 2
 
 
+def test_process_guard_external_access_db_check_records_profiler_event(
+    tmp_path: Path,
+    monkeypatch,
+):
+    from democrai.core.application.services import external_access
+    from democrai.core.infrastructure.sandbox import process_guard
+    from democrai.core.runtime.observability import profiling
+
+    monkeypatch.setattr(
+        external_access,
+        "check_external_access",
+        lambda **_kwargs: SimpleNamespace(allowed=False, requires_approval=False),
+    )
+    denied = tmp_path / "profiled_denial.txt"
+    denied.write_text("x", encoding="utf-8")
+    profiler = profiling.RequestProfiler(
+        request_id="test",
+        request_kind="sandbox",
+        enabled=True,
+    )
+    profiler_token = profiling._current_profiler.set(profiler)
+    state_token = process_guard._STATE.set(
+        {
+            "subject": "onnx",
+            "subject_kind": "engine",
+            "subject_chain": [{"kind": "engine", "name": "onnx"}],
+        }
+    )
+    cache_token = process_guard._EXTERNAL_ACCESS_CACHE.set({})
+    try:
+        assert (
+            process_guard._external_filesystem_access_allowed(
+                denied,
+                operation="read",
+            )
+            is False
+        )
+    finally:
+        process_guard._EXTERNAL_ACCESS_CACHE.reset(cache_token)
+        process_guard._STATE.reset(state_token)
+        profiling._current_profiler.reset(profiler_token)
+
+    events = profiler.events["process_guard.external_fs.db_check"]
+    assert events[0]["subject_kind"] == "engine"
+    assert events[0]["subject"] == "onnx"
+    assert events[0]["operation"] == "read"
+    assert events[0]["target"].endswith("profiled_denial.txt")
+    assert events[0]["chain"] == [{"kind": "engine", "name": "onnx"}]
+
+
 def test_process_guard_filesystem_denial_message_includes_subject_chain(
     external_access_db,
     tmp_path: Path,

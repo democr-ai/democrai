@@ -62,6 +62,33 @@ def test_cycle_record_preserves_error_details():
     assert record["traceback"] == "trace"
 
 
+def test_cycle_record_preserves_process_guard_events():
+    mod = _load_script()
+
+    record = mod.cycle_record(
+        cycle=1,
+        measured=True,
+        spawn_total_ms=50.0,
+        spans_ms={},
+        metrics={},
+        events={
+            "process_guard.external_fs.db_check": [
+                {
+                    "subject_kind": "engine",
+                    "subject": "onnx",
+                    "operation": "read",
+                    "target": "/etc/os-release",
+                    "chain": [{"kind": "engine", "name": "onnx"}],
+                }
+            ]
+        },
+    )
+
+    assert record["events"]["process_guard.external_fs.db_check"][0]["target"] == (
+        "/etc/os-release"
+    )
+
+
 def test_aggregate_filters_process_guard_spans_and_metrics():
     mod = _load_script()
     records = [
@@ -107,6 +134,84 @@ def test_aggregate_filters_process_guard_spans_and_metrics():
     assert "db.query" not in span_names
     assert "process_guard.path_allowed.calls" in metric_names
     assert "db.calls" not in metric_names
+
+
+def test_aggregate_reports_external_fs_db_check_targets():
+    mod = _load_script()
+    records = [
+        mod.cycle_record(
+            cycle=0,
+            measured=False,
+            spawn_total_ms=10.0,
+            spans_ms={},
+            metrics={},
+            events={
+                "process_guard.external_fs.db_check": [
+                    {
+                        "subject_kind": "engine",
+                        "subject": "onnx",
+                        "operation": "read",
+                        "target": "/tmp/warmup",
+                        "chain": [],
+                    }
+                ]
+            },
+        ),
+        mod.cycle_record(
+            cycle=1,
+            measured=True,
+            spawn_total_ms=10.0,
+            spans_ms={},
+            metrics={},
+            events={
+                "process_guard.external_fs.db_check": [
+                    {
+                        "subject_kind": "engine",
+                        "subject": "onnx",
+                        "operation": "read",
+                        "target": "/etc/os-release",
+                        "chain": [{"kind": "engine", "name": "onnx"}],
+                    },
+                    {
+                        "subject_kind": "engine",
+                        "subject": "onnx",
+                        "operation": "read",
+                        "target": "/etc/os-release",
+                        "chain": [{"kind": "engine", "name": "onnx"}],
+                    },
+                    {
+                        "subject_kind": "engine",
+                        "subject": "onnx",
+                        "operation": "read",
+                        "target": "/home/fabio/data.txt",
+                        "chain": [{"kind": "engine", "name": "onnx"}],
+                    },
+                ]
+            },
+        ),
+    ]
+
+    aggregate = mod.aggregate(records, top=10)
+    targets = aggregate["top_external_fs_db_targets"]
+
+    assert targets[0]["target"] == "/etc/os-release"
+    assert targets[0]["count"] == 2
+    assert targets[0]["category"] == "system_probe"
+    assert targets[0]["chain"] == "engine:onnx"
+    assert all(item["target"] != "/tmp/warmup" for item in targets)
+
+
+def test_classify_external_fs_target_categories():
+    mod = _load_script()
+
+    assert mod.classify_external_fs_target("/home/me/.cache/democrai/x") == (
+        "framework_runtime"
+    )
+    assert mod.classify_external_fs_target("/usr/lib/libcuda.so.1") == (
+        "runtime_dependency"
+    )
+    assert mod.classify_external_fs_target("/etc/os-release") == "system_probe"
+    assert mod.classify_external_fs_target("/home/me/input.txt") == "subject_io"
 
 
 def test_percentile_uses_nearest_rank():

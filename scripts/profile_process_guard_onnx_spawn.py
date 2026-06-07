@@ -71,6 +71,106 @@ def top_prefixed(
     return sorted(rows, key=lambda item: float(item["value"]), reverse=True)[:limit]
 
 
+def classify_external_fs_target(target: str) -> str:
+    normalized = str(target or "").replace("\\", "/").lower()
+    if not normalized:
+        return "unknown"
+    framework_markers = (
+        "/.local/state/democrai",
+        "/.local/share/democrai",
+        "/.cache/democrai",
+        "/democrai/ipc",
+        "/democrai/logs",
+        "appdata/roaming/democrai",
+        "appdata/local/democrai",
+        "/library/application support/democrai",
+        "/library/caches/democrai",
+    )
+    if any(marker in normalized for marker in framework_markers):
+        return "framework_runtime"
+    runtime_markers = (
+        "engine_env_cache",
+        "/site-packages/",
+        "/dist-packages/",
+        "/lib/python",
+        "/python",
+        "/usr/lib",
+        "/usr/local/lib",
+        "/opt/homebrew",
+        "/opt/local",
+        "/program files/",
+        "/windows/system32",
+        "/windows/syswow64",
+    )
+    if any(marker in normalized for marker in runtime_markers):
+        return "runtime_dependency"
+    system_probe_markers = (
+        "/etc/",
+        "/proc/",
+        "/sys/",
+        "/dev/",
+        "/var/db/timezone",
+        "/private/etc/",
+    )
+    if any(marker in normalized for marker in system_probe_markers):
+        return "system_probe"
+    return "subject_io"
+
+
+def _chain_text(chain: Any) -> str:
+    if not isinstance(chain, list):
+        return ""
+    parts = []
+    for item in chain:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        name = str(item.get("name") or "").strip()
+        if kind and name:
+            parts.append(f"{kind}:{name}")
+    return " > ".join(parts)
+
+
+def aggregate_external_fs_db_targets(
+    records: list[dict[str, Any]],
+    *,
+    top: int,
+) -> list[dict[str, Any]]:
+    buckets: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+    for record in records:
+        if not bool(record.get("measured")):
+            continue
+        events = dict(record.get("events") or {})
+        for event in list(events.get("process_guard.external_fs.db_check") or []):
+            if not isinstance(event, dict):
+                continue
+            target = str(event.get("target") or "")
+            operation = str(event.get("operation") or "")
+            subject_kind = str(event.get("subject_kind") or "")
+            subject = str(event.get("subject") or "")
+            chain = _chain_text(event.get("chain"))
+            category = classify_external_fs_target(target)
+            key = (category, subject_kind, subject, operation, chain, target)
+            bucket = buckets.setdefault(
+                key,
+                {
+                    "category": category,
+                    "subject_kind": subject_kind,
+                    "subject": subject,
+                    "operation": operation,
+                    "chain": chain,
+                    "target": target,
+                    "count": 0,
+                },
+            )
+            bucket["count"] += 1
+    return sorted(
+        buckets.values(),
+        key=lambda item: int(item["count"]),
+        reverse=True,
+    )[:top]
+
+
 def cycle_record(
     *,
     cycle: int,
@@ -78,6 +178,7 @@ def cycle_record(
     spawn_total_ms: float,
     spans_ms: dict[str, float],
     metrics: dict[str, float],
+    events: dict[str, list[dict[str, Any]]] | None = None,
     error: str | None = None,
     traceback_text: str | None = None,
 ) -> dict[str, Any]:
@@ -94,6 +195,7 @@ def cycle_record(
         ),
         "spans_ms": dict(spans_ms),
         "metrics": dict(metrics),
+        "events": dict(events or {}),
         "error": str(error or ""),
         "traceback": str(traceback_text or ""),
     }
@@ -128,6 +230,10 @@ def aggregate(records: list[dict[str, Any]], *, top: int) -> dict[str, Any]:
             aggregate_metrics,
             prefix="process_guard.",
             limit=top,
+        ),
+        "top_external_fs_db_targets": aggregate_external_fs_db_targets(
+            records,
+            top=top,
         ),
     }
 
@@ -224,6 +330,7 @@ def run_cycle(
         spawn_total_ms=spawn_total_ms,
         spans_ms=profiler.spans_ms,
         metrics=profiler.metrics,
+        events=profiler.events,
         error=error,
         traceback_text=traceback_text,
     )
@@ -269,6 +376,20 @@ def print_report(payload: dict[str, Any], *, top: int) -> None:
     print(f"top {top} process_guard metrics")
     for item in aggregate_payload["top_process_guard_metrics"]:
         print(f"  {item['name']}={item['value']:.0f}")
+
+    print(f"top {top} external_fs db_check targets")
+    for item in aggregate_payload.get("top_external_fs_db_targets") or []:
+        print(
+            "  {count}x {category} {subject_kind}:{subject} {operation} {target} chain={chain}".format(
+                count=item["count"],
+                category=item["category"],
+                subject_kind=item["subject_kind"],
+                subject=item["subject"],
+                operation=item["operation"],
+                target=item["target"],
+                chain=item["chain"],
+            )
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:

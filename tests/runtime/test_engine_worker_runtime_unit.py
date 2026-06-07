@@ -409,6 +409,67 @@ def test_get_engine_runtime_access_does_not_create_engine_env(monkeypatch, tmp_p
     assert not (tmp_path / "engine_env_cache" / "onnx").exists()
 
 
+def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_dependency_read_paths",
+        lambda: ("/opt/homebrew",),
+    )
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_c_compiler_candidate_paths",
+        lambda: ("/opt/homebrew/bin/clang",),
+    )
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_toolchain_program_candidate_paths",
+        lambda: {"ld": ("/opt/homebrew/bin/ld",)},
+    )
+
+    access = access_mod.get_engine_access("onnx", "runtime", config={})
+    resources = {
+        (
+            rule.resource.resource_type.value,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+    }
+
+    assert ("filesystem", "read", "/opt/homebrew") in resources
+    assert ("filesystem", "execute", "/opt/homebrew/bin/clang") in resources
+    assert ("filesystem", "execute", "/opt/homebrew/bin/ld") in resources
+    assert ("filesystem", "modify", "/opt/homebrew") not in resources
+    assert ("filesystem", "delete", "/opt/homebrew") not in resources
+
+
+def test_engine_runtime_access_includes_windows_venv_read_roots(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+    monkeypatch.setattr(access_mod, "engine_runtime_dependency_read_paths", lambda: ())
+
+    access = access_mod.get_engine_access("onnx", "runtime", config={})
+    read_targets = {
+        rule.resource.normalized_target
+        for rule in access
+        if rule.resource.resource_type.value == "filesystem"
+        and rule.resource.operation.value == "read"
+    }
+    venv_root = tmp_path / "engine_env_cache" / "onnx" / ".venv"
+
+    assert str((venv_root / "Scripts").resolve()) in read_targets
+    assert str((venv_root / "DLLs").resolve()) in read_targets
+    assert str((venv_root / "Lib").resolve()) in read_targets
+    assert str((venv_root / "Lib" / "site-packages").resolve()) in read_targets
+    assert not (tmp_path / "engine_env_cache" / "onnx").exists()
+
+
 def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monkeypatch, tmp_path: Path):
     popen_calls = []
     listener_kinds = []

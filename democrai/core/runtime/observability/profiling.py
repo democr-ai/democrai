@@ -6,7 +6,7 @@ import os
 import time
 import zlib
 from dataclasses import dataclass, field
-from typing import Dict, Iterator
+from typing import Any, Dict, Iterator
 
 from democrai.core.runtime.foundation.app import app_ctx
 
@@ -58,6 +58,7 @@ class RequestProfiler:
     started_at: float = field(default_factory=time.perf_counter)
     spans_ms: Dict[str, float] = field(default_factory=dict)
     metrics: Dict[str, float] = field(default_factory=dict)
+    events: Dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _stack: list[_ActiveSpan] = field(default_factory=list)
 
     @contextlib.contextmanager
@@ -98,6 +99,20 @@ class RequestProfiler:
         if not self.enabled:
             return
         self.metrics[name] = value
+
+    def record_event(
+        self,
+        name: str,
+        fields: dict[str, Any],
+        *,
+        limit: int = 256,
+    ) -> None:
+        if not self.enabled:
+            return
+        events = self.events.setdefault(name, [])
+        if len(events) >= limit:
+            return
+        events.append({str(key): value for key, value in fields.items()})
 
     def finish(self) -> None:
         if not self.enabled:

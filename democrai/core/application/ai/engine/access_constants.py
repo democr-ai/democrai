@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from democrai.core.infrastructure.sandbox.platform_policy import (
+    runtime_dependency_read_paths,
+    toolchain_execute_paths,
+)
 from democrai.core.platform.utils.normalize import os_key
 
 DEFAULT_ENGINE_INSTALL_RECEIVE_URLS = (
@@ -98,8 +102,19 @@ def engine_runtime_libcuda_candidate_paths() -> tuple[str, ...]:
     return ENGINE_RUNTIME_LIBCUDA_CANDIDATE_PATHS_BY_OS.get(os_key(), ())
 
 
+def engine_runtime_dependency_read_paths() -> tuple[str, ...]:
+    return runtime_dependency_read_paths(os_key())
+
+
 def engine_runtime_c_compiler_candidate_paths() -> tuple[str, ...]:
-    return ENGINE_RUNTIME_C_COMPILER_CANDIDATE_PATHS_BY_OS.get(os_key(), ())
+    return tuple(
+        dict.fromkeys(
+            (
+                *ENGINE_RUNTIME_C_COMPILER_CANDIDATE_PATHS_BY_OS.get(os_key(), ()),
+                *toolchain_execute_paths(os_key()),
+            )
+        )
+    )
 
 
 def engine_runtime_toolchain_program_candidate_paths() -> dict[str, tuple[str, ...]]:

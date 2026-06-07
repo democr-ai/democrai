@@ -16,6 +16,7 @@ from democrai.core.application.ai.engine.access_constants import (
     engine_runtime_c_compiler_candidate_paths,
     engine_runtime_device_modify_paths,
     engine_runtime_device_read_paths,
+    engine_runtime_dependency_read_paths,
     engine_runtime_engine_env_executable_relative_paths,
     engine_runtime_libcuda_candidate_paths,
     engine_runtime_toolchain_program_candidate_paths,
@@ -37,6 +38,21 @@ from democrai.core.runtime.foundation.app import app_ctx
 
 def _policy_path(path: Path) -> str:
     return os.path.normpath(os.path.abspath(str(path)))
+
+
+def _engine_venv_runtime_read_paths(venv_path: str) -> tuple[str, ...]:
+    root = Path(venv_path)
+    return tuple(
+        _policy_path(path)
+        for path in (
+            root / "DLLs",
+            root / "Lib",
+            root / "Lib" / "site-packages",
+            root / "Scripts",
+            root / "bin",
+            root / "lib",
+        )
+    )
 
 
 def _filesystem_rules(
@@ -235,6 +251,16 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
             for target in executable_targets
         )
     if phase == "runtime":
+        rules.extend(
+            _filesystem_rules(
+                subject,
+                operation="read",
+                targets=(
+                    *engine_runtime_dependency_read_paths(),
+                    *_engine_venv_runtime_read_paths(engine_venv_path),
+                ),
+            )
+        )
         rules.extend(
             AccessManifestRule(
                 subject=subject,

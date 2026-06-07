@@ -27,6 +27,10 @@ from democrai.core.application.access_policy.models import AccessSubject
 from democrai.core.application.access_policy.operations import ResourceType
 from democrai.core.infrastructure.network.policy_guard import network_policy_context
 from democrai.core.infrastructure.sandbox.access_constants import system_read_paths
+from democrai.core.infrastructure.sandbox.platform_policy import (
+    runtime_dependency_read_paths,
+    system_probe_read_paths,
+)
 from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 from democrai.core.runtime.foundation.paths import (
     cache_dir,
@@ -106,6 +110,15 @@ def _profile_count(name: str, amount: int = 1) -> None:
     if profiler is None or not profiler.enabled:
         return
     profiler.metrics[name] = profiler.metrics.get(name, 0.0) + float(amount)
+
+
+def _profile_event(name: str, fields: dict[str, Any]) -> None:
+    profiler = current_request_profiler()
+    if profiler is None or not profiler.enabled:
+        return
+    record_event = getattr(profiler, "record_event", None)
+    if callable(record_event):
+        record_event(name, fields)
 
 
 def _state() -> dict[str, Any]:
@@ -716,6 +729,8 @@ def _runtime_access_cache_key() -> tuple[Any, ...]:
         id(state_dir),
         id(logs_dir),
         id(system_read_paths),
+        id(system_probe_read_paths),
+        id(runtime_dependency_read_paths),
         id(sysconfig.get_paths),
         id(_runtime_filesystem_read_paths),
         id(_configured_runtime_paths),
@@ -726,6 +741,12 @@ def _runtime_access_cache_key() -> tuple[Any, ...]:
         str(sys.prefix or ""),
         str(sys.exec_prefix or ""),
         tempfile.gettempdir(),
+        os.environ.get("SystemRoot", ""),
+        os.environ.get("WINDIR", ""),
+        os.environ.get("ProgramFiles", ""),
+        os.environ.get("ProgramFiles(x86)", ""),
+        os.environ.get("ProgramData", ""),
+        os.environ.get("LOCALAPPDATA", ""),
     )
 
 
@@ -790,6 +811,9 @@ def _build_runtime_access() -> tuple[AccessManifestRule, ...]:
         delete_paths.append(str(logs_dir().resolve()))
     except Exception:
         pass
+    runtime_ipc_path = _runtime_ipc_path()
+    if runtime_ipc_path:
+        delete_paths.append(runtime_ipc_path)
     media_storage_path = _configured_media_storage_path()
     if media_storage_path:
         delete_paths.append(media_storage_path)
@@ -802,6 +826,13 @@ def _build_runtime_access() -> tuple[AccessManifestRule, ...]:
         _configured_logging_network_access_rules(subject=subject),
         _configured_remote_service_network_access_rules(subject=subject),
     )
+
+
+def _runtime_ipc_path() -> str:
+    try:
+        return str((state_dir() / "ipc").resolve())
+    except Exception:
+        return ""
 
 
 def _runtime_access() -> tuple[AccessManifestRule, ...]:
@@ -974,6 +1005,13 @@ def _external_filesystem_access_allowed(
             )
 
             with _profile_span("process_guard.external_fs.db_check"):
+                _profile_external_fs_db_check(
+                    subject_kind=subject_kind,
+                    subject=subject,
+                    subject_chain=subject_chain,
+                    operation=operation,
+                    target=normalized_target,
+                )
                 access = check_external_access(
                     subject_type=subject_kind,
                     subject_name=subject,
@@ -1037,6 +1075,30 @@ def _external_filesystem_access_allowed(
                 pass
             raise RuntimeError("sandbox_external_access_check_failed") from exc
         return False
+
+
+def _profile_external_fs_db_check(
+    *,
+    subject_kind: str,
+    subject: str,
+    subject_chain: tuple[tuple[str, str], ...],
+    operation: str,
+    target: str,
+) -> None:
+    _profile_count("process_guard.external_fs.db_check.calls")
+    _profile_event(
+        "process_guard.external_fs.db_check",
+        {
+            "subject_kind": subject_kind,
+            "subject": subject,
+            "operation": operation,
+            "target": target,
+            "chain": [
+                {"kind": kind, "name": name}
+                for kind, name in subject_chain
+            ],
+        },
+    )
 
 
 def _external_access_subject_chain(

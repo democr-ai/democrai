@@ -1056,8 +1056,9 @@ def test_process_guard_import_wrapper_profiles_only_sensitive_roots():
 
 def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+    policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
 
-    monkeypatch.setattr(access_constants.sys, "platform", "darwin")
+    monkeypatch.setattr(policy.sys, "platform", "darwin")
 
     paths = access_constants.system_read_paths()
     assert "/etc/zoneinfo" in paths
@@ -1066,6 +1067,46 @@ def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     assert "/usr/share/zoneinfo" in paths
     assert "/usr/share/zoneinfo.default" in paths
     assert "/var/db/timezone/zoneinfo" in paths
+
+
+def test_platform_policy_covers_darwin_runtime_paths(monkeypatch):
+    policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
+    access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+
+    monkeypatch.setattr(policy.sys, "platform", "darwin")
+
+    system_paths = access_constants.system_read_paths()
+    assert "/System/Library" in system_paths
+    assert "/Library" in system_paths
+    assert "/usr/lib" in system_paths
+    assert "/usr/bin" in system_paths
+    assert "/private/etc" in system_paths
+    assert "/var/db/timezone" in system_paths
+    assert "/opt/homebrew" in system_paths
+    assert "/opt/local" in system_paths
+    assert "/opt/homebrew/bin/clang" in policy.toolchain_execute_paths()
+
+
+def test_platform_policy_covers_windows_env_paths(monkeypatch):
+    policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
+    access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+
+    monkeypatch.setattr(policy.sys, "platform", "win32")
+    monkeypatch.setenv("SystemRoot", r"D:\Windows")
+    monkeypatch.setenv("ProgramFiles", r"D:\Program Files")
+    monkeypatch.setenv("ProgramFiles(x86)", r"D:\Program Files (x86)")
+    monkeypatch.setenv("ProgramData", r"D:\ProgramData")
+    monkeypatch.setenv("LOCALAPPDATA", r"D:\Users\me\AppData\Local")
+
+    system_paths = access_constants.system_read_paths()
+    assert r"D:\Windows/System32" in system_paths
+    assert r"D:\Windows/SysWOW64" in system_paths
+    assert r"D:\ProgramData" in system_paths
+    assert r"D:\Program Files" in system_paths
+    assert r"D:\Program Files (x86)" in system_paths
+    assert r"D:\Users\me\AppData\Local" in system_paths
+    assert policy.toolchain_execute_paths() == ()
+    assert not any(str(path).startswith(r"\\.\pipe") for path in system_paths)
 
 
 def test_path_allowed_accepts_zoneinfo_symlink_and_realpath_variants(monkeypatch):
@@ -1461,6 +1502,26 @@ def test_process_guard_runtime_access_allows_configured_http_logger(monkeypatch)
         "send",
         "receive",
     }
+
+
+def test_process_guard_runtime_access_allows_ipc_socket_cleanup(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.setattr(mod, "data_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(mod, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(mod, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(mod, "state_dir", lambda: tmp_path / "state")
+    monkeypatch.setattr(mod, "logs_dir", lambda: tmp_path / "state" / "logs")
+
+    rules = mod._runtime_access()
+    delete_targets = {
+        rule.resource.normalized_target
+        for rule in rules
+        if rule.resource.resource_type.value == "filesystem"
+        and rule.resource.operation.value == "delete"
+    }
+
+    assert str((tmp_path / "state" / "ipc").resolve()) in delete_targets
+    assert not any(str(target).startswith(r"\\.\pipe") for target in delete_targets)
 
 
 def test_runtime_filesystem_read_paths_include_configured_local_media_path(monkeypatch, tmp_path: Path):
