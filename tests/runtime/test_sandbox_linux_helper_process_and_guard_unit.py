@@ -56,6 +56,19 @@ def _access_rule(mod, subject_kind: str, subject: str, resource_type: str, opera
     )
 
 
+def _guard_state(mod, rules, *, subject: str = "s", subject_kind: str = "module"):
+    access = tuple(rules or ())
+    filesystem_access = mod._filesystem_access_by_operation(access)
+    return {
+        "access": access,
+        "filesystem_access": filesystem_access,
+        "filesystem_access_fingerprint": mod._filesystem_access_fingerprint(filesystem_access),
+        "filesystem_access_index": mod._filesystem_access_index(filesystem_access),
+        "subject": subject,
+        "subject_kind": subject_kind,
+    }
+
+
 def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
     guard_mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
@@ -90,40 +103,15 @@ def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_
     assert out.returncode == 0
     assert calls[0][0][:3] == [sys.executable, "-m", "democrai.core.infrastructure.sandbox.launcher"]
     assert calls[0][2]["command"] == ["echo", "ok"]
-    assert calls[0][2]["access"][0]["resource"]["target"] == str(tmp_path)
-
-
-def test_sandbox_launcher_maps_parent_filesystem_rules(monkeypatch, tmp_path: Path):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
-    monkeypatch.setattr(mod.sys, "platform", "linux")
-    monkeypatch.setattr(
-        "democrai.core.infrastructure.sandbox.os.landlock.is_landlock_supported",
-        lambda: True,
-    )
-    calls = []
-    monkeypatch.setattr(
-        "democrai.core.infrastructure.sandbox.os.landlock.apply_landlock_filesystem_rules",
-        lambda **kwargs: calls.append(kwargs),
-    )
-
-    mod._apply_child_filesystem_rules(
-        [
-            {"resource": {"resource_type": "filesystem", "operation": "read", "target": str(tmp_path / "ro")}},
-            {"resource": {"resource_type": "filesystem", "operation": "modify", "target": str(tmp_path / "rw")}},
-            {"resource": {"resource_type": "network", "operation": "connect", "target": "https://api.local"}},
-        ]
-    )
-
-    assert calls == [
-        {
-            "read_only_paths": [str(tmp_path / "ro")],
-            "read_write_paths": [str(tmp_path / "rw")],
-        }
-    ]
+    assert calls[0][2]["filesystem_access"][0]["target"] == str(tmp_path)
+    assert "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET" in calls[0][1]["env"]
+    assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" in calls[0][1]["env"]
+    assert "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET" in calls[0][2]["env"]
+    assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" in calls[0][2]["env"]
 
 
 def test_linux_helpers_and_apply_clear(monkeypatch, tmp_path: Path):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     called = {}
@@ -395,7 +383,7 @@ def test_linux_helpers_and_apply_clear(monkeypatch, tmp_path: Path):
 
 
 def test_linux_create_chain_tolerates_existing_chain(monkeypatch):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     calls = []
@@ -420,7 +408,7 @@ def test_linux_create_chain_tolerates_existing_chain(monkeypatch):
 
 
 def test_linux_create_chain_still_raises_other_create_errors(monkeypatch):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     def _run_command(cmd):
@@ -435,7 +423,7 @@ def test_linux_create_chain_still_raises_other_create_errors(monkeypatch):
 
 
 def test_linux_apply_network_allowlist_runs_under_apply_lock(monkeypatch):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     state = {"locked": False}
@@ -804,17 +792,17 @@ def test_process_guard_all_paths(monkeypatch, tmp_path: Path):
     assert mod._path_allowed("/any", operation="read") is True
     mod._BYPASS.reset(token_bypass)
     assert mod._path_allowed("/any", operation="read") is True  # no state
-    st_token = mod._STATE.set({"access": (), "subject": "s"})
+    st_token = mod._STATE.set(_guard_state(mod, ()))
     assert mod._path_allowed("/any", operation="read") is False
     assert mod._path_allowed(1, operation="read") is False
     mod._STATE.reset(st_token)
     st_token = mod._STATE.set(
-        {
-            "access": (
+        _guard_state(
+            mod,
+            (
                 _access_rule(mod, "module", "s", "filesystem", "read", str(tmp_path)),
             ),
-            "subject": "s",
-        }
+        )
     )
     assert mod._path_allowed(str(tmp_path / "x"), operation="read") is True
     assert mod._path_allowed("/outside", operation="read") is False
@@ -1059,6 +1047,8 @@ def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
 
     monkeypatch.setattr(policy.sys, "platform", "darwin")
+    monkeypatch.setattr(policy.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(policy.os.path, "realpath", lambda path: str(path))
 
     paths = access_constants.system_read_paths()
     assert "/etc/zoneinfo" in paths
@@ -1074,6 +1064,8 @@ def test_platform_policy_covers_darwin_runtime_paths(monkeypatch):
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
 
     monkeypatch.setattr(policy.sys, "platform", "darwin")
+    monkeypatch.setattr(policy.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(policy.os.path, "realpath", lambda path: str(path))
 
     system_paths = access_constants.system_read_paths()
     assert "/System/Library" in system_paths
@@ -1097,6 +1089,8 @@ def test_platform_policy_covers_windows_env_paths(monkeypatch):
     monkeypatch.setenv("ProgramFiles(x86)", r"D:\Program Files (x86)")
     monkeypatch.setenv("ProgramData", r"D:\ProgramData")
     monkeypatch.setenv("LOCALAPPDATA", r"D:\Users\me\AppData\Local")
+    monkeypatch.setattr(policy.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(policy.os.path, "realpath", lambda path: str(path))
 
     system_paths = access_constants.system_read_paths()
     assert r"D:\Windows/System32" in system_paths
@@ -1107,6 +1101,39 @@ def test_platform_policy_covers_windows_env_paths(monkeypatch):
     assert r"D:\Users\me\AppData\Local" in system_paths
     assert policy.toolchain_execute_paths() == ()
     assert not any(str(path).startswith(r"\\.\pipe") for path in system_paths)
+
+
+def test_system_probe_read_paths_keep_optional_mime_type_probes(monkeypatch):
+    policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
+    access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+
+    monkeypatch.setattr(policy.sys, "platform", "linux")
+    monkeypatch.setattr(policy, "LINUX_SYSTEM_PROBE_READ_PATHS", ("/etc/httpd/mime.types",))
+    monkeypatch.setattr(policy, "LINUX_RUNTIME_DEPENDENCY_READ_PATHS", ())
+    monkeypatch.setattr(policy.os.path, "exists", lambda _path: False)
+
+    assert "/etc/httpd/mime.types" in access_constants.system_read_paths()
+
+
+def test_process_guard_runtime_access_allows_optional_mime_type_probe(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
+    access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
+
+    monkeypatch.setattr(policy.sys, "platform", "linux")
+    monkeypatch.setattr(policy, "LINUX_SYSTEM_PROBE_READ_PATHS", ("/etc/httpd/mime.types",))
+    monkeypatch.setattr(policy, "LINUX_RUNTIME_DEPENDENCY_READ_PATHS", ())
+    monkeypatch.setattr(policy.os.path, "exists", lambda _path: False)
+    monkeypatch.setattr(mod, "system_read_paths", access_constants.system_read_paths)
+    monkeypatch.setattr(mod.sys, "path", [])
+    monkeypatch.setattr(
+        mod.sysconfig,
+        "get_paths",
+        lambda: {"stdlib": "", "platstdlib": "", "purelib": "", "platlib": ""},
+    )
+
+    with mod.process_guard_context(subject="system", subject_kind="module"):
+        assert mod._path_allowed("/etc/httpd/mime.types", operation="read")
 
 
 def test_path_allowed_accepts_zoneinfo_symlink_and_realpath_variants(monkeypatch):
@@ -1310,6 +1337,34 @@ def test_path_allowed_obvious_deny_skips_realpath(monkeypatch, tmp_path: Path):
         assert mod._path_allowed(tmp_path / "outside.txt", operation="read") is False
     finally:
         mod._STATE.reset(st)
+
+
+def test_path_allowed_accepts_symlinked_system_alias_after_cheap_miss(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    calls = []
+
+    def _realpath(path):
+        raw = os.fspath(path)
+        calls.append(raw)
+        if raw == "/private/etc":
+            return "/private/etc"
+        if raw == "/etc/hosts":
+            return "/private/etc/hosts"
+        return os.path.normpath(os.path.abspath(os.path.expanduser(raw)))
+
+    monkeypatch.setattr(mod.os.path, "realpath", _realpath)
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {"read": ("/private/etc",)},
+        }
+    )
+    try:
+        assert mod._path_allowed("/etc/hosts", operation="read") is True
+    finally:
+        mod._STATE.reset(st)
+
+    assert "/etc/hosts" in calls
 
 
 def test_path_allowed_under_root_uses_cached_realpath(monkeypatch, tmp_path: Path):
@@ -1685,7 +1740,7 @@ def test_runtime_filesystem_read_paths_include_configured_local_media_path(monke
 
 
 def test_linux_remaining_branches(monkeypatch, tmp_path: Path):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     # read cgroup: malformed line and relative path without slash
@@ -1894,12 +1949,12 @@ def test_process_guard_remaining_branches(monkeypatch, tmp_path: Path):
 
     # _check_path true branch
     t = mod._STATE.set(
-        {
-            "access": (
+        _guard_state(
+            mod,
+            (
                 _access_rule(mod, "module", "s", "filesystem", "read", str(tmp_path)),
             ),
-            "subject": "s",
-        }
+        )
     )
     mod._check_path(str(tmp_path / "ok"), operation="read")
     mod._STATE.reset(t)
@@ -1939,7 +1994,7 @@ def test_process_guard_remaining_branches(monkeypatch, tmp_path: Path):
 
 
 def test_linux_branch_arcs_remaining(monkeypatch):
-    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux")
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
 
     # _run_iptables success path
@@ -2218,12 +2273,12 @@ def test_process_guard_branch_arcs_remaining(monkeypatch, tmp_path: Path):
 
     # _check_path_pair target allowed branch
     tok = mod._STATE.set(
-        {
-            "access": (
+        _guard_state(
+            mod,
+            (
                 _access_rule(mod, "module", "s", "filesystem", "read", str(tmp_path)),
             ),
-            "subject": "s",
-        }
+        )
     )
     mod._check_path_pair(
         str(tmp_path / "a"),
@@ -2479,3 +2534,25 @@ def test_process_guard_engine_system_read_baseline_allows_os_release_only_with_e
         with open("/etc/os-release", encoding="utf-8") as handle:
             assert handle.read(1)
         assert not mod._path_allowed(tmp_path / "config.yaml", operation="read")
+
+
+def test_process_guard_allows_internal_runtime_env_json(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.delenv("DEMOCRAI_RUNTIME_ENV_JSON", raising=False)
+    monkeypatch.delenv("DEMOCRAI_BLOCKED_TEST", raising=False)
+
+    try:
+        with mod.process_guard_context(
+            subject="engine.demo",
+            subject_kind="engine",
+            access=(),
+            include_runtime_access=False,
+            inherit_parent_access=False,
+        ):
+            os.environ["DEMOCRAI_RUNTIME_ENV_JSON"] = '{"os":"linux"}'
+            assert os.environ["DEMOCRAI_RUNTIME_ENV_JSON"] == '{"os":"linux"}'
+            with pytest.raises(PermissionError, match="sandbox_env_denied:DEMOCRAI_BLOCKED_TEST"):
+                os.environ["DEMOCRAI_BLOCKED_TEST"] = "1"
+    finally:
+        os.environ.pop("DEMOCRAI_RUNTIME_ENV_JSON", None)
+        os.environ.pop("DEMOCRAI_BLOCKED_TEST", None)

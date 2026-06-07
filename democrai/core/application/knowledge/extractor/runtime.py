@@ -20,8 +20,10 @@ from democrai.core.application.access_policy import AccessSubject
 from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
 from democrai.core.application.knowledge.extractor.access_constants import (
     extractor_runtime_create_paths,
+    extractor_runtime_dependency_read_paths,
     extractor_runtime_modify_paths,
     extractor_runtime_read_paths,
+    extractor_runtime_system_probe_read_paths,
 )
 from democrai.core.application.knowledge.extractor.manifests import (
     get_extractor_manifest,
@@ -163,7 +165,14 @@ def get_extractor_access(
             for operation in ("read", "create", "modify")
         )
         for operation, paths in (
-            ("read", extractor_runtime_read_paths()),
+            (
+                "read",
+                (
+                    *extractor_runtime_read_paths(),
+                    *extractor_runtime_system_probe_read_paths(),
+                    *extractor_runtime_dependency_read_paths(),
+                ),
+            ),
             ("modify", extractor_runtime_modify_paths()),
         ):
             rules.extend(

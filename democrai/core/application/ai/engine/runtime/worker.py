@@ -43,6 +43,10 @@ from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
 )
+from democrai.core.infrastructure.sandbox.worker_launch import (
+    build_worker_launch_state,
+    payload_access_rules,
+)
 
 
 _WORKER_LOGGING_CONFIG_KEYS = (
@@ -77,12 +81,60 @@ def worker_logging_config() -> dict[str, Any]:
     return values
 
 
-def worker_landlock_enabled() -> bool:
+def worker_os_sandbox_enabled() -> bool:
     config = getattr(app_ctx(), "config", None)
     getter = getattr(config, "get", None)
     if not callable(getter):
         return False
-    return bool(getter("sandbox.os.landlock.enabled", False))
+    return bool(getter("sandbox.os.enabled", False))
+
+
+def _engine_worker_launch_state(
+    *,
+    engine_id: str,
+    access: tuple[AccessManifestRule, ...],
+) -> dict[str, Any]:
+    return build_worker_launch_state(
+        subject_kind="engine",
+        subject_name=engine_id,
+        access=access,
+    )
+
+
+def _with_engine_temp_env(env: dict[str, str], engine_id: str) -> dict[str, str]:
+    tmp_path = str(get_engine_local_tmp_path(engine_id))
+    env["TMPDIR"] = tmp_path
+    env["TEMP"] = tmp_path
+    env["TMP"] = tmp_path
+    return env
+
+
+def _spawn_engine_worker_process(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    launch_state: dict[str, Any],
+) -> subprocess.Popen[str]:
+    if not worker_os_sandbox_enabled():
+        return subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            env=env,
+            text=True,
+        )
+    from democrai.core.infrastructure.sandbox import launcher as sandbox_launcher
+
+    return sandbox_launcher.popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        env=env,
+        text=True,
+        state=launch_state,
+    )
 
 
 def _logging_access(
@@ -125,7 +177,9 @@ def _logging_access(
 
 
 def _worker_platform_read_paths() -> tuple[str, ...]:
-    candidates: list[str] = list(system_read_paths())
+    resolved: list[str] = list(system_read_paths())
+    seen: set[str] = set(resolved)
+    candidates: list[str] = []
     candidates.extend(path for path in sys.path if path)
     for key in ("stdlib", "platstdlib", "purelib", "platlib", "data", "include", "scripts"):
         path = sysconfig.get_paths().get(key)
@@ -142,8 +196,6 @@ def _worker_platform_read_paths() -> tuple[str, ...]:
     candidates.extend(get_runtime_module_dirs())
     candidates.extend(get_runtime_engine_dirs())
 
-    seen: set[str] = set()
-    resolved: list[str] = []
     for item in candidates:
         raw = str(item or "").strip()
         if not raw:
@@ -224,7 +276,7 @@ def build_engine_worker_init_payload(
         "class_only": bool(class_only),
         "logging_config": logging_config,
         "log_dir": str(logs_dir().resolve()),
-        "landlock_enabled": worker_landlock_enabled(),
+        "landlock_enabled": False,
         "path_overrides": worker_path_overrides(engine_id),
         "landlock_read_only_paths": landlock_paths["read_only"],
         "landlock_read_write_paths": landlock_paths["read_write"],
@@ -283,6 +335,7 @@ class EngineWorkerSubject:
         parent_endpoint = create_local_listener("engine-worker-parent")
         with process_guard_bypass_context():
             env = dict(os.environ)
+            env = _with_engine_temp_env(env, self._engine_id)
             env.update(control_endpoint.env("DEMOCRAI_ENGINE_WORKER_CONTROL"))
             env.update(parent_endpoint.env("DEMOCRAI_ENGINE_WORKER_PARENT"))
             env["PYTHONFAULTHANDLER"] = "1"
@@ -296,38 +349,49 @@ class EngineWorkerSubject:
                 "democrai.core.application.ai.engine.worker",
                 app_pythonpath,
             ]
-            self._process = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                env=env,
-                text=True,
-            )
             init_payload = build_engine_worker_init_payload(
                 engine_id=self._engine_id,
                 config=config,
                 class_only=class_only,
             )
+            self._process = _spawn_engine_worker_process(
+                command,
+                env=env,
+                launch_state=_engine_worker_launch_state(
+                    engine_id=self._engine_id,
+                    access=payload_access_rules(list(init_payload.get("access") or [])),
+                ),
+            )
+            if self._process is not None and self._process.stderr is not None:
+                self._stderr_reader = self._process.stderr
             try:
                 self._control_conn = accept_connection(
                     control_endpoint,
                     process=self._process,
                     timeout_seconds=10.0,
                 )
-                self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
+                self._control_channel = LocalBinaryPayloadChannel(
+                    self._control_conn,
+                    shared_memory_package_sid=getattr(
+                        self._process,
+                        "democrai_os_sandbox_appcontainer_sid",
+                        "",
+                    ),
+                )
                 threading.Thread(
                     target=self._accept_parent_connection,
                     args=(parent_endpoint,),
                     name=f"engine-worker-parent-accept-{self._engine_id}",
                     daemon=True,
                 ).start()
-            except Exception:
+            except Exception as exc:
+                message = self._worker_start_failure_message(
+                    stage="control_connect",
+                    error=exc,
+                )
                 parent_endpoint.close()
                 self.close()
-                raise
-            if self._process is not None and self._process.stderr is not None:
-                self._stderr_reader = self._process.stderr
+                raise RuntimeError(message) from exc
             threading.Thread(
                 target=self._read_responses,
                 name=f"engine-worker-reader-{self._engine_id}",
@@ -348,7 +412,14 @@ class EngineWorkerSubject:
                 process=self._process,
                 timeout_seconds=86400.0,
             )
-            self._parent_channel = LocalBinaryPayloadChannel(self._parent_conn)
+            self._parent_channel = LocalBinaryPayloadChannel(
+                self._parent_conn,
+                shared_memory_package_sid=getattr(
+                    self._process,
+                    "democrai_os_sandbox_appcontainer_sid",
+                    "",
+                ),
+            )
         except Exception:
             return
         self._parent_request_thread = threading.Thread(
@@ -399,7 +470,28 @@ class EngineWorkerSubject:
         with self._stderr_lock:
             return "\n".join(self._stderr_tail[-80:])
 
-    def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> None:
+    def _worker_start_failure_message(self, *, stage: str, error: BaseException) -> str:
+        process = self._process
+        return_code = process.poll() if process is not None else None
+        status = "still_running" if process is not None and return_code is None else "exited"
+        stderr_tail = self._worker_stderr_tail()
+        reader = self._stderr_reader
+        if not stderr_tail and return_code is not None and reader is not None:
+            try:
+                stderr_tail = str(reader.read() or "").strip()
+            except Exception:
+                stderr_tail = ""
+        return (
+            "engine_worker_start_failed"
+            f" engine_id={self._engine_id}"
+            f" stage={stage}"
+            f" return_code={return_code}"
+            f" status={status}"
+            f" error={error}"
+            + (f" stderr_tail={stderr_tail[-4000:]}" if stderr_tail else "")
+        )
+
+    def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> str:
         process = self._process
         if return_code is None and process is not None:
             try:
@@ -418,6 +510,15 @@ class EngineWorkerSubject:
                 signal_text = f" signal={signal.Signals(-return_code).name}"
             except Exception:
                 signal_text = f" signal={-return_code}"
+        status = "still_running_after_pipe_close" if still_running else "closed"
+        message = (
+            f"engine_worker_no_response:{return_code}"
+            f" engine_id={self._engine_id}"
+            f" operation={operation}"
+            f" status={status}"
+            f"{signal_text}"
+            + (f" stderr_tail={stderr_tail[-4000:]}" if stderr_tail else "")
+        )
         try:
             app_ctx().logger.error(
                 "[EngineWorkerSubject] Worker closed without response "
@@ -428,6 +529,7 @@ class EngineWorkerSubject:
             )
         except Exception:
             pass
+        return message
 
     def _read_parent_requests(self) -> None:
         try:
@@ -535,11 +637,11 @@ class EngineWorkerSubject:
             )
             if request_id not in self._responses and self._closed:
                 return_code = self._process.poll()
-                self._log_worker_no_response(
+                message = self._log_worker_no_response(
                     operation=operation,
                     return_code=return_code,
                 )
-                raise RuntimeError(f"engine_worker_no_response:{return_code}")
+                raise RuntimeError(message)
             response = self._responses.pop(request_id)
         if not bool(response.get("ok")):
             error = str(response.get("error") or "engine_worker_error")
@@ -589,11 +691,11 @@ class EngineWorkerSubject:
             messages = self._stream_responses.get(request_id)
             if not messages and self._closed:
                 return_code = self._process.poll() if self._process is not None else None
-                self._log_worker_no_response(
+                message = self._log_worker_no_response(
                     operation="invoke_stream",
                     return_code=return_code,
                 )
-                raise RuntimeError(f"engine_worker_no_response:{return_code}")
+                raise RuntimeError(message)
             response = messages.pop(0)
             if not messages:
                 self._stream_responses.pop(request_id, None)

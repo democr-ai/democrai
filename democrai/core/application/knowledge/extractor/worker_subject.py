@@ -28,6 +28,10 @@ from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
 )
+from democrai.core.infrastructure.sandbox.worker_launch import (
+    build_worker_launch_state,
+    payload_access_rules,
+)
 
 
 _AUTH_SECRET_PLACEHOLDER = "change-me-with-a-long-random-secret"
@@ -127,6 +131,14 @@ def _with_auth_secret_env(env: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def _with_extractor_temp_env(env: dict[str, str], extractor_id: str) -> dict[str, str]:
+    tmp_path = str(get_extractor_local_tmp_path(extractor_id))
+    env["TMPDIR"] = tmp_path
+    env["TEMP"] = tmp_path
+    env["TMP"] = tmp_path
+    return env
+
+
 def worker_runtime_config() -> dict[str, Any]:
     config = getattr(app_ctx(), "config", None)
     getter = getattr(config, "get", None)
@@ -148,6 +160,14 @@ def worker_runtime_env(phase: str) -> dict[str, str]:
         "HF_HUB_OFFLINE": "1",
         "TRANSFORMERS_OFFLINE": "1",
     }
+
+
+def worker_os_sandbox_enabled() -> bool:
+    config = getattr(app_ctx(), "config", None)
+    getter = getattr(config, "get", None)
+    if not callable(getter):
+        return False
+    return bool(getter("sandbox.os.enabled", False))
 
 
 def worker_path_overrides(extractor_id: str) -> dict[str, str]:
@@ -264,6 +284,47 @@ def _stop_process_after_start_failure(process: subprocess.Popen[str] | None) -> 
             process.wait(timeout=2.0)
 
 
+def _extractor_worker_launch_state(
+    *,
+    extractor_id: str,
+    access: tuple[AccessManifestRule, ...],
+) -> dict[str, Any]:
+    return build_worker_launch_state(
+        subject_kind="extractor",
+        subject_name=extractor_id,
+        access=access,
+    )
+
+
+def _spawn_extractor_worker_process(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    launch_state: dict[str, Any],
+) -> subprocess.Popen[str]:
+    if not worker_os_sandbox_enabled():
+        return subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            text=True,
+            bufsize=1,
+        )
+    from democrai.core.infrastructure.sandbox import launcher as sandbox_launcher
+
+    return sandbox_launcher.popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env,
+        text=True,
+        state=launch_state,
+    )
+
+
 class ExtractorWorkerSubject:
     def __init__(
         self,
@@ -281,6 +342,8 @@ class ExtractorWorkerSubject:
         self._closed = False
         self._process: subprocess.Popen[str] | None = None
         self._stdout_reader = None
+        self._stdout_tail: list[str] = []
+        self._stdout_lock = threading.Lock()
         self._control_conn = None
         self._control_channel: LocalBinaryPayloadChannel | None = None
         self._parent_conn = None
@@ -295,7 +358,10 @@ class ExtractorWorkerSubject:
 
         control_endpoint = create_local_listener("extractor-worker-control")
         parent_endpoint = create_local_listener("extractor-worker-parent")
-        env = _with_auth_secret_env(_clean_worker_env())
+        env = _with_extractor_temp_env(
+            _with_auth_secret_env(_clean_worker_env()),
+            self._extractor_id,
+        )
         env.update(control_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_CONTROL"))
         env.update(parent_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_PARENT"))
         command = [
@@ -309,42 +375,72 @@ class ExtractorWorkerSubject:
             self._extractor_id,
             self._phase,
         )
+        init_payload = build_extractor_worker_init_payload(
+            extractor_id=self._extractor_id,
+            phase=self._phase,
+            config=config,
+            access=phase_access,
+            allowed_imports=get_extractor_allowed_imports(
+                self._extractor_id,
+                self._phase,
+            ),
+        )
         try:
-            self._process = subprocess.Popen(
+            self._process = _spawn_extractor_worker_process(
                 command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
                 env=env,
-                text=True,
-                bufsize=1,
+                launch_state=_extractor_worker_launch_state(
+                    extractor_id=self._extractor_id,
+                    access=payload_access_rules(list(init_payload.get("access") or [])),
+                ),
             )
+            if self._process is not None and self._process.stdout is not None:
+                self._stdout_reader = self._process.stdout
         except Exception:
             control_endpoint.close()
             parent_endpoint.close()
             raise
         try:
-            _apply_os_network_allowlist_to_worker_process(
-                self._process.pid,
-                access=phase_access,
-            )
+            if not worker_os_sandbox_enabled():
+                _apply_os_network_allowlist_to_worker_process(
+                    self._process.pid,
+                    access=phase_access,
+                )
             self._control_conn = accept_connection(
                 control_endpoint,
                 process=self._process,
                 timeout_seconds=10.0,
             )
-            self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
+            self._control_channel = LocalBinaryPayloadChannel(
+                self._control_conn,
+                shared_memory_package_sid=getattr(
+                    self._process,
+                    "democrai_os_sandbox_appcontainer_sid",
+                    "",
+                ),
+            )
             self._parent_conn = accept_connection(
                 parent_endpoint,
                 process=self._process,
                 timeout_seconds=10.0,
             )
-            self._parent_channel = LocalBinaryPayloadChannel(self._parent_conn)
-        except Exception:
+            self._parent_channel = LocalBinaryPayloadChannel(
+                self._parent_conn,
+                shared_memory_package_sid=getattr(
+                    self._process,
+                    "democrai_os_sandbox_appcontainer_sid",
+                    "",
+                ),
+            )
+        except Exception as exc:
+            message = self._worker_start_failure_message(
+                stage="control_connect",
+                error=exc,
+            )
             _stop_process_after_start_failure(self._process)
             control_endpoint.close()
             parent_endpoint.close()
-            raise
+            raise RuntimeError(message) from exc
         threading.Thread(
             target=self._read_responses,
             name=f"extractor-worker-reader-{self._extractor_id}",
@@ -355,27 +451,14 @@ class ExtractorWorkerSubject:
             name=f"extractor-worker-parent-request-{self._extractor_id}",
             daemon=True,
         ).start()
-        if self._process.stdout is not None:
-            self._stdout_reader = self._process.stdout
+        if self._stdout_reader is not None:
             stdout_context = contextvars.copy_context()
             threading.Thread(
                 target=lambda: stdout_context.run(self._read_stdout),
                 name=f"extractor-worker-stdout-{self._extractor_id}",
                 daemon=True,
             ).start()
-        self._request(
-            "init",
-            build_extractor_worker_init_payload(
-                extractor_id=self._extractor_id,
-                phase=self._phase,
-                config=config,
-                access=phase_access,
-                allowed_imports=get_extractor_allowed_imports(
-                    self._extractor_id,
-                    self._phase,
-                ),
-            ),
-        )
+        self._request("init", init_payload)
 
     def _read_responses(self) -> None:
         try:
@@ -468,12 +551,73 @@ class ExtractorWorkerSubject:
                     break
                 text = str(line or "").rstrip()
                 if text:
+                    with self._stdout_lock:
+                        self._stdout_tail.append(text)
+                        if len(self._stdout_tail) > 200:
+                            self._stdout_tail = self._stdout_tail[-200:]
                     emit_extractor_install_output(text, phase="install")
         finally:
             try:
                 reader.close()
             except Exception:
                 pass
+
+    def _worker_stdout_tail(self) -> str:
+        with self._stdout_lock:
+            return "\n".join(self._stdout_tail[-80:])
+
+    def _worker_start_failure_message(self, *, stage: str, error: BaseException) -> str:
+        process = self._process
+        return_code = process.poll() if process is not None else None
+        status = "still_running" if process is not None and return_code is None else "exited"
+        stdout_tail = self._worker_stdout_tail()
+        reader = self._stdout_reader
+        if not stdout_tail and return_code is not None and reader is not None:
+            try:
+                stdout_tail = str(reader.read() or "").strip()
+            except Exception:
+                stdout_tail = ""
+        return (
+            "extractor_worker_start_failed"
+            f" extractor_id={self._extractor_id}"
+            f" phase={self._phase}"
+            f" stage={stage}"
+            f" return_code={return_code}"
+            f" status={status}"
+            f" error={error}"
+            + (f" stdout_tail={stdout_tail[-4000:]}" if stdout_tail else "")
+        )
+
+    def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> str:
+        process = self._process
+        if return_code is None and process is not None:
+            try:
+                process.wait(timeout=2.0)
+                return_code = process.poll()
+            except subprocess.TimeoutExpired:
+                return_code = process.poll()
+        stdout_tail = self._worker_stdout_tail()
+        still_running = process is not None and process.poll() is None
+        status = "still_running_after_pipe_close" if still_running else "closed"
+        message = (
+            f"extractor_worker_no_response:{return_code}"
+            f" extractor_id={self._extractor_id}"
+            f" phase={self._phase}"
+            f" operation={operation}"
+            f" status={status}"
+            + (f" stdout_tail={stdout_tail[-4000:]}" if stdout_tail else "")
+        )
+        try:
+            app_ctx().logger.error(
+                "[ExtractorWorkerSubject] Worker closed without response "
+                f"extractor_id={self._extractor_id} phase={self._phase} "
+                f"operation={operation} return_code={return_code}"
+                + (" status=still_running_after_pipe_close" if still_running else "")
+                + (f"\n[ExtractorWorkerSubject stdout]\n{stdout_tail}" if stdout_tail else "")
+            )
+        except Exception:
+            pass
+        return message
 
     def _request(self, operation: str, payload: dict[str, Any]) -> Any:
         if self._process is None or self._control_channel is None:
@@ -499,7 +643,11 @@ class ExtractorWorkerSubject:
             )
             if request_id not in self._responses and self._closed:
                 return_code = self._process.poll()
-                raise RuntimeError(f"extractor_worker_no_response:{return_code}")
+                message = self._log_worker_no_response(
+                    operation=operation,
+                    return_code=return_code,
+                )
+                raise RuntimeError(message)
             response = self._responses.pop(request_id)
         if not bool(response.get("ok")):
             error = str(response.get("error") or "extractor_worker_error")

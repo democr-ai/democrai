@@ -68,6 +68,7 @@ _EXTERNAL_ACCESS_CACHE: contextvars.ContextVar[
 ] = contextvars.ContextVar("process_guard_external_access_cache", default=None)
 _SENSITIVE_IMPORT_ROOTS = {"ctypes", "_ctypes", "cffi", "_cffi_backend"}
 _PROTECTED_ENV_PREFIX = "DEMOCRAI_"
+_ALLOWED_PROTECTED_ENV_NAMES = {"DEMOCRAI_RUNTIME_ENV_JSON"}
 _EXTERNAL_ACCESS_CACHE_MAX = 512
 _PATH_ACCESS_CACHE_MAX = 512
 _REALPATH_CACHE_MAX = 4096
@@ -164,7 +165,8 @@ def _internal_fd_path_context():
 
 
 def _protected_env_name(key: Any) -> bool:
-    return str(key or "").strip().upper().startswith(_PROTECTED_ENV_PREFIX)
+    name = str(key or "").strip().upper()
+    return name.startswith(_PROTECTED_ENV_PREFIX) and name not in _ALLOWED_PROTECTED_ENV_NAMES
 
 
 def _normalize_paths(values: list[str] | None) -> list[str]:
@@ -432,6 +434,7 @@ def _filesystem_access_index(
         indexed[str(operation)] = {
             "cheap_roots": cheap_roots,
             "real_roots": (),
+            "alias_roots": (),
         }
     return indexed
 
@@ -451,6 +454,34 @@ def _filesystem_real_roots(
     real_roots = tuple(dict.fromkeys(_cached_realpath(root) for root in cheap_roots))
     operation_index["real_roots"] = real_roots
     return real_roots
+
+
+def _filesystem_alias_roots(
+    operation_index: dict[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    alias_roots = operation_index.get("alias_roots") or ()
+    if alias_roots:
+        return tuple(alias_roots)
+    cheap_roots = tuple(operation_index.get("cheap_roots") or ())
+    aliases: list[str] = []
+    for cheap_root in cheap_roots:
+        alias = _filesystem_static_alias_root(cheap_root)
+        if alias:
+            aliases.append(alias)
+    alias_roots = tuple(dict.fromkeys(aliases))
+    operation_index["alias_roots"] = alias_roots
+    return alias_roots
+
+
+def _filesystem_static_alias_root(cheap_root: str) -> str:
+    normalized = os.path.normpath(str(cheap_root or ""))
+    if not normalized.startswith(os.sep + "private" + os.sep):
+        return ""
+    tail = normalized[len(os.sep + "private" + os.sep):]
+    first = tail.split(os.sep, 1)[0]
+    if first not in {"etc", "var", "tmp"}:
+        return ""
+    return os.sep + tail
 
 
 def _filesystem_access_summary(
@@ -894,8 +925,20 @@ def _path_allowed(path_value: Any, *, operation: str) -> bool:
                 return cached
         cheap_path = _cheap_normalized_path(path_value)
         if not _path_under_roots(cheap_path, cheap_roots):
-            _profile_count("process_guard.path_allowed.cheap_deny")
-            allowed_result = False
+            alias_roots = _filesystem_alias_roots(
+                operation_index,
+            )
+            if alias_roots and _path_under_roots(cheap_path, alias_roots):
+                real_path = _cached_realpath(path_value)
+                real_roots = _filesystem_real_roots(
+                    current_state,
+                    operation,
+                    operation_index,
+                )
+                allowed_result = _path_under_roots(real_path, real_roots)
+            else:
+                _profile_count("process_guard.path_allowed.cheap_deny")
+                allowed_result = False
         else:
             real_path = _cached_realpath(path_value)
             real_roots = _filesystem_real_roots(
@@ -1746,11 +1789,14 @@ def _run_subprocess_via_launcher(
     )
     with process_guard_bypass_context():
         sandbox_launcher = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
-        policy_path = sandbox_launcher._write_policy(
+        policy_env = sandbox_launcher._with_os_sandbox_helper_env(policy_env)
+        policy = sandbox_launcher._build_policy(
             command=command_sequence,
             cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
             env=policy_env,
         )
+        policy, _appcontainer_sid = sandbox_launcher._prepare_policy_for_launch(policy, policy_env)
+        policy_path = sandbox_launcher._write_policy(policy)
     launcher_env = dict(policy_env)
     launcher_env["PYTHONPATH"] = _launcher_pythonpath(launcher_env)
     launcher_command = [

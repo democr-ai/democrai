@@ -15,13 +15,19 @@ from democrai.core.application.access_policy import AccessSubject
 from democrai.core.application.knowledge.extractor import queue_worker_runtime as mod
 from democrai.core.application.knowledge.extractor import worker as worker_mod
 from democrai.core.application.knowledge.extractor import worker_subject as subject_mod
+from democrai.core.infrastructure.sandbox import launcher as launcher_mod
+from democrai.core.runtime.dependencies import extractor_env as extractor_env_mod
 
 
 class _Process:
     pid = 1234
+    stdout = None
 
     def poll(self):
         return None
+
+    def wait(self, timeout=None):  # noqa: ARG002
+        return 0
 
 
 def test_queue_worker_bootstrap_does_not_initialize_kg_store(monkeypatch):
@@ -261,6 +267,26 @@ def test_extractor_worker_init_requires_path_overrides():
         worker_mod._configure_extractor_path_overrides("demo", {"env": "env"})
 
 
+def test_extractor_worker_env_uses_subject_tmp_before_spawn(tmp_path: Path):
+    extractor_id = "temp_env_docling"
+    extractor_env_mod.set_extractor_local_path_overrides(
+        extractor_id,
+        env_path=str(tmp_path / "env"),
+        cache_path=str(tmp_path / "cache"),
+        config_path=str(tmp_path / "config"),
+        tmp_path=str(tmp_path / "tmp"),
+    )
+
+    try:
+        env = subject_mod._with_extractor_temp_env({"TMPDIR": "/tmp"}, extractor_id)
+    finally:
+        extractor_env_mod._EXTRACTOR_LOCAL_PATH_OVERRIDES.pop(extractor_id, None)
+
+    assert env["TMPDIR"] == str(tmp_path / "tmp")
+    assert env["TEMP"] == str(tmp_path / "tmp")
+    assert env["TMP"] == str(tmp_path / "tmp")
+
+
 def test_extractor_worker_extract_requires_request_context():
     worker = worker_mod._Worker.__new__(worker_mod._Worker)
 
@@ -446,3 +472,185 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
         assert accepted_prefixes == ["extractor-worker-control", "extractor-worker-parent"]
     finally:
         subject.close()
+
+
+def test_extractor_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatch):
+    calls = []
+    monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(
+        launcher_mod,
+        "popen",
+        lambda command, **kwargs: calls.append((command, kwargs)) or _Process(),
+    )
+
+    process = subject_mod._spawn_extractor_worker_process(
+        ["python", "-V"],
+        env={"A": "B"},
+        launch_state={
+            "subject": "docling",
+            "subject_kind": "extractor",
+            "access": (),
+        },
+    )
+
+    assert process is not None
+    assert calls[0][0] == ["python", "-V"]
+    assert calls[0][1]["state"]["subject_kind"] == "extractor"
+    assert calls[0][1]["env"] == {"A": "B"}
+
+
+def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeypatch, tmp_path: Path):
+    popen_calls = []
+    network_calls = []
+
+    class _Endpoint:
+        def __init__(self, kind: str) -> None:
+            self.kind = kind
+            self.address = f"{kind}-address"
+
+        def env(self, prefix: str) -> dict[str, str]:
+            return {
+                f"{prefix}_ADDRESS": self.address,
+                f"{prefix}_AUTHKEY": f"{self.kind}-auth",
+            }
+
+        def close(self) -> None:
+            pass
+
+    class _Thread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    def _accept(endpoint, *, process, timeout_seconds):  # noqa: ARG001
+        return SimpleNamespace(close=lambda: None)
+
+    monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(subject_mod, "create_local_listener", lambda kind: _Endpoint(kind))
+    monkeypatch.setattr(subject_mod, "accept_connection", _accept)
+    monkeypatch.setattr(subject_mod.threading, "Thread", _Thread)
+    monkeypatch.setattr(
+        launcher_mod,
+        "popen",
+        lambda command, **kwargs: popen_calls.append((command, kwargs)) or _Process(),
+    )
+    monkeypatch.setattr(subject_mod, "get_extractor_venv_python_path", lambda _extractor_id: tmp_path / "python")
+    monkeypatch.setattr(subject_mod, "_application_pythonpath", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        subject_mod,
+        "_apply_os_network_allowlist_to_worker_process",
+        lambda *_args, **_kwargs: network_calls.append("called"),
+    )
+    monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
+    monkeypatch.setattr(
+        subject_mod,
+        "worker_path_overrides",
+        lambda _extractor_id: {
+            "env": "env",
+            "cache": "cache",
+            "config": "config",
+            "tmp": "tmp",
+        },
+    )
+    monkeypatch.setattr(subject_mod, "_clean_worker_env", lambda: {})
+    monkeypatch.setattr(
+        subject_mod.ExtractorWorkerSubject,
+        "_request",
+        lambda self, operation, payload: None,
+    )
+    runtime_mod = __import__(
+        "democrai.core.application.knowledge.extractor.runtime",
+        fromlist=["get_extractor_access", "get_extractor_allowed_imports"],
+    )
+    monkeypatch.setattr(
+        runtime_mod,
+        "get_extractor_access",
+        lambda *_args: (
+            AccessManifestRule(
+                subject=AccessSubject.create("extractor", "docling"),
+                resource=AccessResource.create(
+                    resource_type="network",
+                    operation="connect",
+                    target="https://example.test",
+                ),
+            ),
+        ),
+    )
+    monkeypatch.setattr(runtime_mod, "get_extractor_allowed_imports", lambda *_args: [])
+
+    subject = subject_mod.ExtractorWorkerSubject(
+        extractor_id="docling",
+        phase="runtime",
+        config={},
+    )
+    try:
+        assert popen_calls
+        assert network_calls == []
+        launch_state = popen_calls[0][1]["state"]
+        assert launch_state["subject_kind"] == "extractor"
+        assert launch_state["subject"] == "docling"
+    finally:
+        subject.close()
+
+
+def test_extractor_worker_launch_state_adds_framework_ipc_on_linux(monkeypatch, tmp_path: Path):
+    worker_launch_mod = __import__(
+        "democrai.core.infrastructure.sandbox.worker_launch",
+        fromlist=["state_dir"],
+    )
+    monkeypatch.setattr(worker_launch_mod, "state_dir", lambda: tmp_path)
+    monkeypatch.setattr(worker_launch_mod.os, "name", "posix", raising=False)
+    monkeypatch.setattr(worker_launch_mod.sys, "platform", "linux")
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.process_guard._state",
+        lambda: {"subject_chain": [{"kind": "module", "name": "system"}]},
+    )
+
+    state = subject_mod._extractor_worker_launch_state(extractor_id="Docling", access=())
+    resources = {
+        (
+            rule.subject.subject_type,
+            rule.subject.subject_name,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in state["access"]
+    }
+
+    assert state["subject"] == "docling"
+    assert state["subject_kind"] == "extractor"
+    assert state["subject_chain"] == [
+        {"kind": "module", "name": "system"},
+        {"kind": "extractor", "name": "docling"},
+    ]
+    assert {
+        ("extractor", "docling", "read", worker_launch_mod._application_root()),
+        ("extractor", "docling", "read", str((tmp_path / "ipc").resolve())),
+        ("extractor", "docling", "modify", str((tmp_path / "ipc").resolve())),
+        ("extractor", "docling", "read", "/dev/shm"),
+        ("extractor", "docling", "modify", "/dev/shm"),
+    }.issubset(resources)
+
+
+def test_extractor_worker_launch_state_does_not_add_windows_ipc_filesystem(monkeypatch):
+    worker_launch_mod = __import__(
+        "democrai.core.infrastructure.sandbox.worker_launch",
+        fromlist=["state_dir"],
+    )
+    monkeypatch.setattr(worker_launch_mod.os, "name", "nt", raising=False)
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.process_guard._state",
+        lambda: {"subject_chain": []},
+    )
+
+    state = subject_mod._extractor_worker_launch_state(extractor_id="docling", access=())
+
+    resources = {
+        (rule.resource.operation.value, rule.resource.normalized_target)
+        for rule in state["access"]
+    }
+    assert ("read", worker_launch_mod._application_root()) in resources
+    assert all(not target.endswith("/ipc") for _operation, target in resources)
+    assert ("read", "/dev/shm") not in resources

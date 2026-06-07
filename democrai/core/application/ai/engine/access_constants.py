@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from democrai.core.infrastructure.sandbox.platform_policy import (
     runtime_dependency_read_paths,
+    system_probe_read_paths,
     toolchain_execute_paths,
+    trusted_read_path_variants,
 )
 from democrai.core.platform.utils.normalize import os_key
 
@@ -103,7 +105,11 @@ def engine_runtime_libcuda_candidate_paths() -> tuple[str, ...]:
 
 
 def engine_runtime_dependency_read_paths() -> tuple[str, ...]:
-    return runtime_dependency_read_paths(os_key())
+    return trusted_read_path_variants(runtime_dependency_read_paths(os_key()))
+
+
+def engine_runtime_system_probe_read_paths() -> tuple[str, ...]:
+    return trusted_read_path_variants(system_probe_read_paths(os_key()))
 
 
 def engine_runtime_c_compiler_candidate_paths() -> tuple[str, ...]:

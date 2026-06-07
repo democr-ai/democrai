@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+import json
 
 from democrai.core.runtime.dependencies import installer_env as installer_env_mod
 from democrai.core.runtime.dependencies import installer_state as installer_state_mod
@@ -44,6 +45,23 @@ def test_installer_env_runtime_and_engine_support(monkeypatch):
     ok = installer_env_mod.engine_support_status("demo", env)
     assert ok["supported"] is True
     assert installer_env_mod.is_engine_supported("demo", env) is True
+
+
+def test_installer_env_runtime_uses_pinned_env_json(monkeypatch):
+    pinned = {
+        "os": "linux",
+        "arch": "x86_64",
+        "gpu": {"has_nvidia": True, "cuda_driver_version": "12.8"},
+        "python": "3.12",
+    }
+    monkeypatch.setenv(installer_env_mod.RUNTIME_ENV_JSON_ENV, json.dumps(pinned))
+    monkeypatch.setattr(
+        installer_env_mod,
+        "get_resource_monitor",
+        lambda: (_ for _ in ()).throw(AssertionError("hardware_probe_called")),
+    )
+
+    assert installer_env_mod.runtime_env() == pinned
 
 
 def test_cleanup_shutdown_flow(monkeypatch):

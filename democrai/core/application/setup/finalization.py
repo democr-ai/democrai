@@ -182,23 +182,26 @@ def finalize_setup_runtime(
     seed_admin_user_custom(admin_user, admin_pass, admin_email)
     _sync_loaded_module_authorization(context)
 
+    os_sandbox_enabled = False
     try:
-        from democrai.core.infrastructure.sandbox.os.process_restrictions import (
-            apply_process_restrictions,
-            is_landlock_enabled,
-            is_seccomp_enabled,
+        from democrai.core.infrastructure.sandbox.os.current_process import (
+            apply_current_process_os_sandbox,
+            is_os_sandbox_enabled,
         )
-        if is_seccomp_enabled(context.config) or is_landlock_enabled(context.config):
+        os_sandbox_enabled = is_os_sandbox_enabled(context.config)
+        if os_sandbox_enabled:
             from democrai.core.infrastructure.sandbox.process_guard import (
                 process_guard_bypass_context,
             )
 
             with process_guard_bypass_context():
-                apply_process_restrictions(context.config)
+                apply_current_process_os_sandbox(context.config)
     except Exception as exc:
+        if os_sandbox_enabled:
+            raise
         import warnings
 
-        warnings.warn(f"[Sandbox] process restrictions failed: {exc}")
+        warnings.warn(f"[Sandbox] current process OS sandbox failed: {exc}")
 
     context.setup_mode = False
     from democrai.core.infrastructure.observability.logger.manager import LoggerManager

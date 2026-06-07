@@ -32,7 +32,7 @@ async def bootstrap_current_process_os_sandbox_async(
         debug_os_sandbox_flow("bootstrap.allowlist_refresh_skipped_setup_mode")
         return
 
-    _apply_process_restrictions(ctx)
+    _apply_current_process_os_sandbox(ctx)
 
     from democrai.core.infrastructure.sandbox.os.events import (
         emit_application_network_allowlist_refresh_event,
@@ -66,20 +66,23 @@ async def bootstrap_current_process_os_sandbox_async(
     await emit_application_network_allowlist_refresh_event(payload=payload)
 
 
-def _apply_process_restrictions(ctx: Any) -> None:
+def _apply_current_process_os_sandbox(ctx: Any) -> None:
+    enabled = False
     try:
-        from democrai.core.infrastructure.sandbox.os.process_restrictions import (
-            apply_process_restrictions,
-            is_landlock_enabled,
-            is_seccomp_enabled,
+        from democrai.core.infrastructure.sandbox.os.current_process import (
+            apply_current_process_os_sandbox,
+            is_os_sandbox_enabled,
         )
 
-        if is_seccomp_enabled(ctx.config) or is_landlock_enabled(ctx.config):
+        enabled = is_os_sandbox_enabled(ctx.config)
+        if enabled:
             from democrai.core.infrastructure.sandbox.process_guard import (
                 process_guard_bypass_context,
             )
 
             with process_guard_bypass_context():
-                apply_process_restrictions(ctx.config)
+                apply_current_process_os_sandbox(ctx.config)
     except Exception as exc:
-        warnings.warn(f"[Sandbox] process restrictions failed: {exc}")
+        if enabled:
+            raise
+        warnings.warn(f"[Sandbox] current process OS sandbox failed: {exc}")

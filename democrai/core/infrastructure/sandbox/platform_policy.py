@@ -167,6 +167,40 @@ def runtime_dependency_read_paths(os_name: str | None = None) -> tuple[str, ...]
     return ()
 
 
+def trusted_read_path_variants(paths: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    variants: list[str] = []
+    for item in paths:
+        raw = str(item or "").strip()
+        if not raw:
+            continue
+        try:
+            cheap = _cheap_trusted_read_path(raw)
+        except Exception:
+            continue
+        variants.append(cheap)
+        if not os.path.exists(cheap):
+            continue
+        try:
+            real = os.path.realpath(cheap)
+        except Exception:
+            continue
+        if real and real != cheap:
+            variants.append(real)
+    return tuple(dict.fromkeys(variants))
+
+
+def _cheap_trusted_read_path(path: str) -> str:
+    expanded = os.path.expanduser(str(path or "").strip())
+    if _windows_path_like(expanded):
+        return os.path.normpath(expanded)
+    return os.path.normpath(os.path.abspath(expanded))
+
+
+def _windows_path_like(path: str) -> bool:
+    value = str(path or "").strip()
+    return len(value) >= 2 and value[1] == ":" or value.startswith("\\\\")
+
+
 def toolchain_execute_paths(os_name: str | None = None) -> tuple[str, ...]:
     key = os_name or platform_key()
     if key == "linux":
@@ -179,11 +213,13 @@ def toolchain_execute_paths(os_name: str | None = None) -> tuple[str, ...]:
 
 
 def platform_system_read_paths(os_name: str | None = None) -> tuple[str, ...]:
-    return tuple(
-        dict.fromkeys(
-            (
-                *system_probe_read_paths(os_name),
-                *runtime_dependency_read_paths(os_name),
+    return trusted_read_path_variants(
+        tuple(
+            dict.fromkeys(
+                (
+                    *system_probe_read_paths(os_name),
+                    *runtime_dependency_read_paths(os_name),
+                )
             )
         )
     )

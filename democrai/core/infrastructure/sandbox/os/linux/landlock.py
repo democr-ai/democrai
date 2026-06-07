@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import os
+import stat
 import sys
 from typing import Any
 
@@ -108,6 +109,17 @@ def _all_access_for_abi(abi: int) -> int:
     return rights
 
 
+def _file_access_for_abi(abi: int, *, write: bool) -> int:
+    rights = _LANDLOCK_ACCESS_FS_EXECUTE | _LANDLOCK_ACCESS_FS_READ_FILE
+    if write:
+        rights |= _LANDLOCK_ACCESS_FS_WRITE_FILE
+        if abi >= 3:
+            rights |= _LANDLOCK_ACCESS_FS_TRUNCATE
+        if abi >= 5:
+            rights |= _LANDLOCK_ACCESS_FS_IOCTL_DEV
+    return rights
+
+
 # --- Public API ---
 
 def get_landlock_abi_version() -> int:
@@ -180,26 +192,47 @@ def apply_landlock_filesystem_rules(
         raise RuntimeError(f"landlock_create_ruleset_failed:{err}")
 
     try:
-        for path, access in [
-            *[(p, ro_access) for p in read_only_paths],
-            *[(p, rw_access) for p in read_write_paths],
+        for path, access, required in [
+            *[(p, ro_access, False) for p in read_only_paths],
+            *[(p, rw_access, True) for p in read_write_paths],
         ]:
             resolved = str(path or "").strip()
             if not resolved:
                 continue
             try:
                 real = os.path.realpath(resolved)
-            except Exception:
+            except Exception as exc:
+                if required:
+                    raise RuntimeError(
+                        f"landlock_path_realpath_failed:{resolved}:{exc}"
+                    ) from exc
                 continue
             if not os.path.exists(real):
                 continue
             try:
                 fd = os.open(real, _O_PATH | _O_CLOEXEC)
-            except OSError:
+            except OSError as exc:
+                if required:
+                    raise RuntimeError(
+                        f"landlock_path_open_failed:{real}:{exc.errno}"
+                    ) from exc
                 continue
             try:
-                attr = _PathBeneathAttr(allowed_access=access, parent_fd=fd)
-                _syscall(
+                try:
+                    mode = os.stat(real).st_mode
+                except OSError as exc:
+                    if required:
+                        raise RuntimeError(
+                            f"landlock_path_stat_failed:{real}:{exc.errno}"
+                        ) from exc
+                    continue
+                allowed_access = (
+                    access
+                    if stat.S_ISDIR(mode)
+                    else _file_access_for_abi(abi, write=required)
+                )
+                attr = _PathBeneathAttr(allowed_access=allowed_access, parent_fd=fd)
+                ret = _syscall(
                     lib,
                     _SYS_LANDLOCK_ADD_RULE,
                     ctypes.c_int(ruleset_fd),
@@ -207,10 +240,9 @@ def apply_landlock_filesystem_rules(
                     ctypes.byref(attr),
                     ctypes.c_uint32(0),
                 )
-                # Non-fatal: individual rule failures are ignored.
-                # Paths on unsupported filesystems (e.g. proc inodes) may
-                # return EINVAL for certain access bits; the rule is still
-                # added with the supported subset by the kernel.
+                if ret < 0 and required:
+                    err = ctypes.get_errno()
+                    raise RuntimeError(f"landlock_add_rule_failed:{real}:{err}")
             finally:
                 os.close(fd)
 

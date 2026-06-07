@@ -11,7 +11,10 @@ from typing import Any
 
 from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 
-from .models import ApplicationNetworkAllowlist, NetworkEndpoint
+from democrai.core.infrastructure.sandbox.os.models import (
+    ApplicationNetworkAllowlist,
+    NetworkEndpoint,
+)
 
 
 _CGROUP_ROOT = Path("/sys/fs/cgroup")

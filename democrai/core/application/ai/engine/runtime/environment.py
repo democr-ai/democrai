@@ -26,6 +26,8 @@ from democrai.core.runtime.dependencies.engine_env import (
     get_engine_local_env_path,
     get_engine_venv_path,
 )
+from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
+from democrai.core.runtime.dependencies.installer_env import runtime_env
 from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import is_frozen
 from democrai.core.runtime.foundation.app import app_ctx
@@ -174,6 +176,7 @@ def _engine_phase_env(engine_id: str, phase: str) -> dict[str, str]:
 
 def get_engine_runtime_env(engine_id: str) -> dict[str, str]:
     env = _engine_phase_env(engine_id, "runtime")
+    env.setdefault(RUNTIME_ENV_JSON_ENV, json.dumps(runtime_env(), sort_keys=True))
     driver_lib_path, _ = ensure_engine_runtime_driver_libs(engine_id)
     if driver_lib_path is not None:
         driver_lib_value = str(driver_lib_path)

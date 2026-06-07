@@ -168,7 +168,7 @@ def _apply_worker_landlock(
 ) -> None:
     if not enabled:
         return
-    from democrai.core.infrastructure.sandbox.os.landlock import (
+    from democrai.core.infrastructure.sandbox.os.linux.landlock import (
         apply_landlock_filesystem_rules,
         is_landlock_supported,
     )

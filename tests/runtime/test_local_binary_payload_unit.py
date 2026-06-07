@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 import subprocess
 import sys
 from multiprocessing import Pipe
@@ -151,6 +152,129 @@ def test_runtime_json_value_uses_binary_packer_before_base64_for_large_bytes():
     assert json_value({"data": b"abc"}, binary_packer=_packer) == {"data": {"packed": 3}}
     assert calls == [b"abc"]
     assert python_value({"data": {"__bytes__": "YQ=="}}) == {"data": b"a"}
+
+
+def test_local_binary_payload_grants_windows_package_sid(monkeypatch):
+    calls = []
+    monkeypatch.setattr(binary_mod.sys, "platform", "win32")
+    monkeypatch.setattr(
+        binary_mod,
+        "_grant_windows_shared_memory_access",
+        lambda name, *, package_sid: calls.append((name, package_sid)),
+    )
+
+    class _SharedMemory:
+        name = "psm_demo"
+        _name = "psm_demo"
+
+        def __init__(self, *, create=False, size=0):  # noqa: ARG002
+            self.buf = bytearray(size)
+
+        def close(self):
+            pass
+
+        def unlink(self):
+            pass
+
+    monkeypatch.setattr(binary_mod.shared_memory, "SharedMemory", _SharedMemory)
+
+    class _Connection:
+        def send(self, value):
+            calls.append(("send", value))
+
+    channel = LocalBinaryPayloadChannel(
+        _Connection(),
+        threshold_bytes=8,
+        shared_memory_package_sid="S-1-15-2-1",
+    )
+    channel.send({"data": b"abcdef" * 8})
+
+    assert ("psm_demo", "S-1-15-2-1") in calls
+
+
+def test_local_binary_payload_uses_windows_package_sid_from_env(monkeypatch):
+    calls = []
+    monkeypatch.setenv(
+        binary_mod.WINDOWS_APPCONTAINER_SHARED_MEMORY_SID_ENV,
+        "S-1-15-2-2",
+    )
+    monkeypatch.setattr(binary_mod.sys, "platform", "win32")
+    monkeypatch.setattr(
+        binary_mod,
+        "_grant_windows_shared_memory_access",
+        lambda name, *, package_sid: calls.append((name, package_sid)),
+    )
+
+    class _SharedMemory:
+        name = "psm_env"
+        _name = "psm_env"
+
+        def __init__(self, *, create=False, size=0):  # noqa: ARG002
+            self.buf = bytearray(size)
+
+        def close(self):
+            pass
+
+        def unlink(self):
+            pass
+
+    monkeypatch.setattr(binary_mod.shared_memory, "SharedMemory", _SharedMemory)
+
+    class _Connection:
+        def send(self, value):
+            calls.append(("send", value))
+
+    channel = LocalBinaryPayloadChannel(_Connection(), threshold_bytes=8)
+    channel.send({"data": b"abcdef" * 8})
+
+    assert ("psm_env", "S-1-15-2-2") in calls
+
+
+def test_windows_shared_memory_acl_uses_package_sid(monkeypatch):
+    captured = []
+
+    class _Advapi:
+        def ConvertStringSecurityDescriptorToSecurityDescriptorW(self, sddl, _rev, sd, _size):
+            captured.append(("sddl", sddl.value))
+            sd._obj.value = 100
+            return 1
+
+        def GetSecurityDescriptorDacl(self, _sd, present, dacl, defaulted):
+            present._obj.value = 1
+            dacl._obj.value = 200
+            defaulted._obj.value = 0
+            return 1
+
+        def SetNamedSecurityInfoW(self, target, *_args):
+            captured.append(("target", target.value))
+            return 0 if target.value == "psm_demo" else 5
+
+    class _Kernel32:
+        def LocalFree(self, _value):
+            return 0
+
+        def get_last_error(self):
+            return 0
+
+    monkeypatch.setattr(binary_mod.sys, "platform", "win32")
+    monkeypatch.setattr(
+        binary_mod.ctypes,
+        "windll",
+        SimpleNamespace(advapi32=_Advapi(), kernel32=_Kernel32()),
+        raising=False,
+    )
+    monkeypatch.setattr(binary_mod, "_windows_current_user_sid", lambda: "S-1-5-21-1000")
+
+    binary_mod._grant_windows_shared_memory_access(
+        "psm_demo",
+        package_sid="S-1-15-2-1",
+    )
+
+    assert ("target", "psm_demo") in captured
+    sddl = next(item[1] for item in captured if item[0] == "sddl")
+    assert "S-1-15-2-1" in sddl
+    assert "S-1-5-21-1000" in sddl
+    assert ";;;IU)" not in sddl
 
 
 def test_local_binary_payload_same_process_has_no_resource_tracker_warning():

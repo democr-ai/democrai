@@ -81,6 +81,8 @@ def test_extractor_access_by_os_filters_linux_only_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
     monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
     monkeypatch.setattr(mod, "extractor_runtime_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_system_probe_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_dependency_read_paths", lambda: ())
     monkeypatch.setattr(mod, "extractor_runtime_create_paths", lambda: ())
     monkeypatch.setattr(mod, "extractor_runtime_modify_paths", lambda: ())
 
@@ -104,6 +106,39 @@ def test_extractor_access_by_os_filters_linux_only_paths(monkeypatch, tmp_path):
             "target": "https://pypi.org/*",
         },
     ]
+
+
+def test_extractor_access_includes_runtime_system_and_dependency_reads(monkeypatch, tmp_path):
+    import democrai.core.application.knowledge.extractor.runtime as mod
+
+    monkeypatch.setattr(mod, "_extractor_phase_section", lambda *_args: {})
+    monkeypatch.setattr(mod, "get_extractor_local_env_path", lambda _id=None: tmp_path / "env")
+    monkeypatch.setattr(mod, "get_extractor_local_cache_path", lambda _id=None: tmp_path / "cache")
+    monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
+    monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
+    monkeypatch.setattr(mod, "get_extractor_venv_path", lambda _id=None: tmp_path / "env" / ".venv")
+    monkeypatch.setattr(mod, "get_extractor_venv_python_path", lambda _id=None: tmp_path / "env" / ".venv" / "bin" / "python")
+    monkeypatch.setattr(mod, "extractor_runtime_read_paths", lambda: ("/dev/null",))
+    monkeypatch.setattr(mod, "extractor_runtime_system_probe_read_paths", lambda: ("/etc/os-release",))
+    monkeypatch.setattr(mod, "extractor_runtime_dependency_read_paths", lambda: ("/usr", "/lib"))
+    monkeypatch.setattr(mod, "extractor_runtime_create_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_modify_paths", lambda: ())
+
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in mod.get_extractor_access("docling", "runtime")
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    assert ("read", "/dev/null") in resources
+    assert ("read", "/etc/os-release") in resources
+    assert ("read", "/usr") in resources
+    assert ("read", "/lib") in resources
+    assert ("modify", "/usr") not in resources
+    assert ("create", "/usr") not in resources
 
 
 def test_docling_manifest_does_not_declare_ineffective_execute_allowlist():

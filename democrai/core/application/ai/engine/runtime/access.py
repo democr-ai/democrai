@@ -19,6 +19,7 @@ from democrai.core.application.ai.engine.access_constants import (
     engine_runtime_dependency_read_paths,
     engine_runtime_engine_env_executable_relative_paths,
     engine_runtime_libcuda_candidate_paths,
+    engine_runtime_system_probe_read_paths,
     engine_runtime_toolchain_program_candidate_paths,
 )
 from democrai.core.application.ai.engine.runtime.environment import (
@@ -256,6 +257,7 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 subject,
                 operation="read",
                 targets=(
+                    *engine_runtime_system_probe_read_paths(),
                     *engine_runtime_dependency_read_paths(),
                     *_engine_venv_runtime_read_paths(engine_venv_path),
                 ),

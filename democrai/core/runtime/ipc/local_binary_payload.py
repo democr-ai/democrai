@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import base64
+import ctypes
+import os
+import sys
 import threading
 import uuid
 from dataclasses import dataclass
@@ -12,6 +15,7 @@ from typing import Any, Callable
 SHARED_MEMORY_THRESHOLD_BYTES = 1024 * 1024
 _SHARED_MEMORY_MARKER = "__democrai_shared_memory__"
 _ACK_MARKER = "__democrai_shared_memory_ack__"
+WINDOWS_APPCONTAINER_SHARED_MEMORY_SID_ENV = "DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"
 _LOCAL_OWNED_NAMES: set[str] = set()
 _LOCAL_OWNED_NAMES_LOCK = threading.Lock()
 
@@ -39,9 +43,14 @@ class LocalBinaryPayloadChannel:
         connection: Any,
         *,
         threshold_bytes: int = SHARED_MEMORY_THRESHOLD_BYTES,
+        shared_memory_package_sid: str = "",
     ) -> None:
         self._connection = connection
         self._threshold = max(1, int(threshold_bytes or SHARED_MEMORY_THRESHOLD_BYTES))
+        self._shared_memory_package_sid = str(
+            shared_memory_package_sid
+            or os.environ.get(WINDOWS_APPCONTAINER_SHARED_MEMORY_SID_ENV, "")
+        ).strip()
         self._send_lock = threading.Lock()
         self._pending_lock = threading.Lock()
         self._pending: dict[str, _PendingSharedMemory] = {}
@@ -121,6 +130,7 @@ class LocalBinaryPayloadChannel:
             return {"__bytes__": base64.b64encode(payload).decode("ascii")}
         shm = shared_memory.SharedMemory(create=True, size=len(payload))
         try:
+            self._grant_shared_memory_access(shm.name)
             shm.buf[: len(payload)] = payload
             token = uuid.uuid4().hex
             with self._pending_lock:
@@ -255,3 +265,121 @@ class LocalBinaryPayloadChannel:
             resource_tracker.unregister(name, "shared_memory")
         except Exception:
             pass
+
+    def _grant_shared_memory_access(self, name: str) -> None:
+        if sys.platform != "win32" or not self._shared_memory_package_sid:
+            return
+        _grant_windows_shared_memory_access(
+            name,
+            package_sid=self._shared_memory_package_sid,
+        )
+
+
+def _grant_windows_shared_memory_access(name: str, *, package_sid: str) -> None:
+    raw_name = str(name or "").strip()
+    sid = str(package_sid or "").strip()
+    if not raw_name or not sid:
+        return
+    if sys.platform != "win32" or not hasattr(ctypes, "windll"):
+        return
+    advapi32 = ctypes.windll.advapi32
+    kernel32 = ctypes.windll.kernel32
+    security_descriptor = ctypes.c_void_p()
+    owner_sid = _windows_current_user_sid()
+    sddl = f"D:(A;;0xF001F;;;SY)(A;;0xF001F;;;{owner_sid})(A;;0xF001F;;;{sid})"
+    if not advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        ctypes.c_wchar_p(sddl),
+        ctypes.c_uint32(1),
+        ctypes.byref(security_descriptor),
+        None,
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        dacl_present = ctypes.c_int(0)
+        dacl = ctypes.c_void_p()
+        dacl_defaulted = ctypes.c_int(0)
+        if not advapi32.GetSecurityDescriptorDacl(
+            security_descriptor,
+            ctypes.byref(dacl_present),
+            ctypes.byref(dacl),
+            ctypes.byref(dacl_defaulted),
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not dacl_present.value or not dacl.value:
+            raise RuntimeError(f"windows_shared_memory_acl_invalid:{raw_name}")
+        for target in _windows_shared_memory_security_names(raw_name):
+            ret = advapi32.SetNamedSecurityInfoW(
+                ctypes.c_wchar_p(target),
+                ctypes.c_uint32(6),
+                ctypes.c_uint32(0x00000004),
+                None,
+                None,
+                dacl,
+                None,
+            )
+            if int(ret) == 0:
+                return
+        raise RuntimeError(f"windows_shared_memory_acl_failed:{raw_name}")
+    finally:
+        kernel32.LocalFree(security_descriptor)
+
+
+def _windows_current_user_sid() -> str:
+    if sys.platform != "win32" or not hasattr(ctypes, "windll"):
+        return "OW"
+    advapi32 = ctypes.windll.advapi32
+    kernel32 = ctypes.windll.kernel32
+    token = ctypes.c_void_p()
+    token_query = 0x0008
+    token_user = 1
+    if not advapi32.OpenProcessToken(
+        kernel32.GetCurrentProcess(),
+        ctypes.c_uint32(token_query),
+        ctypes.byref(token),
+    ):
+        return "OW"
+    try:
+        required = ctypes.c_uint32(0)
+        advapi32.GetTokenInformation(
+            token,
+            ctypes.c_uint32(token_user),
+            None,
+            ctypes.c_uint32(0),
+            ctypes.byref(required),
+        )
+        if not required.value:
+            return "OW"
+        buffer = ctypes.create_string_buffer(required.value)
+        if not advapi32.GetTokenInformation(
+            token,
+            ctypes.c_uint32(token_user),
+            buffer,
+            required,
+            ctypes.byref(required),
+        ):
+            return "OW"
+        user_sid = ctypes.c_void_p.from_buffer(buffer).value
+        if not user_sid:
+            return "OW"
+        sid_string = ctypes.c_wchar_p()
+        if not advapi32.ConvertSidToStringSidW(
+            ctypes.c_void_p(user_sid),
+            ctypes.byref(sid_string),
+        ):
+            return "OW"
+        try:
+            return str(sid_string.value or "OW")
+        finally:
+            kernel32.LocalFree(sid_string)
+    finally:
+        kernel32.CloseHandle(token)
+
+
+def _windows_shared_memory_security_names(name: str) -> tuple[str, ...]:
+    raw = str(name or "").strip().lstrip("/")
+    if not raw:
+        return ()
+    names = [raw]
+    if "\\" not in raw:
+        names.append(f"Local\\{raw}")
+    return tuple(dict.fromkeys(names))

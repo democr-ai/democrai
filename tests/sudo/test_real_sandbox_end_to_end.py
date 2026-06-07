@@ -798,7 +798,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
             outside.write_text("secret", encoding="utf-8")
             allowed_file = allowed / "ok.txt"
             allowed_file.write_text("ok", encoding="utf-8")
-            from democrai.core.infrastructure.sandbox.os.landlock import apply_landlock_filesystem_rules
+            from democrai.core.infrastructure.sandbox.os.linux.landlock import apply_landlock_filesystem_rules
 
             apply_landlock_filesystem_rules(
                 read_only_paths=[str(allowed)],
@@ -1866,7 +1866,7 @@ def test_real_seccomp_blocks_exec(tmp_path: Path):
     script = _write(
         tmp_path / "seccomp_probe.py",
         """
-        from democrai.core.infrastructure.sandbox.os.seccomp import apply_seccomp_blocklist
+        from democrai.core.infrastructure.sandbox.os.linux.seccomp import apply_seccomp_blocklist
         apply_seccomp_blocklist()
         import os
         os.execv("/bin/true", ["/bin/true"])

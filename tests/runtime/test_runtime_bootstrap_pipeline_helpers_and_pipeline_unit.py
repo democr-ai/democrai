@@ -435,11 +435,10 @@ def test_refresh_os_network_allowlist_applies_process_restrictions(monkeypatch):
 
     monkeypatch.setitem(
         sys.modules,
-        "democrai.core.infrastructure.sandbox.os.process_restrictions",
+        "democrai.core.infrastructure.sandbox.os.current_process",
         SimpleNamespace(
-            apply_process_restrictions=lambda _cfg: calls.append("apply"),
-            is_landlock_enabled=lambda _cfg: False,
-            is_seccomp_enabled=lambda _cfg: True,
+            apply_current_process_os_sandbox=lambda _cfg: calls.append("apply"),
+            is_os_sandbox_enabled=lambda _cfg: True,
         ),
     )
     monkeypatch.setitem(
@@ -475,17 +474,15 @@ def test_refresh_os_network_allowlist_applies_process_restrictions(monkeypatch):
     assert calls == ["apply"]
 
 
-def test_refresh_os_network_allowlist_warns_on_process_restriction_failure(monkeypatch):
+def test_refresh_os_network_allowlist_raises_on_required_os_sandbox_failure(monkeypatch):
     b = pipeline_mod.RuntimeBootstrapper()
-    warn_calls: list[str] = []
 
     monkeypatch.setitem(
         sys.modules,
-        "democrai.core.infrastructure.sandbox.os.process_restrictions",
+        "democrai.core.infrastructure.sandbox.os.current_process",
         SimpleNamespace(
-            apply_process_restrictions=lambda _cfg: (_ for _ in ()).throw(RuntimeError("boom")),
-            is_landlock_enabled=lambda _cfg: True,
-            is_seccomp_enabled=lambda _cfg: False,
+            apply_current_process_os_sandbox=lambda _cfg: (_ for _ in ()).throw(RuntimeError("boom")),
+            is_os_sandbox_enabled=lambda _cfg: True,
         ),
     )
     monkeypatch.setitem(
@@ -495,7 +492,6 @@ def test_refresh_os_network_allowlist_warns_on_process_restriction_failure(monke
             process_guard_bypass_context=lambda: __import__("contextlib").nullcontext()
         ),
     )
-    monkeypatch.setattr("warnings.warn", lambda msg: warn_calls.append(str(msg)))
     monkeypatch.setitem(
         sys.modules,
         "democrai.core.infrastructure.sandbox.os.state",
@@ -518,5 +514,5 @@ def test_refresh_os_network_allowlist_warns_on_process_restriction_failure(monke
         SimpleNamespace(ensure_os_sandbox_helper_ready=lambda _cfg: None),
     )
 
-    b.refresh_os_network_allowlist(SimpleNamespace(setup_mode=False, config={}))
-    assert warn_calls and "process restrictions failed" in warn_calls[-1]
+    with pytest.raises(RuntimeError, match="boom"):
+        b.refresh_os_network_allowlist(SimpleNamespace(setup_mode=False, config={}))

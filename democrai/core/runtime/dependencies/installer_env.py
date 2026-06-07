@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import json
+import os
 import platform
 import sys
 from typing import Any
 
 from democrai.core.platform.utils.debug import debug_engine_install_flow
 from democrai.core.platform.utils.system import get_resource_monitor
+
+
+RUNTIME_ENV_JSON_ENV = "DEMOCRAI_RUNTIME_ENV_JSON"
 
 
 def get_gpu_info() -> dict:
@@ -37,12 +42,28 @@ def norm_arch(machine: str) -> str:
 
 
 def runtime_env() -> dict:
+    pinned = _runtime_env_from_env()
+    if pinned is not None:
+        return pinned
     return {
         "os": platform.system().lower(),
         "arch": norm_arch(platform.machine()),
         "gpu": get_gpu_info(),
         "python": f"{sys.version_info.major}.{sys.version_info.minor}",
     }
+
+
+def _runtime_env_from_env() -> dict[str, Any] | None:
+    raw = str(os.environ.get(RUNTIME_ENV_JSON_ENV) or "").strip()
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return dict(payload)
 
 
 def engine_support_status(

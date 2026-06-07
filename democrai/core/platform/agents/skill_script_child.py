@@ -12,7 +12,7 @@ def _apply_seccomp() -> None:
     if not sys.platform.startswith("linux"):
         return
     try:
-        from democrai.core.infrastructure.sandbox.os.seccomp import (
+        from democrai.core.infrastructure.sandbox.os.linux.seccomp import (
             apply_seccomp_blocklist,
             is_seccomp_supported,
         )

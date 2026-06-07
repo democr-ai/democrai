@@ -12,6 +12,7 @@ import democrai.core.platform.agents.runtime as runtime_mod
 from democrai.core.platform.agents import skills_io as skills_io_mod
 from democrai.core.runtime.dependencies import engine_env as engine_env_mod
 from democrai.core.runtime.dependencies import extractor_env as extractor_env_mod
+from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
 
 
 def test_selection_policy_helpers(monkeypatch):
@@ -80,6 +81,19 @@ def test_engine_env_paths_and_context(tmp_path: Path, monkeypatch):
     assert os.environ["HF_HOME"] == "/home/fabio/.cache/huggingface"
     assert os.environ["TORCH_HOME"] == "/home/fabio/.cache/torch"
     assert os.environ["CUDA_HOME"] == "/usr/local/cuda"
+
+
+def test_engine_env_context_allows_runtime_env_json_under_guard(tmp_path: Path, monkeypatch):
+    from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+
+    monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    payload = '{"os": "linux"}'
+
+    with process_guard_context(subject="onnx", subject_kind="engine", access=()):
+        with engine_env_mod.engine_env_context("onnx", env={RUNTIME_ENV_JSON_ENV: payload}):
+            assert os.environ[RUNTIME_ENV_JSON_ENV] == payload
+
+    assert RUNTIME_ENV_JSON_ENV not in os.environ
 
 
 def test_engine_env_bootstrap_and_clear(tmp_path: Path, monkeypatch):

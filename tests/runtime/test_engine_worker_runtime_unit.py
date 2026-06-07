@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextlib import ExitStack
+import io
 from pathlib import Path
 import sys
+import threading
 from types import SimpleNamespace
 
 from democrai.core.application.access_policy import AccessManifestRule
@@ -11,6 +13,7 @@ from democrai.core.application.access_policy import AccessResource
 from democrai.core.application.access_policy import AccessSubject
 from democrai.core.application.ai.engine import worker as worker_mod
 from democrai.core.application.ai.engine.runtime import worker as subject_mod
+from democrai.core.infrastructure.sandbox import launcher as launcher_mod
 from democrai.core.runtime.dependencies import engine_env as engine_env_mod
 
 
@@ -21,7 +24,7 @@ class _Config:
             "logging.url": "https://logs.example.test/ingest",
             "logging.method": "POST",
             "database.url": "sqlite:///secret.db",
-            "sandbox.os.landlock.enabled": True,
+            "sandbox.os.enabled": True,
         }
         return values.get(key, default)
 
@@ -34,7 +37,7 @@ def test_engine_worker_logging_config_contains_only_logger_keys(monkeypatch):
         "logging.url": "https://logs.example.test/ingest",
         "logging.method": "POST",
     }
-    assert subject_mod.worker_landlock_enabled() is True
+    assert subject_mod.worker_os_sandbox_enabled() is True
 
 
 def test_engine_worker_module_keeps_heavy_core_imports_lazy():
@@ -110,7 +113,7 @@ def test_engine_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_path:
         ),
     )
     monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {"logging.provider": "local"})
-    monkeypatch.setattr(subject_mod, "worker_landlock_enabled", lambda: True)
+    monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: True)
     monkeypatch.setattr(subject_mod, "worker_path_overrides", lambda _engine_id: {"env": "env", "cache": "cache", "config": "config", "tmp": "tmp"})
     monkeypatch.setattr(subject_mod, "worker_landlock_paths", lambda: {"read_only": ["ro"], "read_write": ["rw"]})
     monkeypatch.setattr(subject_mod, "get_engine_runtime_env", lambda _engine_id: {"PATH": "runtime"})
@@ -127,12 +130,170 @@ def test_engine_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_path:
     assert payload["logging_config"] == {"logging.provider": "local"}
     assert payload["log_dir"]
     assert payload["path_overrides"] == {"env": "env", "cache": "cache", "config": "config", "tmp": "tmp"}
+    assert payload["landlock_enabled"] is False
     assert payload["landlock_read_only_paths"] == ["ro"]
     assert payload["landlock_read_write_paths"] == ["rw"]
     assert payload["env"] == {"PATH": "runtime"}
     assert payload["allowed_imports"] == ["numpy"]
     assert payload["allowed_subprocess_commands"] == ["ffmpeg"]
     assert payload["access"][0]["resource"]["target"] == str(tmp_path / "model")
+
+
+def test_engine_runtime_env_pins_parent_runtime_env(monkeypatch):
+    from democrai.core.application.ai.engine.runtime import environment as env_mod
+    from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
+
+    monkeypatch.setattr(env_mod, "_engine_phase_env", lambda *_args: {})
+    monkeypatch.setattr(env_mod, "runtime_env", lambda: {"os": "linux", "gpu": {"has_nvidia": True}})
+    monkeypatch.setattr(env_mod, "ensure_engine_runtime_driver_libs", lambda _engine_id: (None, ()))
+    monkeypatch.setattr(env_mod, "ensure_engine_runtime_toolchain", lambda _engine_id: (None, ()))
+
+    env = env_mod.get_engine_runtime_env("onnx")
+
+    assert env[RUNTIME_ENV_JSON_ENV] == '{"gpu": {"has_nvidia": true}, "os": "linux"}'
+
+
+def test_engine_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatch):
+    calls = []
+    monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(
+        launcher_mod,
+        "popen",
+        lambda command, **kwargs: calls.append((command, kwargs)) or SimpleNamespace(),
+    )
+
+    process = subject_mod._spawn_engine_worker_process(
+        ["python", "-V"],
+        env={"A": "B"},
+        launch_state={
+            "subject": "demo",
+            "subject_kind": "engine",
+            "access": (),
+        },
+    )
+
+    assert process is not None
+    assert calls[0][0] == ["python", "-V"]
+    assert calls[0][1]["state"]["subject_kind"] == "engine"
+    assert calls[0][1]["env"] == {"A": "B"}
+
+
+def test_engine_worker_launch_state_adds_framework_ipc_on_posix(monkeypatch, tmp_path: Path):
+    worker_launch_mod = __import__(
+        "democrai.core.infrastructure.sandbox.worker_launch",
+        fromlist=["state_dir"],
+    )
+    monkeypatch.setattr(worker_launch_mod, "state_dir", lambda: tmp_path)
+    monkeypatch.setattr(worker_launch_mod.os, "name", "posix", raising=False)
+    monkeypatch.setattr(worker_launch_mod.sys, "platform", "linux")
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.process_guard._state",
+        lambda: {
+            "subject_chain": [{"kind": "module", "name": "system"}],
+            "user_id": 7,
+        },
+    )
+
+    state = subject_mod._engine_worker_launch_state(engine_id="YOLO", access=())
+    resources = [
+        (
+            rule.subject.subject_type,
+            rule.subject.subject_name,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in state["access"]
+    ]
+
+    assert state["subject"] == "yolo"
+    assert state["subject_kind"] == "engine"
+    assert state["subject_chain"] == [
+        {"kind": "module", "name": "system"},
+        {"kind": "engine", "name": "yolo"},
+    ]
+    assert {
+        ("engine", "yolo", "read", worker_launch_mod._application_root()),
+        ("engine", "yolo", "read", str((tmp_path / "ipc").resolve())),
+        ("engine", "yolo", "create", str((tmp_path / "ipc").resolve())),
+        ("engine", "yolo", "modify", str((tmp_path / "ipc").resolve())),
+        ("engine", "yolo", "delete", str((tmp_path / "ipc").resolve())),
+        ("engine", "yolo", "read", "/dev/shm"),
+        ("engine", "yolo", "create", "/dev/shm"),
+        ("engine", "yolo", "modify", "/dev/shm"),
+        ("engine", "yolo", "delete", "/dev/shm"),
+    }.issubset(set(resources))
+
+
+def test_engine_worker_launch_state_does_not_add_named_pipe_filesystem_access(monkeypatch):
+    worker_launch_mod = __import__(
+        "democrai.core.infrastructure.sandbox.worker_launch",
+        fromlist=["state_dir"],
+    )
+    monkeypatch.setattr(worker_launch_mod.os, "name", "nt", raising=False)
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.process_guard._state",
+        lambda: {"subject_chain": []},
+    )
+
+    state = subject_mod._engine_worker_launch_state(engine_id="demo", access=())
+
+    resources = {
+        (rule.resource.operation.value, rule.resource.normalized_target)
+        for rule in state["access"]
+    }
+    assert ("read", worker_launch_mod._application_root()) in resources
+    assert all(not target.endswith("/ipc") for _operation, target in resources)
+    assert ("read", "/dev/shm") not in resources
+
+
+def test_engine_worker_no_response_message_keeps_diagnostics():
+    class _Process:
+        def poll(self):
+            return None
+
+        def wait(self, timeout):  # noqa: ARG002
+            raise subject_mod.subprocess.TimeoutExpired("worker", timeout)
+
+    subject = subject_mod.EngineWorkerSubject.__new__(subject_mod.EngineWorkerSubject)
+    subject._engine_id = "yolo"
+    subject._process = _Process()
+    subject._stderr_thread = None
+    subject._stderr_tail = ["sandbox denied /dev/null"]
+    subject._stderr_lock = threading.Lock()
+
+    message = subject._log_worker_no_response(operation="invoke", return_code=None)
+
+    assert "engine_worker_no_response:None" in message
+    assert "engine_id=yolo" in message
+    assert "operation=invoke" in message
+    assert "status=still_running_after_pipe_close" in message
+    assert "sandbox denied /dev/null" in message
+
+
+def test_engine_worker_start_failure_message_keeps_stderr():
+    class _Process:
+        stderr = io.StringIO("landlock_add_rule_failed:/dev/null:13\n")
+
+        def poll(self):
+            return 126
+
+    subject = subject_mod.EngineWorkerSubject.__new__(subject_mod.EngineWorkerSubject)
+    subject._engine_id = "llamacpp"
+    subject._process = _Process()
+    subject._stderr_reader = subject._process.stderr
+    subject._stderr_tail = []
+    subject._stderr_lock = threading.Lock()
+
+    message = subject._worker_start_failure_message(
+        stage="control_connect",
+        error=RuntimeError("local_connection_process_exited_before_connect:126"),
+    )
+
+    assert "engine_worker_start_failed" in message
+    assert "engine_id=llamacpp" in message
+    assert "stage=control_connect" in message
+    assert "return_code=126" in message
+    assert "landlock_add_rule_failed:/dev/null:13" in message
 
 
 def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch, tmp_path: Path):
@@ -314,6 +475,26 @@ def test_engine_env_without_overrides_uses_data_dir(monkeypatch, tmp_path: Path)
     )
 
 
+def test_engine_worker_env_uses_subject_tmp_before_spawn(tmp_path: Path):
+    engine_id = "temp_env_demo"
+    engine_env_mod.set_engine_local_path_overrides(
+        engine_id,
+        env_path=str(tmp_path / "env"),
+        cache_path=str(tmp_path / "cache"),
+        config_path=str(tmp_path / "config"),
+        tmp_path=str(tmp_path / "tmp"),
+    )
+
+    try:
+        env = subject_mod._with_engine_temp_env({"TMPDIR": "/tmp"}, engine_id)
+    finally:
+        engine_env_mod._ENGINE_LOCAL_PATH_OVERRIDES.pop(engine_id, None)
+
+    assert env["TMPDIR"] == str(tmp_path / "tmp")
+    assert env["TEMP"] == str(tmp_path / "tmp")
+    assert env["TMP"] == str(tmp_path / "tmp")
+
+
 def test_invoke_engine_class_method_loads_class_inside_engine_guard(monkeypatch):
     from democrai.core.application.ai.engine.runtime import methods as methods_mod
 
@@ -447,6 +628,94 @@ def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_
     assert ("filesystem", "delete", "/opt/homebrew") not in resources
 
 
+def test_engine_runtime_access_preserves_trusted_read_alias_and_realpath(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+    from democrai.core.application.ai.engine import access_constants as constants_mod
+    from democrai.core.infrastructure.sandbox import platform_policy
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+    monkeypatch.setattr(constants_mod, "os_key", lambda: "linux")
+    monkeypatch.setattr(
+        platform_policy,
+        "LINUX_SYSTEM_PROBE_READ_PATHS",
+        ("/etc/os-release",),
+    )
+    monkeypatch.setattr(platform_policy, "LINUX_RUNTIME_DEPENDENCY_READ_PATHS", ())
+    monkeypatch.setattr(
+        platform_policy.os.path,
+        "exists",
+        lambda path: str(path) in {"/etc/os-release", "/usr/lib/os-release"},
+    )
+    monkeypatch.setattr(
+        platform_policy.os.path,
+        "realpath",
+        lambda path, *args, **kwargs: "/usr/lib/os-release" if str(path) == "/etc/os-release" else str(path),
+    )
+
+    access = access_mod.get_engine_access("yolo", "runtime", config={})
+    resources = {
+        (
+            rule.resource.resource_type.value,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+    }
+
+    assert ("filesystem", "read", "/etc/os-release") in resources
+    assert ("filesystem", "read", "/usr/lib/os-release") in resources
+    assert ("filesystem", "modify", "/etc/os-release") not in resources
+    assert ("filesystem", "create", "/etc/os-release") not in resources
+
+
+def test_worker_runtime_access_preserves_system_read_alias_and_realpath(monkeypatch, tmp_path: Path):
+    from democrai.core.infrastructure.sandbox import platform_policy
+
+    monkeypatch.setattr(subject_mod, "get_engine_access", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(subject_mod, "get_runtime_module_dirs", lambda: ())
+    monkeypatch.setattr(subject_mod, "get_runtime_engine_dirs", lambda: ())
+    monkeypatch.setattr(subject_mod, "get_base_dir", lambda: tmp_path / "app")
+    monkeypatch.setattr(subject_mod.sys, "path", [])
+    monkeypatch.setattr(subject_mod.sysconfig, "get_paths", lambda: {})
+    monkeypatch.setattr(subject_mod.sys, "prefix", "")
+    monkeypatch.setattr(subject_mod.sys, "exec_prefix", "")
+    monkeypatch.setattr(platform_policy.sys, "platform", "linux")
+    monkeypatch.setattr(
+        platform_policy,
+        "LINUX_SYSTEM_PROBE_READ_PATHS",
+        ("/etc/os-release",),
+    )
+    monkeypatch.setattr(platform_policy, "LINUX_RUNTIME_DEPENDENCY_READ_PATHS", ())
+    monkeypatch.setattr(
+        platform_policy.os.path,
+        "exists",
+        lambda path: str(path) in {"/etc/os-release", "/usr/lib/os-release"},
+    )
+    monkeypatch.setattr(
+        platform_policy.os.path,
+        "realpath",
+        lambda path, *args, **kwargs: "/usr/lib/os-release" if str(path) == "/etc/os-release" else str(path),
+    )
+    access = subject_mod.worker_runtime_access(
+        engine_id="yolo",
+        config={},
+        logging_config={},
+    )
+    resources = {
+        (
+            rule.resource.resource_type.value,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+    }
+
+    assert ("filesystem", "read", "/etc/os-release") in resources
+    assert ("filesystem", "read", "/usr/lib/os-release") in resources
+    assert ("filesystem", "modify", "/etc/os-release") not in resources
+
+
 def test_engine_runtime_access_includes_windows_venv_read_roots(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
 
@@ -544,7 +813,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
     monkeypatch.setattr(subject_mod, "application_pythonpath", lambda: str(tmp_path))
     monkeypatch.setattr(subject_mod, "get_engine_venv_python_path", lambda _engine_id: tmp_path / "python")
     monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {})
-    monkeypatch.setattr(subject_mod, "worker_landlock_enabled", lambda: False)
+    monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: False)
     monkeypatch.setattr(subject_mod, "worker_path_overrides", lambda _engine_id: {})
     monkeypatch.setattr(subject_mod, "worker_landlock_paths", lambda: {"read_only": [], "read_write": []})
     monkeypatch.setattr(subject_mod, "get_engine_runtime_env", lambda _engine_id: {})

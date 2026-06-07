@@ -11,6 +11,7 @@ from pathlib import Path
 
 from democrai.core.runtime.dependencies.env_constants import ENVIRONMENT_CONTEXT_LOCK
 from democrai.core.runtime.dependencies.env_constants import engine_runtime_command_path
+from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
 from democrai.core.runtime.foundation.paths import data_dir
 
 
@@ -35,6 +36,7 @@ _ENGINE_CACHE_ENV_KEYS = (
     "TMPDIR",
     "TEMP",
     "TMP",
+    RUNTIME_ENV_JSON_ENV,
 )
 
 _ENGINE_SHIELDED_ENV_KEYS = (
