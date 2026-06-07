@@ -318,6 +318,8 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
     popen_calls = []
     listener_kinds = []
     accepted_prefixes = []
+    bypass_state = {"active": False}
+    bypass_observations = []
 
     class _Endpoint:
         def __init__(self, kind: str) -> None:
@@ -344,7 +346,12 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
 
     @contextmanager
     def _bypass():
-        yield
+        previous = bypass_state["active"]
+        bypass_state["active"] = True
+        try:
+            yield
+        finally:
+            bypass_state["active"] = previous
 
     class _Thread:
         def __init__(self, *, target, args=(), **kwargs):
@@ -356,6 +363,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
                 self._target(*self._args)
 
     def _popen(command, **kwargs):
+        bypass_observations.append(("popen", bypass_state["active"]))
         popen_calls.append((command, kwargs))
         return _Process()
 
@@ -364,8 +372,13 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
         return _Endpoint(kind)
 
     def _accept(endpoint, *, process, timeout_seconds):
+        bypass_observations.append((f"accept:{endpoint.kind}", bypass_state["active"]))
         accepted_prefixes.append(endpoint.kind)
         return SimpleNamespace(close=lambda: None)
+
+    def _request(self, operation, payload):
+        bypass_observations.append((f"request:{operation}", bypass_state["active"]))
+        return None
 
     monkeypatch.setattr(subject_mod, "create_local_listener", _listener)
     monkeypatch.setattr(subject_mod, "accept_connection", _accept)
@@ -385,7 +398,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
     monkeypatch.setattr(
         subject_mod.EngineWorkerSubject,
         "_request",
-        lambda self, operation, payload: None,
+        _request,
     )
 
     subject = subject_mod.EngineWorkerSubject(engine_id="demo", config={"model": "tiny"})
@@ -401,5 +414,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
         assert legacy_prefix + "_WRITE_FD" not in env
         assert listener_kinds == ["engine-worker-control", "engine-worker-parent"]
         assert accepted_prefixes == ["engine-worker-control", "engine-worker-parent"]
+        assert bypass_observations
+        assert all(active for _name, active in bypass_observations)
     finally:
         subject.close()

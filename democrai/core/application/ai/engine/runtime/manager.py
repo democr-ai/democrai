@@ -90,6 +90,7 @@ class EngineRuntime:
             ),
             allow_subprocess=True,
             allow_fork=True,
+            include_network_access=False,
         )
 
     @staticmethod

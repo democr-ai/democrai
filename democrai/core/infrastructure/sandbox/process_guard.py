@@ -17,6 +17,8 @@ import sys
 import sysconfig
 import tempfile
 import threading
+import time
+from collections import OrderedDict
 from typing import Any
 
 from democrai.core.application.access_policy import AccessManifestRule
@@ -65,7 +67,17 @@ _SENSITIVE_IMPORT_ROOTS = {"ctypes", "_ctypes", "cffi", "_cffi_backend"}
 _PROTECTED_ENV_PREFIX = "DEMOCRAI_"
 _EXTERNAL_ACCESS_CACHE_MAX = 512
 _PATH_ACCESS_CACHE_MAX = 512
+_REALPATH_CACHE_MAX = 4096
+_PATH_ACCESS_ALLOW_TTL_SECONDS = 2.0
+_REALPATH_CACHE_TTL_SECONDS = _PATH_ACCESS_ALLOW_TTL_SECONDS
 _RUNTIME_ACCESS_CACHE_LOCK = threading.Lock()
+_PATH_ACCESS_CACHE_LOCK = threading.Lock()
+_REALPATH_CACHE_LOCK = threading.Lock()
+_GLOBAL_PATH_ACCESS_CACHE: OrderedDict[
+    tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
+    tuple[bool, float],
+] = OrderedDict()
+_GLOBAL_REALPATH_CACHE: OrderedDict[tuple[str, str], tuple[str, float]] = OrderedDict()
 _CONFIG_DENIED_SUBJECT_KINDS = {"agent", "mcp", "tool"}
 
 
@@ -221,13 +233,74 @@ def _normalize_import_roots(values: list[str] | None) -> list[str]:
     return normalized
 
 
+def _bounded_cache_get(cache: OrderedDict, key: Any) -> Any:
+    if key not in cache:
+        return None
+    value = cache.pop(key)
+    cache[key] = value
+    return value
+
+
+def _bounded_cache_set(cache: OrderedDict, key: Any, value: Any, *, max_size: int) -> None:
+    if key in cache:
+        cache.pop(key)
+    elif len(cache) >= max_size:
+        try:
+            cache.popitem(last=False)
+        except Exception:
+            cache.clear()
+    cache[key] = value
+
+
+def _clear_path_resolution_caches() -> None:
+    with _PATH_ACCESS_CACHE_LOCK:
+        _GLOBAL_PATH_ACCESS_CACHE.clear()
+    with _REALPATH_CACHE_LOCK:
+        _GLOBAL_REALPATH_CACHE.clear()
+
+
+def _cheap_normalized_path(path_value: Any) -> str:
+    raw = os.fsdecode(os.fspath(path_value))
+    expanded = os.path.expanduser(raw)
+    return os.path.normpath(os.path.abspath(expanded))
+
+
+def _cached_realpath(path_value: Any) -> str:
+    raw = os.fsdecode(os.fspath(path_value))
+    expanded = os.path.expanduser(raw)
+    cheap = os.path.normpath(os.path.abspath(expanded))
+    cwd = os.getcwd()
+    key = (cwd, cheap)
+    now = time.monotonic()
+    with _REALPATH_CACHE_LOCK:
+        cached = _bounded_cache_get(_GLOBAL_REALPATH_CACHE, key)
+        if cached is not None:
+            resolved, expires_at = cached
+            if expires_at < now:
+                try:
+                    _GLOBAL_REALPATH_CACHE.pop(key, None)
+                except Exception:
+                    _GLOBAL_REALPATH_CACHE.clear()
+            else:
+                _profile_count("process_guard.path.realpath.cache_hits")
+                return str(resolved)
+    with _profile_span("process_guard.path.realpath"):
+        resolved = os.path.normpath(os.path.realpath(expanded))
+    with _REALPATH_CACHE_LOCK:
+        _bounded_cache_set(
+            _GLOBAL_REALPATH_CACHE,
+            key,
+            (resolved, time.monotonic() + _REALPATH_CACHE_TTL_SECONDS),
+            max_size=_REALPATH_CACHE_MAX,
+        )
+    return resolved
+
+
 def _normalized_path_variants(path_value: Any) -> list[str]:
     with _profile_span("process_guard.path.normalize"):
-        raw = os.fsdecode(os.fspath(path_value))
-        expanded = os.path.expanduser(raw)
         variants = [
-            os.path.normpath(os.path.abspath(expanded)),
-            os.path.normpath(os.path.realpath(expanded)),
+            _cheap_normalized_path(path_value),
+            _cached_realpath(path_value),
         ]
         deduped: list[str] = []
         seen: set[str] = set()
@@ -290,6 +363,16 @@ def _filesystem_access_by_operation(
         seen.add(key)
         indexed.setdefault(operation, []).append(target)
     return {operation: tuple(paths) for operation, paths in indexed.items()}
+
+
+def _filesystem_access_fingerprint(
+    filesystem_access: dict[str, tuple[str, ...]] | dict[str, Any],
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    indexed: list[tuple[str, tuple[str, ...]]] = []
+    for operation, roots in filesystem_access.items():
+        normalized_roots = tuple(str(root) for root in tuple(roots or ()))
+        indexed.append((str(operation), normalized_roots))
+    return tuple(sorted(indexed))
 
 
 def _filesystem_access_summary(
@@ -691,28 +774,27 @@ def _path_allowed(path_value: Any, *, operation: str) -> bool:
                 allowed_roots = filesystem_access.get(operation) or ()
         if not allowed_roots:
             return False
-        cache_key = _path_access_cache_key(path_value, operation=operation)
-        cache = current_state.get("path_access_cache")
-        if cache_key is not None and isinstance(cache, dict):
-            cached = cache.get(cache_key)
+        resolved_allowed_roots = tuple(str(root) for root in tuple(allowed_roots or ()))
+        access_fingerprint = current_state.get("filesystem_access_fingerprint")
+        if not isinstance(access_fingerprint, tuple):
+            access_fingerprint = _filesystem_access_fingerprint(filesystem_access)
+        cache_key = _path_access_cache_key(
+            path_value,
+            operation=operation,
+            access_fingerprint=access_fingerprint,
+        )
+        if cache_key is not None:
+            cached = _path_access_cache_get(cache_key)
             if cached is not None:
-                _profile_count("process_guard.path_allowed.cache_hits")
-                return bool(cached)
-        variants = _normalized_path_variants(path_value)
-        allowed_result = True
-        for resolved in variants:
-            allowed = False
-            with _profile_span("process_guard.path_allowed.scan_rules"):
-                for allowed_root in allowed_roots:
-                    _profile_count("process_guard.path_allowed.rules_checked")
-                    if resolved == allowed_root or resolved.startswith(allowed_root + os.sep):
-                        allowed = True
-                        break
-            if not allowed:
-                allowed_result = False
-                break
-        if cache_key is not None and isinstance(cache, dict):
-            _path_access_cache_set(cache, cache_key, allowed_result)
+                return cached
+        cheap_path = _cheap_normalized_path(path_value)
+        if not _path_under_roots(cheap_path, resolved_allowed_roots):
+            allowed_result = False
+        else:
+            real_path = _cached_realpath(path_value)
+            allowed_result = _path_under_roots(real_path, resolved_allowed_roots)
+        if cache_key is not None:
+            _path_access_cache_set(cache_key, allowed_result)
         return allowed_result
 
 
@@ -868,30 +950,61 @@ def _external_access_cache_set(
     cache[key] = value
 
 
-def _path_access_cache_key(path_value: Any, *, operation: str) -> tuple[str, str, str] | None:
+def _path_under_roots(path: str, roots: tuple[str, ...]) -> bool:
+    with _profile_span("process_guard.path_allowed.scan_rules"):
+        for allowed_root in roots:
+            _profile_count("process_guard.path_allowed.rules_checked")
+            if path == allowed_root or path.startswith(allowed_root + os.sep):
+                return True
+    return False
+
+
+def _path_access_cache_key(
+    path_value: Any,
+    *,
+    operation: str,
+    access_fingerprint: tuple[tuple[str, tuple[str, ...]], ...],
+) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str] | None:
     if isinstance(path_value, int):
         return None
     try:
         raw = os.fsdecode(os.fspath(path_value))
     except TypeError:
         return None
-    return (operation, os.getcwd(), raw)
+    return (access_fingerprint, operation, os.getcwd(), raw)
+
+
+def _path_access_cache_get(
+    key: tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
+) -> bool | None:
+    now = time.monotonic()
+    with _PATH_ACCESS_CACHE_LOCK:
+        cached = _bounded_cache_get(_GLOBAL_PATH_ACCESS_CACHE, key)
+        if cached is None:
+            return None
+        allowed, expires_at = cached
+        if expires_at and expires_at < now:
+            try:
+                _GLOBAL_PATH_ACCESS_CACHE.pop(key, None)
+            except Exception:
+                _GLOBAL_PATH_ACCESS_CACHE.clear()
+            return None
+        _profile_count("process_guard.path_allowed.cache_hits")
+        return bool(allowed)
 
 
 def _path_access_cache_set(
-    cache: dict[tuple[str, str, str], bool],
-    key: tuple[str, str, str],
+    key: tuple[tuple[tuple[str, tuple[str, ...]], ...], str, str, str],
     value: bool,
 ) -> None:
-    if key in cache:
-        cache[key] = value
-        return
-    if len(cache) >= _PATH_ACCESS_CACHE_MAX:
-        try:
-            cache.pop(next(iter(cache)))
-        except Exception:
-            cache.clear()
-    cache[key] = value
+    expires_at = time.monotonic() + _PATH_ACCESS_ALLOW_TTL_SECONDS if value else 0.0
+    with _PATH_ACCESS_CACHE_LOCK:
+        _bounded_cache_set(
+            _GLOBAL_PATH_ACCESS_CACHE,
+            key,
+            (bool(value), expires_at),
+            max_size=_PATH_ACCESS_CACHE_MAX,
+        )
 
 
 def _resolve_filesystem_operation(path_value: Any, operation: str) -> str:
@@ -1080,6 +1193,8 @@ def _path_method_operation(self: Any, attr: str, args: tuple[Any, ...], kwargs: 
 
 def _wrap_open(original):
     def wrapper(file, *args, **kwargs):
+        if _bypass_enabled():
+            return original(file, *args, **kwargs)
         _profile_count("process_guard.wrapper.open.calls")
         if isinstance(file, int):
             # Allow file-descriptor based open() calls (used by subprocess pipes).
@@ -1093,6 +1208,8 @@ def _wrap_open(original):
 
 def _wrap_os_open(original):
     def wrapper(path, flags, *args, **kwargs):
+        if _bypass_enabled():
+            return original(path, flags, *args, **kwargs)
         _profile_count("process_guard.wrapper.os_open.calls")
         if _PATH_CHECK_DEPTH.get() > 0:
             return original(path, flags, *args, **kwargs)
@@ -1107,6 +1224,8 @@ def _wrap_os_open(original):
 
 def _wrap_os_optional_path(original, operation: str, attr: str = ""):
     def wrapper(path=".", *args, **kwargs):
+        if _bypass_enabled():
+            return original(path, *args, **kwargs)
         _profile_count("process_guard.wrapper.os_optional.calls")
         if attr:
             _profile_count(f"process_guard.wrapper.os_optional.{attr}.calls")
@@ -1130,6 +1249,8 @@ def _wrap_os_optional_path(original, operation: str, attr: str = ""):
 
 def _wrap_os_default_path(original, default_path: str, operation: str, attr: str = ""):
     def wrapper(path=default_path, *args, **kwargs):
+        if _bypass_enabled():
+            return original(path, *args, **kwargs)
         _profile_count("process_guard.wrapper.os_default.calls")
         if attr:
             _profile_count(f"process_guard.wrapper.os_default.{attr}.calls")
@@ -1153,6 +1274,8 @@ def _wrap_os_default_path(original, default_path: str, operation: str, attr: str
 
 def _wrap_os_makedirs(original):
     def wrapper(name, *args, **kwargs):
+        if _bypass_enabled():
+            return original(name, *args, **kwargs)
         _profile_count("process_guard.wrapper.os_makedirs.calls")
         if _PATH_CHECK_DEPTH.get() > 0:
             return original(name, *args, **kwargs)
@@ -1170,6 +1293,8 @@ def _wrap_os_makedirs(original):
 
 def _wrap_path_pair(original, source_operation: str, target_operation: str):
     def wrapper(src, dst, *args, **kwargs):
+        if _bypass_enabled():
+            return original(src, dst, *args, **kwargs)
         _profile_count("process_guard.wrapper.path_pair.calls")
         if _PATH_CHECK_DEPTH.get() > 0:
             return original(src, dst, *args, **kwargs)
@@ -1189,6 +1314,8 @@ def _wrap_path_pair(original, source_operation: str, target_operation: str):
 
 def _wrap_path_method(original, attr: str):
     def wrapper(self, *args, **kwargs):
+        if _bypass_enabled():
+            return original(self, *args, **kwargs)
         _profile_count("process_guard.wrapper.path_method.calls")
         if _PATH_CHECK_DEPTH.get() > 0:
             return original(self, *args, **kwargs)
@@ -1201,6 +1328,8 @@ def _wrap_path_method(original, attr: str):
 
 def _wrap_path_pair_method(original, source_operation: str, target_operation: str):
     def wrapper(self, target, *args, **kwargs):
+        if _bypass_enabled():
+            return original(self, target, *args, **kwargs)
         _profile_count("process_guard.wrapper.path_pair_method.calls")
         if _PATH_CHECK_DEPTH.get() > 0:
             return original(self, target, *args, **kwargs)
@@ -1218,6 +1347,8 @@ def _wrap_path_pair_method(original, source_operation: str, target_operation: st
 
 def _wrap_shutil_unpack_archive(original):
     def wrapper(filename, extract_dir=None, *args, **kwargs):
+        if _bypass_enabled():
+            return original(filename, extract_dir, *args, **kwargs)
         _check_path(filename, operation="read")
         if extract_dir is not None:
             _check_path(extract_dir, operation="create")
@@ -1228,6 +1359,8 @@ def _wrap_shutil_unpack_archive(original):
 
 def _wrap_shutil_make_archive(original):
     def wrapper(base_name, format, root_dir=None, base_dir=None, *args, **kwargs):
+        if _bypass_enabled():
+            return original(base_name, format, root_dir, base_dir, *args, **kwargs)
         _check_path(base_name, operation=_create_or_modify_operation(base_name))
         if root_dir is not None:
             _check_path(root_dir, operation="read")
@@ -1240,20 +1373,22 @@ def _wrap_shutil_make_archive(original):
 
 def _wrap_import(original):
     def wrapper(name, globals=None, locals=None, fromlist=(), level=0):
+        if _bypass_enabled():
+            return original(name, globals, locals, fromlist, level)
+        current_state = _state()
+        if not current_state:
+            return original(name, globals, locals, fromlist, level)
+        root_name = str(name or "").split(".", 1)[0]
+        if root_name not in _SENSITIVE_IMPORT_ROOTS:
+            return original(name, globals, locals, fromlist, level)
         _profile_count("process_guard.wrapper.import.calls")
         with _profile_span("process_guard.wrapper.import.guard"):
-            if _bypass_enabled():
-                return original(name, globals, locals, fromlist, level)
-            current_state = _state()
-            if not current_state:
-                return original(name, globals, locals, fromlist, level)
-            root_name = str(name or "").split(".", 1)[0]
             allowed_imports = current_state.get("allowed_import_roots") or set()
             if not allowed_imports:
                 allowed_imports = set(
                     _normalize_import_roots(list(current_state.get("allowed_imports") or []))
                 )
-            if root_name in _SENSITIVE_IMPORT_ROOTS and root_name not in allowed_imports:
+            if root_name not in allowed_imports:
                 raise PermissionError(f"sandbox_module_denied:{root_name}")
             return original(name, globals, locals, fromlist, level)
 
@@ -1275,6 +1410,8 @@ def _patch_attr(owner: Any, attr: str, wrapper_factory) -> None:
 
 def _wrap_shutil_single_path(original, operation: str):
     def wrapper(path, *args, **kwargs):
+        if _bypass_enabled():
+            return original(path, *args, **kwargs)
         _profile_count("process_guard.wrapper.shutil_single.calls")
         with _profile_span("process_guard.wrapper.shutil_single.guard"):
             _check_path(path, operation=operation)
@@ -1288,6 +1425,8 @@ def _wrap_shutil_single_path(original, operation: str):
 
 def _wrap_shutil_path_pair(original, source_operation: str, target_operation: str):
     def wrapper(src, dst, *args, **kwargs):
+        if _bypass_enabled():
+            return original(src, dst, *args, **kwargs)
         _profile_count("process_guard.wrapper.shutil_path_pair.calls")
         with _profile_span("process_guard.wrapper.shutil_path_pair.guard"):
             _check_path_pair(
@@ -1663,6 +1802,7 @@ def enable_process_guard(
     _EXTERNAL_ACCESS_CACHE.set({})
     with _profile_span("process_guard.enable.set_state"):
         filesystem_access = _filesystem_access_by_operation(merged_access)
+        filesystem_access_fingerprint = _filesystem_access_fingerprint(filesystem_access)
         token = _STATE.set(
             {
                 "subject": resolved_subject,
@@ -1677,7 +1817,7 @@ def enable_process_guard(
                 ),
                 "access": merged_access,
                 "filesystem_access": filesystem_access,
-                "path_access_cache": {},
+                "filesystem_access_fingerprint": filesystem_access_fingerprint,
                 "allowed_imports": merged_imports,
                 "allowed_import_roots": set(merged_imports),
                 "allowed_subprocess_commands": merged_subprocess_commands,
@@ -1938,6 +2078,7 @@ class process_guard_context:
         allow_fork: bool = False,
         include_runtime_access: bool = True,
         inherit_parent_access: bool = True,
+        include_network_access: bool = True,
         user_id: int | None = None,
         organization_id: int | None = None,
         session_key: str | None = None,
@@ -1951,6 +2092,7 @@ class process_guard_context:
         self.allow_fork = bool(allow_fork)
         self.include_runtime_access = bool(include_runtime_access)
         self.inherit_parent_access = bool(inherit_parent_access)
+        self.include_network_access = bool(include_network_access)
         self.user_id = user_id
         self.organization_id = organization_id
         self.session_key = session_key
@@ -1979,15 +2121,27 @@ class process_guard_context:
                 organization_id=self.organization_id,
                 session_key=self.session_key,
             )
-            with _profile_span("process_guard.network.enter"):
-                self._network_ctx.__enter__()
+            try:
+                if self.include_network_access:
+                    with _profile_span("process_guard.network.enter"):
+                        with process_guard_bypass_context():
+                            self._network_ctx.__enter__()
+            except Exception:
+                disable_process_guard(self._token)
+                self._token = None
+                raise
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         with _profile_span("process_guard.context.exit"):
-            with _profile_span("process_guard.network.exit"):
-                self._network_ctx.__exit__(exc_type, exc, tb)
-            disable_process_guard(self._token)
+            try:
+                if self.include_network_access:
+                    with _profile_span("process_guard.network.exit"):
+                        with process_guard_bypass_context():
+                            self._network_ctx.__exit__(exc_type, exc, tb)
+            finally:
+                disable_process_guard(self._token)
+                self._token = None
 
 
 @contextlib.contextmanager

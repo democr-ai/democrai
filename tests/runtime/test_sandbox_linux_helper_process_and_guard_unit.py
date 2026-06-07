@@ -38,6 +38,7 @@ def _reset_process_guard_between_tests():
         mod._STATE.set(None)
         mod._PATH_CHECK_DEPTH.set(0)
         mod._EXTERNAL_ACCESS_CACHE.set(None)
+        mod._clear_path_resolution_caches()
 
     _reset()
     yield
@@ -914,6 +915,145 @@ def test_process_guard_denies_sensitive_import_before_original_import(monkeypatc
     assert module_name not in sys.modules
 
 
+def test_process_guard_context_can_skip_network_policy(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    calls = []
+
+    class _NetworkContext:
+        def __enter__(self):
+            calls.append("enter")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            calls.append("exit")
+            return False
+
+    monkeypatch.setattr(mod, "_runtime_filesystem_read_paths", lambda: [])
+    monkeypatch.setattr(mod, "network_policy_context", lambda **_kwargs: _NetworkContext())
+
+    with mod.process_guard_context(
+        subject="s",
+        access=[],
+        include_runtime_access=False,
+        include_network_access=False,
+    ):
+        pass
+
+    assert calls == []
+
+    with mod.process_guard_context(
+        subject="s",
+        access=[],
+        include_runtime_access=False,
+    ):
+        pass
+
+    assert calls == ["enter", "exit"]
+
+
+def test_process_guard_context_cleans_guard_when_network_enter_fails(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    calls = []
+
+    class _NetworkContext:
+        def __enter__(self):
+            calls.append("network_enter")
+            raise RuntimeError("network failed")
+
+        def __exit__(self, exc_type, exc, tb):
+            calls.append("network_exit")
+            return False
+
+    monkeypatch.setattr(mod, "network_policy_context", lambda **_kwargs: _NetworkContext())
+    monkeypatch.setattr(mod, "enable_process_guard", lambda **_kwargs: "tok")
+    monkeypatch.setattr(mod, "disable_process_guard", lambda token=None: calls.append(token))
+
+    with pytest.raises(RuntimeError, match="network failed"):
+        with mod.process_guard_context(
+            subject="s",
+            access=[],
+            include_runtime_access=False,
+        ):
+            pass
+
+    assert calls == ["network_enter", "tok"]
+
+
+def test_process_guard_context_cleans_guard_when_network_exit_fails(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    calls = []
+
+    class _NetworkContext:
+        def __enter__(self):
+            calls.append("network_enter")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            calls.append("network_exit")
+            raise RuntimeError("network exit failed")
+
+    monkeypatch.setattr(mod, "network_policy_context", lambda **_kwargs: _NetworkContext())
+    monkeypatch.setattr(mod, "enable_process_guard", lambda **_kwargs: "tok")
+    monkeypatch.setattr(mod, "disable_process_guard", lambda token=None: calls.append(token))
+
+    with pytest.raises(RuntimeError, match="network exit failed"):
+        with mod.process_guard_context(
+            subject="s",
+            access=[],
+            include_runtime_access=False,
+        ):
+            pass
+
+    assert calls == ["network_enter", "network_exit", "tok"]
+
+
+def test_process_guard_bypass_skips_wrapper_path_checks(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.setattr(
+        mod,
+        "_check_path",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("checked")),
+    )
+    token = mod._BYPASS.set(True)
+    try:
+        assert mod._wrap_os_optional_path(lambda path=".", *a, **k: path, "read")("x") == "x"
+        assert mod._wrap_path_method(lambda self, *a, **k: self, "stat")("y") == "y"
+        assert mod._wrap_open(lambda file, *a, **k: file)("z") == "z"
+    finally:
+        mod._BYPASS.reset(token)
+
+
+def test_process_guard_import_wrapper_profiles_only_sensitive_roots():
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    profiling_mod = importlib.import_module("democrai.core.runtime.observability.profiling")
+    calls = []
+
+    def _original(name, g=None, l=None, fromlist=(), level=0):
+        calls.append(name)
+        return SimpleNamespace(name=name)
+
+    wrapped_import = mod._wrap_import(_original)
+    profiler = profiling_mod.RequestProfiler("import-test", "sandbox", enabled=True)
+    profile_token = profiling_mod._current_profiler.set(profiler)
+    state_token = mod._STATE.set(
+        {
+            "subject": "s",
+            "allowed_import_roots": {"ctypes"},
+        }
+    )
+    try:
+        assert wrapped_import("json").name == "json"
+        assert not any(name.startswith("process_guard.wrapper.import") for name in profiler.spans_ms)
+        assert wrapped_import("ctypes").name == "ctypes"
+    finally:
+        mod._STATE.reset(state_token)
+        profiling_mod._current_profiler.reset(profile_token)
+
+    assert calls == ["json", "ctypes"]
+    assert "process_guard.wrapper.import.guard" in profiler.spans_ms
+    assert profiler.metrics["process_guard.wrapper.import.calls"] == 1.0
+
+
 def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
 
@@ -977,6 +1117,155 @@ def test_path_allowed_accepts_homebrew_python_zoneinfo_path(monkeypatch):
     )
     try:
         assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod._STATE.reset(st)
+
+
+def test_path_allowed_global_cache_survives_equivalent_contexts(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.setattr(mod, "_runtime_filesystem_read_paths", lambda: [])
+    target = tmp_path / "allowed" / "file.txt"
+    target.parent.mkdir()
+    target.write_text("ok", encoding="utf-8")
+    calls = []
+
+    def _realpath(path):
+        calls.append(path)
+        return os.path.normpath(os.path.abspath(os.path.expanduser(os.fspath(path))))
+
+    monkeypatch.setattr(mod.os.path, "realpath", _realpath)
+    access = [
+        _access_rule(mod, "module", "s", "filesystem", "read", str(target.parent)),
+    ]
+
+    token = mod.enable_process_guard(
+        subject="s",
+        access=access,
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod.disable_process_guard(token)
+
+    token = mod.enable_process_guard(
+        subject="s",
+        access=access,
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod.disable_process_guard(token)
+
+    assert len(calls) == 1
+
+
+def test_path_allowed_global_cache_is_scoped_by_allowlist(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    monkeypatch.setattr(mod, "_runtime_filesystem_read_paths", lambda: [])
+    allowed_root = tmp_path / "allowed"
+    other_root = tmp_path / "other"
+    allowed_root.mkdir()
+    other_root.mkdir()
+    target = allowed_root / "file.txt"
+    target.write_text("ok", encoding="utf-8")
+    monkeypatch.setattr(
+        mod.os.path,
+        "realpath",
+        lambda path: os.path.normpath(os.path.abspath(os.path.expanduser(os.fspath(path)))),
+    )
+
+    token = mod.enable_process_guard(
+        subject="s",
+        access=[_access_rule(mod, "module", "s", "filesystem", "read", str(allowed_root))],
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod.disable_process_guard(token)
+
+    token = mod.enable_process_guard(
+        subject="s",
+        access=[_access_rule(mod, "module", "s", "filesystem", "read", str(other_root))],
+        include_runtime_access=False,
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is False
+    finally:
+        mod.disable_process_guard(token)
+
+
+def test_path_allowed_obvious_deny_skips_realpath(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    allowed_root = tmp_path / "allowed"
+    allowed_root.mkdir()
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {"read": (str(allowed_root),)},
+        }
+    )
+    monkeypatch.setattr(
+        mod.os.path,
+        "realpath",
+        lambda _path: (_ for _ in ()).throw(AssertionError("realpath called")),
+    )
+    try:
+        assert mod._path_allowed(tmp_path / "outside.txt", operation="read") is False
+    finally:
+        mod._STATE.reset(st)
+
+
+def test_path_allowed_under_root_uses_cached_realpath(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    allowed_root = tmp_path / "allowed"
+    allowed_root.mkdir()
+    target = allowed_root / "file.txt"
+    calls = []
+
+    def _realpath(path):
+        calls.append(path)
+        return os.path.normpath(os.path.abspath(os.path.expanduser(os.fspath(path))))
+
+    monkeypatch.setattr(mod.os.path, "realpath", _realpath)
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {"read": (str(allowed_root),)},
+        }
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is True
+        assert mod._path_allowed(target, operation="read") is True
+    finally:
+        mod._STATE.reset(st)
+
+    assert len(calls) == 1
+
+
+def test_path_allowed_denies_symlink_escape_after_realpath(monkeypatch, tmp_path: Path):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    allowed_root = tmp_path / "allowed"
+    outside_root = tmp_path / "outside"
+    allowed_root.mkdir()
+    outside_root.mkdir()
+    target = allowed_root / "link.txt"
+
+    monkeypatch.setattr(
+        mod.os.path,
+        "realpath",
+        lambda _path: str(outside_root / "file.txt"),
+    )
+    st = mod._STATE.set(
+        {
+            "subject": "system",
+            "filesystem_access": {"read": (str(allowed_root),)},
+        }
+    )
+    try:
+        assert mod._path_allowed(target, operation="read") is False
     finally:
         mod._STATE.reset(st)
 

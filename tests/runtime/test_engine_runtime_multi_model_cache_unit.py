@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -130,6 +131,40 @@ def test_runtime_rejects_anonymous_model_handles():
             engine_id="engine",
             config={"model": "a"},
         )
+
+
+def test_runtime_guard_skips_parent_network_policy(monkeypatch):
+    guard_calls = []
+
+    @contextmanager
+    def _guard(**kwargs):
+        guard_calls.append(kwargs)
+        yield
+
+    monkeypatch.setattr(manager_mod, "process_guard_context", _guard)
+    monkeypatch.setattr(manager_mod, "get_engine_access", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(manager_mod, "get_engine_allowed_imports", lambda *_args: [])
+    monkeypatch.setattr(
+        manager_mod,
+        "create_engine_handle",
+        lambda **kwargs: _Handle(
+            engine_id=kwargs["engine_id"],
+            config=kwargs["config"],
+            model_registry_id=kwargs["model_registry_id"],
+            closed=[],
+        ),
+    )
+
+    runtime = manager_mod.EngineRuntime()
+    runtime.ensure_running(
+        engine_row_id=1,
+        model_registry_id=10,
+        engine_id="onnx",
+        config={},
+    )
+
+    assert guard_calls
+    assert guard_calls[0]["include_network_access"] is False
 
 
 def test_active_runtime_instance_requires_matching_model_registry_id(monkeypatch):

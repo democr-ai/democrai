@@ -309,37 +309,37 @@ class EngineWorkerSubject:
                 config=config,
                 class_only=class_only,
             )
-        try:
-            self._control_conn = accept_connection(
-                control_endpoint,
-                process=self._process,
-                timeout_seconds=10.0,
-            )
-            self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
+            try:
+                self._control_conn = accept_connection(
+                    control_endpoint,
+                    process=self._process,
+                    timeout_seconds=10.0,
+                )
+                self._control_channel = LocalBinaryPayloadChannel(self._control_conn)
+                threading.Thread(
+                    target=self._accept_parent_connection,
+                    args=(parent_endpoint,),
+                    name=f"engine-worker-parent-accept-{self._engine_id}",
+                    daemon=True,
+                ).start()
+            except Exception:
+                parent_endpoint.close()
+                self.close()
+                raise
+            if self._process is not None and self._process.stderr is not None:
+                self._stderr_reader = self._process.stderr
             threading.Thread(
-                target=self._accept_parent_connection,
-                args=(parent_endpoint,),
-                name=f"engine-worker-parent-accept-{self._engine_id}",
+                target=self._read_responses,
+                name=f"engine-worker-reader-{self._engine_id}",
                 daemon=True,
             ).start()
-        except Exception:
-            parent_endpoint.close()
-            self.close()
-            raise
-        if self._process is not None and self._process.stderr is not None:
-            self._stderr_reader = self._process.stderr
-        threading.Thread(
-            target=self._read_responses,
-            name=f"engine-worker-reader-{self._engine_id}",
-            daemon=True,
-        ).start()
-        self._stderr_thread = threading.Thread(
-            target=self._read_stderr,
-            name=f"engine-worker-stderr-{self._engine_id}",
-            daemon=True,
-        )
-        self._stderr_thread.start()
-        self._request("init", init_payload)
+            self._stderr_thread = threading.Thread(
+                target=self._read_stderr,
+                name=f"engine-worker-stderr-{self._engine_id}",
+                daemon=True,
+            )
+            self._stderr_thread.start()
+            self._request("init", init_payload)
 
     def _accept_parent_connection(self, parent_endpoint) -> None:
         try:
