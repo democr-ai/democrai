@@ -17,6 +17,10 @@ __all__ = [
     "torch_runtime_matches_plan",
     "write_installed_torch_constraint",
     "install_command_preview",
+    "install_system_dependency",
+    "is_system_dependency_installed",
+    "ensure_engine_venv",
+    "ensure_extractor_venv",
 ]
 
 
@@ -30,6 +34,18 @@ def install_dependency(package: str, force: bool = False) -> bool:
     from democrai.core.runtime.dependencies.installer import install_dependency
 
     return install_dependency(package, force=force)
+
+
+def ensure_engine_venv():
+    from democrai.core.runtime.dependencies.installer import ensure_engine_venv
+
+    ensure_engine_venv()
+
+
+def ensure_extractor_venv():
+    from democrai.core.runtime.dependencies.installer import ensure_extractor_venv
+
+    ensure_extractor_venv()
 
 
 def install_python_packages(
@@ -67,7 +83,9 @@ def install_torch_runtime(
     env: dict | None = None,
     clean_target: bool = False,
 ):
-    from democrai.core.runtime.dependencies.python_runtime_resolver import install_torch_runtime
+    from democrai.core.runtime.dependencies.python_runtime_resolver import (
+        install_torch_runtime,
+    )
 
     return install_torch_runtime(
         packages=packages,
@@ -79,7 +97,9 @@ def install_torch_runtime(
 
 
 def resolve_torch_cuda_profile(env: dict | None = None) -> str:
-    from democrai.core.runtime.dependencies.python_runtime_resolver import resolve_torch_cuda_profile
+    from democrai.core.runtime.dependencies.python_runtime_resolver import (
+        resolve_torch_cuda_profile,
+    )
 
     return resolve_torch_cuda_profile(env=env)
 
@@ -90,7 +110,9 @@ def resolve_torch_runtime_plan(
     modules: list[str] | tuple[str, ...] | None = None,
     env: dict | None = None,
 ):
-    from democrai.core.runtime.dependencies.python_runtime_resolver import resolve_torch_runtime_plan
+    from democrai.core.runtime.dependencies.python_runtime_resolver import (
+        resolve_torch_runtime_plan,
+    )
 
     return resolve_torch_runtime_plan(packages=packages, modules=modules, env=env)
 
@@ -101,7 +123,9 @@ def torch_runtime_matches_plan(
     modules: list[str] | tuple[str, ...] | None = None,
     env: dict | None = None,
 ) -> bool:
-    from democrai.core.runtime.dependencies.python_runtime_resolver import torch_runtime_matches_plan
+    from democrai.core.runtime.dependencies.python_runtime_resolver import (
+        torch_runtime_matches_plan,
+    )
 
     return torch_runtime_matches_plan(packages=packages, modules=modules, env=env)
 
@@ -109,15 +133,35 @@ def torch_runtime_matches_plan(
 def write_installed_torch_constraint(
     distributions: tuple[str, ...] = ("torch",),
 ) -> str:
-    from democrai.core.runtime.dependencies.python_runtime_resolver import write_installed_torch_constraint
+    from democrai.core.runtime.dependencies.python_runtime_resolver import (
+        write_installed_torch_constraint,
+    )
 
     return write_installed_torch_constraint(distributions=distributions)
 
 
 def install_command_preview(key: str) -> str:
-    from democrai.core.runtime.dependencies.system_dependencies import install_command_preview
+    from democrai.core.runtime.dependencies.system_dependencies import (
+        install_command_preview,
+    )
 
     return install_command_preview(key)
+
+
+def install_system_dependency(key: str) -> None:
+    from democrai.core.runtime.dependencies.system_dependencies import (
+        install_dependency_via_script,
+    )
+
+    install_dependency_via_script(key)
+
+
+def is_system_dependency_installed(key: str) -> bool:
+    from democrai.core.runtime.dependencies.system_dependencies import (
+        is_dependency_installed,
+    )
+
+    return is_dependency_installed(key)
 
 
 class Dependencies:

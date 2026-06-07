@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.machinery
-import importlib.metadata
+import importlib.util
 import os
 import platform
 import shutil
@@ -20,6 +20,7 @@ from democrai.core.runtime.foundation.paths import is_frozen as runtime_is_froze
 from democrai.core.runtime.dependencies.installer_state import (
     load_state as _load_state,
     save_state as _save_state,
+    state_file as _state_file,
 )
 
 
@@ -102,21 +103,25 @@ def _install_into_current_env() -> bool:
 
 
 def run_pip_subprocess(args: List[str], *, env: dict[str, str] | None = None) -> None:
-    """Run pip via subprocess using the current interpreter (dev mode)."""
+    """Run uv pip against the current interpreter environment."""
     cmd = [
-        sys.executable,
-        "-m",
+        *_uv_command(),
         "pip",
         "install",
-        "--no-input",
-        "--prefer-binary",
+        "--python",
+        sys.executable,
+        "--no-config",
+        "--no-python-downloads",
+        "--index-strategy",
+        "unsafe-best-match",
     ] + args
     install_env = dict(os.environ)
+    install_env["UV_CACHE_DIR"] = str(_default_uv_cache_dir())
     if env:
         install_env.update(env)
     _run_install_subprocess(
         cmd,
-        label=f"[Installer] pip (subprocess) {' '.join(args)}",
+        label=f"[Installer] uv pip install --python {sys.executable} {' '.join(args)}",
         env=install_env,
     )
 
@@ -124,35 +129,31 @@ def run_pip_subprocess(args: List[str], *, env: dict[str, str] | None = None) ->
 def run_pip_internal(
     args: List[str],
     *,
+    python: Path,
+    cache_dir: Path,
     extra_env: dict[str, str] | None = None,
 ) -> None:
-    """Run pip in target-install mode for dev and frozen runtimes."""
-    if runtime_is_frozen():
-        cmd = [
-            sys.executable,
-            "--pip-helper",
-            "install",
-            "--no-input",
-            "--prefer-binary",
-            *args,
-        ]
-        log_label = "helper subprocess"
-    else:
-        cmd = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--no-input",
-            "--prefer-binary",
-            *args,
-        ]
-        log_label = "subprocess"
+    """Run uv pip against a dedicated virtual environment."""
+    cmd = [
+        *_uv_command(),
+        "pip",
+        "install",
+        "--python",
+        str(python),
+        "--cache-dir",
+        str(cache_dir),
+        "--no-config",
+        "--no-python-downloads",
+        "--index-strategy",
+        "unsafe-best-match",
+        *args,
+    ]
     install_env = dict(os.environ)
     install_env["PATH"] = _sanitized_path_for_pip()
     install_env["NETRC"] = "/dev/null"
     install_env["PIP_CONFIG_FILE"] = "/dev/null"
     install_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    install_env["UV_CACHE_DIR"] = str(cache_dir)
     from democrai.core.runtime.dependencies.engine_env import has_engine_env_context
     from democrai.core.runtime.dependencies.extractor_env import (
         has_extractor_env_context,
@@ -166,8 +167,51 @@ def run_pip_internal(
 
     _run_install_subprocess(
         cmd,
-        label=f"[Installer] pip ({log_label}) {' '.join(args)}",
+        label=f"[Installer] uv pip install --python {python} {' '.join(args)}",
         env=install_env,
+    )
+
+
+def _uv_command() -> list[str]:
+    if importlib.util.find_spec("uv") is None:
+        raise RuntimeError("uv installer selected but uv module was not found")
+    return [sys.executable, "-m", "uv"]
+
+
+def ensure_engine_venv() -> None:
+    env = _install_environment()
+    _ensure_uv_venv(venv=env.venv, python=env.python, cache_dir=env.uv_cache)
+
+
+# is the same but mantain 2 methods
+def ensure_extractor_venv() -> None:
+    env = _install_environment()
+    _ensure_uv_venv(venv=env.venv, python=env.python, cache_dir=env.uv_cache)
+
+
+def _ensure_uv_venv(*, venv: Path, python: Path, cache_dir: Path) -> None:
+    if python.exists():
+        return
+    venv.parent.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env["PATH"] = _sanitized_path_for_pip()
+    env["UV_CACHE_DIR"] = str(cache_dir)
+    _run_install_subprocess(
+        [
+            *_uv_command(),
+            "venv",
+            str(venv),
+            "--python",
+            sys.executable,
+            "--cache-dir",
+            str(cache_dir),
+            "--no-config",
+            "--no-project",
+            "--no-python-downloads",
+        ],
+        label=f"[Installer] uv venv {venv}",
+        env=env,
     )
 
 
@@ -175,7 +219,9 @@ def _emit_install_output(
     line: str, *, phase: str = "install", stream: str = "stdout"
 ) -> None:
     try:
-        from democrai.core.application.ai.engine.install_events import emit_engine_install_output
+        from democrai.core.application.ai.engine.install_events import (
+            emit_engine_install_output,
+        )
 
         emit_engine_install_output(line, phase=phase, stream=stream)
     except Exception:
@@ -218,12 +264,20 @@ def _run_install_subprocess(
         process.stdout.close()
     return_code = process.wait()
     if return_code != 0:
-        raise RuntimeError(f"pip failed with exit code {return_code}")
+        raise RuntimeError(f"installer failed with exit code {return_code}")
 
 
 def _sanitized_path_for_pip() -> str:
     """Return a conservative PATH for pip to avoid sandbox-denied lookups."""
     return pip_install_command_path()
+
+
+def _default_uv_cache_dir() -> Path:
+    from democrai.core.runtime.foundation.paths import data_dir
+
+    path = data_dir() / "dependency_env" / "cache" / "uv"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 @dataclass
@@ -297,22 +351,90 @@ def _normalize_env(value: dict[str, str] | None) -> dict[str, str]:
     return resolved
 
 
-def _build_pip_args_for_plan(
-    *, plan: InstallPlan, target: Path | None = None
-) -> list[str]:
+@dataclass(frozen=True)
+class _InstallEnvironment:
+    root: Path
+    venv: Path
+    python: Path
+    site_packages: Path
+    uv_cache: Path
+
+
+def _venv_python_path(venv: Path) -> Path:
+    if os.name == "nt":
+        return venv / "Scripts" / "python.exe"
+    return venv / "bin" / "python"
+
+
+def _venv_site_packages_path(venv: Path) -> Path:
+    if os.name == "nt":
+        return venv / "Lib" / "site-packages"
+    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    return venv / "lib" / version / "site-packages"
+
+
+def _install_environment() -> _InstallEnvironment:
+    from democrai.core.runtime.dependencies.engine_env import (
+        get_engine_venv_path,
+        get_engine_venv_python_path,
+        get_engine_venv_site_packages_path,
+        has_engine_env_context,
+    )
+    from democrai.core.runtime.dependencies.extractor_env import (
+        get_extractor_venv_path,
+        get_extractor_venv_python_path,
+        get_extractor_venv_site_packages_path,
+        has_extractor_env_context,
+    )
+
+    root = get_target_dir()
+    if has_engine_env_context():
+        venv = get_engine_venv_path()
+        python = get_engine_venv_python_path()
+        site_packages = get_engine_venv_site_packages_path()
+    elif has_extractor_env_context():
+        venv = get_extractor_venv_path()
+        python = get_extractor_venv_python_path()
+        site_packages = get_extractor_venv_site_packages_path()
+    else:
+        venv = root / ".venv"
+        python = _venv_python_path(venv)
+        site_packages = _venv_site_packages_path(venv)
+    return _InstallEnvironment(
+        root=root,
+        venv=venv,
+        python=python,
+        site_packages=site_packages,
+        uv_cache=root / "cache" / "uv",
+    )
+
+
+def _clear_install_state(root: Path) -> None:
+    path = _state_file(root)
+    if path.exists():
+        path.unlink()
+
+
+def _build_pip_args_for_plan(*, plan: InstallPlan, force: bool = False) -> list[str]:
     pip_args: list[str] = []
-    if target is not None:
-        pip_args += ["--target", str(target), "--upgrade"]
-    pip_args += ["--no-cache-dir"]
-    if plan.allow_source:
-        pip_args += ["--prefer-binary"]
+    if force:
+        pip_args.append("--reinstall")
+    if not plan.allow_source:
+        pip_args.append("--no-build")
     if plan.index_url:
         pip_args += ["--index-url", plan.index_url]
     if plan.extra_index_url:
         pip_args += ["--extra-index-url", plan.extra_index_url]
-    pip_args += list(plan.extra_pip_args)
+    pip_args += _uv_extra_pip_args(plan.extra_pip_args)
     pip_args += list(plan.packages)
     return pip_args
+
+
+def _uv_extra_pip_args(values: list[str]) -> list[str]:
+    resolved: list[str] = []
+    for value in values:
+        resolved.append("--constraints" if value == "--constraint" else value)
+    return resolved
 
 
 def install_dependencies(packages: List[str], force: bool = False) -> bool:
@@ -356,7 +478,9 @@ def install_python_packages(
     )
 
     if _install_into_current_env():
-        run_pip_subprocess(_build_pip_args_for_plan(plan=plan), env=plan.env)
+        run_pip_subprocess(
+            _build_pip_args_for_plan(plan=plan, force=force), env=plan.env
+        )
         importlib.invalidate_caches()
         if resolved_modules:
             ok, err = _verify_imports(resolved_modules)
@@ -366,13 +490,18 @@ def install_python_packages(
                 )
         return True
 
-    target = get_target_dir()
+    install_env = _install_environment()
     if plan.clean_target:
-        shutil.rmtree(target, ignore_errors=True)
-        target.mkdir(parents=True, exist_ok=True)
-    if str(target) not in sys.path:
-        sys.path.insert(0, str(target))
-    state = _load_state(target)
+        shutil.rmtree(install_env.venv, ignore_errors=True)
+        _clear_install_state(install_env.root)
+    _ensure_uv_venv(
+        venv=install_env.venv,
+        python=install_env.python,
+        cache_dir=install_env.uv_cache,
+    )
+    if str(install_env.site_packages) not in sys.path:
+        sys.path.insert(0, str(install_env.site_packages))
+    state = _load_state(install_env.root)
     deps_state = state.setdefault("deps", {})
     cache_key = "python_packages:" + "|".join(
         [
@@ -383,6 +512,7 @@ def install_python_packages(
             "pip_args=" + ",".join(plan.extra_pip_args),
             "env="
             + ",".join(f"{key}={value}" for key, value in sorted(plan.env.items())),
+            "installer=uv-venv",
         ]
     )
     if (
@@ -392,22 +522,22 @@ def install_python_packages(
             not resolved_modules
             or _import_any(
                 resolved_modules,
-                search_path=target
-                if has_engine_env_context() or has_extractor_env_context()
-                else None,
+                search_path=install_env.site_packages,
             )
         )
     ):
         return True
 
     run_pip_internal(
-        _build_pip_args_for_plan(plan=plan, target=target),
+        _build_pip_args_for_plan(plan=plan, force=force),
+        python=install_env.python,
+        cache_dir=install_env.uv_cache,
         extra_env=plan.env,
     )
 
     importlib.invalidate_caches()
-    if str(target) not in sys.path:
-        sys.path.insert(0, str(target))
+    if str(install_env.site_packages) not in sys.path:
+        sys.path.insert(0, str(install_env.site_packages))
     if (
         resolved_modules
         and not has_engine_env_context()
@@ -433,9 +563,11 @@ def install_python_packages(
         "extra_index_url": plan.extra_index_url,
         "extra_pip_args": list(plan.extra_pip_args),
         "install_env": dict(plan.env),
+        "installer": "uv-venv",
+        "python": str(install_env.python),
     }
-    _save_state(target, state)
-    (target / ".success").touch()
+    _save_state(install_env.root, state)
+    (install_env.root / ".success").touch()
     return True
 
 

@@ -363,6 +363,7 @@ class _Worker:
         self._writer = os.fdopen(write_fd, "w", encoding="utf-8", buffering=1)
         self._stack = contextlib.ExitStack()
         self._engine: Any = None
+        self._engine_cls: Any = None
         self._engine_id = ""
         self._tasks: dict[str, asyncio.Task] = {}
         self._concurrency_enabled = False
@@ -477,6 +478,9 @@ class _Worker:
         engine_cls = load_engine_class(engine_id)
         if engine_cls is None:
             raise RuntimeError(f"engine_runtime_class_not_found:{engine_id}")
+        self._engine_cls = engine_cls
+        if bool(payload.get("class_only", False)):
+            return
         self._engine = engine_cls(config)
 
     async def _call_engine_method(
@@ -489,12 +493,13 @@ class _Worker:
         return target(**call_payload)
 
     async def _invoke(self, payload: dict[str, Any]) -> Any:
-        if self._engine is None:
-            raise RuntimeError("engine_not_initialized")
         method = payload.get("method", "")
         if not method:
             raise RuntimeError("engine_runtime_method_required")
-        target = getattr(self._engine, method, None)
+        subject = self._engine if self._engine is not None else self._engine_cls
+        if subject is None:
+            raise RuntimeError("engine_not_initialized")
+        target = getattr(subject, method, None)
         if target is None:
             raise RuntimeError(f"engine_runtime_method_not_found:{method}")
         raw_payload = _payload_dict(payload, "payload")

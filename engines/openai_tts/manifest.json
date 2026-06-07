@@ -29,7 +29,7 @@
         "module": "openai",
         "label": "openai",
         "pip_packages": [
-          "openai"
+          "openai==2.40.0"
         ]
       }
     ],

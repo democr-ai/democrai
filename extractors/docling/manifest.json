@@ -54,7 +54,7 @@
       "module": "docling",
       "label": "docling",
       "pip_packages": [
-        "docling[rapidocr]"
+        "docling[rapidocr]==2.97.0"
       ]
     },
     {
@@ -62,7 +62,7 @@
       "module": "rapidocr",
       "label": "rapidocr",
       "pip_packages": [
-        "docling[rapidocr]"
+        "docling[rapidocr]==2.97.0"
       ]
     },
     {
@@ -70,7 +70,7 @@
       "module": "onnxruntime",
       "label": "onnxruntime",
       "pip_packages": [
-        "docling[rapidocr]"
+        "docling[rapidocr]==2.97.0"
       ]
     }
   ],
@@ -220,6 +220,24 @@
       }
     ],
     "access": [],
+    "access_by_os": {
+            "linux": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "/sbin/ldconfig"
+                }
+            ],
+            "darwin": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "cc"
+                }
+            ],
+            "windows": [
+            ]
+        },
     "allowed_imports": [
       "ctypes",
       "_ctypes"

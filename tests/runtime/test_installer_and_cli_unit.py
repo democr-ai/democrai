@@ -305,6 +305,7 @@ def test_installer_resolve_validate_and_install(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(installer_mod, "_import_any", lambda _m, **_k: True)
     monkeypatch.setattr(installer_mod, "run_pip_subprocess", lambda _a, **_k: None)
     monkeypatch.setattr(installer_mod, "run_pip_internal", lambda _a, **_k: None)
+    monkeypatch.setattr(installer_mod, "_ensure_uv_venv", lambda **_k: None)
     monkeypatch.setattr(installer_mod, "_load_state", lambda _t: {"deps": {}})
     saved = {}
     monkeypatch.setattr(installer_mod, "_save_state", lambda _t, state: saved.update(state))
@@ -325,6 +326,7 @@ def test_install_python_packages(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(installer_mod, "_import_any", lambda _m, **_k: True)
     monkeypatch.setattr(installer_mod, "run_pip_subprocess", lambda _a, **_k: None)
     monkeypatch.setattr(installer_mod, "run_pip_internal", lambda _a, **_k: None)
+    monkeypatch.setattr(installer_mod, "_ensure_uv_venv", lambda **_k: None)
     monkeypatch.setattr(installer_mod, "_load_state", lambda _t: {"deps": {}})
     saved = {}
     monkeypatch.setattr(installer_mod, "_save_state", lambda _t, state: saved.update(state))
@@ -526,8 +528,13 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
         raising=False,
     )
     monkeypatch.setattr(installer_mod, "runtime_is_frozen", lambda: False)
-    installer_mod.run_pip_internal(["x"])
-    assert captured_cmds[-1][:5] == [installer_mod.sys.executable, "-m", "pip", "install", "--no-input"]
+    installer_mod.run_pip_internal(
+        ["x"],
+        python=tmp_path / ".venv" / "bin" / "python",
+        cache_dir=tmp_path / "cache" / "uv",
+    )
+    assert captured_cmds[-1][:4] == [installer_mod.sys.executable, "-m", "uv", "pip"]
+    assert "--python" in captured_cmds[-1]
     monkeypatch.setattr(
         installer_mod,
         "subprocess",
@@ -536,7 +543,11 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     )
     monkeypatch.setattr(installer_mod, "runtime_is_frozen", lambda: False)
     with pytest.raises(RuntimeError):
-        installer_mod.run_pip_internal(["x"])
+        installer_mod.run_pip_internal(
+            ["x"],
+            python=tmp_path / ".venv" / "bin" / "python",
+            cache_dir=tmp_path / "cache" / "uv",
+        )
 
     captured_cmds.clear()
     monkeypatch.setattr(
@@ -546,8 +557,12 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
         raising=False,
     )
     monkeypatch.setattr(installer_mod, "runtime_is_frozen", lambda: True)
-    installer_mod.run_pip_internal(["x"])
-    assert captured_cmds[-1][:3] == [installer_mod.sys.executable, "--pip-helper", "install"]
+    installer_mod.run_pip_internal(
+        ["x"],
+        python=tmp_path / ".venv" / "bin" / "python",
+        cache_dir=tmp_path / "cache" / "uv",
+    )
+    assert captured_cmds[-1][:4] == [installer_mod.sys.executable, "-m", "uv", "pip"]
     monkeypatch.setattr(installer_mod.importlib.util, "find_spec", lambda _m: None)
     assert installer_mod._import_any(["a", "b"]) is False
     monkeypatch.setattr(
@@ -584,12 +599,13 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     # install target env cache-hit and failure branches
     monkeypatch.setattr(installer_mod, "_install_into_current_env", lambda: False)
     monkeypatch.setattr(installer_mod, "get_target_dir", lambda: tmp_path)
+    monkeypatch.setattr(installer_mod, "_ensure_uv_venv", lambda **_k: None)
     monkeypatch.setattr(
         installer_mod,
         "_load_state",
         lambda _t: {
             "deps": {
-                "python_packages:pkg|index=|extra_index=|allow_source=0|pip_args=|env=": {
+                "python_packages:pkg|index=|extra_index=|allow_source=0|pip_args=|env=|installer=uv-venv": {
                     "installed": True
                 }
             }
@@ -629,9 +645,11 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(installer_mod, "get_target_dir", lambda: target2)
     import sys
 
-    if str(target2) in sys.path:
-        sys.path.remove(str(target2))
+    site_packages = installer_mod._venv_site_packages_path(target2 / ".venv")
+    if str(site_packages) in sys.path:
+        sys.path.remove(str(site_packages))
     assert installer_mod.install_dependency("pkg", force=True) is True
+    assert str(site_packages) in sys.path
     assert "deps" in saved
 
     with pytest.raises(RuntimeError):
@@ -641,6 +659,7 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
 def test_install_dependencies_batches_target_env(monkeypatch, tmp_path):
     monkeypatch.setattr(installer_mod, "_install_into_current_env", lambda: False)
     monkeypatch.setattr(installer_mod, "get_target_dir", lambda: tmp_path)
+    monkeypatch.setattr(installer_mod, "_ensure_uv_venv", lambda **_k: None)
     monkeypatch.setattr(installer_mod, "_load_state", lambda _t: {"deps": {}})
     monkeypatch.setattr(installer_mod, "_import_any", lambda _m, **_k: False)
     monkeypatch.setattr(
@@ -664,14 +683,20 @@ def test_install_dependencies_batches_target_env(monkeypatch, tmp_path):
     ) is True
     assert len(pip_calls) == 1
     assert pip_calls[0][0].count("b") == 1
+    assert "--no-build" in pip_calls[0][0]
     assert "--no-binary" in pip_calls[0][0]
     assert pip_calls[0][1]["extra_env"] == {"CMAKE_ARGS": "-DTEST=on"}
 
 
-def test_llamacpp_install_uses_cuda_source_build_on_nvidia(monkeypatch):
+def test_llamacpp_install_builds_cuda_from_source_on_nvidia(monkeypatch):
     llama_mod = importlib.import_module("engines.llamacpp.engine")
     calls = []
-    monkeypatch.setattr(llama_mod, "has_nvidia", lambda: True)
+    monkeypatch.setattr(
+        llama_mod,
+        "_runtime_gpu_info",
+        lambda: {"has_nvidia": True, "cuda_driver_version": "12.8"},
+    )
+    monkeypatch.setattr(llama_mod.platform, "system", lambda: "Linux")
     monkeypatch.setattr(
         llama_mod,
         "install_python_packages",
@@ -696,10 +721,34 @@ def test_llamacpp_install_uses_cuda_source_build_on_nvidia(monkeypatch):
     ]
 
 
-def test_llamacpp_install_uses_standard_package_without_nvidia(monkeypatch):
+def test_llamacpp_cuda_profile_maps_to_supported_wheel_index():
+    llama_mod = importlib.import_module("engines.llamacpp.engine")
+
+    assert llama_mod._llamacpp_cuda_profile("13.2") == "cu132"
+    assert llama_mod._llamacpp_cuda_profile("13.0") == "cu130"
+    assert llama_mod._llamacpp_cuda_profile("12.8") == "cu124"
+    assert llama_mod._llamacpp_cuda_profile("12.4") == "cu124"
+    assert llama_mod._llamacpp_cuda_profile("11.8") == "cu118"
+    assert llama_mod._llamacpp_cuda_profile("11.7") is None
+
+
+def test_llamacpp_install_fails_for_unsupported_cuda_driver(monkeypatch):
+    llama_mod = importlib.import_module("engines.llamacpp.engine")
+    monkeypatch.setattr(
+        llama_mod,
+        "_runtime_gpu_info",
+        lambda: {"has_nvidia": True, "cuda_driver_version": "11.7"},
+    )
+    monkeypatch.setattr(llama_mod.platform, "system", lambda: "Linux")
+
+    with pytest.raises(RuntimeError, match="llamacpp_cuda_driver_version_not_supported"):
+        llama_mod.LlamaCppEngine._install(force=False)
+
+
+def test_llamacpp_install_uses_metal_wheel_on_darwin_without_nvidia(monkeypatch):
     llama_mod = importlib.import_module("engines.llamacpp.engine")
     calls = []
-    monkeypatch.setattr(llama_mod, "has_nvidia", lambda: False)
+    monkeypatch.setattr(llama_mod.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(
         llama_mod,
         "install_python_packages",
@@ -710,10 +759,501 @@ def test_llamacpp_install_uses_standard_package_without_nvidia(monkeypatch):
 
     assert calls == [
         (
-            ["llama-cpp-python"],
+            ["llama-cpp-python==0.3.25"],
             {
                 "modules": ["llama_cpp"],
                 "force": False,
+                "extra_index_url": "https://abetlen.github.io/llama-cpp-python/whl/metal",
+                "extra_pip_args": ["--only-binary", "llama-cpp-python"],
             },
         )
     ]
+
+
+def test_llamacpp_install_uses_standard_package_without_acceleration(monkeypatch):
+    llama_mod = importlib.import_module("engines.llamacpp.engine")
+    calls = []
+    monkeypatch.setattr(
+        llama_mod,
+        "_runtime_gpu_info",
+        lambda: {"has_nvidia": False, "cuda_driver_version": ""},
+    )
+    monkeypatch.setattr(llama_mod.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(
+        llama_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+
+    llama_mod.LlamaCppEngine._install(force=False)
+
+    assert calls == [
+        (
+            ["llama-cpp-python==0.3.25"],
+            {
+                "modules": ["llama_cpp"],
+                "force": False,
+                "extra_index_url": "https://abetlen.github.io/llama-cpp-python/whl/cpu",
+                "extra_pip_args": ["--only-binary", "llama-cpp-python"],
+            },
+        )
+    ]
+
+
+def test_llamacpp_ready_checks_declared_package_version(monkeypatch):
+    llama_mod = importlib.import_module("engines.llamacpp.engine")
+
+    monkeypatch.setattr(llama_mod.LlamaCppEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(llama_mod.importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(llama_mod, "_llamacpp_version_matches", lambda: True)
+
+    result = llama_mod.LlamaCppEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_parler_install_uses_single_declared_runtime_chain(monkeypatch):
+    parler_mod = importlib.import_module("engines.parler.engine")
+    calls = []
+
+    monkeypatch.setattr(
+        parler_mod,
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            profile="cu128",
+            packages=("torch==2.10.0", "torchaudio==2.10.0"),
+            modules=("torch", "torchaudio"),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
+    )
+    monkeypatch.setattr(
+        parler_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+
+    parler_mod.ParlerEngine._install(force=True)
+
+    packages, kwargs = calls[0]
+    assert packages == [
+        "torch==2.10.0",
+        "torchaudio==2.10.0",
+        "git+https://github.com/huggingface/parler-tts.git",
+        "transformers==4.46.1",
+        "accelerate",
+        "soundfile",
+        "sentencepiece",
+        "protobuf>=4.0.0",
+    ]
+    assert kwargs["modules"] == [
+        "torch",
+        "torchaudio",
+        "parler_tts",
+        "transformers",
+        "soundfile",
+        "sentencepiece",
+    ]
+    assert kwargs["force"] is True
+    assert kwargs["allow_source"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert len(calls) == 1
+
+
+def test_parler_ready_checks_declared_runtime_chain(monkeypatch):
+    parler_mod = importlib.import_module("engines.parler.engine")
+
+    monkeypatch.setattr(parler_mod.ParlerEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(parler_mod.ParlerEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        parler_mod.ParlerEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        parler_mod.ParlerEngine,
+        "_parler_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        parler_mod.ParlerEngine,
+        "_transformers_runtime_supported",
+        staticmethod(lambda: True),
+    )
+
+    result = parler_mod.ParlerEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_qwen_tts_install_uses_single_declared_runtime_chain(monkeypatch):
+    qwen_mod = importlib.import_module("engines.qwen_tts.engine")
+    calls = []
+
+    monkeypatch.setattr(
+        qwen_mod,
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            profile="cu128",
+            packages=("torch==2.10.0", "torchaudio==2.10.0"),
+            modules=("torch", "torchaudio"),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
+    )
+    monkeypatch.setattr(
+        qwen_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+    monkeypatch.setattr(
+        qwen_mod.QwenTTSEngine,
+        "_install_tokenizer",
+        classmethod(lambda cls, force=False: "/tmp/qwen-tokenizer"),
+    )
+
+    result = qwen_mod.QwenTTSEngine._install(force=True)
+
+    packages, kwargs = calls[0]
+    assert packages == [
+        "torch==2.10.0",
+        "torchaudio==2.10.0",
+        "qwen-tts==0.1.1",
+        "transformers==4.57.3",
+        "accelerate==1.12.0",
+        "soundfile",
+        "huggingface-hub",
+        "sox",
+        "onnxruntime",
+        "einops",
+    ]
+    assert kwargs["modules"] == [
+        "torch",
+        "torchaudio",
+        "qwen_tts",
+        "soundfile",
+        "transformers",
+        "huggingface_hub",
+        "sox",
+        "onnxruntime",
+        "einops",
+    ]
+    assert kwargs["force"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert len(calls) == 1
+    assert result["config_updates"]["tokenizer_path"] == "/tmp/qwen-tokenizer"
+
+
+def test_qwen_tts_ready_checks_declared_runtime_chain(monkeypatch):
+    qwen_mod = importlib.import_module("engines.qwen_tts.engine")
+
+    monkeypatch.setattr(qwen_mod.QwenTTSEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(qwen_mod.QwenTTSEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        qwen_mod.QwenTTSEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        qwen_mod.QwenTTSEngine,
+        "_qwen_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        qwen_mod.QwenTTSEngine,
+        "_transformers_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        qwen_mod.QwenTTSEngine,
+        "_configured_tokenizer_path",
+        classmethod(lambda cls: "/tmp/qwen-tokenizer"),
+    )
+
+    result = qwen_mod.QwenTTSEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_whisper_install_uses_single_declared_runtime_chain(monkeypatch):
+    whisper_mod = importlib.import_module("engines.whisper.engine")
+    calls = []
+
+    monkeypatch.setattr(
+        whisper_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+
+    whisper_mod.WhisperEngine._install(force=False)
+
+    packages, kwargs = calls[0]
+    assert packages == [
+        "faster-whisper==1.2.1",
+        "ctranslate2==4.6.1",
+        "av",
+        "onnxruntime",
+        "tokenizers",
+        "huggingface-hub",
+        "tqdm",
+    ]
+    assert kwargs["modules"] == [
+        "faster_whisper",
+        "ctranslate2",
+        "av",
+        "onnxruntime",
+        "tokenizers",
+        "huggingface_hub",
+        "tqdm",
+    ]
+    assert kwargs["force"] is True
+    assert len(calls) == 1
+
+
+def test_whisper_ready_checks_declared_runtime_chain(monkeypatch):
+    whisper_mod = importlib.import_module("engines.whisper.engine")
+
+    monkeypatch.setattr(whisper_mod.WhisperEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(whisper_mod.WhisperEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        whisper_mod.WhisperEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        whisper_mod.WhisperEngine,
+        "_runtime_symbols_available",
+        staticmethod(lambda: True),
+    )
+
+    result = whisper_mod.WhisperEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_yolo_install_uses_single_declared_runtime_chain(monkeypatch):
+    yolo_mod = importlib.import_module("engines.yolo.engine")
+    calls = []
+
+    monkeypatch.setattr(
+        yolo_mod,
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            profile="cu128",
+            packages=("torch==2.10.0", "torchvision==0.25.0"),
+            modules=("torch", "torchvision"),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
+    )
+    monkeypatch.setattr(
+        yolo_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+
+    yolo_mod.YoloEngine._install(force=True)
+
+    packages, kwargs = calls[0]
+    assert packages == [
+        "torch==2.10.0",
+        "torchvision==0.25.0",
+        "ultralytics==8.4.60",
+        "opencv-python-headless==4.13.0.92",
+        "sahi==0.12.0",
+        "numpy",
+        "lap==0.5.13",
+    ]
+    assert kwargs["modules"] == [
+        "torch",
+        "torchvision",
+        "ultralytics",
+        "cv2",
+        "sahi",
+        "numpy",
+        "lap",
+    ]
+    assert kwargs["force"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert len(calls) == 1
+
+
+def test_yolo_ready_checks_declared_runtime_chain(monkeypatch):
+    yolo_mod = importlib.import_module("engines.yolo.engine")
+
+    monkeypatch.setattr(yolo_mod.YoloEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(yolo_mod.YoloEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_ultralytics_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_sahi_runtime_supported",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        yolo_mod.YoloEngine,
+        "_opencv_runtime_supported",
+        staticmethod(lambda: True),
+    )
+
+    result = yolo_mod.YoloEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_espeak_install_installs_system_dependency_when_missing(monkeypatch):
+    espeak_mod = importlib.import_module("engines.espeak.engine")
+    calls = []
+
+    monkeypatch.setattr(espeak_mod, "is_system_dependency_installed", lambda key: False)
+    monkeypatch.setattr(espeak_mod, "install_system_dependency", lambda key: calls.append(key))
+    monkeypatch.setattr(
+        espeak_mod.EspeakEngine,
+        "_verify_synthesis",
+        classmethod(lambda cls: None),
+    )
+
+    espeak_mod.EspeakEngine._install(force=True)
+
+    assert calls == ["espeak"]
+
+
+def test_espeak_install_skips_system_dependency_when_present(monkeypatch):
+    espeak_mod = importlib.import_module("engines.espeak.engine")
+    calls = []
+
+    monkeypatch.setattr(espeak_mod, "is_system_dependency_installed", lambda key: True)
+    monkeypatch.setattr(espeak_mod, "install_system_dependency", lambda key: calls.append(key))
+    monkeypatch.setattr(
+        espeak_mod.EspeakEngine,
+        "_verify_synthesis",
+        classmethod(lambda cls: None),
+    )
+
+    espeak_mod.EspeakEngine._install(force=False)
+
+    assert calls == []
+
+
+def test_espeak_ready_requires_real_synthesis(monkeypatch):
+    espeak_mod = importlib.import_module("engines.espeak.engine")
+
+    monkeypatch.setattr(
+        espeak_mod.EspeakEngine,
+        "_verify_synthesis",
+        classmethod(lambda cls: None),
+    )
+
+    result = espeak_mod.EspeakEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_vllm_support_requires_linux_nvidia_python_range():
+    vllm_mod = importlib.import_module("engines.vllm.engine")
+
+    assert vllm_mod.VLLMEngine.is_supported(
+        {
+            "os": "linux",
+            "arch": "x86_64",
+            "python": "3.12",
+            "gpu": {"has_nvidia": True, "vram_mb": 24576},
+        }
+    ) is True
+    assert vllm_mod.VLLMEngine.is_supported(
+        {
+            "os": "darwin",
+            "arch": "arm64",
+            "python": "3.12",
+            "gpu": {"has_nvidia": False, "vram_mb": 0},
+        }
+    ) is False
+    assert vllm_mod.VLLMEngine.is_supported(
+        {
+            "os": "linux",
+            "arch": "x86_64",
+            "python": "3.14",
+            "gpu": {"has_nvidia": True, "vram_mb": 24576},
+        }
+    ) is False
+
+
+def test_vllm_install_uses_vllm_binary_wheel_and_torch_constraints(monkeypatch):
+    vllm_mod = importlib.import_module("engines.vllm.engine")
+    calls = []
+
+    monkeypatch.setattr(
+        vllm_mod,
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            profile="cu128",
+            packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
+            modules=("torch", "torchvision", "torchaudio"),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
+    )
+    monkeypatch.setattr(
+        vllm_mod,
+        "install_python_packages",
+        lambda packages, **kwargs: calls.append((packages, kwargs)) or True,
+    )
+
+    vllm_mod.VLLMEngine._install(force=True)
+
+    packages, kwargs = calls[0]
+    assert packages == [
+        "torch==2.10.0",
+        "torchvision==0.25.0",
+        "torchaudio==2.10.0",
+        "vllm==0.19.1",
+        "bitsandbytes==0.49.2",
+        "pillow",
+    ]
+    assert kwargs["modules"] == [
+        "torch",
+        "torchvision",
+        "torchaudio",
+        "vllm",
+        "bitsandbytes",
+        "PIL",
+    ]
+    assert kwargs["force"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert kwargs["extra_pip_args"] == [
+        "--only-binary",
+        "vllm,bitsandbytes",
+    ]
+
+
+def test_vllm_ready_checks_declared_chain_versions(monkeypatch):
+    vllm_mod = importlib.import_module("engines.vllm.engine")
+
+    monkeypatch.setattr(vllm_mod.VLLMEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(vllm_mod.VLLMEngine, "_default_missing_shared", lambda: [])
+    monkeypatch.setattr(
+        vllm_mod,
+        "version",
+        lambda package_name: {
+            "torch": "2.10.0+cu128",
+            "torchvision": "0.25.0+cu128",
+            "torchaudio": "2.10.0+cu128",
+            "vllm": "0.19.1",
+            "bitsandbytes": "0.49.2",
+        }[package_name],
+    )
+
+    result = vllm_mod.VLLMEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []

@@ -25,13 +25,19 @@ def test_gemini_ready_checks_google_genai_module(monkeypatch):
         return None
 
     monkeypatch.setattr(base_engine_mod.importlib.util, "find_spec", fake_find_spec)
+    monkeypatch.setattr(gemini_mod, "_google_genai_version_matches", lambda: True)
+    monkeypatch.setattr(
+        gemini_mod,
+        "_google_genai_runtime_symbols_available",
+        lambda: True,
+    )
 
     result = gemini_mod.GeminiEngine._check_ready()
 
     assert "google.genai" in checked
     assert "google" not in checked
     assert result["ready"] is False
-    assert result["missing_local"] == ["google-genai"]
+    assert result["missing_local"] == ["google-genai==2.7.0"]
 
 
 @pytest.mark.asyncio

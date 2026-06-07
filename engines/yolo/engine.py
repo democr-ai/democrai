@@ -1,6 +1,8 @@
 import os
 import sys
 import tempfile
+import importlib
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from types import ModuleType
 
@@ -8,13 +10,29 @@ from democrai.sdk.engines import BaseCvProvider, BaseEngine
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
 
 
 _VISUAL_TOKEN_PIXELS = 512 * 512
+_TORCH_PACKAGES = ("torch==2.10.0", "torchvision==0.25.0")
+_TORCH_MODULES = ("torch", "torchvision")
+_ULTRALYTICS_PACKAGE = "ultralytics==8.4.60"
+_ULTRALYTICS_VERSION = "8.4.60"
+_SAHI_PACKAGE = "sahi==0.12.0"
+_SAHI_VERSION = "0.12.0"
+_OPENCV_PACKAGE = "opencv-python-headless==4.13.0.92"
+_OPENCV_VERSION = "4.13.0.92"
+_LAP_PACKAGE = "lap==0.5.13"
+_LAP_VERSION = "0.5.13"
+_YOLO_PACKAGES = (
+    _ULTRALYTICS_PACKAGE,
+    _OPENCV_PACKAGE,
+    _SAHI_PACKAGE,
+    "numpy",
+    _LAP_PACKAGE,
+)
+_YOLO_MODULES = ("ultralytics", "cv2", "sahi", "numpy", "lap")
 
 
 class YoloEngine(BaseEngine, BaseCvProvider):
@@ -28,15 +46,16 @@ class YoloEngine(BaseEngine, BaseCvProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        torch_plan = install_torch_runtime(force=force)
-        torch_constraint = write_installed_torch_constraint()
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
+        )
         _disable_ultralytics_git_probe()
         install_python_packages(
-            ["ultralytics", "opencv-python-headless", "sahi", "numpy", "lap"],
-            modules=["ultralytics", "cv2", "sahi", "numpy", "lap"],
-            force=force,
+            [*torch_plan.packages, *_YOLO_PACKAGES],
+            modules=[*torch_plan.modules, *_YOLO_MODULES],
+            force=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
         )
 
     @classmethod
@@ -44,27 +63,84 @@ class YoloEngine(BaseEngine, BaseCvProvider):
         payload = cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
             missing_local=cls._missing_modules(
-                ("ultralytics", "ultralytics"),
-                ("cv2", "opencv-python-headless"),
-                ("sahi", "sahi"),
+                ("ultralytics", _ULTRALYTICS_PACKAGE),
+                ("cv2", _OPENCV_PACKAGE),
+                ("sahi", _SAHI_PACKAGE),
                 ("numpy", "numpy"),
-                ("lap", "lap"),
+                ("lap", _LAP_PACKAGE),
                 ("torch", "torch"),
+                ("torchvision", "torchvision"),
             ),
             ok_message="YOLO engine ready",
             error_message="YOLO engine requires shared state or local dependencies",
         )
-        try:
-            torch_ready = torch_runtime_matches_plan()
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
+        missing_local = list(payload.get("missing_local") or [])
+        missing_local.extend(cls._missing_chain_versions())
+        if not cls._ultralytics_runtime_supported():
+            missing_local.append("ultralytics runtime")
+        if not cls._sahi_runtime_supported():
+            missing_local.append("sahi runtime")
+        if not cls._opencv_runtime_supported():
+            missing_local.append("opencv runtime")
+        payload["missing_local"] = missing_local
+        if payload["missing_local"]:
             payload["ready"] = False
-            missing_local = list(payload.get("missing_local") or [])
-            if "PyTorch runtime" not in missing_local:
-                missing_local.append("PyTorch runtime")
-            payload["missing_local"] = missing_local
+            payload["message"] = "YOLO engine requires shared state or local dependencies"
         return payload
+
+    @staticmethod
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
+        try:
+            installed = version(distribution_name)
+        except PackageNotFoundError:
+            return False
+        return installed.split("+", 1)[0] == expected
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        checks = (
+            ("torch", "2.10.0", "torch==2.10.0"),
+            ("torchvision", "0.25.0", "torchvision==0.25.0"),
+            ("ultralytics", _ULTRALYTICS_VERSION, _ULTRALYTICS_PACKAGE),
+            ("sahi", _SAHI_VERSION, _SAHI_PACKAGE),
+            ("opencv-python-headless", _OPENCV_VERSION, _OPENCV_PACKAGE),
+            ("lap", _LAP_VERSION, _LAP_PACKAGE),
+        )
+        missing: list[str] = []
+        for distribution_name, expected_version, label in checks:
+            if not cls._package_version_exact(distribution_name, expected_version):
+                missing.append(label)
+        return missing
+
+    @staticmethod
+    def _ultralytics_runtime_supported() -> bool:
+        _ensure_ultralytics_config_dir()
+        _disable_ultralytics_git_probe()
+        try:
+            ultralytics = importlib.import_module("ultralytics")
+        except Exception:
+            return False
+        return hasattr(ultralytics, "YOLO")
+
+    @staticmethod
+    def _sahi_runtime_supported() -> bool:
+        try:
+            sahi = importlib.import_module("sahi")
+            predict = importlib.import_module("sahi.predict")
+        except Exception:
+            return False
+        return hasattr(sahi, "AutoDetectionModel") and hasattr(
+            predict,
+            "get_sliced_prediction",
+        )
+
+    @staticmethod
+    def _opencv_runtime_supported() -> bool:
+        try:
+            cv2 = importlib.import_module("cv2")
+        except Exception:
+            return False
+        return hasattr(cv2, "imdecode") and hasattr(cv2, "VideoCapture")
 
     @classmethod
     def _validate_config(cls, *, config: dict | None = None) -> dict[str, object]:

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.util
+import importlib
+import importlib.metadata
+import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
 from democrai.sdk.engines import (
     BaseEngine,
@@ -25,20 +26,35 @@ from democrai.sdk.engines import (
 )
 
 
+_TORCH_PACKAGES = ("torch==2.10.0",)
+_TORCH_MODULES = ("torch",)
+_TRANSFORMERS_PACKAGE = "transformers==4.57.3"
+_TRANSFORMERS_VERSION = "4.57.3"
+_HUGGINGFACE_HUB_PACKAGE = "huggingface-hub>=0.34,<1.0"
+_SAFETENSORS_PACKAGE = "safetensors==0.7.0"
+_SAFETENSORS_VERSION = "0.7.0"
+_REBEL_PACKAGES = (
+    _TRANSFORMERS_PACKAGE,
+    _HUGGINGFACE_HUB_PACKAGE,
+    _SAFETENSORS_PACKAGE,
+)
+_REBEL_MODULES = ("transformers", "huggingface_hub", "safetensors")
+
+
 class REBELEngine(BaseEngine, KGProvider):
     engine_id = "rebel"
 
     @classmethod
     def _missing_module_labels(cls) -> list[str]:
-        missing: list[str] = []
-        if importlib.util.find_spec("transformers") is None:
-            missing.append("transformers")
-        try:
-            torch_ready = torch_runtime_matches_plan()
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
-            missing.append("PyTorch runtime")
+        missing = cls._missing_modules(
+            ("torch", "torch==2.10.0"),
+            ("transformers", _TRANSFORMERS_PACKAGE),
+            ("huggingface_hub", _HUGGINGFACE_HUB_PACKAGE),
+            ("safetensors", _SAFETENSORS_PACKAGE),
+        )
+        missing.extend(cls._missing_chain_versions())
+        if not cls._runtime_symbols_available():
+            missing.append("REBEL runtime")
         return missing
 
     @classmethod
@@ -49,14 +65,15 @@ class REBELEngine(BaseEngine, KGProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        torch_plan = install_torch_runtime(force=force)
-        torch_constraint = write_installed_torch_constraint()
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
+        )
         install_python_packages(
-            ["transformers", "huggingface-hub>=0.34,<1.0", "safetensors"],
-            modules=["transformers"],
-            force=force,
+            [*torch_plan.packages, *_REBEL_PACKAGES],
+            modules=[*torch_plan.modules, *_REBEL_MODULES],
+            force=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
         )
 
     @classmethod
@@ -66,6 +83,41 @@ class REBELEngine(BaseEngine, KGProvider):
             missing_local=cls._missing_module_labels(),
             ok_message="REBEL engine ready",
             error_message="REBEL engine requires shared state or local dependencies",
+        )
+
+    @staticmethod
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
+        installed = _distribution_version_from_sys_path(distribution_name)
+        if not installed:
+            return False
+        return installed.split("+", 1)[0] == expected
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        checks = (
+            ("torch", "2.10.0", "torch==2.10.0"),
+            ("transformers", _TRANSFORMERS_VERSION, _TRANSFORMERS_PACKAGE),
+            ("safetensors", _SAFETENSORS_VERSION, _SAFETENSORS_PACKAGE),
+        )
+        missing: list[str] = []
+        for distribution_name, expected_version, label in checks:
+            if not cls._package_version_exact(distribution_name, expected_version):
+                missing.append(label)
+        return missing
+
+    @staticmethod
+    def _runtime_symbols_available() -> bool:
+        try:
+            transformers = importlib.import_module("transformers")
+            safetensors = importlib.import_module("safetensors")
+            huggingface_hub = importlib.import_module("huggingface_hub")
+        except Exception:
+            return False
+        return (
+            hasattr(transformers, "AutoTokenizer")
+            and hasattr(transformers, "AutoModelForSeq2SeqLM")
+            and hasattr(safetensors, "safe_open")
+            and hasattr(huggingface_hub, "snapshot_download")
         )
 
     @classmethod
@@ -239,3 +291,22 @@ class REBELEngine(BaseEngine, KGProvider):
                 {"head": subject.strip(), "type": relation.strip(), "tail": object_.strip()}
             )
         return triplets
+
+
+def _distribution_version_from_sys_path(distribution_name: str) -> str | None:
+    normalized_name = distribution_name.strip().lower().replace("_", "-")
+    for entry in sys.path:
+        if not entry:
+            continue
+        try:
+            distributions = importlib.metadata.distributions(path=[entry])
+        except Exception:
+            continue
+        for distribution in distributions:
+            metadata_name = str(distribution.metadata.get("Name") or "").strip().lower()
+            if metadata_name.replace("_", "-") == normalized_name:
+                return str(distribution.version or "").strip() or None
+    try:
+        return version(distribution_name)
+    except PackageNotFoundError:
+        return None

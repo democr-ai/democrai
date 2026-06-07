@@ -59,6 +59,20 @@
         "target": "{engine_config}/fsspec"
       }
     ],
+    "access_by_os": {
+      "linux": [
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/sbin/ldconfig"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/sbin/ldconfig"
+        }
+      ]
+    },
     "allowed_imports": [
       "ctypes",
       "_ctypes",
@@ -122,6 +136,20 @@
         "target": "{engine_config}/fsspec"
       }
     ],
+    "access_by_os": {
+      "linux": [
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/sbin/ldconfig"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/sbin/ldconfig"
+        }
+      ]
+    },
     "allowed_imports": [
       "ctypes",
       "_ctypes",

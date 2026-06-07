@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import importlib
 import importlib.metadata
 import importlib.util
+import logging
+import platform
 from threading import Thread
 from typing import Any, AsyncGenerator, List
 
@@ -34,30 +37,67 @@ _HF_HUB_PACKAGE = "huggingface-hub>=0.34,<1.0"
 _OPTIMUM_PACKAGE = "optimum==2.1.0"
 _OPTIMUM_ONNX_VERSION = "0.1.0"
 _TRANSFORMERS_PACKAGE = "transformers>=4.36,<4.58"
+logger = logging.getLogger("onnx")
+
+
+def _log_ready_failure(check: str, reason: str, **details: Any) -> None:
+    detail_text = " ".join(f"{key}={value!r}" for key, value in details.items())
+    suffix = f" {detail_text}" if detail_text else ""
+    logger.warning(
+        "[ONNX] readiness check failed check=%s reason=%s%s",
+        check,
+        reason,
+        suffix,
+    )
+
+
+def _log_ready_exception(check: str, exc: BaseException, **details: Any) -> None:
+    detail_text = " ".join(f"{key}={value!r}" for key, value in details.items())
+    suffix = f" {detail_text}" if detail_text else ""
+    logger.warning(
+        "[ONNX] readiness check raised check=%s error=%r%s",
+        check,
+        exc,
+        suffix,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+
+
+def _onnxruntime_gpu_supported(torch_profile: str, os_name: str | None = None) -> bool:
+    resolved_os = str(os_name or platform.system()).strip().lower()
+    return resolved_os in {"linux", "windows"} and str(torch_profile or "") != "cpu"
 
 
 class OnnxEngine(BaseEngine, LLMProvider):
     engine_id = "onnx"
 
     @staticmethod
-    def _onnxruntime_package(torch_profile: str) -> str:
-        return "onnxruntime" if str(torch_profile or "") == "cpu" else "onnxruntime-gpu"
+    def _onnxruntime_package(torch_profile: str, os_name: str | None = None) -> str:
+        if _onnxruntime_gpu_supported(torch_profile, os_name=os_name):
+            return "onnxruntime-gpu"
+        return "onnxruntime"
 
     @staticmethod
-    def _optimum_onnx_package(torch_profile: str) -> str:
-        extra = "onnxruntime" if str(torch_profile or "") == "cpu" else "onnxruntime-gpu"
+    def _optimum_onnx_package(torch_profile: str, os_name: str | None = None) -> str:
+        extra = (
+            "onnxruntime-gpu"
+            if _onnxruntime_gpu_supported(torch_profile, os_name=os_name)
+            else "onnxruntime"
+        )
         return f"optimum-onnx[{extra}]=={_OPTIMUM_ONNX_VERSION}"
 
     @classmethod
-    def _install_packages(cls, torch_profile: str) -> list[str]:
+    def _install_packages(
+        cls, torch_profile: str, os_name: str | None = None
+    ) -> list[str]:
         return [
             "diffusers",
             "accelerate",
             "safetensors",
             _HF_HUB_PACKAGE,
             _OPTIMUM_PACKAGE,
-            cls._optimum_onnx_package(torch_profile),
-            cls._onnxruntime_package(torch_profile),
+            cls._optimum_onnx_package(torch_profile, os_name=os_name),
+            cls._onnxruntime_package(torch_profile, os_name=os_name),
             "sentence-transformers",
             _TRANSFORMERS_PACKAGE,
         ]
@@ -84,66 +124,194 @@ class OnnxEngine(BaseEngine, LLMProvider):
         try:
             version = importlib.metadata.version("huggingface-hub")
         except importlib.metadata.PackageNotFoundError:
+            _log_ready_failure("huggingface-hub", "distribution_not_found")
             return False
         parts = version.split("+", 1)[0].split(".", 2)
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
         except (TypeError, ValueError):
+            _log_ready_failure(
+                "huggingface-hub",
+                "invalid_version",
+                installed=version,
+                expected=_HF_HUB_PACKAGE,
+            )
             return False
-        return major == 0 and minor >= 34
+        supported = major == 0 and minor >= 34
+        if not supported:
+            _log_ready_failure(
+                "huggingface-hub",
+                "unsupported_version",
+                installed=version,
+                expected=_HF_HUB_PACKAGE,
+            )
+        return supported
+
+    @classmethod
+    def _optimum_version_supported(cls) -> bool:
+        return cls._package_version_exact("optimum", "2.1.0")
+
+    @classmethod
+    def _optimum_onnx_version_supported(cls) -> bool:
+        return cls._package_version_exact("optimum-onnx", _OPTIMUM_ONNX_VERSION)
+
+    @staticmethod
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
+        try:
+            installed = importlib.metadata.version(distribution_name)
+        except importlib.metadata.PackageNotFoundError:
+            _log_ready_failure(distribution_name, "distribution_not_found")
+            return False
+        supported = installed.split("+", 1)[0] == expected
+        if not supported:
+            _log_ready_failure(
+                distribution_name,
+                "unsupported_version",
+                installed=installed,
+                expected=expected,
+            )
+        return supported
 
     @classmethod
     def _transformers_version_supported(cls) -> bool:
         try:
             version = importlib.metadata.version("transformers")
         except importlib.metadata.PackageNotFoundError:
+            _log_ready_failure("transformers", "distribution_not_found")
             return False
         parts = version.split("+", 1)[0].split(".", 2)
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
         except (TypeError, ValueError):
+            _log_ready_failure(
+                "transformers",
+                "invalid_version",
+                installed=version,
+                expected=_TRANSFORMERS_PACKAGE,
+            )
             return False
-        return (major, minor) >= (4, 36) and (major, minor) < (4, 58)
+        supported = (major, minor) >= (4, 36) and (major, minor) < (4, 58)
+        if not supported:
+            _log_ready_failure(
+                "transformers",
+                "unsupported_version",
+                installed=version,
+                expected=_TRANSFORMERS_PACKAGE,
+            )
+        return supported
 
     @classmethod
-    def _optimum_onnx_export_supported(cls) -> bool:
+    def _optimum_onnxruntime_supported(cls) -> bool:
         try:
-            from optimum.exporters.onnx import main_export
-        except Exception:
+            optimum_ort = importlib.import_module("optimum.onnxruntime")
+        except Exception as exc:
+            _log_ready_exception("optimum.onnxruntime", exc)
             return False
-        return callable(main_export)
+        required = (
+            "ORTModelForCausalLM",
+            "ORTModelForFeatureExtraction",
+            "ORTModelForSequenceClassification",
+            "ORTModelForTokenClassification",
+        )
+        missing = [name for name in required if not hasattr(optimum_ort, name)]
+        if missing:
+            _log_ready_failure(
+                "optimum.onnxruntime",
+                "missing_runtime_symbols",
+                missing=missing,
+            )
+        return not missing
+
+    @classmethod
+    def _transformers_runtime_supported(cls) -> bool:
+        try:
+            transformers = importlib.import_module("transformers")
+        except Exception as exc:
+            _log_ready_exception("transformers", exc)
+            return False
+        missing = [
+            name
+            for name in ("AutoTokenizer", "TextIteratorStreamer")
+            if not hasattr(transformers, name)
+        ]
+        if missing:
+            _log_ready_failure(
+                "transformers",
+                "missing_runtime_symbols",
+                missing=missing,
+            )
+        return not missing
+
+    @classmethod
+    def _sentence_transformers_runtime_supported(cls) -> bool:
+        try:
+            sentence_transformers = importlib.import_module("sentence_transformers")
+        except Exception as exc:
+            _log_ready_exception("sentence_transformers", exc)
+            return False
+        if not hasattr(sentence_transformers, "CrossEncoder"):
+            _log_ready_failure(
+                "sentence_transformers",
+                "missing_runtime_symbols",
+                missing=["CrossEncoder"],
+            )
+            return False
+        return True
+
+    @staticmethod
+    def _module_available(module_name: str) -> bool:
+        try:
+            available = importlib.util.find_spec(module_name) is not None
+        except ModuleNotFoundError as exc:
+            _log_ready_exception(module_name, exc)
+            return False
+        if not available:
+            _log_ready_failure(module_name, "module_spec_not_found")
+        return available
 
     @classmethod
     def _missing_module_labels(cls) -> list[str]:
         checks = [
             ("diffusers", "diffusers"),
-            ("sentence_transformers", "sentence-transformers"),
         ]
         missing_local: list[str] = []
         for module_name, label in checks:
-            found = importlib.util.find_spec(module_name) is not None
-            if not found:
+            if not cls._module_available(module_name):
                 missing_local.append(label)
         if (
-            importlib.util.find_spec("optimum.onnxruntime") is None
-            or not cls._optimum_onnx_export_supported()
+            not cls._module_available("optimum.onnxruntime")
+            or not cls._optimum_version_supported()
+            or not cls._optimum_onnx_version_supported()
+            or not cls._optimum_onnxruntime_supported()
         ):
             missing_local.append(f"optimum-onnx[onnxruntime]=={_OPTIMUM_ONNX_VERSION}")
         if (
-            importlib.util.find_spec("transformers") is None
+            not cls._module_available("transformers")
             or not cls._transformers_version_supported()
+            or not cls._transformers_runtime_supported()
         ):
             missing_local.append(_TRANSFORMERS_PACKAGE)
+        if (
+            not cls._module_available("sentence_transformers")
+            or not cls._sentence_transformers_runtime_supported()
+        ):
+            missing_local.append("sentence-transformers")
         if not cls._huggingface_hub_version_supported():
             missing_local.append(_HF_HUB_PACKAGE)
         try:
             torch_ready = torch_runtime_matches_plan()
-        except Exception:
+        except Exception as exc:
+            _log_ready_exception("torch_runtime_matches_plan", exc)
             torch_ready = False
         if not torch_ready:
+            _log_ready_failure(
+                "torch_runtime_matches_plan", "runtime_not_matching_plan"
+            )
             missing_local.append("PyTorch runtime")
+        if missing_local:
+            logger.warning("[ONNX] readiness missing_local=%s", missing_local)
         return missing_local
 
     @classmethod
@@ -157,7 +325,7 @@ class OnnxEngine(BaseEngine, LLMProvider):
         torch_plan = install_torch_runtime(force=force)
         torch_constraint = write_installed_torch_constraint()
         install_python_packages(
-            cls._install_packages(torch_plan.profile),
+            cls._install_packages(torch_plan.profile, os_name=platform.system()),
             modules=[
                 "diffusers",
                 "optimum.onnxruntime",
@@ -361,7 +529,9 @@ class OnnxEngine(BaseEngine, LLMProvider):
             hidden = outputs[0]
         if hidden is None:
             raise RuntimeError("onnx_embedding_missing_hidden_state")
-        attention_mask = encoded["attention_mask"].unsqueeze(-1).expand(hidden.size()).float()
+        attention_mask = (
+            encoded["attention_mask"].unsqueeze(-1).expand(hidden.size()).float()
+        )
         pooled = torch.sum(hidden * attention_mask, dim=1) / torch.clamp(
             attention_mask.sum(dim=1),
             min=1e-9,
@@ -396,8 +566,7 @@ class OnnxEngine(BaseEngine, LLMProvider):
         if not texts:
             return []
         prepared_texts = [
-            self._rerank_text_for_prediction(str(text or ""), options)
-            for text in texts
+            self._rerank_text_for_prediction(str(text or ""), options) for text in texts
         ]
         scores = await asyncio.to_thread(
             self.model.predict,

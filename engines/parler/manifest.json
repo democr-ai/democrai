@@ -231,9 +231,11 @@
         "label": "parler-tts",
         "pip_packages": [
           "git+https://github.com/huggingface/parler-tts.git",
-          "transformers>=4.43.3,<4.50",
+          "transformers==4.46.1",
           "accelerate",
-          "soundfile"
+          "soundfile",
+          "sentencepiece",
+          "protobuf>=4.0.0"
         ]
       },
       {
@@ -241,7 +243,7 @@
         "module": "transformers",
         "label": "Transformers",
         "pip_packages": [
-          "transformers>=4.43.3,<4.50",
+          "transformers==4.46.1",
           "accelerate",
           "safetensors"
         ]

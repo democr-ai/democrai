@@ -20,6 +20,16 @@
       {"resource_type": "filesystem", "operation": "create", "target": "{engine_config}/fsspec"},
       {"resource_type": "filesystem", "operation": "modify", "target": "{engine_config}/fsspec"}
     ],
+    "access_by_os": {
+      "linux": [
+        {"resource_type": "filesystem", "operation": "read", "target": "/dev/null"},
+        {"resource_type": "filesystem", "operation": "modify", "target": "/dev/null"}
+      ],
+      "darwin": [
+        {"resource_type": "filesystem", "operation": "read", "target": "/dev/null"},
+        {"resource_type": "filesystem", "operation": "modify", "target": "/dev/null"}
+      ]
+    },
     "allowed_imports": ["ctypes", "_ctypes", "cffi", "_cffi_backend"]
   },
   "runtime": {
@@ -39,6 +49,16 @@
       {"resource_type": "filesystem", "operation": "create", "target": "{engine_config}/fsspec"},
       {"resource_type": "filesystem", "operation": "modify", "target": "{engine_config}/fsspec"}
     ],
+    "access_by_os": {
+      "linux": [
+        {"resource_type": "filesystem", "operation": "read", "target": "/dev/null"},
+        {"resource_type": "filesystem", "operation": "modify", "target": "/dev/null"}
+      ],
+      "darwin": [
+        {"resource_type": "filesystem", "operation": "read", "target": "/dev/null"},
+        {"resource_type": "filesystem", "operation": "modify", "target": "/dev/null"}
+      ]
+    },
     "allowed_imports": ["ctypes", "_ctypes", "cffi", "_cffi_backend"]
   },
   "models": {
@@ -61,7 +81,13 @@
         "dependency_key": "transformers",
         "module": "transformers",
         "label": "Transformers",
-        "pip_packages": ["transformers", "huggingface-hub>=0.34,<1.0", "safetensors"]
+        "pip_packages": ["transformers==4.57.3", "huggingface-hub>=0.34,<1.0", "safetensors==0.7.0"]
+      },
+      {
+        "dependency_key": "torch",
+        "module": "torch",
+        "label": "PyTorch",
+        "pip_packages": ["torch==2.10.0"]
       }
     ],
     "configurable": false,

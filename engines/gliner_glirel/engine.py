@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.util
+import importlib
 import json
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 import re
+import sys
 import tempfile
 from typing import Any
 
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
 from democrai.sdk.engines import (
     BaseEngine,
@@ -28,32 +28,60 @@ from democrai.sdk.engines import (
 )
 
 
+_TORCH_MIN_VERSION = (2, 6)
+_TORCH_PACKAGES = ("torch==2.10.0",)
+_TORCH_MODULES = ("torch",)
+_GLINER_PACKAGE = "gliner==0.2.26"
+_GLINER_VERSION = "0.2.26"
+_GLIREL_PACKAGE = "glirel==1.2.1"
+_GLIREL_VERSION = "1.2.1"
+_TRANSFORMERS_PACKAGE = "transformers==4.57.3"
+_TRANSFORMERS_VERSION = "4.57.3"
+_LOGURU_PACKAGE = "loguru==0.7.3"
+_LOGURU_VERSION = "0.7.3"
+_SEQEVAL_PACKAGE = "seqeval==1.2.2"
+_SEQEVAL_VERSION = "1.2.2"
+_SAFETENSORS_PACKAGE = "safetensors==0.7.0"
+_SAFETENSORS_VERSION = "0.7.0"
+_GLINER_GLIREL_PACKAGES = (
+    _GLINER_PACKAGE,
+    _GLIREL_PACKAGE,
+    _LOGURU_PACKAGE,
+    _SEQEVAL_PACKAGE,
+    _TRANSFORMERS_PACKAGE,
+    "huggingface-hub>=0.34,<1.0",
+    "fsspec<=2025.10.0,>=2023.1.0",
+    _SAFETENSORS_PACKAGE,
+)
+_GLINER_GLIREL_MODULES = (
+    "gliner",
+    "glirel",
+    "loguru",
+    "seqeval",
+    "seqeval.metrics.v1",
+    "transformers",
+    "safetensors",
+)
+
+
 class GLiNERGLiRELEngine(BaseEngine, KGProvider):
     engine_id = "gliner_glirel"
 
     @classmethod
     def _missing_module_labels(cls) -> list[str]:
-        checks = [
-            ("gliner", "gliner"),
-            ("glirel", "glirel"),
-            ("loguru", "loguru"),
-            ("seqeval.metrics.v1", "seqeval"),
-            ("transformers", "transformers"),
-        ]
-        missing: list[str] = []
-        for module_name, label in checks:
-            try:
-                module_missing = importlib.util.find_spec(module_name) is None
-            except ModuleNotFoundError:
-                module_missing = True
-            if module_missing:
-                missing.append(label)
-        try:
-            torch_ready = torch_runtime_matches_plan()
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
-            missing.append("PyTorch runtime")
+        missing = cls._missing_modules(
+            ("gliner", _GLINER_PACKAGE),
+            ("glirel", _GLIREL_PACKAGE),
+            ("loguru", _LOGURU_PACKAGE),
+            ("seqeval", _SEQEVAL_PACKAGE),
+            ("seqeval.metrics.v1", _SEQEVAL_PACKAGE),
+            ("transformers", _TRANSFORMERS_PACKAGE),
+            ("safetensors", _SAFETENSORS_PACKAGE),
+            ("torch", "torch>=2.6"),
+        )
+        missing.extend(cls._missing_chain_versions())
+        if not cls._runtime_symbols_available():
+            missing.append("GLiNER + GLiREL runtime")
         return missing
 
     @classmethod
@@ -64,23 +92,19 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        torch_plan = install_torch_runtime(force=force)
-        torch_constraint = write_installed_torch_constraint()
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
+        )
         install_python_packages(
             [
-                "gliner",
-                "glirel",
-                "loguru",
-                "seqeval>=1.2.2",
-                "transformers",
-                "huggingface-hub>=0.34,<1.0",
-                "fsspec<=2025.10.0,>=2023.1.0",
-                "safetensors",
+                *torch_plan.packages,
+                *_GLINER_GLIREL_PACKAGES,
             ],
-            modules=["gliner", "glirel", "loguru", "seqeval.metrics.v1", "transformers"],
-            force=force,
+            modules=[*torch_plan.modules, *_GLINER_GLIREL_MODULES],
+            force=True,
+            allow_source=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
         )
 
     @classmethod
@@ -90,6 +114,63 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
             missing_local=cls._missing_module_labels(),
             ok_message="GLiNER + GLiREL engine ready",
             error_message="GLiNER + GLiREL engine requires shared state or local dependencies",
+        )
+
+    @staticmethod
+    def _version_pair(value: str) -> tuple[int, int] | None:
+        parts = str(value or "").split("+", 1)[0].split(".", 2)
+        try:
+            return int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+        except Exception:
+            return None
+
+    @staticmethod
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
+        installed = _distribution_version_from_sys_path(distribution_name)
+        if not installed:
+            return False
+        return installed.split("+", 1)[0] == expected
+
+    @classmethod
+    def _torch_min_version_available(cls) -> bool:
+        installed = _distribution_version_from_sys_path("torch")
+        installed_pair = cls._version_pair(installed)
+        return installed_pair is not None and installed_pair >= _TORCH_MIN_VERSION
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        checks = (
+            ("gliner", _GLINER_VERSION, _GLINER_PACKAGE),
+            ("glirel", _GLIREL_VERSION, _GLIREL_PACKAGE),
+            ("transformers", _TRANSFORMERS_VERSION, _TRANSFORMERS_PACKAGE),
+            ("loguru", _LOGURU_VERSION, _LOGURU_PACKAGE),
+            ("seqeval", _SEQEVAL_VERSION, _SEQEVAL_PACKAGE),
+            ("safetensors", _SAFETENSORS_VERSION, _SAFETENSORS_PACKAGE),
+        )
+        missing: list[str] = []
+        for distribution_name, expected_version, label in checks:
+            if not cls._package_version_exact(distribution_name, expected_version):
+                missing.append(label)
+        if not cls._torch_min_version_available():
+            missing.append("torch>=2.6")
+        return missing
+
+    @staticmethod
+    def _runtime_symbols_available() -> bool:
+        try:
+            gliner = importlib.import_module("gliner")
+            glirel = importlib.import_module("glirel")
+            transformers = importlib.import_module("transformers")
+            importlib.import_module("seqeval")
+            importlib.import_module("seqeval.metrics.v1")
+            importlib.import_module("safetensors")
+            importlib.import_module("loguru")
+        except Exception:
+            return False
+        return (
+            hasattr(getattr(gliner, "GLiNER", None), "from_pretrained")
+            and hasattr(getattr(glirel, "GLiREL", None), "from_pretrained")
+            and hasattr(transformers, "AutoTokenizer")
         )
 
     @classmethod
@@ -131,7 +212,9 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
             else None
         )
         self.relation_tokenizer = (
-            self._AutoTokenizer.from_pretrained(relation_backbone_ref or relation_model_ref)
+            self._AutoTokenizer.from_pretrained(
+                relation_backbone_ref or relation_model_ref
+            )
             if self._AutoTokenizer is not None
             else None
         )
@@ -174,7 +257,10 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
         if not config_path.exists():
             return model_ref
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        if not isinstance(config, dict) or not str(config.get("model_name") or "").strip():
+        if (
+            not isinstance(config, dict)
+            or not str(config.get("model_name") or "").strip()
+        ):
             return model_ref
         prepared = tempfile.TemporaryDirectory(prefix="democrai-gliner-glirel-")
         self._prepared_dirs.append(prepared)
@@ -238,7 +324,9 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
         )
         graph = ExtractedKnowledgeGraph(
             entities=self._graph_entities(ner),
-            relations=self._graph_relations(relations, max_relations=options.max_relations),
+            relations=self._graph_relations(
+                relations, max_relations=options.max_relations
+            ),
         )
         if current_ai_call_context() is None:
             return graph
@@ -383,7 +471,9 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
             return 0
         total = 0
         for start, end in self._relation_windows(len(tokens), options):
-            window_text = " ".join(str(token["text"]) for token in tokens[start:end]).strip()
+            window_text = " ".join(
+                str(token["text"]) for token in tokens[start:end]
+            ).strip()
             if not window_text:
                 continue
             encoded = self.relation_tokenizer(
@@ -485,10 +575,7 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
 
     @staticmethod
     def _graph_entities(ner: list[list[Any]]) -> list[KGEntity]:
-        return [
-            KGEntity(name=str(row[3]), entity_type=str(row[2]))
-            for row in ner
-        ]
+        return [KGEntity(name=str(row[3]), entity_type=str(row[2])) for row in ner]
 
     @staticmethod
     def _relation_text(value: Any) -> str:
@@ -514,7 +601,9 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
             target = cls._relation_text(
                 relation.get("tail_text") or relation.get("target_text")
             )
-            relation_type = str(relation.get("label") or relation.get("relation") or "").strip()
+            relation_type = str(
+                relation.get("label") or relation.get("relation") or ""
+            ).strip()
             if not source or not target or not relation_type or source == target:
                 continue
             key = (source.casefold(), relation_type.casefold(), target.casefold())
@@ -527,9 +616,28 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
                     relation_type=relation_type,
                     source_entity_name=source,
                     target_entity_name=target,
-                    confidence=float(score) if isinstance(score, (int, float)) else None,
+                    confidence=float(score)
+                    if isinstance(score, (int, float))
+                    else None,
                 )
             )
             if len(rows) >= max(1, int(max_relations or 1)):
                 break
         return rows
+
+
+def _distribution_version_from_sys_path(distribution_name: str) -> str:
+    normalized = distribution_name.strip().lower().replace("_", "-")
+    for entry in [item for item in sys.path if item]:
+        try:
+            distributions = importlib.metadata.distributions(path=[entry])
+            for distribution in distributions:
+                metadata_name = str(distribution.metadata.get("Name") or "")
+                if metadata_name.strip().lower().replace("_", "-") == normalized:
+                    return str(distribution.version or "").strip()
+        except Exception:
+            continue
+    try:
+        return version(distribution_name)
+    except PackageNotFoundError:
+        return ""

@@ -9,7 +9,17 @@
       "path": "models/catalog.json"
     }
   },
+  "install": {
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
   "runtime": {
+    "allowed_imports": [
+      "cffi",
+      "_cffi_backend"
+    ],
     "access": [
       {
         "resource_type": "network",
@@ -45,7 +55,7 @@
         "module": "google.genai",
         "label": "google-genai",
         "pip_packages": [
-          "google-genai"
+          "google-genai==2.7.0"
         ]
       }
     ],

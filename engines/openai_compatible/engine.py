@@ -1,3 +1,5 @@
+import importlib
+import importlib.metadata
 import os
 from typing import Any, AsyncGenerator, Dict, List, cast
 
@@ -15,7 +17,11 @@ from democrai.sdk.engines import (
     LLMProvider,
 )
 from democrai.sdk.ai_constants import AIModelFormat, AIModelSourceKind
-from democrai.sdk.dependencies import ensure_import, install_dependency
+from democrai.sdk.dependencies import ensure_import, install_python_packages
+
+
+_OPENAI_PACKAGE = "openai==2.40.0"
+_OPENAI_VERSION = "2.40.0"
 
 
 class OpenAICompatibleEngine(BaseEngine, LLMProvider):
@@ -29,17 +35,26 @@ class OpenAICompatibleEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        install_dependency("openai", force=force)
+        install_python_packages([_OPENAI_PACKAGE], modules=["openai"], force=force)
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
-            missing_local=cls._missing_modules(("openai", "openai")),
+            missing_local=cls._missing_module_labels(),
             ok_message="OpenAI-compatible engine ready",
             error_message="OpenAI-compatible engine requires shared state or local dependencies",
         )
+
+    @classmethod
+    def _missing_module_labels(cls) -> list[str]:
+        missing = cls._missing_modules(("openai", _OPENAI_PACKAGE))
+        if not _openai_version_matches():
+            missing.append(_OPENAI_PACKAGE)
+        if not _openai_runtime_symbols_available():
+            missing.append("OpenAI-compatible runtime")
+        return missing
 
     def __init__(self, config: dict):
         super().__init__(config)
@@ -362,3 +377,29 @@ def _request_parameter_mapping(config: dict[str, Any]) -> list[tuple[str, str]]:
             raise ValueError("invalid_request_parameter_mapping")
         result.append((source, target))
     return result
+
+
+def _openai_version_matches() -> bool:
+    try:
+        return importlib.metadata.version("openai").split("+", 1)[0] == _OPENAI_VERSION
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+def _openai_runtime_symbols_available() -> bool:
+    try:
+        openai_mod = importlib.import_module("openai")
+    except Exception:
+        return False
+    AsyncOpenAI = getattr(openai_mod, "AsyncOpenAI", None)
+    if not callable(AsyncOpenAI):
+        return False
+    try:
+        client = AsyncOpenAI(api_key="sk-dummy", base_url="https://example.test/v1")
+    except Exception:
+        return False
+    return (
+        hasattr(getattr(client, "chat", None), "completions")
+        and hasattr(client, "embeddings")
+        and hasattr(openai_mod, "AsyncStream")
+    )

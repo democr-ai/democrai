@@ -39,13 +39,12 @@ def test_gliner_glirel_install_uses_torch_and_packages(monkeypatch):
 
     monkeypatch.setattr(
         engine_mod,
-        "install_torch_runtime",
-        lambda force=False: SimpleNamespace(index_url="https://torch.example/simple"),
-    )
-    monkeypatch.setattr(
-        engine_mod,
-        "write_installed_torch_constraint",
-        lambda: "/tmp/constraints.txt",
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            packages=("torch==2.10.0",),
+            modules=("torch",),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
     )
     monkeypatch.setattr(
         engine_mod,
@@ -55,19 +54,66 @@ def test_gliner_glirel_install_uses_torch_and_packages(monkeypatch):
 
     engine_mod.GLiNERGLiRELEngine._install(force=True)
 
-    assert calls
     packages, kwargs = calls[0]
-    assert "gliner" in packages
-    assert "glirel" in packages
+    assert packages == [
+        "torch==2.10.0",
+        "gliner==0.2.26",
+        "glirel==1.2.1",
+        "loguru==0.7.3",
+        "seqeval==1.2.2",
+        "transformers==4.57.3",
+        "huggingface-hub>=0.34,<1.0",
+        "fsspec<=2025.10.0,>=2023.1.0",
+        "safetensors==0.7.0",
+    ]
     assert "fsspec<=2025.10.0,>=2023.1.0" in packages
     assert kwargs["modules"] == [
+        "torch",
         "gliner",
         "glirel",
         "loguru",
+        "seqeval",
         "seqeval.metrics.v1",
         "transformers",
+        "safetensors",
     ]
-    assert kwargs["extra_pip_args"] == ["--constraint", "/tmp/constraints.txt"]
+    assert kwargs["force"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert len(calls) == 1
+
+
+def test_gliner_glirel_ready_checks_declared_runtime_chain(monkeypatch):
+    engine_mod = __import__("engines.gliner_glirel.engine", fromlist=["GLiNERGLiRELEngine"])
+
+    monkeypatch.setattr(engine_mod.GLiNERGLiRELEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(
+        engine_mod.GLiNERGLiRELEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        engine_mod.GLiNERGLiRELEngine,
+        "_runtime_symbols_available",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        engine_mod.GLiNERGLiRELEngine,
+        "_default_missing_shared",
+        classmethod(lambda cls: []),
+    )
+
+    result = engine_mod.GLiNERGLiRELEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
+
+
+def test_gliner_glirel_rejects_torch_below_cve_floor(monkeypatch):
+    engine_mod = __import__("engines.gliner_glirel.engine", fromlist=["GLiNERGLiRELEngine"])
+
+    monkeypatch.setattr(engine_mod, "_distribution_version_from_sys_path", lambda name: "2.5.1")
+
+    assert engine_mod.GLiNERGLiRELEngine._torch_min_version_available() is False
 
 
 def test_gliner_glirel_uses_materialized_model_path(monkeypatch, tmp_path):

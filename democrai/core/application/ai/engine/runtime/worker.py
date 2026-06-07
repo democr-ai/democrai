@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
 import subprocess
 import sys
 import sysconfig
@@ -19,25 +20,38 @@ from democrai.core.application.ai.engine.runtime.access import (
     get_engine_allowed_imports,
 )
 from democrai.core.application.ai.engine.runtime.environment import (
-    application_root,
+    application_pythonpath,
     get_engine_allowed_subprocess_commands,
     get_engine_runtime_env,
 )
 from democrai.core.application.ai.engine.runtime.serialization import json_value
 from democrai.core.application.ai.engine.runtime.serialization import python_value
 from democrai.core.infrastructure.sandbox.access_constants import system_read_paths
+from democrai.core.infrastructure.sandbox.process_guard import process_guard_bypass_context
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import current_request_context_payload
 from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import get_runtime_engine_dirs
 from democrai.core.runtime.foundation.paths import get_runtime_module_dirs
 from democrai.core.runtime.foundation.paths import logs_dir
+from democrai.core.runtime.dependencies.engine_env import get_engine_venv_python_path
 
 
 _WORKER_LOGGING_CONFIG_KEYS = (
     "logging.provider",
     "logging.url",
     "logging.method",
+)
+
+_WORKER_BOOTSTRAP_CODE = (
+    "import os,runpy,sys;"
+    "module=sys.argv[1];"
+    "paths=[p for p in sys.argv[2].split(os.pathsep) if p];"
+    "root=paths[0] if paths else '';"
+    "deps=paths[1:];"
+    "sys.path.insert(0, root) if root and root not in sys.path else None;"
+    "[sys.path.append(p) for p in deps if p not in sys.path];"
+    "runpy.run_module(module, run_name='__main__')"
 )
 
 
@@ -173,7 +187,13 @@ def worker_runtime_access(
 
 
 class EngineWorkerSubject:
-    def __init__(self, *, engine_id: str, config: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        *,
+        engine_id: str,
+        config: dict[str, Any],
+        class_only: bool = False,
+    ) -> None:
         self._engine_id = engine_id.strip().lower() if isinstance(engine_id, str) else ""
         self._concurrency_enabled = bool(
             config.get("concurrency_enabled", False)
@@ -187,44 +207,76 @@ class EngineWorkerSubject:
         self._process: subprocess.Popen[str] | None = None
         self._reader = None
         self._writer = None
+        self._stderr_reader = None
+        self._stderr_tail: list[str] = []
+        self._stderr_lock = threading.Lock()
+        self._stderr_thread: threading.Thread | None = None
         self._parent_request_reader = None
         self._parent_request_writer = None
-        self._start(dict(config))
+        self._start(dict(config), class_only=class_only)
 
-    def _start(self, config: dict[str, Any]) -> None:
+    def _start(self, config: dict[str, Any], *, class_only: bool = False) -> None:
         parent_read, child_write = os.pipe()
         child_read, parent_write = os.pipe()
         parent_request_read, child_request_write = os.pipe()
         child_response_read, parent_response_write = os.pipe()
-        env = dict(os.environ)
-        env["DEMOCRAI_ENGINE_WORKER_READ_FD"] = str(child_read)
-        env["DEMOCRAI_ENGINE_WORKER_WRITE_FD"] = str(child_write)
-        env["DEMOCRAI_ENGINE_WORKER_PARENT_REQUEST_FD"] = str(child_request_write)
-        env["DEMOCRAI_ENGINE_WORKER_PARENT_RESPONSE_FD"] = str(child_response_read)
-        current_pythonpath = str(env.get("PYTHONPATH") or "").strip()
-        env["PYTHONPATH"] = (
-            application_root()
-            if not current_pythonpath
-            else os.pathsep.join((application_root(), current_pythonpath))
-        )
-        command = [
-            sys.executable,
-            "-m",
-            "democrai.core.application.ai.engine.worker",
-        ]
         try:
-            self._process = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                pass_fds=(
-                    child_read,
-                    child_write,
-                    child_request_write,
-                    child_response_read,
-                ),
-                env=env,
-                text=True,
-            )
+            with process_guard_bypass_context():
+                env = dict(os.environ)
+                env["DEMOCRAI_ENGINE_WORKER_READ_FD"] = str(child_read)
+                env["DEMOCRAI_ENGINE_WORKER_WRITE_FD"] = str(child_write)
+                env["DEMOCRAI_ENGINE_WORKER_PARENT_REQUEST_FD"] = str(child_request_write)
+                env["DEMOCRAI_ENGINE_WORKER_PARENT_RESPONSE_FD"] = str(child_response_read)
+                env["PYTHONFAULTHANDLER"] = "1"
+                env["PYTHONUNBUFFERED"] = "1"
+                app_pythonpath = application_pythonpath()
+                env.pop("PYTHONPATH", None)
+                command = [
+                    str(get_engine_venv_python_path(self._engine_id)),
+                    "-c",
+                    _WORKER_BOOTSTRAP_CODE,
+                    "democrai.core.application.ai.engine.worker",
+                    app_pythonpath,
+                ]
+                self._process = subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    pass_fds=(
+                        child_read,
+                        child_write,
+                        child_request_write,
+                        child_response_read,
+                    ),
+                    env=env,
+                    text=True,
+                )
+                logging_config = worker_logging_config()
+                init_payload = {
+                    "engine_id": self._engine_id,
+                    "config": config,
+                    "class_only": bool(class_only),
+                    "logging_config": logging_config,
+                    "landlock_enabled": worker_landlock_enabled(),
+                    "env": get_engine_runtime_env(self._engine_id),
+                    "access": [
+                        rule.to_dict()
+                        for rule in worker_runtime_access(
+                            engine_id=self._engine_id,
+                            config=config,
+                            logging_config=logging_config,
+                        )
+                    ],
+                    "allowed_imports": get_engine_allowed_imports(
+                        self._engine_id,
+                        "runtime",
+                    ),
+                    "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
+                        self._engine_id,
+                        "runtime",
+                    ),
+                }
         finally:
             os.close(child_read)
             os.close(child_write)
@@ -232,6 +284,8 @@ class EngineWorkerSubject:
             os.close(child_response_read)
         self._reader = os.fdopen(parent_read, "r", encoding="utf-8", buffering=1)
         self._writer = os.fdopen(parent_write, "w", encoding="utf-8", buffering=1)
+        if self._process is not None and self._process.stderr is not None:
+            self._stderr_reader = self._process.stderr
         self._parent_request_reader = os.fdopen(
             parent_request_read,
             "r",
@@ -249,38 +303,18 @@ class EngineWorkerSubject:
             name=f"engine-worker-reader-{self._engine_id}",
             daemon=True,
         ).start()
+        self._stderr_thread = threading.Thread(
+            target=self._read_stderr,
+            name=f"engine-worker-stderr-{self._engine_id}",
+            daemon=True,
+        )
+        self._stderr_thread.start()
         threading.Thread(
             target=self._read_parent_requests,
             name=f"engine-worker-parent-request-{self._engine_id}",
             daemon=True,
         ).start()
-        logging_config = worker_logging_config()
-        self._request(
-            "init",
-            {
-                "engine_id": self._engine_id,
-                "config": config,
-                "logging_config": logging_config,
-                "landlock_enabled": worker_landlock_enabled(),
-                "env": get_engine_runtime_env(self._engine_id),
-                "access": [
-                    rule.to_dict()
-                    for rule in worker_runtime_access(
-                        engine_id=self._engine_id,
-                        config=config,
-                        logging_config=logging_config,
-                    )
-                ],
-                "allowed_imports": get_engine_allowed_imports(
-                    self._engine_id,
-                    "runtime",
-                ),
-                "allowed_subprocess_commands": get_engine_allowed_subprocess_commands(
-                    self._engine_id,
-                    "runtime",
-                ),
-            },
-        )
+        self._request("init", init_payload)
 
     def _read_responses(self) -> None:
         try:
@@ -300,6 +334,59 @@ class EngineWorkerSubject:
             with self._response_condition:
                 self._closed = True
                 self._response_condition.notify_all()
+
+    def _read_stderr(self) -> None:
+        reader = self._stderr_reader
+        if reader is None:
+            return
+        try:
+            while True:
+                line = reader.readline()
+                if not line:
+                    break
+                text = str(line).rstrip()
+                if not text:
+                    continue
+                with self._stderr_lock:
+                    self._stderr_tail.append(text)
+                    if len(self._stderr_tail) > 200:
+                        self._stderr_tail = self._stderr_tail[-200:]
+        except Exception:
+            return
+
+    def _worker_stderr_tail(self) -> str:
+        with self._stderr_lock:
+            return "\n".join(self._stderr_tail[-80:])
+
+    def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> None:
+        process = self._process
+        if return_code is None and process is not None:
+            try:
+                process.wait(timeout=2.0)
+                return_code = process.poll()
+            except subprocess.TimeoutExpired:
+                return_code = process.poll()
+        thread = self._stderr_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=0.5)
+        stderr_tail = self._worker_stderr_tail()
+        still_running = process is not None and process.poll() is None
+        signal_text = ""
+        if isinstance(return_code, int) and return_code < 0:
+            try:
+                signal_text = f" signal={signal.Signals(-return_code).name}"
+            except Exception:
+                signal_text = f" signal={-return_code}"
+        try:
+            app_ctx().logger.error(
+                "[EngineWorkerSubject] Worker closed without response "
+                f"engine_id={self._engine_id} operation={operation} "
+                f"return_code={return_code}{signal_text}"
+                + (" status=still_running_after_pipe_close" if still_running else "")
+                + (f"\n[EngineWorkerSubject stderr]\n{stderr_tail}" if stderr_tail else "")
+            )
+        except Exception:
+            pass
 
     def _read_parent_requests(self) -> None:
         try:
@@ -419,6 +506,10 @@ class EngineWorkerSubject:
             )
             if request_id not in self._responses and self._closed:
                 return_code = self._process.poll()
+                self._log_worker_no_response(
+                    operation=operation,
+                    return_code=return_code,
+                )
                 raise RuntimeError(f"engine_worker_no_response:{return_code}")
             response = self._responses.pop(request_id)
         if not bool(response.get("ok")):
@@ -475,6 +566,10 @@ class EngineWorkerSubject:
             messages = self._stream_responses.get(request_id)
             if not messages and self._closed:
                 return_code = self._process.poll() if self._process is not None else None
+                self._log_worker_no_response(
+                    operation="invoke_stream",
+                    return_code=return_code,
+                )
                 raise RuntimeError(f"engine_worker_no_response:{return_code}")
             response = messages.pop(0)
             if not messages:

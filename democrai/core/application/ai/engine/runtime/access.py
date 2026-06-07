@@ -28,6 +28,8 @@ from democrai.core.runtime.dependencies.engine_env import (
     get_engine_local_config_path,
     get_engine_local_env_path,
     get_engine_local_tmp_path,
+    get_engine_venv_path,
+    get_engine_venv_python_path,
 )
 from democrai.core.runtime.foundation.app import app_ctx
 
@@ -120,6 +122,7 @@ def get_engine_network_access(
 def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessManifestRule, ...]:
     subject = AccessSubject.create("engine", engine_id)
     engine_env_path = str(get_engine_local_env_path(engine_id).resolve())
+    engine_venv_path = str(get_engine_venv_path(engine_id).resolve())
     rules = [
         AccessManifestRule(
             subject=subject,
@@ -131,6 +134,7 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
         )
         for path in [
             engine_env_path,
+            engine_venv_path,
         ]
     ]
     if phase in {"install", "runtime"}:
@@ -188,6 +192,8 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 (
                     str(sys.executable),
                     os.path.realpath(str(sys.executable)),
+                    str(get_engine_venv_python_path(engine_id)),
+                    os.path.realpath(str(get_engine_venv_python_path(engine_id))),
                 )
             )
         )

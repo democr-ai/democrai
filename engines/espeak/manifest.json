@@ -101,6 +101,28 @@
                     "operation": "execute",
                     "target": "/usr/local/bin/espeak"
                 }
+            ],
+            "windows": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+                }
             ]
         },
         "env": {
@@ -199,6 +221,28 @@
                     "operation": "execute",
                     "target": "/usr/local/bin/espeak"
                 }
+            ],
+            "windows": [
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+                },
+                {
+                    "resource_type": "filesystem",
+                    "operation": "execute",
+                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+                }
             ]
         },
         "env": {
@@ -219,6 +263,7 @@
     "icon_url": "engines/espeak/assets/icon.png",
     "dependencies": [
       {
+        "dependency_key": "espeak",
         "check_type": "command_any",
         "commands": "espeak-ng,espeak",
         "label": "espeak"

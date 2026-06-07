@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import importlib
+import importlib.metadata
 import json
 import os
 from typing import Any, AsyncGenerator, Dict, List
@@ -17,7 +19,11 @@ from democrai.sdk.engines import (
 )
 from democrai.sdk.engines import BaseEngine, LLMProvider
 from democrai.sdk.ai_constants import AICapability, AIModelFormat, AIModelSourceKind
-from democrai.sdk.dependencies import ensure_import, install_dependency
+from democrai.sdk.dependencies import ensure_import, install_python_packages
+
+
+_ANTHROPIC_VERSION = "0.105.2"
+_ANTHROPIC_PACKAGE = f"anthropic=={_ANTHROPIC_VERSION}"
 
 
 class AnthropicEngine(BaseEngine, LLMProvider):
@@ -31,14 +37,24 @@ class AnthropicEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        install_dependency("anthropic", force=force)
+        install_python_packages(
+            [_ANTHROPIC_PACKAGE],
+            modules=["anthropic"],
+            extra_pip_args=[],
+            force=force,
+        )
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
+        missing_local = cls._missing_modules(("anthropic", _ANTHROPIC_PACKAGE))
+        if not _anthropic_version_matches():
+            missing_local.append(_ANTHROPIC_PACKAGE)
+        if not _anthropic_runtime_symbols_available():
+            missing_local.append("anthropic.AsyncAnthropic")
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
-            missing_local=cls._missing_modules(("anthropic", "anthropic")),
+            missing_local=missing_local,
             ok_message="Anthropic engine ready",
             error_message="Anthropic engine requires shared state or local dependencies",
         )
@@ -409,3 +425,32 @@ def _positive_int(value: Any, *, default: int) -> int:
     if result <= 0:
         raise ValueError("expected_positive_int")
     return result
+
+
+def _anthropic_version_matches() -> bool:
+    try:
+        version = importlib.metadata.version("anthropic")
+    except Exception:
+        return False
+    return version.split("+", 1)[0] == _ANTHROPIC_VERSION
+
+
+def _anthropic_runtime_symbols_available() -> bool:
+    try:
+        anthropic_mod = importlib.import_module("anthropic")
+        AsyncAnthropic = getattr(anthropic_mod, "AsyncAnthropic", None)
+        if not callable(AsyncAnthropic):
+            return False
+        client = AsyncAnthropic(
+            api_key="sk-ant-dummy",
+            base_url="https://example.test",
+        )
+        messages = getattr(client, "messages", None)
+        models = getattr(client, "models", None)
+        return (
+            callable(getattr(messages, "create", None))
+            and callable(getattr(messages, "stream", None))
+            and callable(getattr(models, "list", None))
+        )
+    except Exception:
+        return False

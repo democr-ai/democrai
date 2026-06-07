@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 import io
 import time
 from importlib.metadata import PackageNotFoundError, version
@@ -13,9 +14,30 @@ from democrai.sdk.engines import (
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
+)
+
+
+_TORCH_PACKAGES = ("torch==2.10.0", "torchaudio==2.10.0")
+_TORCH_MODULES = ("torch", "torchaudio")
+_PARLER_PACKAGE = "git+https://github.com/huggingface/parler-tts.git"
+_PARLER_DISTRIBUTION = "parler_tts"
+_PARLER_VERSION = "0.2.2"
+_TRANSFORMERS_PACKAGE = "transformers==4.46.1"
+_TRANSFORMERS_VERSION = "4.46.1"
+_PARLER_PACKAGES = (
+    _PARLER_PACKAGE,
+    _TRANSFORMERS_PACKAGE,
+    "accelerate",
+    "soundfile",
+    "sentencepiece",
+    "protobuf>=4.0.0",
+)
+_PARLER_MODULES = (
+    "parler_tts",
+    "transformers",
+    "soundfile",
+    "sentencepiece",
 )
 
 
@@ -30,53 +52,36 @@ class ParlerEngine(BaseEngine, BaseTTSProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        clean_target = force or not torch_runtime_matches_plan(
-            packages=("torch==2.10.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchaudio"),
-        )
-        torch_plan = install_torch_runtime(
-            packages=("torch==2.10.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchaudio"),
-            force=force,
-            clean_target=clean_target,
-        )
-        torch_constraint = write_installed_torch_constraint(
-            distributions=("torch", "torchaudio"),
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
         )
         install_python_packages(
             [
-                "git+https://github.com/huggingface/parler-tts.git",
-                "transformers>=4.43.3,<4.50",
-                "accelerate",
-                "soundfile",
+                *torch_plan.packages,
+                *_PARLER_PACKAGES,
             ],
-            modules=["parler_tts", "transformers", "soundfile"],
-            force=force,
+            modules=[*torch_plan.modules, *_PARLER_MODULES],
+            force=True,
             allow_source=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
         )
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
-        del node_id
         missing_local = cls._missing_modules(
             ("torch", "torch"),
+            ("torchaudio", "torchaudio"),
             ("parler_tts", "parler-tts"),
-            ("transformers", "transformers>=4.43.3,<4.50"),
+            ("transformers", _TRANSFORMERS_PACKAGE),
             ("soundfile", "soundfile"),
+            ("sentencepiece", "sentencepiece"),
         )
-        if cls._transformers_incompatible():
-            missing_local.append("transformers>=4.43.3,<4.50")
-        try:
-            torch_ready = torch_runtime_matches_plan(
-                packages=("torch==2.10.0", "torchaudio==2.10.0"),
-                modules=("torch", "torchaudio"),
-            )
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
-            missing_local.append("PyTorch runtime")
+        missing_local.extend(cls._missing_chain_versions())
+        if not cls._parler_runtime_supported():
+            missing_local.append("parler_tts runtime")
+        if not cls._transformers_runtime_supported():
+            missing_local.append(_TRANSFORMERS_PACKAGE)
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
             missing_local=missing_local,
@@ -85,16 +90,48 @@ class ParlerEngine(BaseEngine, BaseTTSProvider):
         )
 
     @staticmethod
-    def _transformers_incompatible() -> bool:
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
         try:
-            installed = tuple(
-                int(part)
-                for part in version("transformers").split(".")[:2]
-                if part.isdigit()
-            )
+            installed = version(distribution_name)
         except PackageNotFoundError:
             return False
-        return installed >= (4, 50)
+        return installed.split("+", 1)[0] == expected
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        checks = (
+            ("torch", "2.10.0", "torch==2.10.0"),
+            ("torchaudio", "2.10.0", "torchaudio==2.10.0"),
+            (_PARLER_DISTRIBUTION, _PARLER_VERSION, f"parler-tts=={_PARLER_VERSION}"),
+            ("transformers", _TRANSFORMERS_VERSION, _TRANSFORMERS_PACKAGE),
+        )
+        missing: list[str] = []
+        for distribution_name, expected_version, label in checks:
+            if not cls._package_version_exact(distribution_name, expected_version):
+                missing.append(label)
+        return missing
+
+    @staticmethod
+    def _parler_runtime_supported() -> bool:
+        try:
+            parler_mod = importlib.import_module("parler_tts")
+        except Exception:
+            return False
+        return hasattr(parler_mod, "ParlerTTSForConditionalGeneration") and hasattr(
+            parler_mod,
+            "ParlerTTSConfig",
+        )
+
+    @staticmethod
+    def _transformers_runtime_supported() -> bool:
+        try:
+            transformers_mod = importlib.import_module("transformers")
+        except Exception:
+            return False
+        return all(
+            hasattr(transformers_mod, name)
+            for name in ("AutoTokenizer", "AutoFeatureExtractor", "GenerationConfig")
+        )
 
     def __init__(self, config: dict):
         BaseEngine.__init__(self, config)

@@ -11,9 +11,11 @@ from democrai.core.application.ai.engine.runtime import handles as handles_mod
 from democrai.core.application.ai.engine.runtime.handles import create_engine_handle
 from democrai.core.application.ai.models.catalog_download import (
     ModelStorageOps,
+    _catalog_artifact_network_access,
     _catalog_inventory_extra_config,
     _download_catalog_to_storage,
 )
+from democrai.core.application.access_policy import AccessSubject
 from democrai.core.infrastructure.storage.media.providers.base import MaterializedMedia
 from democrai.core.runtime.foundation.app import request_context_scope
 from democrai.core.application.ai.engine.schemas.completion import (
@@ -60,6 +62,24 @@ def _qwen_vision_entry() -> dict:
             },
         ],
     }
+
+
+def test_huggingface_catalog_download_access_includes_xet_redirect_hosts():
+    subject = AccessSubject.create("module", "system")
+    rules = _catalog_artifact_network_access(
+        {
+            "source": {
+                "type": "huggingface",
+                "repo": "tensorblock/tiny-llama3-test-GGUF",
+            }
+        },
+        subject=subject,
+    )
+    targets = {rule.resource.normalized_target for rule in rules}
+
+    assert "https://huggingface.co/tensorblock/tiny-llama3-test-GGUF" in targets
+    assert "https://cas-bridge.xethub.hf.co" in targets
+    assert "https://transfer.xethub.hf.co" in targets
 
 
 def test_multimodal_catalog_download_preserves_model_directory_with_dotted_id():

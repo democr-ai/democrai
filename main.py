@@ -12,6 +12,7 @@ import subprocess
 import importlib
 import importlib.util
 import argparse
+import tempfile
 
 from democrai.sdk.runtime import start, stop
 
@@ -20,6 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 _IGNORED_RELOAD_SUFFIXES = (".pyc", ".pyo", ".tmp", ".swp", "~")
 _CORE_CHILD_ENV = "DEMOCRAI_CORE_PROCESS"
 _CORE_ENDPOINT_FD_ENV = "DEMOCRAI_CORE_ENDPOINT_FD"
+_CORE_ENDPOINT_FILE_ENV = "DEMOCRAI_CORE_ENDPOINT_FILE"
 _APPLICATION_RESTART_EXIT_CODE = 75
 
 
@@ -168,19 +170,29 @@ def _start_desktop_client(args, client_name: str, ipc_endpoint: str):
 
 
 def _write_core_endpoint(endpoint: str | None) -> None:
-    raw_fd = str(os.environ.get(_CORE_ENDPOINT_FD_ENV) or "").strip()
-    if not raw_fd:
-        return
     payload = json.dumps({"endpoint": endpoint}) + "\n"
-    fd = int(raw_fd)
-    with os.fdopen(fd, "w", encoding="utf-8", closefd=True) as handle:
-        handle.write(payload)
-        handle.flush()
+    raw_fd = str(os.environ.get(_CORE_ENDPOINT_FD_ENV) or "").strip()
+    if raw_fd:
+        fd = int(raw_fd)
+        with os.fdopen(fd, "w", encoding="utf-8", closefd=True) as handle:
+            handle.write(payload)
+            handle.flush()
+        return
+
+    raw_file = str(os.environ.get(_CORE_ENDPOINT_FILE_ENV) or "").strip()
+    if raw_file:
+        with open(raw_file, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
 
 
 def _read_core_endpoint(read_fd: int) -> str:
     with os.fdopen(read_fd, "r", encoding="utf-8", closefd=True) as handle:
         line = handle.readline()
+    return _parse_core_endpoint(line)
+
+
+def _parse_core_endpoint(line: str) -> str:
     if not line:
         raise RuntimeError("Core process did not publish IPC endpoint")
     payload = json.loads(line)
@@ -188,6 +200,20 @@ def _read_core_endpoint(read_fd: int) -> str:
     if not endpoint:
         raise RuntimeError("Core process published an empty IPC endpoint")
     return endpoint
+
+
+def _read_core_endpoint_file(path: str, proc) -> str:
+    while True:
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                line = handle.readline()
+        except FileNotFoundError:
+            line = ""
+        if line:
+            return _parse_core_endpoint(line)
+        if proc.poll() is not None:
+            raise RuntimeError("Core process exited before publishing IPC endpoint")
+        time.sleep(0.05)
 
 
 def _main_command() -> list[str]:
@@ -213,6 +239,9 @@ def _core_child_argv(args) -> list[str]:
 
 
 def _start_desktop_core_process(args):
+    if os.name == "nt":
+        return _start_desktop_core_process_windows(args)
+
     read_fd, write_fd = os.pipe()
     env = os.environ.copy()
     env[_CORE_CHILD_ENV] = "1"
@@ -232,6 +261,38 @@ def _start_desktop_core_process(args):
         except Exception:
             pass
         raise
+    return proc, endpoint
+
+
+def _start_desktop_core_process_windows(args):
+    fd, endpoint_file = tempfile.mkstemp(prefix="democrai-core-endpoint-", suffix=".json")
+    os.close(fd)
+    try:
+        os.unlink(endpoint_file)
+    except FileNotFoundError:
+        pass
+
+    env = os.environ.copy()
+    env[_CORE_CHILD_ENV] = "1"
+    env[_CORE_ENDPOINT_FILE_ENV] = endpoint_file
+    proc = subprocess.Popen(
+        [*_main_command(), *_core_child_argv(args)],
+        env=env,
+        close_fds=True,
+    )
+    try:
+        endpoint = _read_core_endpoint_file(endpoint_file, proc)
+    except Exception:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            os.unlink(endpoint_file)
+        except FileNotFoundError:
+            pass
     return proc, endpoint
 
 
@@ -505,6 +566,7 @@ def _run_server_master(args) -> int:
 
 
 def _configure_runtime_args(args) -> None:
+    _normalize_windows_server_workers(args)
     if str(getattr(args, "mode", "") or "") != "desktop":
         return
     client_name = str(getattr(args, "client", "") or "").strip() or "qtdesktop"
@@ -514,6 +576,15 @@ def _configure_runtime_args(args) -> None:
 def _run_core_child(handle) -> int:
     _write_core_endpoint(handle.endpoint)
     return _wait_for_shutdown()
+
+
+def _normalize_windows_server_workers(args) -> None:
+    if os.name != "nt":
+        return
+    if int(getattr(args, "workers", 1) or 1) <= 1:
+        return
+    print("[Server] Windows supports one worker; using --workers 1.")
+    args.workers = 1
 
 
 def _parse_launcher_args(argv: list[str]):
@@ -661,6 +732,7 @@ def main() -> int:
         reloader = None
         reload_event = threading.Event()
         client_name = str(getattr(args, "client", "") or "").strip()
+        _normalize_windows_server_workers(args)
         if not args.server_worker and int(args.workers or 1) > 1:
             if client_name:
                 client_proc = _start_yarn_client(client_name)

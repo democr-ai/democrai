@@ -1,3 +1,4 @@
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, AsyncGenerator, List
 
 from democrai.sdk.engines import (
@@ -14,12 +15,49 @@ from democrai.sdk.engines import (
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
 from democrai.sdk.normalize import normalize_bool
 from engines.vllm.messages import chat_messages, chat_template_content_format
+
+
+_TORCH_PACKAGES = ("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0")
+_TORCH_MODULES = ("torch", "torchvision", "torchaudio")
+_VLLM_PACKAGE = "vllm==0.19.1"
+_BITSANDBYTES_PACKAGE = "bitsandbytes==0.49.2"
+_PILLOW_PACKAGE = "pillow"
+_VLLM_MODULES = ["vllm", "bitsandbytes", "PIL"]
+_CHAIN_VERSION_CHECKS = {
+    "torch": "2.10.0",
+    "torchvision": "0.25.0",
+    "torchaudio": "2.10.0",
+    "vllm": "0.19.1",
+    "bitsandbytes": "0.49.2",
+}
+
+
+def _python_supported(env: dict | None) -> bool:
+    version = str((env or {}).get("python") or "").strip()
+    if not version:
+        return True
+    parts = version.split(".", 2)
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+    except Exception:
+        return False
+    return (major, minor) >= (3, 10) and (major, minor) < (3, 14)
+
+
+def _platform_supported(env: dict | None) -> bool:
+    effective_env = env or {}
+    return (
+        str(effective_env.get("os") or "").strip().lower() == "linux"
+        and str(effective_env.get("arch") or "").strip().lower() == "x86_64"
+        and bool(((effective_env.get("gpu") or {}).get("has_nvidia")))
+        and int(((effective_env.get("gpu") or {}).get("vram_mb") or 0)) >= 12000
+        and _python_supported(effective_env)
+    )
 
 
 class VLLMEngine(BaseEngine, LLMProvider):
@@ -27,30 +65,20 @@ class VLLMEngine(BaseEngine, LLMProvider):
 
     @classmethod
     def _check_supported(cls, env: dict | None = None) -> dict[str, object]:
-        effective_env = env or {}
-        supported = (
-            str(effective_env.get("os") or "").strip().lower() == "linux"
-            and str(effective_env.get("arch") or "").strip().lower() == "x86_64"
-            and bool(((effective_env.get("gpu") or {}).get("has_nvidia")))
-            and int(((effective_env.get("gpu") or {}).get("vram_mb") or 0)) >= 12000
-        )
+        supported = _platform_supported(env)
         return cls._build_supported_payload(
             supported=supported,
-            reason="vLLM requires Linux x86_64 with NVIDIA GPU and at least 12 GB VRAM",
+            reason=cls.unsupported_reason(env),
         )
 
     @classmethod
     def is_supported(cls, env: dict | None = None) -> bool:
-        effective_env = env or {}
-        return (
-            str(effective_env.get("os") or "").strip().lower() == "linux"
-            and str(effective_env.get("arch") or "").strip().lower() == "x86_64"
-            and bool(((effective_env.get("gpu") or {}).get("has_nvidia")))
-            and int(((effective_env.get("gpu") or {}).get("vram_mb") or 0)) >= 12000
-        )
+        return _platform_supported(env)
 
     @classmethod
     def unsupported_reason(cls, env: dict | None = None) -> str:
+        if not _python_supported(env):
+            return "vLLM requires Python >=3.10,<3.14"
         return "vLLM requires Linux x86_64 with NVIDIA GPU and at least 12 GB VRAM"
 
     @classmethod
@@ -61,25 +89,25 @@ class VLLMEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        clean_target = force or not torch_runtime_matches_plan(
-            packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchvision", "torchaudio"),
-        )
-        torch_plan = install_torch_runtime(
-            packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchvision", "torchaudio"),
-            force=force,
-            clean_target=clean_target,
-        )
-        torch_constraint = write_installed_torch_constraint(
-            distributions=("torch", "torchvision", "torchaudio"),
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
         )
         install_python_packages(
-            ["vllm>=0.19.1,<0.20", "bitsandbytes", "pillow"],
-            modules=["vllm", "bitsandbytes", "PIL"],
+            [
+                *torch_plan.packages,
+                _VLLM_PACKAGE,
+                _BITSANDBYTES_PACKAGE,
+                _PILLOW_PACKAGE,
+            ],
+            modules=[*torch_plan.modules, *_VLLM_MODULES],
             force=True,
+            allow_source=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
+            extra_pip_args=[
+                "--only-binary",
+                "vllm,bitsandbytes",
+            ],
         )
 
     @classmethod
@@ -89,21 +117,26 @@ class VLLMEngine(BaseEngine, LLMProvider):
             ("bitsandbytes", "bitsandbytes"),
             ("PIL", "pillow"),
         )
-        try:
-            torch_ready = torch_runtime_matches_plan(
-                packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-                modules=("torch", "torchvision", "torchaudio"),
-            )
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
-            missing_local.append("PyTorch runtime")
+        missing_local.extend(cls._missing_chain_versions())
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
             missing_local=missing_local,
             ok_message="vLLM engine ready",
             error_message="vLLM engine requires shared state or local dependencies",
         )
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        missing: list[str] = []
+        for package_name, expected_version in _CHAIN_VERSION_CHECKS.items():
+            try:
+                installed_version = version(package_name)
+            except PackageNotFoundError:
+                missing.append(package_name)
+                continue
+            if installed_version.split("+", 1)[0] != expected_version:
+                missing.append(f"{package_name}=={expected_version}")
+        return missing
 
     @classmethod
     def _validate_config(cls, *, config: dict | None = None) -> dict[str, object]:
@@ -189,12 +222,8 @@ class VLLMEngine(BaseEngine, LLMProvider):
             sampling_kwargs["top_k"] = extra["top_k"]
         chat_template_kwargs = {}
         if "reasoning" in extra:
-            chat_template_kwargs["enable_thinking"] = _bool_value(
-                extra["reasoning"]
-            )
-        sampling_params = vllm_mod.SamplingParams(
-            **sampling_kwargs
-        )
+            chat_template_kwargs["enable_thinking"] = _bool_value(extra["reasoning"])
+        sampling_params = vllm_mod.SamplingParams(**sampling_kwargs)
         tools = self._completion_tools(options)
         started_at = time.perf_counter()
         engine_input = self.llm._preprocess_chat_one(
@@ -246,6 +275,7 @@ class VLLMEngine(BaseEngine, LLMProvider):
     ) -> AsyncGenerator[StreamChunk, None]:
         import asyncio
         import time
+
         vllm_mod = ensure_import("vllm", dependency_key="vllm")
         sampling_mod = ensure_import("vllm.sampling_params", dependency_key="vllm")
         extra = options.extra
@@ -259,9 +289,7 @@ class VLLMEngine(BaseEngine, LLMProvider):
             sampling_kwargs["top_k"] = extra["top_k"]
         chat_template_kwargs = {}
         if "reasoning" in extra:
-            chat_template_kwargs["enable_thinking"] = _bool_value(
-                extra["reasoning"]
-            )
+            chat_template_kwargs["enable_thinking"] = _bool_value(extra["reasoning"])
         sampling_params = vllm_mod.SamplingParams(
             **sampling_kwargs,
             output_kind=sampling_mod.RequestOutputKind.DELTA,

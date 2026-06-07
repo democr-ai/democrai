@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import base64
+import importlib
+import importlib.metadata
 import os
 from typing import Any, AsyncGenerator
 
 from democrai.sdk.ai_constants import AIModelFormat, AIModelSourceKind
-from democrai.sdk.dependencies import ensure_import, install_dependency
+from democrai.sdk.dependencies import ensure_import, install_python_packages
 from democrai.sdk.engines import (
     BaseEngine,
     CompletionOptions,
@@ -21,6 +23,10 @@ from democrai.sdk.engines import (
 )
 
 
+_OPENAI_PACKAGE = "openai==2.40.0"
+_OPENAI_VERSION = "2.40.0"
+
+
 class OpenAIEngine(BaseEngine, LLMProvider):
     engine_id = "openai"
 
@@ -32,17 +38,32 @@ class OpenAIEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        install_dependency("openai", force=force)
+        install_python_packages([_OPENAI_PACKAGE], modules=["openai"], force=force)
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
-            missing_local=cls._missing_modules(("openai", "openai")),
+            missing_local=cls._missing_module_labels(),
             ok_message="OpenAI engine ready",
             error_message="OpenAI engine requires shared state or local dependencies",
         )
+
+    @classmethod
+    def _missing_module_labels(cls) -> list[str]:
+        missing = cls._missing_modules(("openai", _OPENAI_PACKAGE))
+        if not _openai_version_matches():
+            missing.append(_OPENAI_PACKAGE)
+        if not _openai_runtime_symbols_available(
+            responses=True,
+            chat=False,
+            embeddings=True,
+            audio_speech=False,
+            audio_transcriptions=False,
+        ):
+            missing.append("OpenAI runtime")
+        return missing
 
     def __init__(self, config: dict):
         super().__init__({**dict(config), "base_url": "https://api.openai.com/v1"})
@@ -394,3 +415,40 @@ def _field(value: Any, name: str) -> Any:
 
 def _enum_value(value: Any) -> str:
     return getattr(value, "value", value)
+
+
+def _openai_version_matches() -> bool:
+    try:
+        return importlib.metadata.version("openai").split("+", 1)[0] == _OPENAI_VERSION
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+def _openai_runtime_symbols_available(
+    *,
+    responses: bool,
+    chat: bool,
+    embeddings: bool,
+    audio_speech: bool,
+    audio_transcriptions: bool,
+) -> bool:
+    try:
+        openai_mod = importlib.import_module("openai")
+    except Exception:
+        return False
+    AsyncOpenAI = getattr(openai_mod, "AsyncOpenAI", None)
+    if not callable(AsyncOpenAI):
+        return False
+    try:
+        client = AsyncOpenAI(api_key="sk-dummy")
+    except Exception:
+        return False
+    audio = getattr(client, "audio", None)
+    checks = (
+        not responses or hasattr(client, "responses"),
+        not chat or hasattr(getattr(client, "chat", None), "completions"),
+        not embeddings or hasattr(client, "embeddings"),
+        not audio_speech or hasattr(audio, "speech"),
+        not audio_transcriptions or hasattr(audio, "transcriptions"),
+    )
+    return all(checks)

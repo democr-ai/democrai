@@ -53,16 +53,21 @@ EXTRACTOR_INSTALL_STREAM_ID = "system.extractor.install.events"
 EXTRACTOR_INSTALL_OUTPUT_EVENT_NAME = "extractor.install.output"
 EXTRACTOR_INSTALL_PROCESS_RESULT_PREFIX = "__DEMOCRAI_EXTRACTOR_INSTALL_RESULT__="
 EXTRACTOR_INSTALL_PROCESS_ERROR_PREFIX = "__DEMOCRAI_EXTRACTOR_INSTALL_ERROR__="
-EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV = "DEMOCRAI_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET"
-_EXTRACTOR_INSTALL_LOCKS: dict[str, asyncio.Lock] = {}
-_INSTALL_OUTPUT_CONTEXT: contextvars.ContextVar[dict[str, str] | None] = (
-    contextvars.ContextVar("extractor_install_output_context", default=None)
+EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV = (
+    "DEMOCRAI_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET"
 )
+_EXTRACTOR_INSTALL_LOCKS: dict[str, asyncio.Lock] = {}
+_INSTALL_OUTPUT_CONTEXT: contextvars.ContextVar[
+    dict[str, str] | None
+] = contextvars.ContextVar("extractor_install_output_context", default=None)
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
 
 
@@ -101,7 +106,9 @@ def emit_extractor_install_output(
         return
     network = getattr(app_ctx(), "network", None)
     loop = getattr(network, "_loop", None) if network is not None else None
-    stream_manager = getattr(network, "stream_manager", None) if network is not None else None
+    stream_manager = (
+        getattr(network, "stream_manager", None) if network is not None else None
+    )
     if loop is None or stream_manager is None:
         return
     task_id = context.get("task_id") or ""
@@ -517,7 +524,9 @@ async def _run_extractor_install_runtime_process(
         return_code = await process.wait()
         if return_code != 0:
             raise RuntimeError(
-                error_message or last_line or f"extractor install process failed:{return_code}"
+                error_message
+                or last_line
+                or f"extractor install process failed:{return_code}"
             )
         return result
     finally:
@@ -549,7 +558,9 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
         return
 
     node_id = get_runtime_node_id()
-    if _already_processed(extractor_id=extractor_id, node_id=node_id, event_id=event_id):
+    if _already_processed(
+        extractor_id=extractor_id, node_id=node_id, event_id=event_id
+    ):
         return
 
     extractor_cls = load_extractor_class(extractor_id)
@@ -637,7 +648,9 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
             node_id=node_id,
         )
         if not bool((ready_result or {}).get("ready")):
-            raise RuntimeError(str((ready_result or {}).get("message") or "extractor_not_ready"))
+            raise RuntimeError(
+                str((ready_result or {}).get("message") or "extractor_not_ready")
+            )
         _update_extractor_registry_status(
             extractor_id=extractor_id,
             status="installed",
@@ -685,18 +698,38 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
 
 
 async def _consume_install_stream() -> None:
-    network = getattr(app_ctx(), "network", None)
+    ctx = app_ctx()
+    logger = getattr(ctx, "logger", None)
+    network = getattr(ctx, "network", None)
     if network is None:
+        if logger is not None:
+            logger.warning("[ExtractorInstall] consumer aborted: network unavailable")
         return
     queue = network.stream_manager.subscribe(EXTRACTOR_INSTALL_STREAM_ID)
+    if logger is not None:
+        logger.info(
+            f"[ExtractorInstall] consumer listening stream={EXTRACTOR_INSTALL_STREAM_ID} "
+            f"node={get_runtime_node_id()}"
+        )
     try:
         while True:
             payload = await queue.get()
             if not isinstance(payload, dict):
                 continue
-            if str(payload.get("event_name") or "").strip() != "extractor.install.requested":
+            if (
+                str(payload.get("event_name") or "").strip()
+                != "extractor.install.requested"
+            ):
                 continue
-            await process_install_event(payload)
+            try:
+                await process_install_event(payload)
+            except Exception as exc:
+                if logger is not None:
+                    logger.error(
+                        "[ExtractorInstall] install event failed "
+                        f"extractor={payload.get('extractor_id')!r}: {exc!r}",
+                        exc_info=(type(exc), exc, exc.__traceback__),
+                    )
     except asyncio.CancelledError:
         pass
     finally:
@@ -706,13 +739,34 @@ async def _consume_install_stream() -> None:
 def start_extractor_install_consumer() -> None:
     """Start the long-lived consumer for extractor installation events."""
     ctx = app_ctx()
+    logger = getattr(ctx, "logger", None)
     network = getattr(ctx, "network", None)
     if network is None or getattr(network, "_loop", None) is None:
+        if logger is not None:
+            logger.warning(
+                "[ExtractorInstall] consumer NOT started: network/loop not ready "
+                f"network={network is not None} loop={getattr(network, '_loop', None) is not None}"
+            )
         return
     if getattr(ctx, "extractor_install_consumer", None) is not None:
         return
     future = asyncio.run_coroutine_threadsafe(_consume_install_stream(), network._loop)
+
+    def _on_consumer_done(fut: Any) -> None:
+        try:
+            exc = fut.exception()
+        except Exception:
+            return
+        if exc is not None and logger is not None:
+            logger.error(
+                f"[ExtractorInstall] consumer stopped with exception: {exc!r}",
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+
+    future.add_done_callback(_on_consumer_done)
     ctx.extractor_install_consumer = future
+    if logger is not None:
+        logger.info("[ExtractorInstall] consumer started")
 
 
 async def reconcile_installed_extractors() -> None:
@@ -728,11 +782,16 @@ async def reconcile_installed_extractors() -> None:
         extractor_id = row.extractor_id
         if not extractor_id:
             continue
-        ready_result = await asyncio.to_thread(
-            check_extractor_ready_runtime,
-            extractor_id=extractor_id,
-            node_id=node_id,
-        )
+
+        try:
+            ready_result = await asyncio.to_thread(
+                check_extractor_ready_runtime,
+                extractor_id=extractor_id,
+                node_id=node_id,
+            )
+        except Exception as exc:
+            app_ctx().logger.error("{exc}", "extractor")
+            continue
         if bool((ready_result or {}).get("ready")):
             previous_status = row.status
             next_status = (

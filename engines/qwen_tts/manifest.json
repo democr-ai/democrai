@@ -239,10 +239,14 @@
         "module": "qwen_tts",
         "label": "qwen-tts",
         "pip_packages": [
-          "qwen-tts",
+          "qwen-tts==0.1.1",
           "soundfile",
-          "transformers",
-          "huggingface-hub"
+          "transformers==4.57.3",
+          "huggingface-hub",
+          "accelerate==1.12.0",
+          "sox",
+          "onnxruntime",
+          "einops"
         ]
       },
       {
@@ -251,7 +255,6 @@
         "label": "PyTorch",
         "pip_packages": [
           "torch==2.10.0",
-          "torchvision==0.25.0",
           "torchaudio==2.10.0"
         ]
       },

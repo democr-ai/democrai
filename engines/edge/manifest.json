@@ -45,7 +45,7 @@
         "module": "edge_tts",
         "label": "edge-tts",
         "pip_packages": [
-          "edge-tts"
+          "edge-tts==7.2.8"
         ]
       }
     ],

@@ -1,11 +1,30 @@
 import asyncio
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
 from democrai.sdk.engines import BaseEngine, BaseTTSProvider
+from democrai.sdk.dependencies import (
+    install_system_dependency,
+    is_system_dependency_installed,
+    ensure_engine_venv,
+)
+
+
+_ESPEAK_COMMANDS = ("espeak-ng", "espeak")
+_LINUX_SEARCH_DIRS = (
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+)
+_DARWIN_SEARCH_DIRS = (
+    "/opt/homebrew/bin",
+    "/opt/local/bin",
+    "/usr/local/bin",
+)
 
 
 class EspeakEngine(BaseEngine, BaseTTSProvider):
@@ -13,19 +32,11 @@ class EspeakEngine(BaseEngine, BaseTTSProvider):
 
     @classmethod
     def _resolve_espeak_binary(cls) -> str:
-        search_dirs = {
-            "linux": (
-                "/usr/local/bin",
-                "/usr/bin",
-                "/bin",
-            ),
-            "darwin": (
-                "/opt/homebrew/bin",
-                "/opt/local/bin",
-                "/usr/local/bin",
-            ),
-        }.get(sys.platform, ())
-        for command_name in ("espeak-ng", "espeak"):
+        search_dirs = cls._candidate_search_dirs()
+        for command_name in _ESPEAK_COMMANDS:
+            resolved = cls._which(command_name)
+            if resolved:
+                return resolved
             for base_dir in search_dirs:
                 candidate = Path(base_dir) / command_name
                 try:
@@ -40,10 +51,49 @@ class EspeakEngine(BaseEngine, BaseTTSProvider):
         raise RuntimeError("eSpeak executable not found (expected espeak-ng or espeak)")
 
     @classmethod
+    def _candidate_search_dirs(cls) -> tuple[str, ...]:
+        if sys.platform == "win32":
+            roots = [
+                os.environ.get("ProgramFiles", r"C:\Program Files"),
+                os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+            ]
+            return tuple(str(Path(root) / "eSpeak NG") for root in roots if root)
+        entries = (
+            _DARWIN_SEARCH_DIRS if sys.platform == "darwin" else _LINUX_SEARCH_DIRS
+        )
+        return tuple(
+            str(Path.home() / item[2:]) if item.startswith("~/") else item
+            for item in entries
+        )
+
+    @staticmethod
+    def _which(command_name: str) -> str | None:
+        original_path = os.environ.get("PATH")
+        os.environ["PATH"] = os.pathsep.join(EspeakEngine._candidate_search_dirs())
+        try:
+            return shutil.which(command_name)
+        finally:
+            if original_path is None:
+                os.environ.pop("PATH", None)
+            else:
+                os.environ["PATH"] = original_path
+
+    @classmethod
+    def _verify_synthesis(cls) -> None:
+        binary = cls._resolve_espeak_binary()
+        result = subprocess.run(
+            [binary, "-v", "en-us", "--stdout", "test"],
+            check=True,
+            capture_output=True,
+        )  # nosec B603
+        if not bytes(result.stdout or b"").startswith(b"RIFF"):
+            raise RuntimeError("eSpeak synthesis did not produce WAV output")
+
+    @classmethod
     def _check_supported(cls, env: dict | None = None) -> dict[str, Any]:
         del env
         try:
-            cls._resolve_espeak_binary()
+            cls._verify_synthesis()
             return cls._build_supported_payload(supported=True)
         except Exception:
             return cls._build_supported_payload(
@@ -55,7 +105,7 @@ class EspeakEngine(BaseEngine, BaseTTSProvider):
     def is_supported(cls, env: dict | None = None) -> bool:
         del env
         try:
-            cls._resolve_espeak_binary()
+            cls._verify_synthesis()
             return True
         except Exception:
             return False
@@ -73,14 +123,17 @@ class EspeakEngine(BaseEngine, BaseTTSProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        del force
-        cls._resolve_espeak_binary()
+        if not is_system_dependency_installed("espeak"):
+            install_system_dependency("espeak")
+
+        ensure_engine_venv()
+        cls._verify_synthesis()
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
         try:
-            cls._resolve_espeak_binary()
+            cls._verify_synthesis()
             missing_local: list[str] = []
         except RuntimeError:
             missing_local = ["espeak"]
@@ -104,12 +157,18 @@ class EspeakEngine(BaseEngine, BaseTTSProvider):
     async def synthesize(self, text: str, options: Any):
         voice = str(options.voice or self.default_voice)
         wpm = max(80, min(500, int(getattr(options, "wpm", None) or self.default_wpm)))
-        pitch = max(0, min(99, int(getattr(options, "pitch", None) or self.default_pitch)))
+        pitch = max(
+            0, min(99, int(getattr(options, "pitch", None) or self.default_pitch))
+        )
         amplitude = max(
             0,
-            min(200, int(getattr(options, "amplitude", None) or self.default_amplitude)),
+            min(
+                200, int(getattr(options, "amplitude", None) or self.default_amplitude)
+            ),
         )
-        word_gap = max(0, int(getattr(options, "word_gap", None) or self.default_word_gap))
+        word_gap = max(
+            0, int(getattr(options, "word_gap", None) or self.default_word_gap)
+        )
 
         def _run() -> bytes:
             cmd = [

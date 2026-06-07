@@ -1,8 +1,9 @@
 import asyncio
 import importlib
 import os
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -96,6 +97,50 @@ def test_engine_env_bootstrap_and_clear(tmp_path: Path, monkeypatch):
     assert __import__("sys").path == original_sys_path
 
 
+def test_engine_env_context_restores_module_cache(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        engine_env_mod,
+        "_ENGINE_ENV_ROOT",
+        tmp_path / "engine_env_cache",
+    )
+    local_root = tmp_path / "engine_env_cache" / "whisper"
+    local_root.mkdir(parents=True)
+    app_module_path = tmp_path / "venv" / "site-packages" / "google" / "protobuf" / "__init__.py"
+    app_module_path.parent.mkdir(parents=True)
+    app_module_path.write_text("", encoding="utf-8")
+    local_module_path = local_root / "google" / "protobuf" / "__init__.py"
+    local_module_path.parent.mkdir(parents=True)
+    local_module_path.write_text("", encoding="utf-8")
+    local_only_path = local_root / "engine_only" / "__init__.py"
+    local_only_path.parent.mkdir(parents=True)
+    local_only_path.write_text("", encoding="utf-8")
+
+    app_google = ModuleType("google")
+    app_google.__path__ = [str(app_module_path.parent.parent)]
+    app_protobuf = ModuleType("google.protobuf")
+    app_protobuf.__file__ = str(app_module_path)
+    local_google = ModuleType("google")
+    local_google.__path__ = [str(local_module_path.parent.parent)]
+    local_protobuf = ModuleType("google.protobuf")
+    local_protobuf.__file__ = str(local_module_path)
+    local_only = ModuleType("engine_only")
+    local_only.__file__ = str(local_only_path)
+
+    monkeypatch.setitem(sys.modules, "google", app_google)
+    monkeypatch.setitem(sys.modules, "google.protobuf", app_protobuf)
+
+    with engine_env_mod.engine_env_context("whisper"):
+        sys.modules["google"] = local_google
+        sys.modules["google.protobuf"] = local_protobuf
+        sys.modules["engine_only"] = local_only
+        assert sys.modules["google.protobuf"] is local_protobuf
+
+    assert sys.modules["google"] is app_google
+    assert sys.modules["google.protobuf"] is app_protobuf
+    assert "engine_only" not in sys.modules
+
+
 def test_engine_env_error_and_activation_branches(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
 
@@ -149,10 +194,91 @@ def test_extractor_env_paths_and_context(tmp_path: Path, monkeypatch):
 
     original_sys_path = list(__import__("sys").path)
     with extractor_env_mod.extractor_env_context("docling"):
-        root = extractor_env_mod.get_extractor_local_env_path()
+        root = extractor_env_mod.get_extractor_venv_site_packages_path()
         extractor_env_mod.isolate_extractor_imports()
         assert str(root) in __import__("sys").path
     assert __import__("sys").path == original_sys_path
+
+
+def test_extractor_env_context_restores_module_cache(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(extractor_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        extractor_env_mod,
+        "_EXTRACTOR_ENV_ROOT",
+        tmp_path / "extractor_env_cache",
+    )
+    local_root = tmp_path / "extractor_env_cache" / "docling"
+    local_site = local_root / ".venv" / "lib" / "python3.12" / "site-packages"
+    local_root.mkdir(parents=True)
+    app_module_path = tmp_path / "venv" / "site-packages" / "sharedpkg" / "__init__.py"
+    app_module_path.parent.mkdir(parents=True)
+    app_module_path.write_text("", encoding="utf-8")
+    local_module_path = local_site / "sharedpkg" / "__init__.py"
+    local_module_path.parent.mkdir(parents=True)
+    local_module_path.write_text("", encoding="utf-8")
+    local_only_path = local_site / "extractor_only" / "__init__.py"
+    local_only_path.parent.mkdir(parents=True)
+    local_only_path.write_text("", encoding="utf-8")
+
+    app_shared = ModuleType("sharedpkg")
+    app_shared.__file__ = str(app_module_path)
+    local_shared = ModuleType("sharedpkg")
+    local_shared.__file__ = str(local_module_path)
+    local_only = ModuleType("extractor_only")
+    local_only.__file__ = str(local_only_path)
+
+    monkeypatch.setitem(sys.modules, "sharedpkg", app_shared)
+
+    with extractor_env_mod.extractor_env_context("docling"):
+        sys.modules["sharedpkg"] = local_shared
+        sys.modules["extractor_only"] = local_only
+        assert sys.modules["sharedpkg"] is local_shared
+
+    assert sys.modules["sharedpkg"] is app_shared
+    assert "extractor_only" not in sys.modules
+
+
+def test_isolate_extractor_imports_removes_global_local_modules(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        extractor_env_mod,
+        "_EXTRACTOR_ENV_ROOT",
+        tmp_path / "extractor_env_cache",
+    )
+    local_root = tmp_path / "extractor_env_cache" / "docling"
+    local_site = local_root / ".venv" / "lib" / "python3.12" / "site-packages"
+    local_module_path = local_site / "sharedpkg" / "__init__.py"
+    local_module_path.parent.mkdir(parents=True)
+    local_module_path.write_text("", encoding="utf-8")
+    app_module_path = tmp_path / "venv" / "site-packages" / "sharedpkg" / "__init__.py"
+    app_module_path.parent.mkdir(parents=True)
+    app_module_path.write_text("", encoding="utf-8")
+    app_other_path = tmp_path / "venv" / "site-packages" / "otherpkg" / "__init__.py"
+    app_other_path.parent.mkdir(parents=True)
+    app_other_path.write_text("", encoding="utf-8")
+
+    shared = ModuleType("sharedpkg")
+    shared.__file__ = str(app_module_path)
+    shared_sub = ModuleType("sharedpkg.sub")
+    shared_sub.__file__ = str(app_module_path.parent / "sub.py")
+    other = ModuleType("otherpkg")
+    other.__file__ = str(app_other_path)
+    monkeypatch.setitem(sys.modules, "sharedpkg", shared)
+    monkeypatch.setitem(sys.modules, "sharedpkg.sub", shared_sub)
+    monkeypatch.setitem(sys.modules, "otherpkg", other)
+
+    with extractor_env_mod.extractor_env_context("docling"):
+        extractor_env_mod.isolate_extractor_imports("docling")
+        assert "sharedpkg" not in sys.modules
+        assert "sharedpkg.sub" not in sys.modules
+        assert sys.modules["otherpkg"] is other
+        assert sys.path[0] == str(local_site)
+
+    assert sys.modules["sharedpkg"] is shared
+    assert sys.modules["sharedpkg.sub"] is shared_sub
+    assert sys.modules["otherpkg"] is other
 
 
 @pytest.mark.asyncio

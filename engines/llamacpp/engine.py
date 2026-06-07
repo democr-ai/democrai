@@ -46,6 +46,7 @@ class LlamaCppEngine(BaseEngine, LLMProvider):
                 ["llama-cpp-python"],
                 modules=["llama_cpp"],
                 force=force,
+                allow_source=True,
                 extra_pip_args=["--no-binary", "llama-cpp-python"],
                 env={
                     "CMAKE_ARGS": "-DGGML_CUDA=on",

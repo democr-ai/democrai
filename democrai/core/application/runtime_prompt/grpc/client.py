@@ -10,6 +10,7 @@ from democrai.core.application.runtime_prompt.grpc.config import (
     RUNTIME_PROMPT_AUTH_AUDIENCE,
     RUNTIME_PROMPT_AUTH_SCOPE,
     runtime_prompt_grpc_options,
+    runtime_prompt_rpc_timeout_seconds,
     runtime_prompt_target,
     runtime_prompt_timeout_seconds,
 )
@@ -88,10 +89,15 @@ class RuntimePromptClient:
             form_model_json=json.dumps(list(form_model or []), ensure_ascii=True),
             form_values_json=json.dumps(dict(form_values or {}), ensure_ascii=True),
         )
+        rpc_timeout = runtime_prompt_rpc_timeout_seconds(
+            app_ctx().config,
+            prompt_timeout_seconds=float(timeout_seconds or 300.0),
+            configured_timeout_seconds=self._timeout,
+        )
         try:
             response = await self._stub().AskRuntimePrompt(
                 request,
-                timeout=self._timeout,
+                timeout=rpc_timeout,
                 metadata=self._auth_metadata(),
             )
         except grpc.aio.AioRpcError as exc:

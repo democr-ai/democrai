@@ -31,6 +31,8 @@ from democrai.core.runtime.dependencies.extractor_env import get_extractor_local
 from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_config_path
 from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_env_path
 from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_tmp_path
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_venv_path
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_venv_python_path
 from democrai.core.runtime.dependencies.extractor_env import extractor_env_context
 from democrai.core.runtime.dependencies.extractor_env import isolate_extractor_imports
 from democrai.core.application.knowledge.extractor.worker_subject import (
@@ -105,6 +107,7 @@ def get_extractor_access(
         cache_path = str(get_extractor_local_cache_path(extractor_id).resolve())
         config_path = str(get_extractor_local_config_path(extractor_id).resolve())
         tmp_path = str(get_extractor_local_tmp_path(extractor_id).resolve())
+        venv_path = str(get_extractor_venv_path(extractor_id).resolve())
         rules.append(
             AccessManifestRule(
                 subject=subject,
@@ -112,6 +115,16 @@ def get_extractor_access(
                     resource_type="filesystem",
                     operation="read",
                     target=env_path,
+                ),
+            )
+        )
+        rules.append(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="filesystem",
+                    operation="read",
+                    target=venv_path,
                 ),
             )
         )
@@ -164,12 +177,14 @@ def get_extractor_access(
                 )
                 for path in paths
             )
-    if phase == "runtime":
+    if phase in {"install", "runtime"}:
         executable_targets = tuple(
             dict.fromkeys(
                 (
                     str(sys.executable),
                     os.path.realpath(str(sys.executable)),
+                    str(get_extractor_venv_python_path(extractor_id)),
+                    os.path.realpath(str(get_extractor_venv_python_path(extractor_id))),
                 )
             )
         )
@@ -430,6 +445,19 @@ def check_extractor_ready_runtime(
     extractor_id: str,
     node_id: str | None = None,
 ) -> dict[str, Any]:
+    from democrai.core.runtime.dependencies.extractor_env import (
+        get_extractor_venv_python_path,
+    )
+
+    if not get_extractor_venv_python_path(extractor_id).exists():
+        return {
+            "extractor_id": extractor_id,
+            "node_id": node_id,
+            "ready": False,
+            "missing_shared": [],
+            "missing_local": [],
+            "message": "extractor environment not provisioned",
+        }
     result = get_extractor_runtime().invoke_extractor_class_method(
         extractor_id=extractor_id,
         phase="runtime",

@@ -15,7 +15,10 @@ from democrai.core.application.ai.engine.runtime.environment import (
 )
 from democrai.core.application.ai.engine.runtime.worker import EngineWorkerSubject
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
-from democrai.core.runtime.dependencies.engine_env import engine_env_context
+from democrai.core.runtime.dependencies.engine_env import (
+    engine_env_context,
+    get_engine_venv_python_path,
+)
 
 
 def invoke_engine_method(
@@ -118,13 +121,30 @@ def check_engine_ready_runtime(
     engine_id: str,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    result = invoke_engine_class_method(
+    venv_python = get_engine_venv_python_path(engine_id)
+    if not venv_python.exists():
+        return {
+            "engine_id": engine_id,
+            "node_id": node_id,
+            "ready": False,
+            "missing_shared": [],
+            "missing_local": [],
+            "message": "engine environment not provisioned",
+        }
+    subject = EngineWorkerSubject(
         engine_id=engine_id,
-        phase="runtime",
-        method="_check_ready_local",
-        payload={"node_id": node_id},
+        config={},
+        class_only=True,
     )
-    return _engine_dict_result(result)
+    try:
+        result = invoke_engine_method(
+            subject,
+            "_check_ready_local",
+            {"node_id": node_id},
+        )
+        return _engine_dict_result(result)
+    finally:
+        subject.close()
 
 
 def check_engine_runtime_config(

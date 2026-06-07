@@ -9,14 +9,9 @@ from typing import Any
 from democrai.core.runtime.dependencies.installer import install_python_packages
 from democrai.core.runtime.dependencies.installer_env import runtime_env
 from democrai.core.runtime.dependencies.engine_env import (
-    get_engine_local_env_path,
     get_engine_local_tmp_path,
+    get_engine_venv_site_packages_path,
     has_engine_env_context,
-)
-from democrai.core.runtime.dependencies.extractor_env import (
-    get_extractor_local_env_path,
-    get_extractor_local_tmp_path,
-    has_extractor_env_context,
 )
 
 
@@ -35,12 +30,6 @@ _TORCH_DISTRIBUTION_MODULES = {
     "torchvision": "torchvision",
 }
 
-_DARWIN_TORCH_PACKAGE_PINS = {
-    "torch": "2.2.2",
-    "torchaudio": "2.2.2",
-    "torchvision": "0.17.2",
-}
-
 _NUMPY_V1_PACKAGE = "numpy<2"
 _FSSPEC_DATASETS_PACKAGE = "fsspec<=2025.10.0,>=2023.1.0"
 
@@ -50,7 +39,7 @@ class TorchRuntimePlan:
     profile: str
     packages: tuple[str, ...]
     modules: tuple[str, ...]
-    index_url: str
+    index_url: str | None
 
 
 def _parse_version_pair(value: Any) -> tuple[int, int] | None:
@@ -89,10 +78,7 @@ def resolve_torch_runtime_plan(
 ) -> TorchRuntimePlan:
     effective_env = dict(env or runtime_env())
     profile = resolve_torch_cuda_profile(effective_env)
-    resolved_packages = _resolve_torch_packages_for_platform(
-        tuple(packages or ("torch",)),
-        env=effective_env,
-    )
+    resolved_packages = tuple(packages or ("torch",))
     resolved_packages = _include_numpy_constraint_for_torch(
         resolved_packages,
         env=effective_env,
@@ -102,36 +88,15 @@ def resolve_torch_runtime_plan(
         profile=profile,
         packages=resolved_packages,
         modules=resolved_modules,
-        index_url=f"https://download.pytorch.org/whl/{profile}",
+        index_url=_torch_index_url(profile=profile, env=effective_env),
     )
 
 
-def _resolve_torch_packages_for_platform(
-    packages: tuple[str, ...],
-    *,
-    env: dict[str, Any],
-) -> tuple[str, ...]:
+def _torch_index_url(*, profile: str, env: dict[str, Any]) -> str | None:
     os_name = str(env.get("os") or "").strip().lower()
-    if os_name != "darwin":
-        return packages
-    return tuple(_resolve_darwin_torch_package(package) for package in packages)
-
-
-def _resolve_darwin_torch_package(package: str) -> str:
-    raw = str(package or "").strip()
-    name = raw
-    separator = ""
-    for candidate in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-        if candidate in raw:
-            name, separator, _version = raw.partition(candidate)
-            break
-    normalized_name = name.split("[", 1)[0].strip().lower().replace("_", "-")
-    resolved_version = _DARWIN_TORCH_PACKAGE_PINS.get(normalized_name)
-    if not resolved_version:
-        return package
-    if separator and separator != "==":
-        return package
-    return f"{name.strip()}=={resolved_version}"
+    if os_name == "darwin":
+        return None
+    return f"https://download.pytorch.org/whl/{profile}"
 
 
 def _include_numpy_constraint_for_torch(
@@ -199,18 +164,28 @@ def torch_runtime_matches_plan(
 
 
 def _runtime_target_path() -> Path:
-    if has_extractor_env_context():
-        return get_extractor_local_env_path()
     if has_engine_env_context():
-        return get_engine_local_env_path()
+        return get_engine_venv_site_packages_path()
+    from democrai.core.runtime.dependencies.extractor_env import (
+        get_extractor_venv_site_packages_path,
+        has_extractor_env_context,
+    )
+
+    if has_extractor_env_context():
+        return get_extractor_venv_site_packages_path()
     raise RuntimeError("python_runtime_env_context_missing")
 
 
 def _runtime_tmp_path() -> Path:
-    if has_extractor_env_context():
-        return get_extractor_local_tmp_path()
     if has_engine_env_context():
         return get_engine_local_tmp_path()
+    from democrai.core.runtime.dependencies.extractor_env import (
+        get_extractor_local_tmp_path,
+        has_extractor_env_context,
+    )
+
+    if has_extractor_env_context():
+        return get_extractor_local_tmp_path()
     raise RuntimeError("python_runtime_env_context_missing")
 
 
@@ -274,6 +249,17 @@ def _installed_versions_match_requested_packages(
             return False
         if installed_version.split("+", 1)[0] != requested_version.split("+", 1)[0]:
             return False
+    for package_name, minimum_version in _minimum_requested_versions(packages).items():
+        try:
+            installed_version = _installed_package_version(package_name, target)
+        except Exception:
+            return False
+        installed_pair = _parse_version_pair(installed_version)
+        minimum_pair = _parse_version_pair(minimum_version)
+        if installed_pair is None or minimum_pair is None:
+            return False
+        if installed_pair < minimum_pair:
+            return False
     return True
 
 
@@ -288,6 +274,19 @@ def _exact_requested_versions(packages: tuple[str, ...]) -> dict[str, str]:
         if normalized_name and normalized_version:
             exact[normalized_name] = normalized_version
     return exact
+
+
+def _minimum_requested_versions(packages: tuple[str, ...]) -> dict[str, str]:
+    minimums: dict[str, str] = {}
+    for package in packages:
+        name, separator, version = str(package or "").partition(">=")
+        if separator != ">=":
+            continue
+        normalized_name = name.split("[", 1)[0].strip().lower().replace("_", "-")
+        normalized_version = version.strip()
+        if normalized_name and normalized_version:
+            minimums[normalized_name] = normalized_version
+    return minimums
 
 
 def _installed_package_version(distribution_name: str, target: Path) -> str:

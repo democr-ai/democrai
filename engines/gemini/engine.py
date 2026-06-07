@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import importlib
+import importlib.metadata
 import json
 import os
 from typing import Any, AsyncGenerator, Dict, List
@@ -19,6 +21,10 @@ from democrai.sdk.ai_constants import AICapability, AIModelFormat, AIModelSource
 from democrai.sdk.dependencies import ensure_import, install_python_packages
 
 
+_GOOGLE_GENAI_VERSION = "2.7.0"
+_GOOGLE_GENAI_PACKAGE = f"google-genai=={_GOOGLE_GENAI_VERSION}"
+
+
 class GeminiEngine(BaseEngine, LLMProvider):
     engine_id = "gemini"
 
@@ -31,17 +37,23 @@ class GeminiEngine(BaseEngine, LLMProvider):
         source_node_id: str | None = None,
     ) -> None:
         install_python_packages(
-            ["google-genai"],
+            [_GOOGLE_GENAI_PACKAGE],
             modules=["google.genai"],
+            extra_pip_args=[],
             force=force,
         )
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
+        missing_local = cls._missing_modules(("google.genai", _GOOGLE_GENAI_PACKAGE))
+        if not _google_genai_version_matches():
+            missing_local.append(_GOOGLE_GENAI_PACKAGE)
+        if not _google_genai_runtime_symbols_available():
+            missing_local.append("google.genai.Client")
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
-            missing_local=cls._missing_modules(("google.genai", "google-genai")),
+            missing_local=missing_local,
             ok_message="Gemini engine ready",
             error_message="Gemini engine requires shared state or local dependencies",
         )
@@ -62,9 +74,7 @@ class GeminiEngine(BaseEngine, LLMProvider):
         result: list[dict[str, Any]] = []
         for row in rows:
             raw_name = str(
-                getattr(row, "name", "")
-                or getattr(row, "id", "")
-                or ""
+                getattr(row, "name", "") or getattr(row, "id", "") or ""
             ).strip()
             if not raw_name:
                 continue
@@ -141,7 +151,9 @@ class GeminiEngine(BaseEngine, LLMProvider):
                 delta=None,
                 finish_reason=finish_reason or "stop",
                 prompt_tokens=final_usage.prompt_tokens if final_usage else None,
-                completion_tokens=final_usage.completion_tokens if final_usage else None,
+                completion_tokens=final_usage.completion_tokens
+                if final_usage
+                else None,
                 total_tokens=final_usage.total_tokens if final_usage else None,
             )
         if not stream:
@@ -378,7 +390,9 @@ def _response_parts(response: Any) -> list[Any]:
 def _value_parts(value: Any) -> list[Any]:
     if value is None:
         return []
-    raw = value.get("parts") if isinstance(value, dict) else getattr(value, "parts", None)
+    raw = (
+        value.get("parts") if isinstance(value, dict) else getattr(value, "parts", None)
+    )
     return list(raw or [])
 
 
@@ -456,3 +470,22 @@ def _positive_int(value: Any, *, default: int) -> int:
     if result < 0:
         raise ValueError("expected_non_negative_int")
     return result
+
+
+def _google_genai_version_matches() -> bool:
+    try:
+        version = importlib.metadata.version("google-genai")
+    except Exception:
+        return False
+    return version.split("+", 1)[0] == _GOOGLE_GENAI_VERSION
+
+
+def _google_genai_runtime_symbols_available() -> bool:
+    try:
+        genai = importlib.import_module("google.genai")
+        types = importlib.import_module("google.genai.types")
+        return callable(getattr(genai, "Client", None)) and callable(
+            getattr(types, "GenerateContentConfig", None)
+        )
+    except Exception:
+        return False

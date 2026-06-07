@@ -34,13 +34,12 @@ def test_rebel_install_uses_torch_and_packages(monkeypatch):
 
     monkeypatch.setattr(
         engine_mod,
-        "install_torch_runtime",
-        lambda force=False: SimpleNamespace(index_url="https://torch.example/simple"),
-    )
-    monkeypatch.setattr(
-        engine_mod,
-        "write_installed_torch_constraint",
-        lambda: "/tmp/constraints.txt",
+        "resolve_torch_runtime_plan",
+        lambda **kwargs: SimpleNamespace(
+            packages=("torch==2.10.0",),
+            modules=("torch",),
+            index_url="https://download.pytorch.org/whl/cu128",
+        ),
     )
     monkeypatch.setattr(
         engine_mod,
@@ -52,9 +51,47 @@ def test_rebel_install_uses_torch_and_packages(monkeypatch):
 
     assert calls
     packages, kwargs = calls[0]
-    assert "transformers" in packages
-    assert kwargs["modules"] == ["transformers"]
-    assert kwargs["extra_pip_args"] == ["--constraint", "/tmp/constraints.txt"]
+    assert packages == [
+        "torch==2.10.0",
+        "transformers==4.57.3",
+        "huggingface-hub>=0.34,<1.0",
+        "safetensors==0.7.0",
+    ]
+    assert kwargs["modules"] == [
+        "torch",
+        "transformers",
+        "huggingface_hub",
+        "safetensors",
+    ]
+    assert kwargs["force"] is True
+    assert kwargs["extra_index_url"] == "https://download.pytorch.org/whl/cu128"
+    assert len(calls) == 1
+
+
+def test_rebel_ready_checks_declared_runtime_chain(monkeypatch):
+    engine_mod = __import__("engines.rebel.engine", fromlist=["REBELEngine"])
+
+    monkeypatch.setattr(engine_mod.REBELEngine, "_missing_modules", lambda *args: [])
+    monkeypatch.setattr(
+        engine_mod.REBELEngine,
+        "_missing_chain_versions",
+        classmethod(lambda cls: []),
+    )
+    monkeypatch.setattr(
+        engine_mod.REBELEngine,
+        "_runtime_symbols_available",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        engine_mod.REBELEngine,
+        "_default_missing_shared",
+        classmethod(lambda cls: []),
+    )
+
+    result = engine_mod.REBELEngine._check_ready()
+
+    assert result["ready"] is True
+    assert result["missing_local"] == []
 
 
 def test_rebel_parse_triplets():

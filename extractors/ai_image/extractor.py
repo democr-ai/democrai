@@ -4,10 +4,19 @@ import os
 from typing import Any
 
 from democrai.sdk.extractors import BaseExtractor, ExtractorResult, ExtractorSource
+from democrai.sdk.dependencies import ensure_extractor_venv
 
 
 class AIImageExtractor(BaseExtractor):
     extractor_id = "ai_image"
+
+    @classmethod
+    def _install(
+        cls,
+        force: bool = False,
+        install_config: dict[str, Any] | None = None,
+    ) -> None:
+        ensure_extractor_venv()
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:

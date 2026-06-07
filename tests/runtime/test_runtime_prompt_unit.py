@@ -46,6 +46,60 @@ def _request_context(**overrides):
     return payload
 
 
+def test_runtime_prompt_rpc_timeout_exceeds_prompt_timeout():
+    from democrai.core.application.runtime_prompt.grpc.config import (
+        runtime_prompt_rpc_timeout_seconds,
+    )
+
+    config = SimpleNamespace(
+        get=lambda key, default=None: {
+            "runtime_prompt.timeout_seconds": 10,
+        }.get(key, default)
+    )
+
+    assert runtime_prompt_rpc_timeout_seconds(config, prompt_timeout_seconds=3) == 10
+    assert runtime_prompt_rpc_timeout_seconds(config, prompt_timeout_seconds=20) == 25
+
+
+@pytest.mark.asyncio
+async def test_runtime_prompt_client_ask_uses_rpc_timeout_after_prompt_timeout(monkeypatch):
+    from democrai.core.application.runtime_prompt.grpc.client import RuntimePromptClient
+    from democrai.core.application.runtime_prompt.grpc.proto import runtime_prompt_pb2
+
+    observed = {}
+    monkeypatch.setattr(
+        app_ctx(),
+        "config",
+        SimpleNamespace(get=lambda key, default=None: default),
+        raising=False,
+    )
+
+    class _Stub:
+        async def AskRuntimePrompt(self, request, *, timeout=None, metadata=None):
+            observed["timeout"] = timeout
+            observed["request_timeout"] = request.timeout_seconds
+            return runtime_prompt_pb2.RuntimePromptResponse(
+                ok=False,
+                prompt_id="prompt-1",
+                error="runtime_prompt_timeout",
+            )
+
+    client = RuntimePromptClient(target="localhost:1", timeout=10)
+    monkeypatch.setattr(client, "_stub", lambda: _Stub())
+    monkeypatch.setattr(client, "_auth_metadata", lambda: ())
+
+    decision = await client.ask(
+        question="Continue?",
+        actions=[{"id": "approve", "label": "Approve"}],
+        request_context=_request_context(),
+        timeout_seconds=20,
+    )
+
+    assert observed["request_timeout"] == 20
+    assert observed["timeout"] == 25
+    assert decision.error == "runtime_prompt_timeout"
+
+
 @pytest.mark.asyncio
 async def test_runtime_prompt_forbidden_does_not_send_modal(monkeypatch):
     bus = _Bus()

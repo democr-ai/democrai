@@ -137,6 +137,9 @@ class BaseEngine(ABC):
 
     @classmethod
     def check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
+        # Runtime readiness must be invoked through check_engine_ready_runtime(),
+        # which runs this method inside the engine worker process. Calling this
+        # directly from the main process can contaminate C-extension imports.
         return cls._check_ready_local(node_id=node_id)
 
     @classmethod

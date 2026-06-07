@@ -141,7 +141,13 @@
         "module": "faster_whisper",
         "label": "faster-whisper",
         "pip_packages": [
-          "faster-whisper"
+          "faster-whisper==1.2.1",
+          "ctranslate2==4.6.1",
+          "av",
+          "onnxruntime",
+          "tokenizers",
+          "huggingface-hub",
+          "tqdm"
         ]
       }
     ],

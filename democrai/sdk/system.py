@@ -52,6 +52,25 @@ def has_nvidia() -> bool:
     return bool(resources.get("has_nvidia_gpu"))
 
 
+def gpu_info() -> dict[str, Any]:
+    """Return GPU details reported by the current runtime."""
+    try:
+        resources = get_resource_monitor().get_resources()
+    except Exception:
+        return {
+            "has_nvidia": False,
+            "vram_mb": 0,
+            "nvidia_driver_version": "",
+            "cuda_driver_version": "",
+        }
+    return {
+        "has_nvidia": bool(resources.get("has_nvidia_gpu")),
+        "vram_mb": int(resources.get("vram_total_mb") or 0),
+        "nvidia_driver_version": str(resources.get("nvidia_driver_version") or ""),
+        "cuda_driver_version": str(resources.get("cuda_driver_version") or ""),
+    }
+
+
 def temp_dir() -> str:
     """Return the application temporary directory under the data directory."""
     path = Path(get_data_dir()) / "tmp"
@@ -315,6 +334,10 @@ class System:
     def has_nvidia(self) -> bool:
         """Return whether the current runtime reports an NVIDIA GPU."""
         return has_nvidia()
+
+    def gpu_info(self) -> dict[str, Any]:
+        """Return GPU details reported by the current runtime."""
+        return gpu_info()
 
     def temp_dir(self) -> str:
         """Return the application temporary directory under the data directory."""

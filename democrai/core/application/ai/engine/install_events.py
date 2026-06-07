@@ -791,17 +791,38 @@ async def _process_install_event_locked(payload: dict[str, Any]) -> None:
         return
 
     if not force_install:
+        if logger is not None:
+            logger.debug(
+                "[EngineInstall] check ready before install begin "
+                f"engine={engine_id} node={node_id} event_id={event_id}"
+            )
         debug_engine_install_flow(
             "process_event.check_ready.before_install.begin",
             engine_id=engine_id,
             node_id=node_id,
             event_id=event_id,
         )
-        ready_result = await asyncio.to_thread(
-            check_engine_ready_runtime,
-            engine_id=engine_id,
-            node_id=node_id,
-        )
+        try:
+            ready_result = await asyncio.to_thread(
+                check_engine_ready_runtime,
+                engine_id=engine_id,
+                node_id=node_id,
+            )
+        except Exception as exc:
+            if logger is not None:
+                logger.error(
+                    "[EngineInstall] check ready before install failed "
+                    f"engine={engine_id} node={node_id} event_id={event_id} error={exc}"
+                )
+            raise
+        if logger is not None:
+            logger.debug(
+                "[EngineInstall] check ready before install end "
+                f"engine={engine_id} node={node_id} event_id={event_id} "
+                f"ready={ready_result.get('ready')} "
+                f"missing_local={ready_result.get('missing_local', [])} "
+                f"message={ready_result.get('message', '')}"
+            )
         debug_engine_install_flow(
             "process_event.check_ready.before_install.end",
             engine_id=engine_id,
@@ -961,6 +982,13 @@ async def _consume_install_stream() -> None:
                 continue
             if payload.get("event_name") != "engine.install.requested":
                 continue
+            if logger is not None:
+                logger.debug(
+                    "[EngineInstall] consumer received install event "
+                    f"engine={payload.get('engine_id', '')} "
+                    f"node={get_runtime_node_id()} "
+                    f"event_id={payload.get('event_id', '')}"
+                )
             await process_install_event(payload)
     except asyncio.CancelledError:
         pass
@@ -987,33 +1015,62 @@ def start_engine_install_consumer() -> None:
 
 
 async def reconcile_installed_engines() -> None:
+    logger = app_ctx().logger
     with SessionLocal() as session:
         rows = (
             session.query(EngineRegistry)
             .filter(EngineRegistry.status.in_(["installed", "active", "installing"]))
             .all()
         )
+    if logger is not None:
+        logger.debug(f"[EngineInstall] reconcile candidates count={len(rows)}")
     for row in rows:
         engine_id = row.provider
         if not engine_id:
             continue
-        ready_result = await asyncio.to_thread(
-            check_engine_ready_runtime,
-            engine_id=engine_id,
-            node_id=get_runtime_node_id(),
-        )
+        node_id = get_runtime_node_id()
+        if logger is not None:
+            logger.debug(
+                "[EngineInstall] reconcile check ready begin "
+                f"engine={engine_id} node={node_id} registry_status={row.status}"
+            )
+        try:
+            ready_result = await asyncio.to_thread(
+                check_engine_ready_runtime,
+                engine_id=engine_id,
+                node_id=node_id,
+            )
+        except Exception as exc:
+            if logger is not None:
+                logger.error(
+                    "[EngineInstall] reconcile check ready failed "
+                    f"engine={engine_id} node={node_id} error={exc}"
+                )
+            continue
+        if logger is not None:
+            logger.debug(
+                "[EngineInstall] reconcile check ready end "
+                f"engine={engine_id} node={node_id} ready={ready_result.get('ready')} "
+                f"missing_local={ready_result.get('missing_local', [])} "
+                f"message={ready_result.get('message', '')}"
+            )
         if ready_result.get("ready"):
             manifest = get_engine_manifest(engine_id) or {}
             _upsert_node_status(
                 engine_id=engine_id,
-                node_id=get_runtime_node_id(),
+                node_id=node_id,
                 status="installed",
                 manifest_version=manifest.get("manifest_version") or "1",
                 completed=True,
             )
             continue
         payload = build_install_requested_event(engine_id=engine_id)
-        payload["source_node_id"] = get_runtime_node_id()
+        payload["source_node_id"] = node_id
+        if logger is not None:
+            logger.debug(
+                "[EngineInstall] reconcile dispatch install event "
+                f"engine={engine_id} node={node_id} event_id={payload.get('event_id')}"
+            )
         await process_install_event(payload)
 
 

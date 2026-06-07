@@ -14,7 +14,7 @@ def _env(os_name: str) -> dict:
     }
 
 
-def test_torch_runtime_plan_resolves_macos_torch_pins():
+def test_torch_runtime_plan_keeps_macos_torch_pins():
     plan = resolver_mod.resolve_torch_runtime_plan(
         packages=(
             "torch==2.10.0",
@@ -27,13 +27,12 @@ def test_torch_runtime_plan_resolves_macos_torch_pins():
     )
 
     assert plan.profile == "cpu"
-    assert plan.index_url == "https://download.pytorch.org/whl/cpu"
+    assert plan.index_url is None
     assert plan.packages == (
-        "torch==2.2.2",
-        "torchvision==0.17.2",
-        "torchaudio==2.2.2",
+        "torch==2.10.0",
+        "torchvision==0.25.0",
+        "torchaudio==2.10.0",
         "soundfile",
-        "numpy<2",
     )
     assert plan.modules == ("torch", "torchvision", "torchaudio")
 
@@ -83,10 +82,10 @@ def test_install_torch_runtime_uses_resolved_platform_packages(monkeypatch, tmp_
         env=_env("darwin"),
     )
 
-    assert plan.packages == ("torch==2.2.2", "torchaudio==2.2.2", "numpy<2")
-    assert calls["packages"] == ["torch==2.2.2", "torchaudio==2.2.2", "numpy<2"]
+    assert plan.packages == ("torch==2.10.0", "torchaudio==2.10.0")
+    assert calls["packages"] == ["torch==2.10.0", "torchaudio==2.10.0"]
     assert calls["kwargs"]["modules"] == ["torch", "torchaudio"]
-    assert calls["kwargs"]["index_url"] == "https://download.pytorch.org/whl/cpu"
+    assert calls["kwargs"]["index_url"] is None
 
 
 def test_torch_runtime_plan_does_not_duplicate_numpy_constraint():
@@ -96,17 +95,18 @@ def test_torch_runtime_plan_does_not_duplicate_numpy_constraint():
         env=_env("darwin"),
     )
 
-    assert plan.packages == ("torch==2.2.2", "numpy<2")
+    assert plan.packages == ("torch==2.10.0", "numpy<2")
 
 
-def test_torch_runtime_plan_resolves_macos_bare_torch_package():
+def test_torch_runtime_plan_keeps_macos_bare_torch_package():
     plan = resolver_mod.resolve_torch_runtime_plan(
         packages=("torch",),
         modules=("torch",),
         env=_env("darwin"),
     )
 
-    assert plan.packages == ("torch==2.2.2", "numpy<2")
+    assert plan.packages == ("torch",)
+    assert plan.index_url is None
 
 
 def test_torch_runtime_plan_keeps_non_exact_torch_range():
@@ -131,7 +131,7 @@ def test_numpy_v1_constraint_depends_on_resolved_torch_version_not_os():
         env=_env("linux"),
     )
 
-    assert mac_plan.packages == ("torch==2.2.2", "numpy<2")
+    assert mac_plan.packages == ("torch==2.4.0",)
     assert linux_plan.packages == ("torch==2.2.2", "numpy<2")
 
 
@@ -141,7 +141,36 @@ def test_torch_runtime_match_rejects_numpy_two_for_numpy_v1_plan(monkeypatch, tm
         modules=("torch",),
         env=_env("darwin"),
     )
+    versions = {"torch": "2.10.0"}
+
+    monkeypatch.setattr(resolver_mod, "_runtime_target_path", lambda: tmp_path)
+    monkeypatch.setattr(
+        resolver_mod,
+        "_installed_package_version",
+        lambda distribution_name, _target: versions[distribution_name],
+    )
+
+    assert resolver_mod._installed_torch_matches_plan(plan) is True
+
+    old_plan = resolver_mod.resolve_torch_runtime_plan(
+        packages=("torch==2.2.2",),
+        modules=("torch",),
+        env=_env("darwin"),
+    )
     versions = {"torch": "2.2.2", "numpy": "2.3.5"}
+    assert resolver_mod._installed_torch_matches_plan(old_plan) is False
+
+    versions["numpy"] = "1.26.4"
+    assert resolver_mod._installed_torch_matches_plan(old_plan) is True
+
+
+def test_torch_runtime_match_rejects_installed_torch_below_minimum(monkeypatch, tmp_path: Path):
+    plan = resolver_mod.resolve_torch_runtime_plan(
+        packages=("torch>=2.6",),
+        modules=("torch",),
+        env=_env("darwin"),
+    )
+    versions = {"torch": "2.2.2"}
 
     monkeypatch.setattr(resolver_mod, "_runtime_target_path", lambda: tmp_path)
     monkeypatch.setattr(
@@ -152,7 +181,7 @@ def test_torch_runtime_match_rejects_numpy_two_for_numpy_v1_plan(monkeypatch, tm
 
     assert resolver_mod._installed_torch_matches_plan(plan) is False
 
-    versions["numpy"] = "1.26.4"
+    versions["torch"] = "2.6.0"
     assert resolver_mod._installed_torch_matches_plan(plan) is True
 
 

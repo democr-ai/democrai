@@ -994,12 +994,21 @@ class ModelOrchestrator:
         runtime_defaults = (
             runtime.get("defaults") if isinstance(runtime.get("defaults"), dict) else {}
         )
+        runtime_default_values = (
+            runtime_defaults.get("runtime")
+            if isinstance(runtime_defaults.get("runtime"), dict)
+            else (
+                runtime_defaults
+                if not isinstance(runtime_defaults.get("generation"), dict)
+                else {}
+            )
+        )
         runtime_auxiliary_artifacts = (
             runtime.get("auxiliary_artifacts")
             if isinstance(runtime.get("auxiliary_artifacts"), dict)
             else {}
         )
-        for key, value in runtime_defaults.items():
+        for key, value in runtime_default_values.items():
             if value is not None:
                 config.setdefault(key, value)
         if runtime_auxiliary_artifacts:

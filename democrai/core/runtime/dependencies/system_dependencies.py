@@ -30,6 +30,11 @@ FFMPEG_PKG_CONFIG_LIBS = [
 
 
 SYSTEM_DEPENDENCIES: dict[str, SystemDependencySpec] = {
+    "espeak": SystemDependencySpec(
+        key="espeak",
+        display_name="eSpeak NG",
+        description="Required by the local eSpeak text-to-speech engine.",
+    ),
     "ffmpeg": SystemDependencySpec(
         key="ffmpeg",
         display_name="FFmpeg",
@@ -73,6 +78,42 @@ def _is_ffmpeg_available() -> bool:
     return _run(["ffmpeg", "-version"])
 
 
+def _is_espeak_available() -> bool:
+    os_name = platform.system().lower()
+    candidates = {
+        "linux": (
+            "/usr/local/bin/espeak-ng",
+            "/usr/local/bin/espeak",
+            "/usr/bin/espeak-ng",
+            "/usr/bin/espeak",
+            "/bin/espeak-ng",
+            "/bin/espeak",
+        ),
+        "darwin": (
+            "/opt/homebrew/bin/espeak-ng",
+            "/opt/homebrew/bin/espeak",
+            "/opt/local/bin/espeak-ng",
+            "/opt/local/bin/espeak",
+            "/usr/local/bin/espeak-ng",
+            "/usr/local/bin/espeak",
+        ),
+        "windows": (
+            r"C:\Program Files\eSpeak NG\espeak-ng.exe",
+            r"C:\Program Files\eSpeak NG\espeak.exe",
+            r"C:\Program Files (x86)\eSpeak NG\espeak-ng.exe",
+            r"C:\Program Files (x86)\eSpeak NG\espeak.exe",
+        ),
+    }.get(os_name, ())
+    for raw_path in candidates:
+        path = Path(raw_path)
+        try:
+            if path.exists() and path.is_file() and os.access(path, os.X_OK):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def _has_ffmpeg_dev_libraries() -> bool:
     pkg_config = _which_in_sanitized_path("pkg-config")
     if not pkg_config:
@@ -82,8 +123,11 @@ def _has_ffmpeg_dev_libraries() -> bool:
 
 def is_dependency_installed(key: str) -> bool:
     dep_key = key.strip().lower()
-    if dep_key != "ffmpeg":
+    if dep_key not in SYSTEM_DEPENDENCIES:
         raise ValueError(f"Unknown system dependency key: {key}")
+
+    if dep_key == "espeak":
+        return _is_espeak_available()
 
     os_name = platform.system().lower()
     if os_name == "linux":
@@ -127,12 +171,35 @@ def _linux_install_command() -> list[str]:
     )
 
 
+def _linux_espeak_install_command() -> list[str]:
+    if _which_in_sanitized_path("apt-get"):
+        return ["sudo", "apt-get", "install", "-y", "espeak-ng"]
+    if _which_in_sanitized_path("dnf"):
+        return ["sudo", "dnf", "install", "-y", "espeak-ng"]
+    if _which_in_sanitized_path("pacman"):
+        return ["sudo", "pacman", "-S", "--noconfirm", "espeak-ng"]
+    if _which_in_sanitized_path("zypper"):
+        return ["sudo", "zypper", "--non-interactive", "install", "espeak-ng"]
+    raise RuntimeError(
+        "No supported Linux package manager found (apt-get/dnf/pacman/zypper)."
+    )
+
+
 def install_command_preview(key: str) -> str:
     dep_key = key.strip().lower()
-    if dep_key != "ffmpeg":
+    if dep_key not in SYSTEM_DEPENDENCIES:
         raise ValueError(f"Unknown system dependency key: {key}")
 
     os_name = platform.system().lower()
+    if dep_key == "espeak":
+        if os_name == "linux":
+            return " ".join(_linux_espeak_install_command())
+        if os_name == "darwin":
+            return "brew install espeak-ng"
+        if os_name == "windows":
+            return "winget install --id eSpeak-NG.eSpeak-NG -e"
+        return "Unsupported OS for automatic installation"
+
     if os_name == "linux":
         return " ".join(_linux_install_command())
     if os_name == "darwin":
@@ -144,11 +211,27 @@ def install_command_preview(key: str) -> str:
 
 def install_dependency(key: str) -> None:
     dep_key = key.strip().lower()
-    if dep_key != "ffmpeg":
+    if dep_key not in SYSTEM_DEPENDENCIES:
         raise ValueError(f"Unknown system dependency key: {key}")
 
     os_name = platform.system().lower()
-    if os_name == "linux":
+    if dep_key == "espeak":
+        if os_name == "linux":
+            cmd = _linux_espeak_install_command()
+        elif os_name == "darwin":
+            if not _which_in_sanitized_path("brew"):
+                raise RuntimeError("Homebrew is required to install eSpeak NG on macOS.")
+            cmd = ["brew", "install", "espeak-ng"]
+        elif os_name == "windows":
+            if _which_in_sanitized_path("winget"):
+                cmd = ["winget", "install", "--id", "eSpeak-NG.eSpeak-NG", "-e"]
+            elif _which_in_sanitized_path("choco"):
+                cmd = ["choco", "install", "espeak-ng", "-y"]
+            else:
+                raise RuntimeError("winget or choco is required to install eSpeak NG on Windows.")
+        else:
+            raise RuntimeError(f"Unsupported OS for automatic installation: {os_name}")
+    elif os_name == "linux":
         cmd = _linux_install_command()
     elif os_name == "darwin":
         if not _which_in_sanitized_path("brew"):

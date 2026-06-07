@@ -3,10 +3,19 @@ from __future__ import annotations
 from typing import Any
 
 from democrai.sdk.extractors import BaseExtractor, ExtractorResult, ExtractorSource
+from democrai.sdk.dependencies import ensure_extractor_venv
 
 
 class AIAudioExtractor(BaseExtractor):
     extractor_id = "ai_audio"
+
+    @classmethod
+    def _install(
+        cls,
+        force: bool = False,
+        install_config: dict[str, Any] | None = None,
+    ) -> None:
+        ensure_extractor_venv()
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
@@ -66,8 +75,7 @@ class AIAudioExtractor(BaseExtractor):
         if isinstance(transcription, dict):
             return {
                 "text": str(transcription.get("text") or "").strip(),
-                "language": str(transcription.get("language") or "").strip()
-                or None,
+                "language": str(transcription.get("language") or "").strip() or None,
                 "duration": transcription.get("duration"),
                 "segments": list(transcription.get("segments") or []),
             }

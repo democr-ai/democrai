@@ -1,5 +1,7 @@
 import asyncio
 import inspect
+import importlib
+import importlib.metadata
 import json
 import logging
 import time
@@ -20,9 +22,13 @@ from democrai.sdk.engines import (
 )
 from democrai.sdk.engines import BaseEngine, LLMProvider
 from democrai.sdk.ai_constants import AIModelFormat, AIModelSourceKind
-from democrai.sdk.dependencies import install_dependency
+from democrai.sdk.dependencies import install_python_packages
 
 logger = logging.getLogger("main")
+
+
+_OLLAMA_PACKAGE = "ollama==0.6.2"
+_OLLAMA_VERSION = "0.6.2"
 
 
 class OllamaEngine(BaseEngine, LLMProvider):
@@ -36,17 +42,26 @@ class OllamaEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        install_dependency("ollama", force=force)
+        install_python_packages([_OLLAMA_PACKAGE], modules=["ollama"], force=force)
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         del node_id
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
-            missing_local=cls._missing_modules(("ollama", "ollama")),
+            missing_local=cls._missing_module_labels(),
             ok_message="Ollama engine ready",
             error_message="Ollama engine requires shared state or local dependencies",
         )
+
+    @classmethod
+    def _missing_module_labels(cls) -> list[str]:
+        missing = cls._missing_modules(("ollama", _OLLAMA_PACKAGE))
+        if not _ollama_version_matches():
+            missing.append(_OLLAMA_PACKAGE)
+        if not _ollama_runtime_symbols_available():
+            missing.append("Ollama runtime")
+        return missing
 
     def __init__(self, config: dict):
         super().__init__(config)
@@ -443,3 +458,28 @@ class OllamaEngine(BaseEngine, LLMProvider):
         if not isinstance(parsed, dict):
             raise ValueError("ollama_tool_arguments_object_required")
         return parsed
+
+
+def _ollama_version_matches() -> bool:
+    try:
+        return importlib.metadata.version("ollama").split("+", 1)[0] == _OLLAMA_VERSION
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+def _ollama_runtime_symbols_available() -> bool:
+    try:
+        ollama_mod = importlib.import_module("ollama")
+    except Exception:
+        return False
+    AsyncClient = getattr(ollama_mod, "AsyncClient", None)
+    if not callable(AsyncClient):
+        return False
+    try:
+        client = AsyncClient(host="http://localhost:11434")
+    except Exception:
+        return False
+    return all(
+        callable(getattr(client, name, None))
+        for name in ("list", "show", "chat", "embed")
+    )

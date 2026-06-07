@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib
+from importlib.metadata import PackageNotFoundError, version
 import io
 import math
+import os
 import shutil
 import tempfile
 import time
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
-from democrai.sdk.client import active_sdk as sdk
 from democrai.sdk.engines import (
     BaseEngine,
     BaseTTSProvider,
@@ -20,9 +22,7 @@ from democrai.sdk.engines import (
 from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
 from democrai.sdk.engine_runtime_media import (
     materialize_media,
@@ -30,9 +30,39 @@ from democrai.sdk.engine_runtime_media import (
     save_model_artifact,
 )
 
+import logging
+
+logger = logging.getLogger("qwen_tts")
 
 TOKENIZER_REPO = "Qwen/Qwen3-TTS-Tokenizer-12Hz"
 TOKENIZER_MODEL_ID = "qwen3-tts-tokenizer-12hz"
+_TORCH_PACKAGES = ("torch==2.10.0", "torchaudio==2.10.0")
+_TORCH_MODULES = ("torch", "torchaudio")
+_QWEN_TTS_PACKAGE = "qwen-tts==0.1.1"
+_QWEN_TTS_VERSION = "0.1.1"
+_TRANSFORMERS_PACKAGE = "transformers==4.57.3"
+_TRANSFORMERS_VERSION = "4.57.3"
+_ACCELERATE_PACKAGE = "accelerate==1.12.0"
+_ACCELERATE_VERSION = "1.12.0"
+_QWEN_TTS_PACKAGES = (
+    _QWEN_TTS_PACKAGE,
+    _TRANSFORMERS_PACKAGE,
+    _ACCELERATE_PACKAGE,
+    "soundfile",
+    "huggingface-hub",
+    "sox",
+    "onnxruntime",
+    "einops",
+)
+_QWEN_TTS_MODULES = (
+    "qwen_tts",
+    "soundfile",
+    "transformers",
+    "huggingface_hub",
+    "sox",
+    "onnxruntime",
+    "einops",
+)
 INTEGER_GENERATION_OPTIONS = {
     "top_k",
     "max_new_tokens",
@@ -51,25 +81,18 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> dict[str, Any]:
-        clean_target = force or not torch_runtime_matches_plan(
-            packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchvision", "torchaudio"),
-        )
-        torch_plan = install_torch_runtime(
-            packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-            modules=("torch", "torchvision", "torchaudio"),
-            force=force,
-            clean_target=clean_target,
-        )
-        torch_constraint = write_installed_torch_constraint(
-            distributions=("torch", "torchvision", "torchaudio"),
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
         )
         install_python_packages(
-            ["qwen-tts", "soundfile", "transformers", "huggingface-hub"],
-            modules=["qwen_tts", "soundfile", "transformers", "huggingface_hub"],
-            force=force,
+            [
+                *torch_plan.packages,
+                *_QWEN_TTS_PACKAGES,
+            ],
+            modules=[*torch_plan.modules, *_QWEN_TTS_MODULES],
+            force=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
         )
         tokenizer_path = cls._install_tokenizer(force=force)
         return {
@@ -84,60 +107,111 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
         existing_path = cls._configured_tokenizer_path()
         if existing_path and not force:
             return existing_path
-        huggingface_hub = ensure_import(
-            "huggingface_hub",
-            dependency_key="huggingface_hub",
-        )
+        os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+        huggingface_hub = importlib.import_module("huggingface_hub")
         return str(
             huggingface_hub.snapshot_download(
                 repo_id=TOKENIZER_REPO,
                 local_dir_use_symlinks=False,
+                max_workers=1,
             )
         )
 
     @classmethod
     def _configured_tokenizer_path(cls) -> str:
-        listing = sdk.models.engine_registry.list(
-            page=0,
-            page_size=200,
-            filters={"provider": cls.engine_id},
+        hub_cache = str(os.environ.get("HF_HUB_CACHE") or "").strip()
+        if not hub_cache:
+            return ""
+        snapshots_dir = (
+            Path(hub_cache)
+            / "models--Qwen--Qwen3-TTS-Tokenizer-12Hz"
+            / "snapshots"
         )
-        for row in list((listing or {}).get("rows") or []):
-            config = row.get("config") if isinstance(row, dict) else {}
-            tokenizer_path = str((config or {}).get("tokenizer_path") or "").strip()
-            if tokenizer_path:
-                return tokenizer_path
-        return ""
+        if not snapshots_dir.is_dir():
+            return ""
+        snapshots = [path for path in snapshots_dir.iterdir() if path.is_dir()]
+        if not snapshots:
+            return ""
+        return str(max(snapshots, key=lambda path: path.stat().st_mtime))
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         missing_local = cls._missing_modules(
             ("qwen_tts", "qwen-tts"),
             ("torch", "torch"),
-            ("torchvision", "torchvision"),
             ("torchaudio", "torchaudio"),
             ("soundfile", "soundfile"),
+            ("transformers", _TRANSFORMERS_PACKAGE),
+            ("huggingface_hub", "huggingface-hub"),
+            ("sox", "sox"),
+            ("onnxruntime", "onnxruntime"),
+            ("einops", "einops"),
         )
-        try:
-            torch_ready = torch_runtime_matches_plan(
-                packages=("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0"),
-                modules=("torch", "torchvision", "torchaudio"),
-            )
-        except Exception:
-            torch_ready = False
-        if not torch_ready:
-            missing_local.append("PyTorch runtime")
+        missing_local.extend(cls._missing_chain_versions())
+        if not cls._qwen_runtime_supported():
+            logging.error("NO RUNTIME")
+            missing_local.append("qwen_tts runtime")
+        if not cls._transformers_runtime_supported():
+            logging.error("NO TRANSFORMERS")
+            missing_local.append(_TRANSFORMERS_PACKAGE)
         try:
             tokenizer_configured = bool(cls._configured_tokenizer_path())
         except Exception:
             tokenizer_configured = False
+            logging.error("NO TOKENIZER")
         if not tokenizer_configured:
             missing_local.append("Qwen3-TTS tokenizer")
+            logging.error("NO TOKENIZER CONFIGURED")
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
             missing_local=missing_local,
             ok_message="Qwen TTS engine ready",
             error_message="Qwen TTS engine requires shared state or local dependencies",
+        )
+
+    @staticmethod
+    def _package_version_exact(distribution_name: str, expected: str) -> bool:
+        try:
+            installed = version(distribution_name)
+        except PackageNotFoundError:
+            return False
+        return installed.split("+", 1)[0] == expected
+
+    @classmethod
+    def _missing_chain_versions(cls) -> list[str]:
+        checks = (
+            ("torch", "2.10.0", "torch==2.10.0"),
+            ("torchaudio", "2.10.0", "torchaudio==2.10.0"),
+            ("qwen-tts", _QWEN_TTS_VERSION, _QWEN_TTS_PACKAGE),
+            ("transformers", _TRANSFORMERS_VERSION, _TRANSFORMERS_PACKAGE),
+            ("accelerate", _ACCELERATE_VERSION, _ACCELERATE_PACKAGE),
+        )
+        missing: list[str] = []
+        for distribution_name, expected_version, label in checks:
+            if not cls._package_version_exact(distribution_name, expected_version):
+                missing.append(label)
+        return missing
+
+    @staticmethod
+    def _qwen_runtime_supported() -> bool:
+        try:
+            qwen_tts_mod = importlib.import_module("qwen_tts")
+            model_mod = importlib.import_module("qwen_tts.inference.qwen3_tts_model")
+        except Exception:
+            return False
+        return hasattr(qwen_tts_mod, "Qwen3TTSModel") and hasattr(
+            model_mod, "VoiceClonePromptItem"
+        )
+
+    @staticmethod
+    def _transformers_runtime_supported() -> bool:
+        try:
+            transformers_mod = importlib.import_module("transformers")
+        except Exception:
+            return False
+        return all(
+            hasattr(transformers_mod, name)
+            for name in ("AutoModel", "AutoTokenizer", "GenerationConfig")
         )
 
     def __init__(self, config: dict):
@@ -169,7 +243,9 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
         if attn_implementation:
             kwargs["attn_implementation"] = attn_implementation
         self.model = self._Qwen3TTSModel.from_pretrained(model_name, **kwargs)
-        self.runtime_method = str(config.get("qwen_tts_method") or "custom_voice").strip()
+        self.runtime_method = str(
+            config.get("qwen_tts_method") or "custom_voice"
+        ).strip()
         self.default_voice = str(config.get("voice") or "")
         self.default_language = str(config.get("language") or "auto")
         self.default_instruction = str(config.get("instruction") or "")
@@ -219,7 +295,9 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
                 if peak <= 0.0:
                     return audio
                 target = math.pow(10.0, float(self._db_level or -6.0) / 20.0)
-                return numpy.clip(audio * (target / peak), -1.0, 1.0).astype(numpy.float32)
+                return numpy.clip(audio * (target / peak), -1.0, 1.0).astype(
+                    numpy.float32
+                )
 
         sox_mod.Transformer = _InProcessTransformer
 
@@ -228,9 +306,13 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
         if artifact_path and self._media_storage_exists(artifact_path):
             return self._load_voice_clone_prompt_artifact(artifact_path)
 
-        storage_path = str(config.get("voice_clone_ref_audio_storage_path") or "").strip()
+        storage_path = str(
+            config.get("voice_clone_ref_audio_storage_path") or ""
+        ).strip()
         if not storage_path:
-            storage_path = self._first_upload_storage_path(config.get("voice_clone_ref_audio"))
+            storage_path = self._first_upload_storage_path(
+                config.get("voice_clone_ref_audio")
+            )
         if not storage_path:
             return None
 
@@ -259,9 +341,13 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
         configured = str(config.get("voice_clone_prompt_storage_path") or "").strip()
         if configured:
             return configured
-        storage_path = str(config.get("voice_clone_ref_audio_storage_path") or "").strip()
+        storage_path = str(
+            config.get("voice_clone_ref_audio_storage_path") or ""
+        ).strip()
         if not storage_path:
-            storage_path = self._first_upload_storage_path(config.get("voice_clone_ref_audio"))
+            storage_path = self._first_upload_storage_path(
+                config.get("voice_clone_ref_audio")
+            )
         if not storage_path:
             return ""
         fingerprint = hashlib.sha256(

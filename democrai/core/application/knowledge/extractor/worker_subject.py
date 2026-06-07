@@ -4,6 +4,7 @@ import contextlib
 import contextvars
 import json
 import os
+import site
 import subprocess
 import sys
 import threading
@@ -18,6 +19,7 @@ from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import current_request_context_payload
 from democrai.core.runtime.foundation.paths import get_base_dir
 from democrai.core.runtime.foundation.paths import is_frozen
+from democrai.core.runtime.dependencies.extractor_env import get_extractor_venv_python_path
 
 
 _AUTH_SECRET_PLACEHOLDER = "change-me-with-a-long-random-secret"
@@ -69,6 +71,33 @@ def _application_root() -> str:
     return str(Path(get_base_dir()).resolve().parent)
 
 
+def _application_pythonpath() -> str:
+    entries: list[str] = [_application_root()]
+    for value in [*site.getsitepackages(), site.getusersitepackages()]:
+        raw = str(value or "").strip()
+        if raw and raw not in entries:
+            entries.append(raw)
+    for value in sys.path:
+        raw = str(value or "").strip()
+        if not raw or raw in entries:
+            continue
+        if "site-packages" in raw or "dist-packages" in raw:
+            entries.append(raw)
+    return os.pathsep.join(entries)
+
+
+_WORKER_BOOTSTRAP_CODE = (
+    "import os,runpy,sys;"
+    "module=sys.argv[1];"
+    "paths=[p for p in sys.argv[2].split(os.pathsep) if p];"
+    "root=paths[0] if paths else '';"
+    "deps=paths[1:];"
+    "sys.path.insert(0, root) if root and root not in sys.path else None;"
+    "[sys.path.append(p) for p in deps if p not in sys.path];"
+    "runpy.run_module(module, run_name='__main__')"
+)
+
+
 def _clean_worker_env() -> dict[str, str]:
     env = {
         str(key): str(value)
@@ -76,7 +105,7 @@ def _clean_worker_env() -> dict[str, str]:
         if str(key) not in _EXTRACTOR_ENV_KEYS
     }
     env["PATH"] = os.defpath
-    env["PYTHONPATH"] = _application_root()
+    env.pop("PYTHONPATH", None)
     return env
 
 
@@ -230,9 +259,11 @@ class ExtractorWorkerSubject:
         env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_REQUEST_FD"] = str(child_request_write)
         env["DEMOCRAI_EXTRACTOR_WORKER_PARENT_RESPONSE_FD"] = str(child_response_read)
         command = [
-            sys.executable,
-            "-m",
+            str(get_extractor_venv_python_path(self._extractor_id)),
+            "-c",
+            _WORKER_BOOTSTRAP_CODE,
             "democrai.core.application.knowledge.extractor.worker",
+            _application_pythonpath(),
         ]
         phase_access = get_extractor_access(
             self._extractor_id,

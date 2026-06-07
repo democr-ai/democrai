@@ -210,7 +210,7 @@
         "module": "ultralytics",
         "label": "ultralytics",
         "pip_packages": [
-          "ultralytics"
+          "ultralytics==8.4.60"
         ]
       },
       {
@@ -218,7 +218,7 @@
         "module": "cv2",
         "label": "opencv-python-headless",
         "pip_packages": [
-          "opencv-python-headless"
+          "opencv-python-headless==4.13.0.92"
         ]
       },
       {
@@ -226,7 +226,7 @@
         "module": "sahi",
         "label": "sahi",
         "pip_packages": [
-          "sahi"
+          "sahi==0.12.0"
         ]
       },
       {
@@ -242,7 +242,23 @@
         "module": "torch",
         "label": "torch",
         "pip_packages": [
-          "torch"
+          "torch==2.10.0"
+        ]
+      },
+      {
+        "dependency_key": "torchvision",
+        "module": "torchvision",
+        "label": "torchvision",
+        "pip_packages": [
+          "torchvision==0.25.0"
+        ]
+      },
+      {
+        "dependency_key": "lap",
+        "module": "lap",
+        "label": "lap",
+        "pip_packages": [
+          "lap==0.5.13"
         ]
       }
     ],

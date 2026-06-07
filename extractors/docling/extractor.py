@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.metadata
+import importlib.util
 import os
 import tempfile
 from pathlib import Path
@@ -9,10 +11,18 @@ from urllib.request import urlretrieve
 from democrai.sdk.extractors import BaseExtractor, ExtractorResult, ExtractorSource
 from democrai.sdk.dependencies import (
     install_python_packages,
-    install_torch_runtime,
-    torch_runtime_matches_plan,
-    write_installed_torch_constraint,
+    # install_torch_runtime,
+    # write_installed_torch_constraint,
+    resolve_torch_runtime_plan,
 )
+
+
+_DOCLING_VERSION = "2.97.0"
+_DOCLING_TESSEROCR_PACKAGE = f"docling[tesserocr]=={_DOCLING_VERSION}"
+_DOCLING_RAPIDOCR_PACKAGE = f"docling[rapidocr]=={_DOCLING_VERSION}"
+_DOCLING_OCR_ENGINES = {"tesserocr", "rapidocr"}
+_TORCH_PACKAGES = ("torch==2.10.0", "torchvision==0.25.0", "torchaudio==2.10.0")
+_TORCH_MODULES = ("torch", "torchvision", "torchaudio")
 
 
 class DoclingExtractor(BaseExtractor):
@@ -27,17 +37,25 @@ class DoclingExtractor(BaseExtractor):
         ocr_engine = str(
             (install_config or {}).get("ocr_engine") or "tesserocr"
         ).strip()
-        if ocr_engine not in {"tesserocr", "rapidocr"}:
+        if ocr_engine not in _DOCLING_OCR_ENGINES:
             raise ValueError(f"docling_ocr_engine_unsupported:{ocr_engine}")
-        torch_plan = install_torch_runtime(force=force)
-        torch_constraint = write_installed_torch_constraint()
+        # torch_plan = install_torch_runtime(force=force)
+        # torch_constraint = write_installed_torch_constraint()
+        torch_plan = resolve_torch_runtime_plan(
+            packages=_TORCH_PACKAGES,
+            modules=_TORCH_MODULES,
+        )
         if ocr_engine == "tesserocr":
             install_python_packages(
-                ["docling[tesserocr]"],
-                modules=["docling", "tesserocr"],
+                [
+                    *torch_plan.modules,
+                    _DOCLING_TESSEROCR_PACKAGE,
+                ],
+                modules=[*torch_plan.modules, "docling", "tesserocr"],
                 force=force,
+                allow_source=True,
                 extra_index_url=torch_plan.index_url,
-                extra_pip_args=["--constraint", torch_constraint],
+                # extra_pip_args=["--constraint", torch_constraint],
             )
             cls._materialize_tesserocr_tessdata(
                 install_config=dict(install_config or {})
@@ -47,11 +65,15 @@ class DoclingExtractor(BaseExtractor):
             return
 
         install_python_packages(
-            ["docling[rapidocr]"],
-            modules=["docling", "rapidocr", "onnxruntime"],
+            [
+                *torch_plan.modules,
+                _DOCLING_RAPIDOCR_PACKAGE,
+            ],
+            modules=[*torch_plan.modules, "docling", "rapidocr", "onnxruntime"],
             force=force,
+            allow_source=True,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
+            # extra_pip_args=["--constraint", torch_constraint],
         )
         cls._download_docling_artifacts(ocr_engine=ocr_engine)
         cls._warmup_docling_models(ocr_engine=ocr_engine)
@@ -186,6 +208,8 @@ class DoclingExtractor(BaseExtractor):
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
         missing_local = cls._missing_modules(("docling", "docling"))
+        if not cls._docling_version_matches():
+            missing_local.append(f"docling=={_DOCLING_VERSION}")
         has_tesserocr = not cls._missing_modules(("tesserocr", "tesserocr"))
         has_rapidocr = not cls._missing_modules(
             ("rapidocr", "rapidocr"),
@@ -193,13 +217,33 @@ class DoclingExtractor(BaseExtractor):
         )
         if not has_tesserocr and not has_rapidocr:
             missing_local.append("tesserocr or rapidocr")
-        if not torch_runtime_matches_plan():
-            missing_local.append("PyTorch runtime")
+        missing_local.extend(cls._missing_modules(("torch", "PyTorch runtime")))
         return cls._build_ready_payload(
             missing_local=missing_local,
             ok_message="Docling extractor ready",
             error_message="Docling extractor requires local dependencies",
         )
+
+    @staticmethod
+    def _docling_version_matches() -> bool:
+        try:
+            spec = importlib.util.find_spec("docling")
+            origin = str(getattr(spec, "origin", "") or "").strip() if spec else ""
+            if not origin:
+                return False
+            target = Path(origin).resolve().parent.parent
+            versions = {
+                str(distribution.version or "").strip()
+                for distribution in importlib.metadata.distributions(path=[str(target)])
+                if str(distribution.metadata.get("Name") or "")
+                .strip()
+                .lower()
+                .replace("_", "-")
+                == "docling"
+            }
+            return versions == {_DOCLING_VERSION}
+        except Exception:
+            return False
 
     def _extract_source(self, source: ExtractorSource) -> ExtractorResult:
         file_path = self._materialize_source_to_path(source)

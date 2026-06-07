@@ -55,6 +55,23 @@ def runtime_prompt_timeout_seconds(config: Any | None = None) -> float | None:
     return resolved
 
 
+def runtime_prompt_rpc_timeout_seconds(
+    config: Any | None = None,
+    *,
+    prompt_timeout_seconds: float,
+    configured_timeout_seconds: float | None = None,
+) -> float | None:
+    configured = (
+        configured_timeout_seconds
+        if configured_timeout_seconds is not None
+        else runtime_prompt_timeout_seconds(config)
+    )
+    if configured is None:
+        return None
+    prompt_timeout = max(0.0, float(prompt_timeout_seconds or 0.0))
+    return max(float(configured), prompt_timeout + 5.0)
+
+
 def runtime_prompt_start_timeout_seconds(config: Any | None = None) -> float:
     getter = getattr(config, "get", None)
     value = (

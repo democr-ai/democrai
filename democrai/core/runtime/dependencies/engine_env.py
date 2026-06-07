@@ -71,14 +71,15 @@ def get_current_engine_id() -> str | None:
 
 def _engine_cache_env(engine_id: str) -> dict[str, str]:
     local_root = get_engine_local_env_path(engine_id)
+    venv_root = get_engine_venv_path(engine_id)
     cache_root = get_engine_local_cache_path(engine_id)
     config_root = get_engine_local_config_path(engine_id)
     tmp_root = get_engine_local_tmp_path(engine_id)
     return {
         "XDG_CACHE_HOME": str(cache_root / "xdg"),
         "XDG_CONFIG_HOME": str(config_root),
-        "PATH": engine_runtime_command_path(str(local_root)),
-        "PYTHONPATH": str(local_root),
+        "PATH": engine_runtime_command_path(str(venv_root)),
+        "PYTHONPATH": "",
         "TMPDIR": str(tmp_root),
         "TEMP": str(tmp_root),
         "TMP": str(tmp_root),
@@ -124,6 +125,7 @@ def engine_env_context(engine_id: str, env: dict[str, str] | None = None):
         previous_tempdir = tempfile.tempdir
         previous_sys_path = list(sys.path)
         previous_importer_cache = dict(sys.path_importer_cache)
+        previous_modules = dict(sys.modules)
         if resolved:
             for key in managed_keys:
                 os.environ.pop(key, None)
@@ -134,6 +136,11 @@ def engine_env_context(engine_id: str, env: dict[str, str] | None = None):
         try:
             yield
         finally:
+            if resolved:
+                _restore_modules_after_engine_context(
+                    previous_modules,
+                    get_engine_local_env_path(resolved),
+                )
             tempfile.tempdir = previous_tempdir
             sys.path[:] = previous_sys_path
             sys.path_importer_cache.clear()
@@ -191,6 +198,25 @@ def get_engine_local_tmp_path(engine_id: str | None = None) -> Path:
     return path
 
 
+def get_engine_venv_path(engine_id: str | None = None) -> Path:
+    return get_engine_local_env_path(engine_id) / ".venv"
+
+
+def get_engine_venv_python_path(engine_id: str | None = None) -> Path:
+    venv = get_engine_venv_path(engine_id)
+    if os.name == "nt":
+        return venv / "Scripts" / "python.exe"
+    return venv / "bin" / "python"
+
+
+def get_engine_venv_site_packages_path(engine_id: str | None = None) -> Path:
+    venv = get_engine_venv_path(engine_id)
+    if os.name == "nt":
+        return venv / "Lib" / "site-packages"
+    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    return venv / "lib" / version / "site-packages"
+
+
 def set_engine_local_path_overrides(
     engine_id: str,
     *,
@@ -225,19 +251,17 @@ def _engine_path_override(kind: str, engine_id: str | None) -> Path | None:
 
 
 def bootstrap_engine_env(engine_id: str | None = None) -> Path:
-    local_root = get_engine_local_env_path(engine_id)
-    lib_path = str(local_root)
+    lib_path = str(get_engine_venv_site_packages_path(engine_id))
     if lib_path not in sys.path:
         sys.path.insert(0, lib_path)
-    return local_root
+    return get_engine_venv_path(engine_id)
 
 
 def activate_local_engine_env(engine_id: str | None = None) -> Path:
-    local_root = get_engine_local_env_path(engine_id)
-    lib_path = str(local_root)
+    lib_path = str(get_engine_venv_site_packages_path(engine_id))
     if lib_path not in sys.path:
         sys.path.insert(0, lib_path)
-    return local_root
+    return get_engine_venv_path(engine_id)
 
 
 def isolate_engine_imports(engine_id: str | None = None) -> None:
@@ -248,7 +272,7 @@ def isolate_engine_imports(engine_id: str | None = None) -> None:
         resolved = engine_id_text if engine_id_text else None
     if not resolved:
         raise RuntimeError("engine_env_context_missing")
-    local_root = get_engine_local_env_path(resolved)
+    local_root = get_engine_venv_site_packages_path(resolved)
     local_root_text = str(local_root)
     engine_cache_marker = f"{os.path.sep}engine_env_cache{os.path.sep}"
     current_marker = f"{engine_cache_marker}{resolved}{os.path.sep}"
@@ -269,7 +293,86 @@ def isolate_engine_imports(engine_id: str | None = None) -> None:
         resolved_origin = os.path.abspath(str(origin))
         if engine_cache_marker in resolved_origin and current_marker not in resolved_origin:
             sys.modules.pop(name, None)
+            continue
+        if (
+            _local_engine_module_exists(local_root, name)
+            and not _path_is_within(resolved_origin, local_root_text)
+        ):
+            sys.modules.pop(name, None)
     importlib.invalidate_caches()
+
+
+def _local_engine_module_exists(local_root: Path, module_name: str) -> bool:
+    top_level = str(module_name or "").split(".", 1)[0]
+    if not top_level:
+        return False
+    return (local_root / top_level).exists() or (
+        local_root / f"{top_level}.py"
+    ).exists()
+
+
+def _path_is_within(path: str, root: str) -> bool:
+    try:
+        return os.path.commonpath(
+            (os.path.abspath(path), os.path.abspath(root))
+        ) == os.path.abspath(root)
+    except Exception:
+        return False
+
+
+def _restore_modules_after_engine_context(
+    previous_modules: dict[str, object],
+    local_root: Path,
+) -> None:
+    local_root_text = str(local_root)
+    affected_names: list[tuple[str, object]] = []
+    for name, module in list(sys.modules.items()):
+        if not _module_from_path(module, local_root_text):
+            continue
+        affected_names.append((name, module))
+        previous = previous_modules.get(name)
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
+    for name, module in sorted(affected_names, key=lambda item: item[0].count(".")):
+        _restore_parent_module_attribute(name, module, previous_modules)
+    importlib.invalidate_caches()
+
+
+def _restore_parent_module_attribute(
+    name: str,
+    removed_module: object,
+    previous_modules: dict[str, object],
+) -> None:
+    if "." not in name:
+        return
+    parent_name, attr_name = name.rsplit(".", 1)
+    parent = sys.modules.get(parent_name)
+    if parent is None:
+        return
+    previous = previous_modules.get(name)
+    if previous is not None:
+        setattr(parent, attr_name, previous)
+        return
+    if getattr(parent, attr_name, None) is removed_module:
+        try:
+            delattr(parent, attr_name)
+        except Exception:
+            pass
+
+
+def _module_from_path(module: object, root: str) -> bool:
+    origin = getattr(module, "__file__", None)
+    if origin and _path_is_within(str(origin), root):
+        return True
+    locations = getattr(module, "__path__", None)
+    if locations is None:
+        return False
+    try:
+        return any(_path_is_within(str(path), root) for path in locations)
+    except Exception:
+        return False
 
 
 def clear_local_engine_env(engine_id: str | None = None) -> None:

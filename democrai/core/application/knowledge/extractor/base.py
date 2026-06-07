@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from democrai.core.application.knowledge.extractor.manifests import get_extractor_manifest
+from democrai.core.runtime.dependencies.extractor_env import clear_local_extractor_env
 
 
 @dataclass(frozen=True)
@@ -94,12 +95,24 @@ class BaseExtractor(ABC):
         source_node_id: str | None = None,
         install_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        if force:
+            clear_local_extractor_env(str(getattr(cls, "extractor_id", "") or ""))
         result = cls._invoke_install(force=force, install_config=install_config)
         ready = cls._check_ready_local(node_id=node_id)
         if not bool(ready.get("ready")):
+            missing_local = [
+                str(item or "").strip()
+                for item in list(ready.get("missing_local") or [])
+                if str(item or "").strip()
+            ]
             raise RuntimeError(
                 str(
                     ready.get("message") or f"{cls.__name__} is not ready after install"
+                )
+                + (
+                    f": {', '.join(missing_local)}"
+                    if missing_local
+                    else ""
                 )
             )
         payload = dict(result or {})
