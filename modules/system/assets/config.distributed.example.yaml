@@ -122,7 +122,7 @@ ai:
     enabled: true
     transport: tcp
     host: 127.0.0.1
-    port: 50151
+    port: 40151
     startup_timeout_seconds: 30
     invoke_timeout_seconds: 0
     registry_reconcile_seconds: 5

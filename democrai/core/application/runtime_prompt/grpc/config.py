@@ -42,8 +42,8 @@ def runtime_prompt_host(config: Any | None = None) -> str:
 
 def runtime_prompt_port(config: Any | None = None) -> int:
     getter = getattr(config, "get", None)
-    value = getter("runtime_prompt.port", 50152) if callable(getter) else 50152
-    return int(value or 50152)
+    value = getter("runtime_prompt.port", 40152) if callable(getter) else 40152
+    return int(value or 40152)
 
 
 def runtime_prompt_timeout_seconds(config: Any | None = None) -> float | None:

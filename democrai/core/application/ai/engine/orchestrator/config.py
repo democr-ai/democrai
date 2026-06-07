@@ -52,8 +52,8 @@ def orchestrator_host(config: Any | None = None) -> str:
 
 def orchestrator_port(config: Any | None = None) -> int:
     getter = getattr(config, "get", None)
-    value = getter("ai.engine_orchestrator.port", 50151) if callable(getter) else 50151
-    return int(value or 50151)
+    value = getter("ai.engine_orchestrator.port", 40151) if callable(getter) else 40151
+    return int(value or 40151)
 
 
 def orchestrator_tls_enabled(config: Any | None = None) -> bool:

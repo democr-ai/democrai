@@ -51,8 +51,8 @@ def knowledge_query_host(config: Any | None = None) -> str:
 
 def knowledge_query_port(config: Any | None = None) -> int:
     getter = getattr(config, "get", None)
-    value = getter("knowledge.query_service.port", 50153) if callable(getter) else 50153
-    return int(value or 50153)
+    value = getter("knowledge.query_service.port", 40153) if callable(getter) else 40153
+    return int(value or 40153)
 
 
 def knowledge_query_tls_enabled(config: Any | None = None) -> bool:

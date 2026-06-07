@@ -141,7 +141,7 @@ ai:
     # transport: unix
     # socket_path: /home/fabio/.local/state/democrai/engine-orchestrator.sock
     host: 127.0.0.1
-    port: 50151
+    port: 40151
     startup_timeout_seconds: 30
     # 0 disables per-invocation gRPC deadline. Model loads can be long.
     invoke_timeout_seconds: 0

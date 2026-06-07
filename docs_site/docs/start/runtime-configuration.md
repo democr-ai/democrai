@@ -115,7 +115,7 @@ ai:
     enabled: true
     transport: tcp
     host: 127.0.0.1
-    port: 50151
+    port: 40151
     startup_timeout_seconds: 30
     invoke_timeout_seconds: 0
     max_message_mb: 128
@@ -131,7 +131,7 @@ knowledge:
   query_service:
     enabled: true
     host: 127.0.0.1
-    port: 50153
+    port: 40153
     startup_timeout_seconds: 30
     timeout_seconds: 120
     max_message_mb: 64
