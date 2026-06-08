@@ -10,6 +10,7 @@ import pytest
 from democrai.core.application.ai.models import selection_policy as selection_policy_mod
 import democrai.core.platform.agents.runtime as runtime_mod
 from democrai.core.platform.agents import skills_io as skills_io_mod
+from democrai.core.runtime.dependencies import ai_bootstrap as ai_bootstrap_mod
 from democrai.core.runtime.dependencies import engine_env as engine_env_mod
 from democrai.core.runtime.dependencies import extractor_env as extractor_env_mod
 from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
@@ -40,6 +41,7 @@ def test_selection_policy_helpers(monkeypatch):
 
 def test_engine_env_paths_and_context(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path)
     for key in ("XDG_CACHE_HOME", "XDG_CONFIG_HOME"):
         monkeypatch.delenv(key, raising=False)
     dirty_path = os.pathsep.join(["/home/fabio/Android/Sdk/platform-tools", "/random/bin"])
@@ -88,6 +90,7 @@ def test_engine_env_context_allows_runtime_env_json_under_guard(tmp_path: Path, 
     from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
 
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path)
     payload = '{"os": "linux"}'
 
     with process_guard_context(subject="onnx", subject_kind="engine", access=()):
@@ -99,6 +102,7 @@ def test_engine_env_context_allows_runtime_env_json_under_guard(tmp_path: Path, 
 
 def test_engine_env_bootstrap_and_clear(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path)
     original_sys_path = list(__import__("sys").path)
 
     with engine_env_mod.engine_env_context("e1"):
@@ -116,6 +120,7 @@ def test_engine_env_bootstrap_and_clear(tmp_path: Path, monkeypatch):
 
 def test_engine_env_context_restores_module_cache(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path)
     monkeypatch.setattr(
         engine_env_mod,
         "_ENGINE_ENV_ROOT",
@@ -160,6 +165,7 @@ def test_engine_env_context_restores_module_cache(tmp_path: Path, monkeypatch):
 
 def test_engine_env_error_and_activation_branches(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path)
 
     with pytest.raises(RuntimeError, match="engine_env_context_missing"):
         engine_env_mod.get_engine_local_env_path(None)
@@ -191,6 +197,33 @@ def test_engine_env_paths_can_be_resolved_without_creating_dirs(tmp_path: Path, 
     assert tmp == root / "tmp"
     assert python.parent == root / ".venv" / ("Scripts" if os.name == "nt" else "bin")
     assert not root.exists()
+
+
+def test_engine_env_root_uses_cache_dir_on_macos(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", None)
+    monkeypatch.setattr(engine_env_mod.sys, "platform", "darwin")
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path / "data")
+
+    assert (
+        engine_env_mod.get_engine_local_env_path("onnx", create=False)
+        == tmp_path / "cache" / "engine_env_cache" / "onnx"
+    )
+    assert ai_bootstrap_mod.ensure_engine_env_base() == (
+        tmp_path / "cache" / "engine_env_cache"
+    )
+
+
+def test_engine_env_root_uses_data_dir_off_macos(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", None)
+    monkeypatch.setattr(engine_env_mod.sys, "platform", "linux")
+    monkeypatch.setattr(engine_env_mod, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(engine_env_mod, "data_dir", lambda: tmp_path / "data")
+
+    assert (
+        engine_env_mod.get_engine_local_env_path("onnx", create=False)
+        == tmp_path / "data" / "engine_env_cache" / "onnx"
+    )
 
 
 def test_extractor_env_paths_and_context(tmp_path: Path, monkeypatch):
@@ -239,6 +272,30 @@ def test_extractor_env_paths_and_context(tmp_path: Path, monkeypatch):
         extractor_env_mod.isolate_extractor_imports()
         assert str(root) in __import__("sys").path
     assert __import__("sys").path == original_sys_path
+
+
+def test_extractor_env_root_uses_cache_dir_on_macos(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(extractor_env_mod, "_EXTRACTOR_ENV_ROOT", None)
+    monkeypatch.setattr(extractor_env_mod.sys, "platform", "darwin")
+    monkeypatch.setattr(extractor_env_mod, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(extractor_env_mod, "data_dir", lambda: tmp_path / "data")
+
+    assert (
+        extractor_env_mod.get_extractor_local_env_path("docling")
+        == tmp_path / "cache" / "extractor_env_cache" / "docling"
+    )
+
+
+def test_extractor_env_root_uses_data_dir_off_macos(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(extractor_env_mod, "_EXTRACTOR_ENV_ROOT", None)
+    monkeypatch.setattr(extractor_env_mod.sys, "platform", "linux")
+    monkeypatch.setattr(extractor_env_mod, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(extractor_env_mod, "data_dir", lambda: tmp_path / "data")
+
+    assert (
+        extractor_env_mod.get_extractor_local_env_path("docling")
+        == tmp_path / "data" / "extractor_env_cache" / "docling"
+    )
 
 
 def test_extractor_env_context_restores_module_cache(tmp_path: Path, monkeypatch):

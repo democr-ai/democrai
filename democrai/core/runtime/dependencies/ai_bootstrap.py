@@ -13,9 +13,9 @@ def ensure_engine_env_base() -> Path:
     This only prepares the base cache directory at application startup.
     It does not install or synchronize any engine-specific dependencies.
     """
-    from democrai.core.runtime.foundation.paths import data_dir
+    from democrai.core.runtime.dependencies.engine_env import _engine_env_root
 
-    target = data_dir() / "engine_env_cache"
+    target = _engine_env_root()
     target.mkdir(parents=True, exist_ok=True)
     return target
 

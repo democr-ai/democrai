@@ -74,9 +74,15 @@ DARWIN_RUNTIME_DEPENDENCY_READ_PATHS = (
     "/Library",
     "/usr/lib",
     "/usr/bin",
+    "/usr/X11R6/lib/X11/fonts",
+    "/usr/X11/lib/X11/fonts",
+    "/usr/share/fonts",
     "/opt/homebrew",
     "/opt/local",
     "/usr/local",
+    "/usr/local/share/fonts",
+    "~/.local/share/fonts",
+    "~/.fonts",
 )
 
 WINDOWS_SYSTEM_PROBE_READ_FALLBACKS = (

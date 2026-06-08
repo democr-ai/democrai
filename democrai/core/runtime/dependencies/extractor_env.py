@@ -11,9 +11,9 @@ from pathlib import Path
 
 from democrai.core.runtime.dependencies.env_constants import ENVIRONMENT_CONTEXT_LOCK
 from democrai.core.runtime.dependencies.env_constants import engine_runtime_command_path
-from democrai.core.runtime.foundation.paths import data_dir
+from democrai.core.runtime.foundation.paths import cache_dir, data_dir
 
-_EXTRACTOR_ENV_ROOT = data_dir() / "extractor_env_cache"
+_EXTRACTOR_ENV_ROOT: Path | None = None
 _EXTRACTOR_LOCAL_PATH_OVERRIDES: dict[str, dict[str, Path]] = {}
 
 
@@ -201,9 +201,17 @@ def get_extractor_local_env_path(extractor_id: str | None = None) -> Path:
     override = _extractor_path_override("env", resolved)
     if override is not None:
         return override
-    path = _EXTRACTOR_ENV_ROOT / resolved
+    path = _extractor_env_root() / resolved
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _extractor_env_root() -> Path:
+    if _EXTRACTOR_ENV_ROOT is not None:
+        return _EXTRACTOR_ENV_ROOT
+    if sys.platform == "darwin":
+        return cache_dir() / "extractor_env_cache"
+    return data_dir() / "extractor_env_cache"
 
 
 def get_extractor_local_cache_path(extractor_id: str | None = None) -> Path:

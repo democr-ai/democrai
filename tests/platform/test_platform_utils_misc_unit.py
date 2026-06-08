@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
 
 import democrai.sdk.hooks as hooks_mod
+import democrai as democrai_pkg
 import democrai.core.platform.utils.discovery as discovery_mod
 import democrai.core.platform.utils.env as env_mod
 import democrai.core.platform.utils.nvml as nvml_mod
@@ -91,6 +93,24 @@ def test_env_and_nvml_helpers(monkeypatch):
     assert nvml_mod.has_nvml() is True
 
 
+def test_package_sets_native_log_defaults(monkeypatch):
+    import importlib
+
+    for key in ("GRPC_VERBOSITY", "GLOG_minloglevel", "ABSL_MIN_LOG_LEVEL"):
+        monkeypatch.delenv(key, raising=False)
+
+    importlib.reload(democrai_pkg)
+
+    assert os.environ["GRPC_VERBOSITY"] == "ERROR"
+    assert os.environ["GLOG_minloglevel"] == "2"
+    assert os.environ["ABSL_MIN_LOG_LEVEL"] == "2"
+
+    monkeypatch.setenv("GRPC_VERBOSITY", "DEBUG")
+    importlib.reload(democrai_pkg)
+
+    assert os.environ["GRPC_VERBOSITY"] == "DEBUG"
+
+
 def test_discovery_and_system_error_paths(monkeypatch, tmp_path):
     logger = _Logger()
     monkeypatch.setattr(discovery_mod, "app_ctx", lambda: SimpleNamespace(logger=logger))
@@ -125,6 +145,7 @@ def test_discovery_and_system_error_paths(monkeypatch, tmp_path):
     # SystemResourceMonitor branches
     monkeypatch.setattr(system_mod, "app_ctx", lambda: SimpleNamespace(logger=logger))
     monkeypatch.setattr(system_mod.psutil, "virtual_memory", lambda: SimpleNamespace(available=10 * 1024 * 1024, total=20 * 1024 * 1024))
+    monkeypatch.setattr(system_mod.sys, "platform", "linux")
 
     # nvml None branch in __init__
     monkeypatch.setattr(system_mod, "nvml", None)
@@ -140,6 +161,20 @@ def test_discovery_and_system_error_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(system_mod, "nvml", _BadInit())
     monitor_bad = system_mod.SystemResourceMonitor()
     assert monitor_bad.get_resources()["has_nvidia_gpu"] is False
+
+    # macOS does not attempt NVML initialization.
+    init_calls = []
+
+    class _MacNvml:
+        def nvmlInit(self):
+            init_calls.append(True)
+
+    monkeypatch.setattr(system_mod.sys, "platform", "darwin")
+    monkeypatch.setattr(system_mod, "nvml", _MacNvml())
+    monitor_mac = system_mod.SystemResourceMonitor()
+    assert monitor_mac.get_resources()["has_nvidia_gpu"] is False
+    assert init_calls == []
+    monkeypatch.setattr(system_mod.sys, "platform", "linux")
 
     # runtime VRAM read errors
     class _BadRead:

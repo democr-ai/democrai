@@ -1,6 +1,7 @@
 import psutil
 from typing import Dict, Any
 import atexit
+import sys
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.platform.utils.nvml import nvml
 
@@ -33,6 +34,8 @@ class SystemResourceMonitor:
     def __init__(self):
         self._nvml_initialized = False
         try:
+            if sys.platform == "darwin":
+                return
             if nvml is None:
                 return
             nvml.nvmlInit()

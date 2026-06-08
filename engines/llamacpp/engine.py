@@ -58,6 +58,7 @@ class LlamaCppEngine(BaseEngine, LLMProvider):
             ["llama-cpp-python"],
             modules=["llama_cpp"],
             force=force,
+            allow_source=True,
         )
 
     @classmethod

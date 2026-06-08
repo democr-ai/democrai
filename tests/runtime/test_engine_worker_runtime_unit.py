@@ -840,6 +840,7 @@ def test_engine_worker_subject_starts_with_local_ipc_without_inherited_fds(monke
     monkeypatch.setattr(subject_mod, "process_guard_bypass_context", _bypass)
     monkeypatch.setattr(subject_mod, "application_pythonpath", lambda: str(tmp_path))
     monkeypatch.setattr(subject_mod, "get_engine_venv_python_path", lambda _engine_id: tmp_path / "python")
+    monkeypatch.setattr(subject_mod, "get_engine_local_tmp_path", lambda _engine_id: tmp_path / "tmp")
     monkeypatch.setattr(subject_mod, "worker_logging_config", lambda: {})
     monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: False)
     monkeypatch.setattr(subject_mod, "worker_path_overrides", lambda _engine_id: {})

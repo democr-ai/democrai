@@ -12,7 +12,7 @@ from pathlib import Path
 from democrai.core.runtime.dependencies.env_constants import ENVIRONMENT_CONTEXT_LOCK
 from democrai.core.runtime.dependencies.env_constants import engine_runtime_command_path
 from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
-from democrai.core.runtime.foundation.paths import data_dir
+from democrai.core.runtime.foundation.paths import cache_dir, data_dir
 
 
 _current_engine_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -171,6 +171,8 @@ def _resolved_engine_id(engine_id: str | None) -> str:
 def _engine_env_root() -> Path:
     if _ENGINE_ENV_ROOT is not None:
         return _ENGINE_ENV_ROOT
+    if sys.platform == "darwin":
+        return cache_dir() / "engine_env_cache"
     return data_dir() / "engine_env_cache"
 
 

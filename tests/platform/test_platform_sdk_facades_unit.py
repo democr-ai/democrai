@@ -927,6 +927,7 @@ def test_agents_registry_and_utils(monkeypatch, tmp_path):
     # system utils
     monkeypatch.setattr(system_mod, "app_ctx", lambda: SimpleNamespace(logger=logger))
     monkeypatch.setattr(system_mod.psutil, "virtual_memory", lambda: SimpleNamespace(available=2 * 1024 * 1024, total=8 * 1024 * 1024))
+    monkeypatch.setattr(system_mod.sys, "platform", "linux")
 
     class _NVML:
         def __init__(self):
