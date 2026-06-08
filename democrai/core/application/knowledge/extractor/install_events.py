@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -40,6 +41,8 @@ from democrai.core.runtime.foundation.app import (
     current_request_context_payload,
     request_context_scope,
 )
+
+INSTALL_NETWORK_READY_FILE_ENV = "DEMOCRAI_INSTALL_NETWORK_READY_FILE"
 from democrai.core.runtime.foundation.paths import (
     ENGINES_PATH_ENV,
     EXTRACTORS_PATH_ENV,
@@ -325,15 +328,24 @@ def _proxy_connect_target(proxy_url: str) -> str:
     return f"{parsed.hostname}:{int(parsed.port)}"
 
 
-async def _apply_os_network_allowlist_to_install_process(pid: int | None) -> None:
+async def _apply_os_network_allowlist_to_install_process(
+    pid: int | None,
+    *,
+    env: dict[str, str],
+    extractor_id: str,
+) -> None:
     if pid is None:
         return
     from democrai.core.infrastructure.sandbox.os.helper import (
         apply_application_network_allowlist_with_helper,
     )
+    from democrai.core.infrastructure.sandbox.os.base import proxy_endpoint_payload
+    from democrai.core.infrastructure.sandbox.os.models import (
+        ApplicationNetworkAllowlist,
+        NetworkEndpoint,
+    )
     from democrai.core.infrastructure.sandbox.os.state import (
         is_application_network_allowlist_enabled,
-        refresh_application_network_allowlist,
     )
     from democrai.core.infrastructure.sandbox.process_guard import (
         process_guard_bypass_context,
@@ -343,7 +355,20 @@ async def _apply_os_network_allowlist_to_install_process(pid: int | None) -> Non
     config = ctx.config
     if not is_application_network_allowlist_enabled(config):
         return
-    allowlist = refresh_application_network_allowlist()
+    endpoints = []
+    proxy_url = str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip()
+    if proxy_url:
+        proxy_endpoint = proxy_endpoint_payload(proxy_url)
+        endpoints.append(
+            NetworkEndpoint(
+                host=str(proxy_endpoint["host"]),
+                port=int(proxy_endpoint["port"]),
+                protocol=str(proxy_endpoint["protocol"]),
+                source=str(proxy_endpoint["source"]),
+                purpose=str(proxy_endpoint["purpose"]),
+            )
+        )
+    allowlist = ApplicationNetworkAllowlist(endpoints=endpoints)
 
     def _apply() -> None:
         with process_guard_bypass_context():
@@ -356,13 +381,16 @@ async def _apply_os_network_allowlist_to_install_process(pid: int | None) -> Non
     await asyncio.to_thread(_apply)
 
 
-async def _start_os_network_proxy_for_install(env: dict[str, str]) -> str:
+async def _start_os_network_proxy_for_install(
+    env: dict[str, str],
+    *,
+    extractor_id: str,
+) -> str:
     from democrai.core.infrastructure.sandbox.os.helper import (
         start_application_network_proxy_session_with_helper,
     )
     from democrai.core.infrastructure.sandbox.os.state import (
         is_application_network_allowlist_enabled,
-        refresh_application_network_allowlist,
     )
     from democrai.core.infrastructure.sandbox.process_guard import (
         process_guard_bypass_context,
@@ -372,7 +400,9 @@ async def _start_os_network_proxy_for_install(env: dict[str, str]) -> str:
     config = ctx.config
     if not is_application_network_allowlist_enabled(config):
         return ""
-    allowlist = refresh_application_network_allowlist()
+    allowlist = _extractor_install_network_allowlist(extractor_id)
+    if not allowlist.endpoints:
+        return ""
 
     def _start() -> dict[str, str]:
         with process_guard_bypass_context():
@@ -395,6 +425,38 @@ async def _start_os_network_proxy_for_install(env: dict[str, str]) -> str:
     if proxy_connect_target:
         env[EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV] = proxy_connect_target
     return session["session_id"]
+
+
+def _extractor_install_network_allowlist(extractor_id: str):
+    from democrai.core.application.access_policy.operations import ResourceType
+    from democrai.core.application.knowledge.extractor.runtime import get_extractor_access
+    from democrai.core.infrastructure.sandbox.os.models import ApplicationNetworkAllowlist
+    from democrai.core.infrastructure.sandbox.os.normalize import (
+        dedupe_endpoints,
+        endpoint_from_target,
+    )
+
+    endpoints = []
+    for rule in get_extractor_access(extractor_id, "install"):
+        resource = getattr(rule, "resource", None)
+        if resource is None:
+            continue
+        resource_type = getattr(resource.resource_type, "value", resource.resource_type)
+        if resource_type != ResourceType.NETWORK.value:
+            continue
+        target = str(
+            getattr(resource, "normalized_target", None)
+            or getattr(resource, "target", "")
+            or ""
+        ).strip()
+        endpoint = endpoint_from_target(
+            target,
+            source=f"extractor:{extractor_id}",
+            purpose="extractor_install_access",
+        )
+        if endpoint is not None:
+            endpoints.append(endpoint)
+    return ApplicationNetworkAllowlist(endpoints=dedupe_endpoints(endpoints))
 
 
 async def _stop_os_network_proxy_for_install(session_id: str) -> None:
@@ -434,6 +496,28 @@ async def _terminate_install_process(process: asyncio.subprocess.Process) -> Non
         await asyncio.wait_for(process.wait(), timeout=2.0)
 
 
+def _new_install_ready_file() -> str:
+    fd, raw_path = tempfile.mkstemp(prefix="democrai_extractor_install_ready_", suffix=".flag")
+    os.close(fd)
+    with contextlib.suppress(OSError):
+        os.unlink(raw_path)
+    return raw_path
+
+
+def _release_install_ready_file(path: str) -> None:
+    if not path:
+        return
+    with open(path, "w", encoding="ascii") as handle:
+        handle.write("ready\n")
+
+
+def _cleanup_install_ready_file(path: str) -> None:
+    if not path:
+        return
+    with contextlib.suppress(OSError):
+        os.unlink(path)
+
+
 async def _run_extractor_install_runtime_process(
     *,
     extractor_id: str,
@@ -458,6 +542,9 @@ async def _run_extractor_install_runtime_process(
     _set_path_env(env, EXTRACTORS_PATH_ENV, ctx.runtime_extractor_paths)
     if request_context:
         env["DEMOCRAI_REQUEST_CONTEXT"] = json.dumps(request_context, sort_keys=True)
+    ready_file = _new_install_ready_file()
+    ready_released = False
+    env[INSTALL_NETWORK_READY_FILE_ENV] = ready_file
 
     command = [
         sys.executable,
@@ -477,7 +564,10 @@ async def _run_extractor_install_runtime_process(
     if force:
         command.append("--force")
 
-    proxy_session_id = await _start_os_network_proxy_for_install(env)
+    proxy_session_id = await _start_os_network_proxy_for_install(
+        env,
+        extractor_id=extractor_id,
+    )
     try:
         process = await asyncio.create_subprocess_exec(
             *command,
@@ -489,10 +579,17 @@ async def _run_extractor_install_runtime_process(
     except BaseException:
         with contextlib.suppress(Exception):
             await _stop_os_network_proxy_for_install(proxy_session_id)
+        _cleanup_install_ready_file(ready_file)
         raise
     process_supervisor.register(process, name=f"extractor-install:{extractor_id}")
     try:
-        await _apply_os_network_allowlist_to_install_process(process.pid)
+        await _apply_os_network_allowlist_to_install_process(
+            process.pid,
+            env=env,
+            extractor_id=extractor_id,
+        )
+        _release_install_ready_file(ready_file)
+        ready_released = True
         assert process.stdout is not None
         result: dict[str, Any] = {}
         error_message = ""
@@ -530,6 +627,9 @@ async def _run_extractor_install_runtime_process(
             )
         return result
     finally:
+        if ready_released:
+            _release_install_ready_file(ready_file)
+        _cleanup_install_ready_file(ready_file)
         await _terminate_install_process(process)
         process_supervisor.unregister(process)
         with contextlib.suppress(Exception):

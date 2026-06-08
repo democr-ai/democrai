@@ -148,11 +148,6 @@ def test_network_env_keeps_explicit_empty_env(monkeypatch):
 
 
 def test_network_env_reuses_existing_proxy_env(monkeypatch):
-    monkeypatch.setattr(
-        base,
-        "proxy_url_for_policy",
-        lambda _policy: (_ for _ in ()).throw(AssertionError("proxy_session_started")),
-    )
     policy = launch_policy.SandboxLaunchPolicy(
         command=["echo", "ok"],
         cwd=None,
@@ -169,11 +164,6 @@ def test_network_env_reuses_existing_proxy_env(monkeypatch):
 
 
 def test_network_env_ignores_external_proxy_env(monkeypatch):
-    monkeypatch.setattr(
-        base,
-        "proxy_url_for_policy",
-        lambda _policy: "http://127.0.0.1:5123",
-    )
     policy = launch_policy.SandboxLaunchPolicy(
         command=["echo", "ok"],
         cwd=None,
@@ -183,10 +173,8 @@ def test_network_env_ignores_external_proxy_env(monkeypatch):
         network_endpoints=(launch_policy.NetworkLaunchEndpoint("connect", "https://api.local"),),
     )
 
-    env = base.network_env(policy)
-
-    assert env["ALL_PROXY"] == "http://127.0.0.1:5123"
-    assert env["HTTP_PROXY"] == "http://127.0.0.1:5123"
+    with pytest.raises(RuntimeError, match="os_sandbox_proxy_required"):
+        base.network_env(policy)
 
 
 def test_provider_capabilities_are_explicit():
@@ -195,7 +183,7 @@ def test_provider_capabilities_are_explicit():
     windows = WindowsOsSandboxProvider().capabilities()
 
     assert linux.filesystem and linux.network_deny and linux.network_proxy and linux.execute
-    assert macos.filesystem and macos.network_deny and not macos.network_proxy and macos.execute
+    assert macos.filesystem and macos.network_deny and macos.network_proxy and macos.execute
     assert windows.filesystem and windows.network_deny and windows.network_proxy and windows.execute
 
 
@@ -216,7 +204,7 @@ def test_linux_provider_proxy_allows_only_proxy_endpoint(monkeypatch, tmp_path):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["echo", "ok"],
         cwd=None,
-        env={},
+        env={"ALL_PROXY": "http://127.0.0.1:4123"},
         filesystem_access=(
             launch_policy.FilesystemLaunchAccess("read", str(tmp_path / "ro")),
             launch_policy.FilesystemLaunchAccess("modify", str(tmp_path / "rw")),
@@ -227,9 +215,7 @@ def test_linux_provider_proxy_allows_only_proxy_endpoint(monkeypatch, tmp_path):
         ),
     )
     landlock_calls = []
-    network_calls = []
     exec_calls = []
-    monkeypatch.setattr(base, "proxy_url_for_policy", lambda _policy: "http://tok:x@127.0.0.1:4123")
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.os.linux.landlock.is_landlock_supported",
         lambda: True,
@@ -237,15 +223,6 @@ def test_linux_provider_proxy_allows_only_proxy_endpoint(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.os.linux.landlock.apply_landlock_filesystem_rules",
         lambda **kwargs: landlock_calls.append(kwargs),
-    )
-    monkeypatch.setattr(
-        linux_provider.importlib,
-        "import_module",
-        lambda name: SimpleNamespace(
-            apply_application_network_endpoints_with_helper=lambda endpoints, pid=None: network_calls.append((endpoints, pid))
-        )
-        if name == "democrai.core.infrastructure.sandbox.os.helper"
-        else __import__(name, fromlist=["*"]),
     )
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.os.linux.network.apply_application_network_endpoints",
@@ -265,19 +242,10 @@ def test_linux_provider_proxy_allows_only_proxy_endpoint(monkeypatch, tmp_path):
             "read_write_paths": [str(tmp_path / "rw")],
         }
     ]
-    assert network_calls[0][0] == [
-        {
-            "host": "127.0.0.1",
-            "port": 4123,
-            "protocol": "tcp",
-            "source": "sandbox_proxy",
-            "purpose": "sandbox_network_proxy",
-        }
-    ]
     assert exec_calls
 
 
-def test_linux_provider_deny_applies_empty_network_allowlist(monkeypatch):
+def test_linux_provider_deny_does_not_call_helper_from_child(monkeypatch):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["echo", "ok"],
         cwd=None,
@@ -285,19 +253,9 @@ def test_linux_provider_deny_applies_empty_network_allowlist(monkeypatch):
         filesystem_access=(),
         network_mode=launch_policy.NETWORK_DENY,
     )
-    network_calls = []
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.os.linux.landlock.is_landlock_supported",
         lambda: False,
-    )
-    monkeypatch.setattr(
-        linux_provider.importlib,
-        "import_module",
-        lambda name: SimpleNamespace(
-            apply_application_network_endpoints_with_helper=lambda endpoints, pid=None: network_calls.append((endpoints, pid))
-        )
-        if name == "democrai.core.infrastructure.sandbox.os.helper"
-        else __import__(name, fromlist=["*"]),
     )
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.os.linux.network.apply_application_network_endpoints",
@@ -307,7 +265,6 @@ def test_linux_provider_deny_applies_empty_network_allowlist(monkeypatch):
 
     LinuxOsSandboxProvider().run(policy)
 
-    assert network_calls == [([], os.getpid())]
 
 
 def test_linux_provider_maps_dev_null_modify_to_read_write_only(monkeypatch):
@@ -395,17 +352,19 @@ def test_macos_proxy_requires_loopback_proxy():
         seatbelt_profile(policy, proxy_url="http://10.0.0.8:8080")
 
 
-def test_macos_proxy_policy_fails_closed_until_verified():
+def test_macos_proxy_policy_requires_sandbox_exec(monkeypatch):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["python", "-V"],
         cwd=None,
-        env={},
+        env={"ALL_PROXY": "http://127.0.0.1:4123"},
         filesystem_access=(),
         network_mode=launch_policy.NETWORK_PROXY,
         network_endpoints=(launch_policy.NetworkLaunchEndpoint("connect", "https://api.local"),),
     )
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.macos.provider.shutil.which", lambda _name: None)
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.macos.provider.os.path.exists", lambda _path: False)
 
-    with pytest.raises(RuntimeError, match="macos_sandbox_proxy_unenforceable"):
+    with pytest.raises(RuntimeError, match="macos_sandbox_exec_unavailable"):
         MacOSOsSandboxProvider().prepare(policy)
 
 
@@ -496,12 +455,14 @@ def test_windows_shared_memory_package_sid_derives_appcontainer_sid(monkeypatch)
 
 
 def test_launcher_popen_attaches_windows_shared_memory_sid(monkeypatch, tmp_path):
-    process = SimpleNamespace()
+    process = SimpleNamespace(pid=1234)
     popen_calls = []
     written_policies = []
+    applied = []
     monkeypatch.setattr(sandbox_launcher.sys, "platform", "win32")
     monkeypatch.setattr(sandbox_launcher, "_os_sandbox_enabled", lambda: True)
     monkeypatch.setattr(sandbox_launcher, "_with_os_sandbox_helper_env", lambda env: dict(env or {}))
+    monkeypatch.setattr(sandbox_launcher, "_apply_launch_network_policy", lambda policy, pid: applied.append((policy, pid)))
     monkeypatch.setattr(
         sandbox_launcher,
         "_write_policy",
@@ -528,9 +489,56 @@ def test_launcher_popen_attaches_windows_shared_memory_sid(monkeypatch, tmp_path
     )
 
     assert result is process
+    assert applied[0][1] == 1234
     assert getattr(result, "democrai_os_sandbox_appcontainer_sid") == "S-1-15-2-1"
-    assert popen_calls[0][1]["env"]["DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"] == "S-1-15-2-1"
+    assert "DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID" not in popen_calls[0][1]["env"]
     assert written_policies[0].env["DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"] == "S-1-15-2-1"
+
+
+def test_launcher_keeps_helper_env_out_of_runtime_policy(monkeypatch, tmp_path):
+    popen_calls = []
+    written_policies = []
+    applied = []
+    class _Proc:
+        pid = 2345
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return "", ""
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(sandbox_launcher, "_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(
+        sandbox_launcher,
+        "_with_os_sandbox_helper_env",
+        lambda env: {
+            **dict(env or {}),
+            "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET": "/tmp/helper.sock",
+            "DEMOCRAI_OS_SANDBOX_POLICY_FILE": "/tmp/policy.json",
+            "DEMOCRAI_OS_SANDBOX_HELPER_TOKEN": "secret-token",
+        },
+    )
+    monkeypatch.setattr(
+        sandbox_launcher,
+        "_write_policy",
+        lambda policy: written_policies.append(policy) or tmp_path / "policy.json",
+    )
+    monkeypatch.setattr(
+        sandbox_launcher.subprocess,
+        "Popen",
+        lambda command, **kwargs: popen_calls.append((command, kwargs)) or _Proc(),
+    )
+    monkeypatch.setattr(sandbox_launcher, "_apply_launch_network_policy", lambda policy, pid: applied.append((policy, pid)))
+
+    sandbox_launcher.run_subprocess(["python", "-V"], env={"A": "B"})
+
+    assert popen_calls[0][1]["env"]["DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"] == "/tmp/helper.sock"
+    assert popen_calls[0][1]["env"]["DEMOCRAI_OS_SANDBOX_POLICY_FILE"] == "/tmp/policy.json"
+    assert popen_calls[0][1]["env"]["DEMOCRAI_OS_SANDBOX_HELPER_TOKEN"] == "secret-token"
+    assert applied[0][1] == 2345
+    assert written_policies[0].env == {"A": "B"}
 
 
 def test_windows_appcontainer_maps_acl_and_loopback(monkeypatch, tmp_path):

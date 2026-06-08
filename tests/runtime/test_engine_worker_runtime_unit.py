@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextlib import ExitStack
 import io
+import os
 from pathlib import Path
 import sys
 import threading
@@ -55,6 +56,31 @@ def test_engine_worker_module_keeps_heavy_core_imports_lazy():
         assert item not in "\n".join(
             line for line in source.splitlines() if line.startswith("from ")
         )
+
+
+def test_engine_worker_bootstrap_prioritizes_application_pythonpath(monkeypatch, tmp_path: Path):
+    app_root = str(tmp_path / "app")
+    app_site = str(tmp_path / "app-site")
+    system_site = str(tmp_path / "system-site")
+    original_path = list(sys.path)
+    calls = []
+
+    def _run_module(module, *, run_name):
+        calls.append((module, run_name, list(sys.path[:4])))
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["python", "demo.module", os.pathsep.join((app_root, app_site))],
+    )
+    monkeypatch.setattr(sys, "path", [system_site, app_site, "tail"])
+    monkeypatch.setitem(sys.modules, "runpy", SimpleNamespace(run_module=_run_module))
+    try:
+        exec(subject_mod._WORKER_BOOTSTRAP_CODE, {})
+    finally:
+        sys.path[:] = original_path
+
+    assert calls == [("demo.module", "__main__", [app_root, app_site, system_site, "tail"])]
 
 
 def test_engine_worker_runtime_access_adds_logger_access(monkeypatch, tmp_path: Path):
@@ -181,9 +207,10 @@ def test_engine_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatch):
 def test_engine_worker_launch_state_adds_framework_ipc_on_posix(monkeypatch, tmp_path: Path):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",
-        fromlist=["state_dir"],
+        fromlist=["runtime_ipc_dir"],
     )
-    monkeypatch.setattr(worker_launch_mod, "state_dir", lambda: tmp_path)
+    ipc_root = tmp_path / "ipc"
+    monkeypatch.setattr(worker_launch_mod, "runtime_ipc_dir", lambda: ipc_root)
     monkeypatch.setattr(worker_launch_mod.os, "name", "posix", raising=False)
     monkeypatch.setattr(worker_launch_mod.sys, "platform", "linux")
     monkeypatch.setattr(
@@ -213,10 +240,10 @@ def test_engine_worker_launch_state_adds_framework_ipc_on_posix(monkeypatch, tmp
     ]
     assert {
         ("engine", "yolo", "read", worker_launch_mod._application_root()),
-        ("engine", "yolo", "read", str((tmp_path / "ipc").resolve())),
-        ("engine", "yolo", "create", str((tmp_path / "ipc").resolve())),
-        ("engine", "yolo", "modify", str((tmp_path / "ipc").resolve())),
-        ("engine", "yolo", "delete", str((tmp_path / "ipc").resolve())),
+        ("engine", "yolo", "read", str(ipc_root.resolve())),
+        ("engine", "yolo", "create", str(ipc_root.resolve())),
+        ("engine", "yolo", "modify", str(ipc_root.resolve())),
+        ("engine", "yolo", "delete", str(ipc_root.resolve())),
         ("engine", "yolo", "read", "/dev/shm"),
         ("engine", "yolo", "create", "/dev/shm"),
         ("engine", "yolo", "modify", "/dev/shm"),
@@ -227,7 +254,7 @@ def test_engine_worker_launch_state_adds_framework_ipc_on_posix(monkeypatch, tmp
 def test_engine_worker_launch_state_does_not_add_named_pipe_filesystem_access(monkeypatch):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",
-        fromlist=["state_dir"],
+        fromlist=["runtime_ipc_dir"],
     )
     monkeypatch.setattr(worker_launch_mod.os, "name", "nt", raising=False)
     monkeypatch.setattr(
@@ -389,6 +416,7 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
     guard_call = next(item for item in calls if item[0] == "guard")
     assert guard_call[1]["include_runtime_access"] is False
     assert guard_call[1]["inherit_parent_access"] is False
+    assert guard_call[1]["include_network_access"] is False
     guard_access = [
         (
             str(rule.resource.resource_type),

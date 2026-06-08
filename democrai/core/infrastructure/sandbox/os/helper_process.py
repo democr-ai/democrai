@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import os
 import select
@@ -134,7 +135,10 @@ def _validate_client_and_target_pid(
         raise RuntimeError(
             f"os_sandbox_helper_invalid_client_uid:{peer_uid}:{expected_uid}"
         )
-    if parent_pid is not None and not _is_same_or_descendant(peer_pid, int(parent_pid)):
+    if parent_pid is not None and not _is_same_or_descendant(
+        int(peer_pid),
+        int(parent_pid),
+    ):
         raise RuntimeError(
             f"os_sandbox_helper_invalid_client_pid:{peer_pid}:{int(parent_pid)}"
         )
@@ -146,6 +150,15 @@ def _validate_client_and_target_pid(
             f"os_sandbox_helper_invalid_target_pid:{resolved_pid}:{int(parent_pid)}"
         )
     return resolved_pid
+
+
+def _validate_helper_token(payload: dict[str, Any], expected_token: str) -> None:
+    expected = str(expected_token or "").strip()
+    if not expected:
+        raise RuntimeError("os_sandbox_helper_token_required")
+    supplied = str(payload.get("token") or "").strip()
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        raise RuntimeError("os_sandbox_helper_invalid_token")
 
 
 def _parent_pid_is_alive(parent_pid: int) -> bool:
@@ -260,6 +273,7 @@ async def _handle_helper_client(
     applied_pids: set[int],
     applied_pids_lock: threading.Lock,
     proxy: OsSandboxConnectProxy,
+    token: str,
 ) -> None:
     try:
         raw = await reader.readline()
@@ -268,6 +282,7 @@ async def _handle_helper_client(
         payload = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, dict):
             raise RuntimeError("os_sandbox_helper_invalid_payload")
+        _validate_helper_token(payload, token)
         action = str(payload.get("action") or "").strip().lower()
         pid = _validate_client_and_target_pid(
             writer=writer,
@@ -279,15 +294,6 @@ async def _handle_helper_client(
             response = {"ok": True}
         elif action == "apply":
             endpoints = _load_endpoints_from_policy_file(policy_file)
-            apply_application_network_endpoints(endpoints, pid=pid)
-            if pid is not None:
-                with applied_pids_lock:
-                    applied_pids.add(int(pid))
-            response = {"ok": True, "endpoint_count": len(endpoints)}
-        elif action == "apply_endpoints":
-            endpoints = payload.get("endpoints")
-            if not isinstance(endpoints, list):
-                raise RuntimeError("os_sandbox_helper_endpoints_must_be_list")
             apply_application_network_endpoints(endpoints, pid=pid)
             if pid is not None:
                 with applied_pids_lock:
@@ -310,6 +316,18 @@ async def _handle_helper_client(
                 "ok": True,
                 **proxy.create_session(endpoints=endpoints),
             }
+        elif action == "update_proxy_session":
+            endpoints = payload.get("endpoints")
+            if not isinstance(endpoints, list):
+                raise RuntimeError("os_sandbox_helper_endpoints_must_be_list")
+            await proxy.start()
+            response = {
+                "ok": True,
+                **proxy.update_session(
+                    str(payload.get("session_id") or ""),
+                    endpoints=endpoints,
+                ),
+            }
         elif action == "stop_proxy_session":
             proxy.stop_session(str(payload.get("session_id") or ""))
             response = {"ok": True}
@@ -330,6 +348,7 @@ async def run_os_sandbox_helper_server(
     policy_file: str,
     refresh_seconds: int = 60,
     parent_pid: int | None = None,
+    token: str = "",
 ) -> int:
     resolved_socket_path = Path(str(socket_path or "").strip()).expanduser().resolve()
     resolved_socket_path.parent.mkdir(parents=True, exist_ok=True)
@@ -360,6 +379,7 @@ async def run_os_sandbox_helper_server(
             applied_pids=applied_pids,
             applied_pids_lock=applied_pids_lock,
             proxy=proxy,
+            token=token,
         ),
         path=str(resolved_socket_path),
     )

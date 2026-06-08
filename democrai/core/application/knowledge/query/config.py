@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from democrai.core.platform.utils.normalize import normalize_bool
-from democrai.core.runtime.foundation.paths import state_dir
+from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
 
 
 KNOWLEDGE_QUERY_AUTH_AUDIENCE = "knowledge-query"
@@ -37,7 +37,7 @@ def knowledge_query_socket_path(config: Any | None = None) -> str:
     ).strip()
     if configured:
         return configured
-    return str((state_dir() / "knowledge-query.sock").resolve())
+    return str(runtime_unix_socket_path("knowledge-query.sock").resolve())
 
 
 def knowledge_query_host(config: Any | None = None) -> str:

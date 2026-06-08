@@ -59,10 +59,8 @@ _WORKER_BOOTSTRAP_CODE = (
     "import os,runpy,sys;"
     "module=sys.argv[1];"
     "paths=[p for p in sys.argv[2].split(os.pathsep) if p];"
-    "root=paths[0] if paths else '';"
-    "deps=paths[1:];"
-    "sys.path.insert(0, root) if root and root not in sys.path else None;"
-    "[sys.path.append(p) for p in deps if p not in sys.path];"
+    "[sys.path.remove(p) for p in paths if p in sys.path];"
+    "[sys.path.insert(i, p) for i, p in enumerate(paths)];"
     "runpy.run_module(module, run_name='__main__')"
 )
 

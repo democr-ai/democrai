@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-import importlib
 from typing import Any
 
 from democrai.core.infrastructure.sandbox.os.base import (
@@ -9,11 +7,8 @@ from democrai.core.infrastructure.sandbox.os.base import (
     BaseNetworkSandbox,
     BaseOsSandboxProvider,
     OsSandboxCapabilities,
-    proxy_endpoint_payload,
 )
 from democrai.core.infrastructure.sandbox.os.launch_policy import (
-    NETWORK_ALLOW_ALL,
-    NETWORK_DENY,
     SandboxLaunchPolicy,
 )
 from democrai.core.runtime.foundation.app import app_ctx
@@ -58,18 +53,7 @@ class LinuxFilesystemSandbox(BaseFilesystemSandbox):
 
 class LinuxNetworkSandbox(BaseNetworkSandbox):
     def apply(self, policy: SandboxLaunchPolicy, env: dict[str, str]) -> None:
-        if policy.network_mode == NETWORK_ALLOW_ALL:
-            return
-        helper_mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.helper")
-
-        if policy.network_mode == NETWORK_DENY:
-            helper_mod.apply_application_network_endpoints_with_helper([], pid=os.getpid())
-            return
-        proxy_url = env.get("ALL_PROXY") or env.get("all_proxy") or ""
-        helper_mod.apply_application_network_endpoints_with_helper(
-            [proxy_endpoint_payload(proxy_url)],
-            pid=os.getpid(),
-        )
+        return
 
 
 class LinuxOsSandboxProvider(BaseOsSandboxProvider):

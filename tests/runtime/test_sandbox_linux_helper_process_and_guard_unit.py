@@ -87,14 +87,26 @@ def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_
         }
     )
     calls = []
+    applied = []
 
-    def _run(cmd, **kwargs):
+    class _Proc:
+        pid = 1234
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return "ok", ""
+
+        def poll(self):
+            return 0
+
+    def _popen(cmd, **kwargs):
         policy_path = Path(cmd[-1])
         payload = json.loads(policy_path.read_text(encoding="utf-8"))
         calls.append((cmd, kwargs, payload))
-        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        return _Proc()
 
-    monkeypatch.setattr(mod.subprocess, "run", _run)
+    monkeypatch.setattr(mod.subprocess, "Popen", _popen)
+    monkeypatch.setattr(mod, "_apply_launch_network_policy", lambda policy, pid: applied.append((policy, pid)))
     try:
         out = mod.run_subprocess(["echo", "ok"], env={"A": "B"})
     finally:
@@ -104,10 +116,85 @@ def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_
     assert calls[0][0][:3] == [sys.executable, "-m", "democrai.core.infrastructure.sandbox.launcher"]
     assert calls[0][2]["command"] == ["echo", "ok"]
     assert calls[0][2]["filesystem_access"][0]["target"] == str(tmp_path)
+    assert applied[0][1] == 1234
     assert "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET" in calls[0][1]["env"]
     assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" in calls[0][1]["env"]
-    assert "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET" in calls[0][2]["env"]
-    assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" in calls[0][2]["env"]
+    assert "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET" not in calls[0][2]["env"]
+    assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" not in calls[0][2]["env"]
+
+
+def test_process_guard_popen_launcher_releases_ready_file_under_bypass(monkeypatch, tmp_path: Path):
+    guard_mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+    launcher_mod = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
+
+    monkeypatch.setattr(launcher_mod, "_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(launcher_mod, "_with_os_sandbox_helper_env", lambda env: dict(env or {}))
+    monkeypatch.setattr(launcher_mod, "_without_os_sandbox_helper_env", lambda env: dict(env or {}))
+    monkeypatch.setattr(
+        launcher_mod,
+        "_prepare_policy_for_launch",
+        lambda policy, env: (policy, "", ""),
+    )
+    ready_file = tmp_path / "launch.ready"
+    monkeypatch.setattr(launcher_mod, "_new_launch_ready_file", lambda: ready_file)
+
+    def _write_policy(policy):
+        path = tmp_path / "policy.json"
+        path.write_text(json.dumps(policy.to_dict()), encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(launcher_mod, "_write_policy", _write_policy)
+    checks = []
+
+    def _apply_launch_network_policy(_policy, _pid):
+        checks.append(("apply", guard_mod._bypass_enabled()))
+
+    def _release_launch_ready_file(path):
+        checks.append(("release", guard_mod._bypass_enabled()))
+        path.write_text("ready\n", encoding="ascii")
+
+    monkeypatch.setattr(launcher_mod, "_apply_launch_network_policy", _apply_launch_network_policy)
+    monkeypatch.setattr(launcher_mod, "_release_launch_ready_file", _release_launch_ready_file)
+
+    class _Proc:
+        pid = 1234
+
+    def _original(*args, **kwargs):
+        checks.append(("original", args[0][1:3]))
+        return _Proc()
+
+    token = guard_mod._STATE.set(
+        _guard_state(
+            guard_mod,
+            (
+                _access_rule(
+                    guard_mod,
+                    "skill",
+                    "demo",
+                    "filesystem",
+                    "execute",
+                    sys.executable,
+                ),
+            ),
+            subject="demo",
+            subject_kind="skill",
+        )
+    )
+    try:
+        proc = guard_mod._run_subprocess_via_launcher(
+            _original,
+            ([sys.executable, "-c", "print('ok')"],),
+            {"env": {}, "text": True},
+            call_name="subprocess.Popen",
+            cleanup_policy=False,
+        )
+    finally:
+        guard_mod._STATE.reset(token)
+
+    assert proc.pid == 1234
+    assert ("apply", True) in checks
+    assert ("release", True) in checks
+    assert ready_file.read_text(encoding="ascii") == "ready\n"
 
 
 def test_linux_helpers_and_apply_clear(monkeypatch, tmp_path: Path):
@@ -531,10 +618,12 @@ async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod, "_is_same_or_descendant", lambda p, r: False)
     with pytest.raises(RuntimeError):
         mod._validate_client_and_target_pid(writer=writer, requested_pid=None, parent_pid=50)
-    monkeypatch.setattr(mod, "_is_same_or_descendant", lambda p, r: True if p == 100 else False)
+    monkeypatch.setattr(mod, "_is_same_or_descendant", lambda p, r: p == 100 and r == 50)
+    with pytest.raises(RuntimeError):
+        mod._validate_client_and_target_pid(writer=writer, requested_pid=12, parent_pid=50)
+    monkeypatch.setattr(mod, "_is_same_or_descendant", lambda p, r: p in {12, 100} and r == 50)
     with pytest.raises(RuntimeError):
         mod._validate_client_and_target_pid(writer=writer, requested_pid=999, parent_pid=50)
-    monkeypatch.setattr(mod, "_is_same_or_descendant", lambda *_a, **_k: True)
     assert mod._validate_client_and_target_pid(writer=writer, requested_pid=12, parent_pid=50) == 12
     assert mod._validate_client_and_target_pid(writer=writer, requested_pid=None, parent_pid=None) is None
 
@@ -662,6 +751,12 @@ async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
                 "token": "token-1",
             }
 
+        def update_session(self, session_id, *, endpoints):
+            return {
+                "session_id": session_id,
+                "proxy_url": "http://127.0.0.1:1",
+            }
+
         def stop_session(self, _session_id):
             return None
 
@@ -678,26 +773,39 @@ async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
     proxy = _Proxy()
 
     w = _Writer()
-    await mod._handle_helper_client(_Reader(b'{"action":"ping"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
+    await mod._handle_helper_client(_Reader(b'{"action":"ping","token":"test-token"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
     assert json.loads(w.buf.decode("utf-8"))["ok"] is True
 
     w = _Writer()
-    await mod._handle_helper_client(_Reader(b'{"action":"apply","pid":7}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
-    assert applied_pids == {7}
-
-    w = _Writer()
-    await mod._handle_helper_client(_Reader(b'{"action":"clear","pid":7}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
+    await mod._handle_helper_client(_Reader(b'{"action":"apply","pid":7}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
+    missing_token_response = json.loads(w.buf.decode("utf-8"))
+    assert missing_token_response["ok"] is False
+    assert "os_sandbox_helper_invalid_token" in missing_token_response["error"]
     assert applied_pids == set()
 
     w = _Writer()
-    await mod._handle_helper_client(_Reader(b'{"action":"weird"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
+    await mod._handle_helper_client(_Reader(b'{"action":"apply","pid":7,"token":"test-token"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
+    assert applied_pids == {7}
+
+    w = _Writer()
+    await mod._handle_helper_client(_Reader(b'{"action":"clear","pid":7,"token":"test-token"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
+    assert applied_pids == set()
+
+    w = _Writer()
+    await mod._handle_helper_client(_Reader(b'{"action":"update_proxy_session","session_id":"session-1","endpoints":[],"token":"test-token"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
+    update_response = json.loads(w.buf.decode("utf-8"))
+    assert update_response["ok"] is True
+    assert update_response["session_id"] == "session-1"
+
+    w = _Writer()
+    await mod._handle_helper_client(_Reader(b'{"action":"weird","token":"test-token"}\n'), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
     assert json.loads(w.buf.decode("utf-8"))["ok"] is False
 
     w = _Writer()
-    await mod._handle_helper_client(_Reader(b"not-json\n"), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
+    await mod._handle_helper_client(_Reader(b"not-json\n"), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
     assert json.loads(w.buf.decode("utf-8"))["ok"] is False
     w = _Writer()
-    await mod._handle_helper_client(_Reader(b""), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy)
+    await mod._handle_helper_client(_Reader(b""), w, policy_file=str(policy), parent_pid=None, applied_pids=applied_pids, applied_pids_lock=lock, proxy=proxy, token="test-token")
 
     # run server lifecycle
     socket_path = tmp_path / "helper.sock"
@@ -722,10 +830,10 @@ async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod, "_socket_owner_ids", lambda: (1, 2))
     monkeypatch.setattr(mod.os, "chown", lambda *_a, **_k: None)
     monkeypatch.setattr(mod.os, "chmod", lambda *_a, **_k: None)
-    rc = await mod.run_os_sandbox_helper_server(str(socket_path), policy_file=str(policy), refresh_seconds=1, parent_pid=10)
+    rc = await mod.run_os_sandbox_helper_server(str(socket_path), policy_file=str(policy), refresh_seconds=1, parent_pid=10, token="test-token")
     assert rc == 0
     monkeypatch.setattr(mod, "_socket_owner_ids", lambda: None)
-    rc = await mod.run_os_sandbox_helper_server(str(socket_path), policy_file=str(policy), refresh_seconds=1, parent_pid=None)
+    rc = await mod.run_os_sandbox_helper_server(str(socket_path), policy_file=str(policy), refresh_seconds=1, parent_pid=None, token="test-token")
     assert rc == 0
 
 
@@ -1566,6 +1674,7 @@ def test_process_guard_runtime_access_allows_ipc_socket_cleanup(monkeypatch, tmp
     monkeypatch.setattr(mod, "cache_dir", lambda: tmp_path / "cache")
     monkeypatch.setattr(mod, "state_dir", lambda: tmp_path / "state")
     monkeypatch.setattr(mod, "logs_dir", lambda: tmp_path / "state" / "logs")
+    monkeypatch.setattr(mod, "runtime_ipc_dir", lambda: tmp_path / "state" / "ipc")
 
     rules = mod._runtime_access()
     delete_targets = {
@@ -1903,19 +2012,21 @@ async def test_helper_process_remaining_branches(monkeypatch, tmp_path: Path):
         applied_pids=set(),
         applied_pids_lock=threading.Lock(),
         proxy=proxy,
+        token="test-token",
     )
     assert json.loads(w.buf.decode("utf-8"))["ok"] is False
 
     w2 = _Writer()
     applied_pids2 = {1}
     await mod._handle_helper_client(
-        _Reader(b'{"action":"apply"}\n'),
+        _Reader(b'{"action":"apply","token":"test-token"}\n'),
         w2,
         policy_file=str(tmp_path / "p.json"),
         parent_pid=None,
         applied_pids=applied_pids2,
         applied_pids_lock=threading.Lock(),
         proxy=proxy,
+        token="test-token",
     )
     assert applied_pids2 == {1}
 
@@ -1941,7 +2052,7 @@ async def test_helper_process_remaining_branches(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod.asyncio, "start_unix_server", _start)
     monkeypatch.setattr(mod, "_socket_owner_ids", lambda: None)
     monkeypatch.setattr(mod.os, "chmod", lambda *_a, **_k: None)
-    await mod.run_os_sandbox_helper_server(str(sock), policy_file=str(tmp_path / "p.json"))
+    await mod.run_os_sandbox_helper_server(str(sock), policy_file=str(tmp_path / "p.json"), token="test-token")
 
 
 def test_process_guard_remaining_branches(monkeypatch, tmp_path: Path):
@@ -2218,7 +2329,7 @@ async def test_helper_process_branch_arcs_remaining(monkeypatch, tmp_path: Path)
     monkeypatch.setattr(mod.asyncio, "start_unix_server", _start)
     monkeypatch.setattr(mod, "_socket_owner_ids", lambda: None)
     monkeypatch.setattr(mod.os, "chmod", lambda *_a, **_k: None)
-    await mod.run_os_sandbox_helper_server(str(sock), policy_file=str(tmp_path / "p.json"))
+    await mod.run_os_sandbox_helper_server(str(sock), policy_file=str(tmp_path / "p.json"), token="test-token")
     assert not sock.exists()
 
     # force finally unlink line branch
@@ -2231,7 +2342,7 @@ async def test_helper_process_branch_arcs_remaining(monkeypatch, tmp_path: Path)
         lambda self: True if str(self).endswith("u2.sock") else real_exists(self),
     )
     monkeypatch.setattr(mod.Path, "unlink", lambda self: None)
-    await mod.run_os_sandbox_helper_server(str(sock2), policy_file=str(tmp_path / "p.json"))
+    await mod.run_os_sandbox_helper_server(str(sock2), policy_file=str(tmp_path / "p.json"), token="test-token")
 
     # normal server termination path (line after finally)
     sock3 = tmp_path / "u3.sock"
@@ -2251,7 +2362,7 @@ async def test_helper_process_branch_arcs_remaining(monkeypatch, tmp_path: Path)
         return _ServerDone()
 
     monkeypatch.setattr(mod.asyncio, "start_unix_server", _start_done)
-    rc = await mod.run_os_sandbox_helper_server(str(sock3), policy_file=str(tmp_path / "p.json"))
+    rc = await mod.run_os_sandbox_helper_server(str(sock3), policy_file=str(tmp_path / "p.json"), token="test-token")
     assert rc == 0
 
     # finally branch where socket no longer exists
@@ -2263,7 +2374,7 @@ async def test_helper_process_branch_arcs_remaining(monkeypatch, tmp_path: Path)
         "exists",
         lambda self: False if str(self).endswith("u4.sock") else real_exists(self),
     )
-    rc2 = await mod.run_os_sandbox_helper_server(str(sock4), policy_file=str(tmp_path / "p.json"))
+    rc2 = await mod.run_os_sandbox_helper_server(str(sock4), policy_file=str(tmp_path / "p.json"), token="test-token")
     assert rc2 == 0
 
 

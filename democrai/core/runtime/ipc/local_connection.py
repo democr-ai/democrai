@@ -11,7 +11,7 @@ from multiprocessing.connection import Client, Connection, Listener
 from pathlib import Path
 from typing import Any
 
-from democrai.core.runtime.foundation.paths import state_dir
+from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
 
 
 @dataclass(frozen=True)
@@ -112,9 +112,7 @@ def _local_address(kind: str) -> tuple[str, Path | None]:
     unique = f"{kind}-{os.getpid()}-{uuid.uuid4().hex}"
     if os.name == "nt":
         return rf"\\.\pipe\democrai-{unique}", None
-    directory = state_dir() / "ipc"
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{unique}.sock"
+    path = runtime_unix_socket_path(f"{unique}.sock")
     try:
         path.unlink(missing_ok=True)
     except Exception:

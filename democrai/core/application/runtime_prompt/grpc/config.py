@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from democrai.core.runtime.foundation.paths import state_dir
+from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
 
 
 RUNTIME_PROMPT_AUTH_AUDIENCE = "runtime-prompt"
@@ -28,7 +28,7 @@ def runtime_prompt_socket_path(config: Any | None = None) -> str:
     ).strip()
     if configured:
         return configured
-    return str((state_dir() / "runtime-prompt.sock").resolve())
+    return str(runtime_unix_socket_path("runtime-prompt.sock").resolve())
 
 
 def runtime_prompt_host(config: Any | None = None) -> str:

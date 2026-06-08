@@ -17,9 +17,18 @@ from democrai.core.application.access_policy.operations import ResourceType
 from democrai.core.application.ai.pipeline_context import current_ai_pipeline_context
 from democrai.core.application.ai.pipeline_context import emit_ai_pipeline_event
 from democrai.core.infrastructure.sandbox.os.helper import (
-    apply_application_network_endpoints_with_helper,
+    apply_application_network_allowlist_with_helper,
     clear_application_network_allowlist_with_helper,
+    start_application_network_proxy_session_with_helper,
+    stop_application_network_proxy_session_with_helper,
 )
+from democrai.core.infrastructure.sandbox.os.allowlist import (
+    NetworkPolicyRequest,
+    build_subject_network_allowlist,
+)
+from democrai.core.infrastructure.sandbox.os.base import proxy_endpoint_payload
+from democrai.core.infrastructure.sandbox.os.models import ApplicationNetworkAllowlist
+from democrai.core.infrastructure.sandbox.os.models import NetworkEndpoint
 from democrai.core.infrastructure.sandbox.os.state import (
     is_application_network_allowlist_active,
 )
@@ -92,6 +101,7 @@ def _run_skill_script_sync(
     ]
     env = _script_env()
     env["DEMOCRAI_SKILL_SCRIPT_NETWORK_READY_FILE"] = str(ready_path)
+    proxy_session_id = _prepare_skill_script_network_policy(definition, env)
     with process_guard_context(
         subject=definition.metadata.name,
         subject_kind="skill",
@@ -109,10 +119,11 @@ def _run_skill_script_sync(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            _apply_skill_script_network_policy(proc.pid)
+            _apply_skill_script_network_policy(proc.pid, env=env)
             ready_path.write_text("ready\n", encoding="utf-8")
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired as exc:
+            timeout_info = _timeout_process_info(proc, ready_path=ready_path)
             if proc is not None:
                 proc.kill()
                 stdout, stderr = proc.communicate()
@@ -126,6 +137,7 @@ def _run_skill_script_sync(
                 "stdout": _truncate(stdout if isinstance(stdout, str) else ""),
                 "stderr": _truncate(stderr if isinstance(stderr, str) else ""),
                 "timed_out": True,
+                "timeout_info": timeout_info,
             }
         except BaseException:
             if proc is not None and proc.poll() is None:
@@ -135,6 +147,7 @@ def _run_skill_script_sync(
         finally:
             if proc is not None:
                 _clear_skill_script_network_policy(proc.pid)
+            _stop_skill_script_proxy_session(proxy_session_id)
             try:
                 ready_path.unlink()
             except OSError:
@@ -219,11 +232,63 @@ def _network_ready_file() -> Path:
     return root / "network.ready"
 
 
-def _apply_skill_script_network_policy(pid: int) -> None:
+def _prepare_skill_script_network_policy(
+    definition: SkillDefinition,
+    env: dict[str, str],
+) -> str:
+    if not is_application_network_allowlist_active():
+        return ""
+    context = current_ai_pipeline_context()
+    module_name = ""
+    if context is not None:
+        module_name = str(getattr(context, "caller_module", "") or "").strip().lower()
+    if not module_name:
+        return ""
+    allowlist = build_subject_network_allowlist(
+        NetworkPolicyRequest(
+            scope="skill_runtime",
+            subject_kind="skill",
+            subject_id=definition.metadata.name,
+            phase="runtime",
+            subject_chain=({"kind": "module", "name": module_name},),
+            inheritance_mode="parent_subject",
+        )
+    )
+    if not allowlist.endpoints:
+        return ""
+    with process_guard_bypass_context():
+        session = start_application_network_proxy_session_with_helper(allowlist)
+    proxy_url = str(session.get("proxy_url") or "").strip()
+    if not proxy_url:
+        raise RuntimeError("skill_script_proxy_url_missing")
+    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+        env[key] = proxy_url
+    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
+    env["no_proxy"] = "127.0.0.1,localhost,::1"
+    return str(session.get("session_id") or "").strip()
+
+
+def _apply_skill_script_network_policy(pid: int, *, env: dict[str, str]) -> None:
     if not is_application_network_allowlist_active():
         return
+    endpoints = []
+    proxy_url = str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip()
+    if proxy_url:
+        proxy_endpoint = proxy_endpoint_payload(proxy_url)
+        endpoints.append(
+            NetworkEndpoint(
+                host=str(proxy_endpoint["host"]),
+                port=int(proxy_endpoint["port"]),
+                protocol=str(proxy_endpoint["protocol"]),
+                source=str(proxy_endpoint["source"]),
+                purpose=str(proxy_endpoint["purpose"]),
+            )
+        )
     with process_guard_bypass_context():
-        apply_application_network_endpoints_with_helper([], pid=int(pid))
+        apply_application_network_allowlist_with_helper(
+            ApplicationNetworkAllowlist(endpoints=endpoints),
+            pid=int(pid),
+        )
 
 
 def _clear_skill_script_network_policy(pid: int) -> None:
@@ -234,6 +299,46 @@ def _clear_skill_script_network_policy(pid: int) -> None:
             clear_application_network_allowlist_with_helper(pid=int(pid))
     except Exception:
         pass
+
+
+def _stop_skill_script_proxy_session(session_id: str) -> None:
+    if not session_id:
+        return
+    try:
+        with process_guard_bypass_context():
+            stop_application_network_proxy_session_with_helper(session_id)
+    except Exception:
+        pass
+
+
+def _timeout_process_info(
+    proc: subprocess.Popen[str] | None,
+    *,
+    ready_path: Path,
+) -> dict[str, Any]:
+    info: dict[str, Any] = {
+        "ready_path": str(ready_path),
+        "ready_exists": ready_path.exists(),
+    }
+    if proc is None:
+        return info
+    info["pid"] = proc.pid
+    info["returncode_before_kill"] = proc.poll()
+    with process_guard_bypass_context():
+        proc_root = Path("/proc") / str(proc.pid)
+        try:
+            raw_cmdline = (proc_root / "cmdline").read_bytes()
+            info["cmdline"] = raw_cmdline.replace(b"\x00", b" ").decode(
+                "utf-8",
+                errors="replace",
+            ).strip()
+        except Exception as exc:
+            info["cmdline_error"] = str(exc)
+        try:
+            info["cgroup"] = (proc_root / "cgroup").read_text(encoding="utf-8").strip()
+        except Exception as exc:
+            info["cgroup_error"] = str(exc)
+    return info
 
 
 def _skill_script_access(
@@ -252,6 +357,7 @@ def _skill_script_access(
         *_filesystem_rules(subject, "read", read_paths),
         *_filesystem_rules(subject, "execute", execute_paths),
         *_filesystem_rules(subject, "read", [str(script_path.resolve())]),
+        *_filesystem_rules(subject, "read", [str(ready_path.parent.resolve())]),
         *_filesystem_rules(subject, "create", [str(ready_path.parent.resolve())]),
         *_filesystem_rules(subject, "modify", [str(ready_path.parent.resolve())]),
         *_filesystem_rules(subject, "delete", [str(ready_path.parent.resolve())]),

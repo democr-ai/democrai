@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from democrai.core.platform.utils.normalize import normalize_bool
-from democrai.core.runtime.foundation.paths import state_dir
+from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
 
 
 ENGINE_ORCHESTRATOR_AUTH_AUDIENCE = "engine-orchestrator"
@@ -38,7 +38,7 @@ def orchestrator_socket_path(config: Any | None = None) -> str:
     ).strip()
     if configured:
         return configured
-    return str((state_dir() / "engine-orchestrator.sock").resolve())
+    return str(runtime_unix_socket_path("engine-orchestrator.sock").resolve())
 
 
 def orchestrator_host(config: Any | None = None) -> str:

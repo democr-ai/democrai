@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import tempfile
@@ -13,6 +14,7 @@ APP_NAME = "democrai"
 MODULES_PATH_ENV = "DEMOCRAI_MODULES_PATH"
 ENGINES_PATH_ENV = "DEMOCRAI_ENGINES_PATH"
 EXTRACTORS_PATH_ENV = "DEMOCRAI_EXTRACTORS_PATH"
+_AF_UNIX_SOCKET_PATH_LIMIT = 100
 
 
 def _mkdir(path: Path) -> Path:
@@ -155,6 +157,42 @@ def logs_dir() -> Path:
 
 def tmp_dir() -> Path:
     return _mkdir(data_dir() / "tmp")
+
+
+def runtime_ipc_dir() -> Path:
+    candidate = state_dir() / "ipc"
+    if os.name == "nt" or len(str(candidate)) + 64 <= _AF_UNIX_SOCKET_PATH_LIMIT:
+        return _mkdir(candidate)
+    raw_uid = str(os.getuid()) if hasattr(os, "getuid") else "user"
+    digest = hashlib.sha1(str(candidate).encode("utf-8")).hexdigest()[:12]
+    path = _short_runtime_ipc_base() / f"dc-ipc-{raw_uid}-{digest}"
+    _mkdir(path)
+    try:
+        path.chmod(0o700)
+    except Exception:
+        pass
+    return path
+
+
+def _short_runtime_ipc_base() -> Path:
+    candidates = [Path(tempfile.gettempdir())]
+    if sys.platform != "win32":
+        candidates.extend(Path(path) for path in ("/tmp", "/var/tmp"))
+    for candidate in candidates:
+        if len(str(candidate)) + 32 <= _AF_UNIX_SOCKET_PATH_LIMIT:
+            return candidate
+    return Path("/tmp")
+
+
+def runtime_unix_socket_path(filename: str) -> Path:
+    name = Path(str(filename or "").strip()).name or "runtime.sock"
+    directory = runtime_ipc_dir()
+    candidate = directory / name
+    if os.name == "nt" or len(str(candidate)) <= _AF_UNIX_SOCKET_PATH_LIMIT:
+        return candidate
+    suffix = Path(name).suffix or ".sock"
+    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:16]
+    return directory / f"{digest}{suffix}"
 
 
 def configure_temp_environment() -> str:

@@ -32,6 +32,7 @@ def build_base_parser(*, add_help: bool = True) -> argparse.ArgumentParser:
     parser.add_argument("--os-sandbox-helper-policy-file", help=argparse.SUPPRESS)
     parser.add_argument("--os-sandbox-helper-refresh-seconds", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--os-sandbox-helper-parent-pid", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--os-sandbox-helper-token", help=argparse.SUPPRESS)
     parser.add_argument("--listen-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--worker-index", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--pip-helper", action="store_true", help=argparse.SUPPRESS)

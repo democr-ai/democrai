@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
+import tempfile
 import textwrap
 from pathlib import Path
 
@@ -25,21 +27,31 @@ def _requires_real_sandbox() -> None:
         pytest.skip("real sandbox diagnostics are Linux-only")
 
 
-def _python_env() -> dict[str, str]:
+def _python_env(runtime_root: Path) -> dict[str, str]:
+    for item in ("data", "config", "cache", "state"):
+        (runtime_root / item).mkdir(parents=True, exist_ok=True)
+    (runtime_root / "state" / "democrai" / "logs").mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     root = str(Path(__file__).resolve().parents[2])
     current = str(env.get("PYTHONPATH") or "")
     env["PYTHONPATH"] = f"{root}{os.pathsep}{current}" if current else root
     env[RUN_ENV] = "1"
+    env["XDG_DATA_HOME"] = str(runtime_root / "data")
+    env["XDG_CONFIG_HOME"] = str(runtime_root / "config")
+    env["XDG_CACHE_HOME"] = str(runtime_root / "cache")
+    env["XDG_STATE_HOME"] = str(runtime_root / "state")
     for key in (
         "SUDO_UID",
         "SUDO_GID",
         "PKEXEC_UID",
-        "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET",
-        "DEMOCRAI_OS_SANDBOX_POLICY_FILE",
     ):
         env.pop(key, None)
     return env
+
+
+def _short_runtime_root(name: str) -> Path:
+    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]
+    return Path(tempfile.gettempdir()) / f"dc-sudo-{os.getpid()}-{digest}"
 
 
 def _write(path: Path, body: str) -> Path:
@@ -48,10 +60,12 @@ def _write(path: Path, body: str) -> Path:
 
 
 def _run_case(script: Path, case: str, *, timeout: int = 30) -> dict:
+    runtime_root = _short_runtime_root(case)
+    runtime_root.mkdir(parents=True, exist_ok=True)
     completed = subprocess.run(
         [sys.executable, str(script), case],
         cwd=str(Path(__file__).resolve().parents[2]),
-        env=_python_env(),
+        env=_python_env(runtime_root),
         text=True,
         capture_output=True,
         timeout=timeout,
@@ -243,6 +257,18 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         for line in lines
                     ]
                 return "\\n".join(lines) + "\\n"
+
+            def ensure_fake_venv_python(env_root):
+                bin_dir = env_root / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+                bin_dir.mkdir(parents=True, exist_ok=True)
+                target = bin_dir / ("python.exe" if os.name == "nt" else "python")
+                if target.exists():
+                    return
+                try:
+                    target.symlink_to(sys.executable)
+                except Exception:
+                    shutil.copyfile(sys.executable, target)
+                    target.chmod(0o755)
 
             root = track_temp_dir("democrai_sandbox_extensions_")
             engine_root = root / "engines"
@@ -474,23 +500,34 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
                 class _SudoProbeProvider:
                     async def generate_completion(self, messages=None, options=None):
-                        from democrai.core.application.ai.engine.runtime.worker import (
-                            EngineWorkerSubject,
+                        from democrai.core.application.ai.engine.orchestrator.remote_provider import (
+                            RemoteEngineProvider,
                         )
 
-                        subject = EngineWorkerSubject(
-                            engine_id="sudo_probe_engine",
-                            config={{"model": "demo"}},
+                        class _FakeEngineOrchestratorClient:
+                            async def invoke(self, **kwargs):
+                                return {{
+                                    "status": "ok",
+                                    "orchestrator_boundary": True,
+                                    "caller": _sandbox_payload(),
+                                    "selector_type": kwargs.get("selector_type"),
+                                    "model_registry_id": kwargs.get("model_registry_id"),
+                                    "method": kwargs.get("method"),
+                                    "payload": kwargs.get("payload"),
+                                }}
+
+                        provider = RemoteEngineProvider(
+                            selector_type="model_registry_id",
+                            model_registry_id=1,
+                            client=_FakeEngineOrchestratorClient(),
                         )
-                        try:
-                            worker_pid = subject._process.pid
-                            worker = _sandbox_payload(worker_pid)
-                            engine = subject.invoke("probe", {{}})
-                        finally:
-                            subject.close()
+                        engine = await provider.generate_completion(
+                            messages=messages,
+                            options=options,
+                        )
                         return {{
                             "status": "ok",
-                            "worker": worker,
+                            "remote_provider": True,
                             "engine": engine,
                         }}
 
@@ -512,41 +549,47 @@ def sandbox_harness(tmp_path: Path) -> Path:
             (engine_pkg / "engine.py").write_text(engine_code, encoding="utf-8")
             (extractor_pkg / "extractor.py").write_text(extractor_code, encoding="utf-8")
             from democrai.core.runtime.dependencies.engine_env import get_engine_local_env_path
+            from democrai.core.runtime.dependencies.engine_env import (
+                get_engine_venv_site_packages_path,
+            )
             from democrai.core.runtime.dependencies.extractor_env import get_extractor_local_env_path
+            from democrai.core.runtime.dependencies.extractor_env import (
+                get_extractor_venv_site_packages_path,
+            )
 
+            ensure_fake_venv_python(get_engine_local_env_path("sudo_probe_engine"))
+            ensure_fake_venv_python(get_extractor_local_env_path("sudo_probe_extractor"))
             CLEANUP_PATHS.append(get_engine_local_env_path("sudo_probe_engine"))
             CLEANUP_PATHS.append(get_extractor_local_env_path("sudo_probe_extractor"))
             engine_env_pkg = (
-                get_engine_local_env_path("sudo_probe_engine")
-                / "engines"
+                get_engine_venv_site_packages_path("sudo_probe_engine")
                 / "sudo_probe_engine"
             )
             extractor_env_pkg = (
-                get_extractor_local_env_path("sudo_probe_extractor")
-                / "extractors"
+                get_extractor_venv_site_packages_path("sudo_probe_extractor")
                 / "sudo_probe_extractor"
             )
             engine_env_pkg.mkdir(parents=True, exist_ok=True)
             extractor_env_pkg.mkdir(parents=True, exist_ok=True)
-            (engine_env_pkg.parent / "__init__.py").write_text("", encoding="utf-8")
-            (extractor_env_pkg.parent / "__init__.py").write_text("", encoding="utf-8")
             (engine_env_pkg / "__init__.py").write_text("", encoding="utf-8")
             (extractor_env_pkg / "__init__.py").write_text("", encoding="utf-8")
             (engine_env_pkg / "engine.py").write_text(engine_code, encoding="utf-8")
             (extractor_env_pkg / "extractor.py").write_text(extractor_code, encoding="utf-8")
-            (extractor_env_pkg.parent.parent / "sudo_probe_sdk_bridge.py").write_text(
+            engine_env_root = get_engine_venv_site_packages_path("sudo_probe_engine")
+            extractor_env_root = get_extractor_venv_site_packages_path("sudo_probe_extractor")
+            (extractor_env_root / "sudo_probe_sdk_bridge.py").write_text(
                 sdk_bridge_code,
                 encoding="utf-8",
             )
-            (engine_env_pkg.parent.parent / "sudo_probe_engine_media_bridge.py").write_text(
+            (engine_env_root / "sudo_probe_engine_media_bridge.py").write_text(
                 engine_media_bridge_code,
                 encoding="utf-8",
             )
-            (extractor_env_pkg.parent.parent / "sudo_probe_extractor_media_bridge.py").write_text(
+            (extractor_env_root / "sudo_probe_extractor_media_bridge.py").write_text(
                 extractor_media_bridge_code,
                 encoding="utf-8",
             )
-            (engine_env_pkg.parent.parent / "sudo_probe_mcp_bridge.py").write_text(
+            (engine_env_root / "sudo_probe_mcp_bridge.py").write_text(
                 mcp_bridge_code,
                 encoding="utf-8",
             )
@@ -563,7 +606,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 "id": "sudo_probe_engine",
                 "name": "sudo probe engine",
                 "kind": "llm",
-                "entrypoint": "engines.sudo_probe_engine.engine:SudoProbeEngine",
+                "entrypoint": "sudo_probe_engine.engine:SudoProbeEngine",
                 "install": {{"access": access, "allowed_imports": ["json", "subprocess", "sys"]}},
                 "runtime": {{"access": access, "allowed_imports": ["json", "subprocess", "sys"]}},
                 "provider": {{
@@ -581,7 +624,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 "id": "sudo_probe_extractor",
                 "name": "sudo probe extractor",
                 "kind": "extractor",
-                "entrypoint": "extractors.sudo_probe_extractor.extractor:SudoProbeExtractor",
+                "entrypoint": "sudo_probe_extractor.extractor:SudoProbeExtractor",
                 "file_extensions": [".sudo"],
                 "mime_types": ["text/plain"],
                 "install": {{"access": access, "allowed_imports": ["json", "subprocess", "sys"]}},
@@ -651,17 +694,22 @@ def sandbox_harness(tmp_path: Path) -> Path:
                     import socket
                     import sys
 
+                    print("sudo-skill:before-nested", flush=True)
                     completed = subprocess.run(
                         [sys.executable, "-c", "import json; print(json.dumps(dict(ok=True)))"],
                         check=True,
                         text=True,
                         capture_output=True,
                     )
+                    print("sudo-skill:after-nested", flush=True)
                     network_blocked = False
                     try:
+                        print("sudo-skill:before-network", flush=True)
                         socket.create_connection(("1.1.1.1", 443), timeout=1.0).close()
+                        print("sudo-skill:after-network-open", flush=True)
                     except OSError:
                         network_blocked = True
+                        print("sudo-skill:after-network-blocked", flush=True)
                     print(json.dumps(dict(
                         nested_returncode=completed.returncode,
                         network_blocked=network_blocked,
@@ -717,15 +765,25 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def apply_network_guard():
             app_config()
-            from democrai.core.infrastructure.sandbox.os.linux import (
-                apply_application_network_endpoints,
-                clear_application_network_allowlist,
+            from democrai.core.infrastructure.sandbox.os.helper import (
+                apply_application_network_allowlist_with_helper,
+                clear_application_network_allowlist_with_helper,
+                ensure_os_sandbox_helper_ready,
+            )
+            from democrai.core.infrastructure.sandbox.os.models import (
+                ApplicationNetworkAllowlist,
+            )
+            from democrai.core.infrastructure.sandbox.os.linux.network import (
                 _chain_names,
                 _require_command,
             )
 
-            clear_application_network_allowlist(pid=os.getpid())
-            apply_application_network_endpoints([], pid=os.getpid())
+            ensure_os_sandbox_helper_ready(app_config())
+            clear_application_network_allowlist_with_helper(pid=os.getpid())
+            apply_application_network_allowlist_with_helper(
+                ApplicationNetworkAllowlist(endpoints=[]),
+                pid=os.getpid(),
+            )
             text = assert_sandboxed()
             chain_a, chain_b = _chain_names(os.getpid())
             iptables = _require_command("iptables")
@@ -747,8 +805,10 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def cleanup_network_guard():
             try:
-                from democrai.core.infrastructure.sandbox.os.linux import clear_application_network_allowlist
-                clear_application_network_allowlist(pid=os.getpid())
+                from democrai.core.infrastructure.sandbox.os.helper import (
+                    clear_application_network_allowlist_with_helper,
+                )
+                clear_application_network_allowlist_with_helper(pid=os.getpid())
             except Exception:
                 pass
 
@@ -788,6 +848,134 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 if not child["sandboxed"]:
                     raise AssertionError("plain child process did not inherit OS sandbox cgroup")
                 result(ok=True, child=child)
+            finally:
+                cleanup_network_guard()
+
+
+        def case_sandboxed_process_cannot_control_helper():
+            attacker = track_temp_dir("democrai_helper_attack_") / "helper_attack.py"
+            attacker.write_text(
+                textwrap.dedent(
+                    '''
+                    import json
+                    import os
+                    import socket
+
+                    payload = {{
+                        "helper_modified": False,
+                        "helper_error": None,
+                        "helper_attempts": [],
+                        "policy_written": False,
+                        "policy_error": None,
+                        "network_open": False,
+                        "network_error": None,
+                        "socket_env_present": bool(os.environ.get("DEMOCRAI_OS_SANDBOX_HELPER_SOCKET")),
+                        "policy_env_present": bool(os.environ.get("DEMOCRAI_OS_SANDBOX_POLICY_FILE")),
+                    }}
+
+                    try:
+                        from democrai.core.infrastructure.sandbox.os.helper import (
+                            apply_application_network_allowlist_with_helper,
+                            clear_application_network_allowlist_with_helper,
+                            start_application_network_proxy_session_with_helper,
+                            write_os_sandbox_policy_file,
+                        )
+                        from democrai.core.infrastructure.sandbox.os.models import (
+                            ApplicationNetworkAllowlist,
+                            NetworkEndpoint,
+                        )
+
+                        try:
+                            write_os_sandbox_policy_file(ApplicationNetworkAllowlist(endpoints=[]))
+                            payload["policy_written"] = True
+                        except Exception as exc:
+                            payload["policy_error"] = str(exc)
+
+                        try:
+                            clear_application_network_allowlist_with_helper(pid=os.getpid())
+                            payload["helper_attempts"].append({{"operation": "clear", "ok": True}})
+                            payload["helper_modified"] = True
+                        except Exception as exc:
+                            payload["helper_attempts"].append({{"operation": "clear", "ok": False, "error": str(exc)}})
+
+                        try:
+                            apply_application_network_allowlist_with_helper(
+                                ApplicationNetworkAllowlist(
+                                    endpoints=[
+                                        NetworkEndpoint(
+                                            host="1.1.1.1",
+                                            port=443,
+                                            protocol="tcp",
+                                            source="sudo.sandbox_escape_attempt",
+                                            purpose="helper-control-attack",
+                                        )
+                                    ]
+                                ),
+                                pid=os.getpid(),
+                            )
+                            payload["helper_attempts"].append({{"operation": "apply", "ok": True}})
+                            payload["helper_modified"] = True
+                        except Exception as exc:
+                            payload["helper_attempts"].append({{"operation": "apply", "ok": False, "error": str(exc)}})
+
+                        try:
+                            start_application_network_proxy_session_with_helper(
+                                ApplicationNetworkAllowlist(endpoints=[])
+                            )
+                            payload["helper_attempts"].append({{"operation": "start_proxy_session", "ok": True}})
+                            payload["helper_modified"] = True
+                        except Exception as exc:
+                            payload["helper_attempts"].append({{"operation": "start_proxy_session", "ok": False, "error": str(exc)}})
+                    except Exception as exc:
+                        payload["helper_error"] = str(exc)
+
+                    try:
+                        socket.create_connection(("1.1.1.1", 443), timeout=1.0).close()
+                        payload["network_open"] = True
+                    except OSError as exc:
+                        payload["network_error"] = str(exc)
+
+                    print(json.dumps(payload, ensure_ascii=True))
+                    '''
+                ),
+                encoding="utf-8",
+            )
+            try:
+                apply_network_guard()
+                attacker_env = dict(os.environ)
+                attacker_env.pop("DEMOCRAI_OS_SANDBOX_HELPER_SOCKET", None)
+                attacker_env.pop("DEMOCRAI_OS_SANDBOX_POLICY_FILE", None)
+                attacker_env.pop("DEMOCRAI_OS_SANDBOX_HELPER_TOKEN", None)
+                completed = subprocess.run(
+                    [sys.executable, str(attacker)],
+                    check=True,
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                    env=attacker_env,
+                )
+                payload = json.loads(completed.stdout.strip().splitlines()[-1])
+                if payload.get("socket_env_present") or payload.get("policy_env_present"):
+                    raise AssertionError(
+                        f"sandboxed process received helper control env: {{payload!r}}"
+                    )
+                if payload.get("policy_written"):
+                    raise AssertionError(
+                        f"sandboxed process wrote helper policy: {{payload!r}}"
+                    )
+                if payload.get("policy_error") != "os_sandbox_policy_write_denied":
+                    raise AssertionError(
+                        f"sandboxed process policy write failed for wrong reason: {{payload!r}}"
+                    )
+                if payload.get("helper_modified"):
+                    raise AssertionError(
+                        f"sandboxed process modified helper-controlled network rules: {{payload!r}}"
+                    )
+                if payload.get("network_open"):
+                    raise AssertionError(
+                        f"sandboxed process opened direct network after helper attack: {{payload!r}}"
+                    )
+                result(ok=True, payload=payload)
             finally:
                 cleanup_network_guard()
 
@@ -832,17 +1020,10 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 result(ok=True, cgroup=text)
             finally:
                 try:
-                    from democrai.core.infrastructure.sandbox.os.linux import clear_application_network_allowlist
-                    clear_application_network_allowlist(pid=os.getpid())
-                except Exception:
-                    pass
-                try:
                     from democrai.core.infrastructure.sandbox.os.helper import (
-                        _stop_tracked_helper_process,
-                        cleanup_os_sandbox_policy_file,
+                        clear_application_network_allowlist_with_helper,
                     )
-                    _stop_tracked_helper_process()
-                    cleanup_os_sandbox_policy_file(cfg)
+                    clear_application_network_allowlist_with_helper(pid=os.getpid())
                 except Exception:
                     pass
                 cfg.get("sandbox.os.enabled", False)
@@ -1054,22 +1235,54 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         subject.close()
                 finally:
                     reset_probe_request_context(request_token)
-                if not payload.get("worker", {{}}).get("sandboxed"):
-                    raise AssertionError("engine worker spawned by extractor escaped OS sandbox")
                 engine_payload = payload.get("engine")
                 if not isinstance(engine_payload, dict):
                     raise AssertionError("extractor engine payload missing")
-                for label, value in {{
-                    "engine_self": engine_payload.get("self"),
-                    "engine_child": engine_payload.get("child"),
-                }}.items():
-                    if not isinstance(value, dict) or not value.get("sandboxed"):
-                        raise AssertionError(f"extractor engine {{label}} escaped OS sandbox")
+                if not payload.get("remote_provider"):
+                    raise AssertionError("extractor SDK did not use remote engine provider")
+                if not engine_payload.get("orchestrator_boundary"):
+                    raise AssertionError("extractor SDK did not cross orchestrator boundary")
+                if not engine_payload.get("caller", {{}}).get("sandboxed"):
+                    raise AssertionError("extractor SDK call escaped OS sandbox")
                 result(
                     ok=True,
                     extractor_worker_cgroup=extractor_worker_cgroup,
                     engine=payload,
                 )
+            finally:
+                cleanup_network_guard()
+
+
+        def case_extractor_direct_engine_spawn_blocked():
+            try:
+                make_fake_extensions()
+                extractor_dir = Path(os.environ["DEMOCRAI_EXTRACTORS_PATH"]) / "sudo_probe_extractor"
+                (extractor_dir / "forbidden_core_import.py").write_text(
+                    "from democrai.core.application.ai.engine.runtime.worker import EngineWorkerSubject\\n",
+                    encoding="utf-8",
+                )
+                from democrai.core.application.knowledge.extractor.worker_subject import ExtractorWorkerSubject
+
+                blocked = False
+                error = ""
+                try:
+                    subject = ExtractorWorkerSubject(
+                        extractor_id="sudo_probe_extractor",
+                        phase="runtime",
+                        config={{}},
+                    )
+                    try:
+                        subject.invoke_class("probe_self", {{}})
+                    finally:
+                        subject.close()
+                except RuntimeError as exc:
+                    error = str(exc)
+                    blocked = "extractor_sdk_boundary_violation" in error
+                if not blocked:
+                    raise AssertionError(
+                        f"extractor direct core import was not blocked: {{error}}"
+                    )
+                result(ok=True, blocked=blocked, error=error.split("\\n", 1)[0])
             finally:
                 cleanup_network_guard()
 
@@ -1809,6 +2022,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
             cases = {{
                 "process_guard": case_process_guard,
                 "network_and_subprocess_inheritance": case_network_and_subprocess_inheritance,
+                "sandboxed_process_cannot_control_helper": case_sandboxed_process_cannot_control_helper,
                 "landlock": case_landlock,
                 "application_bootstrap": case_application_bootstrap,
                 "engine_install_runtime_and_call": case_engine_install_runtime_and_call,
@@ -1816,6 +2030,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 "extractor_install_runtime_and_call": case_extractor_install_runtime_and_call,
                 "media_parent_requests": case_media_parent_requests,
                 "extractor_calls_engine_via_sdk": case_extractor_calls_engine_via_sdk,
+                "extractor_direct_engine_spawn_blocked": case_extractor_direct_engine_spawn_blocked,
                 "engine_calls_mcp_direct_command": case_engine_calls_mcp_direct_command,
                 "pipeline_tool_call_runs_skill_script": case_pipeline_tool_call_runs_skill_script,
                 "skill_tool_call_runs_script": case_skill_tool_call_runs_script,
@@ -1840,6 +2055,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
     [
         "process_guard",
         "network_and_subprocess_inheritance",
+        "sandboxed_process_cannot_control_helper",
         "landlock",
         "application_bootstrap",
         "engine_install_runtime_and_call",
@@ -1847,6 +2063,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
         "extractor_install_runtime_and_call",
         "media_parent_requests",
         "extractor_calls_engine_via_sdk",
+        "extractor_direct_engine_spawn_blocked",
         "engine_calls_mcp_direct_command",
         "pipeline_tool_call_runs_skill_script",
         "skill_tool_call_runs_script",
@@ -1875,7 +2092,7 @@ def test_real_seccomp_blocks_exec(tmp_path: Path):
     completed = subprocess.run(
         [sys.executable, str(script)],
         cwd=str(Path(__file__).resolve().parents[2]),
-        env=_python_env(),
+        env=_python_env(_short_runtime_root("seccomp")),
         text=True,
         capture_output=True,
         timeout=10,

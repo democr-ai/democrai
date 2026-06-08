@@ -142,40 +142,12 @@ def network_env(policy: SandboxLaunchPolicy) -> dict[str, str]:
         return env
     proxy_url = _loopback_proxy_url(str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip())
     if not proxy_url:
-        proxy_url = _loopback_proxy_url(proxy_url_for_policy(policy))
-    if not proxy_url:
         raise RuntimeError("os_sandbox_proxy_required")
     for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
         env[key] = proxy_url
     env["NO_PROXY"] = "127.0.0.1,localhost,::1"
     env["no_proxy"] = "127.0.0.1,localhost,::1"
     return env
-
-
-def proxy_url_for_policy(policy: SandboxLaunchPolicy) -> str:
-    if policy.network_mode != NETWORK_PROXY:
-        return ""
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        start_application_network_proxy_session_with_helper,
-    )
-    from democrai.core.infrastructure.sandbox.os.models import (
-        ApplicationNetworkAllowlist,
-    )
-
-    endpoints = [
-        _network_endpoint_from_target(item)
-        for item in policy.network_endpoints
-    ]
-    endpoints = [item for item in endpoints if item is not None]
-    if not endpoints:
-        raise RuntimeError("os_sandbox_proxy_endpoints_required")
-    session = start_application_network_proxy_session_with_helper(
-        ApplicationNetworkAllowlist(endpoints=endpoints)
-    )
-    proxy_url = str(session.get("proxy_url") or "").strip()
-    if not proxy_url:
-        raise RuntimeError("os_sandbox_proxy_url_missing")
-    return proxy_url
 
 
 def proxy_endpoint_payload(proxy_url: str) -> dict[str, str | int]:

@@ -139,6 +139,46 @@ class OsSandboxConnectProxy:
         debug_os_sandbox_flow("proxy.session_stop", session_id=resolved)
         _write_proxy_diagnostic("proxy.session_stop", session_id=resolved)
 
+    def update_session(
+        self,
+        session_id: str,
+        *,
+        endpoints: list[dict[str, Any]],
+        ttl_seconds: int | None = None,
+    ) -> dict[str, str]:
+        self._cleanup_expired_sessions()
+        resolved = str(session_id or "").strip()
+        if not resolved:
+            raise RuntimeError("os_sandbox_proxy_session_id_required")
+        current = self._sessions.get(resolved)
+        if current is None:
+            raise RuntimeError(f"os_sandbox_proxy_session_not_found:{resolved}")
+        updated = _ProxySession(
+            session_id=current.session_id,
+            token=current.token,
+            endpoints=_endpoint_policy(endpoints),
+            expires_at=(
+                time.time() + max(60, int(ttl_seconds))
+                if ttl_seconds is not None
+                else current.expires_at
+            ),
+        )
+        self._sessions[resolved] = updated
+        debug_os_sandbox_flow(
+            "proxy.session_update",
+            session_id=resolved,
+            endpoint_count=updated.endpoints.count,
+        )
+        _write_proxy_diagnostic(
+            "proxy.session_update",
+            session_id=resolved,
+            endpoint_count=updated.endpoints.count,
+        )
+        return {
+            "session_id": resolved,
+            "proxy_url": f"http://{current.token}:x@{self._host}:{self._port}",
+        }
+
     async def _handle_client(
         self,
         reader: asyncio.StreamReader,

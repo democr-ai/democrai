@@ -437,6 +437,7 @@ class _Worker:
                 allow_subprocess=True,
                 include_runtime_access=False,
                 inherit_parent_access=False,
+                include_network_access=False,
             )
         )
         self._stack.enter_context(

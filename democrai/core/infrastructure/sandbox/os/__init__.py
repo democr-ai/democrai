@@ -1,4 +1,9 @@
-from .allowlist import build_application_network_allowlist
+from .allowlist import (
+    NetworkPolicyRequest,
+    build_application_network_allowlist,
+    build_framework_network_allowlist,
+    build_subject_network_allowlist,
+)
 from .bootstrap import bootstrap_current_process_os_sandbox
 from .bootstrap import bootstrap_current_process_os_sandbox_async
 from .current_process import (
@@ -18,8 +23,8 @@ from .events import (
 from .helper import (
     apply_application_network_allowlist_with_helper,
     apply_application_network_allowlist_with_helper_async,
-    apply_application_network_endpoints_with_helper,
-    apply_application_network_endpoints_with_helper_async,
+    apply_current_application_network_allowlist_with_helper,
+    apply_current_application_network_allowlist_with_helper_async,
     clear_application_network_allowlist_with_helper,
     clear_application_network_allowlist_with_helper_async,
     ensure_os_sandbox_helper_ready,
@@ -30,6 +35,8 @@ from .helper import (
     start_application_network_proxy_session_with_helper_async,
     stop_application_network_proxy_session_with_helper,
     stop_application_network_proxy_session_with_helper_async,
+    update_application_network_proxy_session_with_helper,
+    update_application_network_proxy_session_with_helper_async,
     write_os_sandbox_policy_file,
 )
 from .helper_process import run_os_sandbox_helper_server
@@ -71,9 +78,12 @@ __all__ = [
     "NetworkEndpoint",
     "apply_application_network_allowlist_with_helper",
     "apply_application_network_allowlist_with_helper_async",
-    "apply_application_network_endpoints_with_helper",
-    "apply_application_network_endpoints_with_helper_async",
+    "apply_current_application_network_allowlist_with_helper",
+    "apply_current_application_network_allowlist_with_helper_async",
     "build_application_network_allowlist",
+    "build_framework_network_allowlist",
+    "build_subject_network_allowlist",
+    "NetworkPolicyRequest",
     "bootstrap_current_process_os_sandbox",
     "bootstrap_current_process_os_sandbox_async",
     "clear_application_network_allowlist_with_helper",
@@ -88,6 +98,8 @@ __all__ = [
     "start_application_network_proxy_session_with_helper_async",
     "stop_application_network_proxy_session_with_helper",
     "stop_application_network_proxy_session_with_helper_async",
+    "update_application_network_proxy_session_with_helper",
+    "update_application_network_proxy_session_with_helper_async",
     "is_application_network_allowlist_enabled",
     "is_application_network_allowlist_active",
     "process_application_network_allowlist_refresh_event",

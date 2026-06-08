@@ -42,7 +42,7 @@ def test_sandbox_state_helpers(monkeypatch):
         captured.update(kwargs)
         return SimpleNamespace(endpoints=[SimpleNamespace(host="api.local", port=443)])
 
-    monkeypatch.setattr(mod, "build_application_network_allowlist", _build)
+    monkeypatch.setattr(mod, "build_framework_network_allowlist", _build)
     out = mod.refresh_application_network_allowlist()
     assert out.endpoints and captured["config"] is None and captured["modules"] == "mods"
 

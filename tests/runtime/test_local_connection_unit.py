@@ -10,8 +10,7 @@ import pytest
 from democrai.core.runtime.ipc import local_connection as mod
 
 
-def test_local_connection_roundtrip_and_unix_socket_cleanup(monkeypatch, tmp_path):
-    monkeypatch.setattr(mod, "state_dir", lambda: tmp_path)
+def test_local_connection_roundtrip_and_unix_socket_cleanup(monkeypatch):
     endpoint = mod.create_local_listener("unit test")
     for key, value in endpoint.env("DEMOCRAI_TEST").items():
         monkeypatch.setenv(key, value)
@@ -81,4 +80,3 @@ def test_accept_connection_times_out_and_closes_endpoint():
 
 def test_address_family_supports_windows_named_pipe_address():
     assert mod._address_family(r"\\.\pipe\democrai-test") == "AF_PIPE"
-

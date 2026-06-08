@@ -8,7 +8,7 @@ from democrai.core.application.access_policy import AccessManifestRule
 from democrai.core.application.access_policy import AccessResource
 from democrai.core.application.access_policy import AccessSubject
 from democrai.core.runtime.foundation.paths import is_frozen
-from democrai.core.runtime.foundation.paths import state_dir
+from democrai.core.runtime.foundation.paths import runtime_ipc_dir
 
 
 def payload_access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]:
@@ -96,7 +96,7 @@ def framework_runtime_access(
     if os.name == "nt":
         return tuple(rules)
     try:
-        ipc_path = str((state_dir() / "ipc").resolve())
+        ipc_path = str(runtime_ipc_dir().resolve())
     except Exception:
         return tuple(rules)
     paths = [ipc_path]

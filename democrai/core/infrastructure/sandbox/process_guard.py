@@ -37,6 +37,7 @@ from democrai.core.runtime.foundation.paths import (
     config_dir,
     data_dir,
     logs_dir,
+    runtime_ipc_dir,
     state_dir,
 )
 from democrai.core.platform.utils.identity import to_optional_int
@@ -861,7 +862,7 @@ def _build_runtime_access() -> tuple[AccessManifestRule, ...]:
 
 def _runtime_ipc_path() -> str:
     try:
-        return str((state_dir() / "ipc").resolve())
+        return str(runtime_ipc_dir().resolve())
     except Exception:
         return ""
 
@@ -1772,6 +1773,7 @@ def _run_subprocess_via_launcher(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     *,
+    call_name: str,
     cleanup_policy: bool = True,
 ):
     if bool(kwargs.get("shell")):
@@ -1789,16 +1791,21 @@ def _run_subprocess_via_launcher(
     )
     with process_guard_bypass_context():
         sandbox_launcher = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
-        policy_env = sandbox_launcher._with_os_sandbox_helper_env(policy_env)
+        if not sandbox_launcher._os_sandbox_enabled():
+            return None
+        launcher_env = sandbox_launcher._with_os_sandbox_helper_env(policy_env)
+        runtime_env = sandbox_launcher._without_os_sandbox_helper_env(launcher_env)
         policy = sandbox_launcher._build_policy(
             command=command_sequence,
             cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
-            env=policy_env,
+            env=runtime_env,
         )
-        policy, _appcontainer_sid = sandbox_launcher._prepare_policy_for_launch(policy, policy_env)
+        policy, _appcontainer_sid, proxy_session_id = sandbox_launcher._prepare_policy_for_launch(policy, runtime_env)
         policy_path = sandbox_launcher._write_policy(policy)
-    launcher_env = dict(policy_env)
+        ready_file = sandbox_launcher._new_launch_ready_file()
+    launcher_env = dict(launcher_env)
     launcher_env["PYTHONPATH"] = _launcher_pythonpath(launcher_env)
+    launcher_env[sandbox_launcher._LAUNCH_READY_ENV] = str(ready_file)
     launcher_command = [
         sys.executable,
         "-m",
@@ -1808,16 +1815,70 @@ def _run_subprocess_via_launcher(
     launcher_kwargs = dict(kwargs)
     launcher_kwargs["env"] = launcher_env
     launcher_kwargs.pop("cwd", None)
+    if call_name == "subprocess.run":
+        run_kwargs = dict(launcher_kwargs)
+        run_kwargs.pop("check", None)
+        timeout = run_kwargs.pop("timeout", None)
+        input_value = run_kwargs.pop("input", None)
+        capture_output = bool(run_kwargs.pop("capture_output", False))
+        if capture_output:
+            run_kwargs.setdefault("stdout", subprocess.PIPE)
+            run_kwargs.setdefault("stderr", subprocess.PIPE)
+        if input_value is not None:
+            run_kwargs["stdin"] = subprocess.PIPE
+        with process_guard_bypass_context():
+            proc = subprocess.Popen(launcher_command, **run_kwargs)
+            try:
+                sandbox_launcher._apply_launch_network_policy(policy, proc.pid)
+                sandbox_launcher._release_launch_ready_file(ready_file)
+                stdout, stderr = proc.communicate(input=input_value, timeout=timeout)
+            except Exception:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.communicate()
+                raise
+            finally:
+                sandbox_launcher._release_launch_ready_file(ready_file)
+                sandbox_launcher._cleanup_launch_ready_file(ready_file)
+                sandbox_launcher._stop_launch_proxy_session(proxy_session_id)
+                if cleanup_policy:
+                    try:
+                        policy_path.unlink()
+                    except OSError:
+                        pass
+        completed = subprocess.CompletedProcess(
+            command_sequence,
+            proc.returncode,
+            stdout,
+            stderr,
+        )
+        if kwargs.get("check") and proc.returncode:
+            raise subprocess.CalledProcessError(
+                proc.returncode,
+                command_sequence,
+                output=stdout,
+                stderr=stderr,
+            )
+        return completed
     if args:
         launcher_args = (launcher_command, *args[1:])
     else:
         launcher_args = ()
         launcher_kwargs["args"] = launcher_command
     try:
-        return original(*launcher_args, **launcher_kwargs)
+        launched = original(*launcher_args, **launcher_kwargs)
+        with process_guard_bypass_context():
+            sandbox_launcher._apply_launch_network_policy(policy, launched.pid)
+            sandbox_launcher._release_launch_ready_file(ready_file)
+        if proxy_session_id:
+            setattr(launched, "democrai_os_sandbox_proxy_session_id", proxy_session_id)
+        return launched
     finally:
         if cleanup_policy:
             with process_guard_bypass_context():
+                sandbox_launcher._release_launch_ready_file(ready_file)
+                sandbox_launcher._cleanup_launch_ready_file(ready_file)
+                sandbox_launcher._stop_launch_proxy_session(proxy_session_id)
                 try:
                     policy_path.unlink()
                 except OSError:
@@ -1869,6 +1930,7 @@ def _blocked_process_call(name: str, original):
                     original,
                     args,
                     kwargs,
+                    call_name=name,
                     cleanup_policy=name != "subprocess.Popen",
                 )
                 if launched is not None:

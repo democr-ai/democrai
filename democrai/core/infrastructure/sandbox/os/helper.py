@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import contextvars
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -19,6 +22,8 @@ from democrai.core.runtime.foundation.paths import (
     get_base_dir,
     is_frozen,
     logs_dir,
+    runtime_ipc_dir,
+    runtime_unix_socket_path,
     state_dir,
 )
 from democrai.core.runtime.lifecycle.process_supervisor import process_supervisor
@@ -29,6 +34,21 @@ from .models import ApplicationNetworkAllowlist
 
 OS_SANDBOX_HELPER_SOCKET_ENV = "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"
 OS_SANDBOX_POLICY_FILE_ENV = "DEMOCRAI_OS_SANDBOX_POLICY_FILE"
+OS_SANDBOX_HELPER_TOKEN_ENV = "DEMOCRAI_OS_SANDBOX_HELPER_TOKEN"
+_POLICY_WRITE_ALLOWED: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "os_sandbox_policy_write_allowed",
+    default=False,
+)
+_POLICY_APPLY_LOCK = threading.RLock()
+
+
+@contextlib.contextmanager
+def _allow_os_sandbox_policy_write():
+    token = _POLICY_WRITE_ALLOWED.set(True)
+    try:
+        yield
+    finally:
+        _POLICY_WRITE_ALLOWED.reset(token)
 
 
 def _process_scoped_config_path(value: str) -> str:
@@ -50,7 +70,7 @@ def get_os_sandbox_helper_socket_path(config: Any | None = None) -> str:
         configured = str(getter("sandbox.os.helper_socket", "") or "").strip()
         if configured:
             return _process_scoped_config_path(configured)
-    return str((state_dir() / f"os_sandbox_helper_{os.getpid()}.sock").resolve())
+    return str(runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve())
 
 
 def get_os_sandbox_policy_file_path(config: Any | None = None) -> str:
@@ -64,6 +84,29 @@ def get_os_sandbox_policy_file_path(config: Any | None = None) -> str:
         if configured:
             return _process_scoped_config_path(configured)
     return str((data_dir() / f"os_sandbox_allowlist_{os.getpid()}.json").resolve())
+
+
+def get_os_sandbox_helper_token(config: Any | None = None) -> str:
+    inherited = str(os.environ.get(OS_SANDBOX_HELPER_TOKEN_ENV) or "").strip()
+    if inherited:
+        return inherited
+    return str(getattr(app_ctx(), "os_sandbox_helper_token", "") or "").strip()
+
+
+def _ensure_os_sandbox_helper_token() -> str:
+    token = get_os_sandbox_helper_token()
+    if token:
+        return token
+    token = secrets.token_urlsafe(32)
+    setattr(app_ctx(), "os_sandbox_helper_token", token)
+    return token
+
+
+def _require_os_sandbox_helper_token(config: Any | None = None) -> str:
+    token = get_os_sandbox_helper_token(config)
+    if not token:
+        raise RuntimeError("os_sandbox_helper_token_missing")
+    return token
 
 
 def get_os_sandbox_refresh_seconds(config: Any | None = None) -> int:
@@ -88,20 +131,30 @@ def _pid_is_alive(pid: int) -> bool:
 
 
 def _cleanup_stale_helper_sockets() -> None:
-    for path in state_dir().glob("os_sandbox_helper_*.sock"):
-        stem = path.stem
-        raw_pid = stem.removeprefix("os_sandbox_helper_")
-        if not raw_pid.isdigit() or _pid_is_alive(int(raw_pid)):
-            continue
-        try:
-            path.unlink()
-            debug_os_sandbox_flow("helper.stale_socket_removed", socket_path=str(path))
-        except Exception as exc:
-            debug_os_sandbox_flow(
-                "helper.stale_socket_remove_failed",
-                socket_path=str(path),
-                error=str(exc),
-            )
+    roots = [state_dir(), runtime_ipc_dir()]
+    seen: set[Path] = set()
+    for root in roots:
+        for path in root.glob("os_sandbox_helper_*.sock"):
+            if path in seen:
+                continue
+            seen.add(path)
+            _cleanup_stale_helper_socket(path)
+
+
+def _cleanup_stale_helper_socket(path: Path) -> None:
+    stem = path.stem
+    raw_pid = stem.removeprefix("os_sandbox_helper_")
+    if not raw_pid.isdigit() or _pid_is_alive(int(raw_pid)):
+        return
+    try:
+        path.unlink()
+        debug_os_sandbox_flow("helper.stale_socket_removed", socket_path=str(path))
+    except Exception as exc:
+        debug_os_sandbox_flow(
+            "helper.stale_socket_remove_failed",
+            socket_path=str(path),
+            error=str(exc),
+        )
 
 
 def _cleanup_stale_policy_files() -> None:
@@ -140,6 +193,16 @@ def _debug_helper_payload(payload: dict[str, Any]) -> dict[str, Any]:
     sanitized = dict(payload)
     if "proxy_url" in sanitized:
         sanitized["proxy_url"] = "<redacted>"
+    if "token" in sanitized:
+        sanitized["token"] = "<redacted>"
+    return sanitized
+
+
+def _debug_helper_command(command: list[str]) -> list[str]:
+    sanitized = list(command)
+    for index, item in enumerate(sanitized[:-1]):
+        if item == "--os-sandbox-helper-token":
+            sanitized[index + 1] = "<redacted>"
     return sanitized
 
 
@@ -148,14 +211,15 @@ async def _request_helper(
     socket_path: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
+    request_payload = {"token": _require_os_sandbox_helper_token(), **dict(payload)}
     reader, writer = await asyncio.open_unix_connection(socket_path)
     try:
         debug_os_sandbox_flow(
             "helper.client_request",
             socket_path=socket_path,
-            payload=_debug_helper_payload(payload),
+            payload=_debug_helper_payload(request_payload),
         )
-        writer.write((json.dumps(payload) + "\n").encode("utf-8"))
+        writer.write((json.dumps(request_payload) + "\n").encode("utf-8"))
         await writer.drain()
         raw = await reader.readline()
     finally:
@@ -180,32 +244,39 @@ async def _request_helper_ready_async(config: Any | None = None) -> None:
     socket_path = get_os_sandbox_helper_socket_path(config)
     _cleanup_stale_helper_sockets()
     _cleanup_stale_policy_files()
+    if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
+        _ensure_os_sandbox_helper_token()
     try:
         await _request_helper(socket_path=socket_path, payload={"action": "ping"})
         return
     except FileNotFoundError as exc:
-        strategy = _helper_autostart_strategy()
-        if strategy is not None:
-            _restart_os_sandbox_helper_process(socket_path)
-            await _wait_for_helper_async(
-                socket_path,
-                timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
-            )
-            return
-        start_command = " ".join(_sudo_helper_command(socket_path))
+        if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
+            strategy = _helper_autostart_strategy()
+            if strategy is not None:
+                _restart_os_sandbox_helper_process(socket_path)
+                await _wait_for_helper_async(
+                    socket_path,
+                    timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
+                )
+                return
+            start_command = " ".join(_sudo_helper_command(socket_path, config))
+            raise RuntimeError(
+                "os_sandbox_helper_not_running:"
+                f"{socket_path}:start_with={start_command}"
+            ) from exc
         raise RuntimeError(
-            "os_sandbox_helper_not_running:"
-            f"{socket_path}:start_with={start_command}"
+            f"os_sandbox_helper_not_running:{socket_path}"
         ) from exc
     except ConnectionRefusedError as exc:
-        strategy = _helper_autostart_strategy()
-        if strategy is not None:
-            _restart_os_sandbox_helper_process(socket_path)
-            await _wait_for_helper_async(
-                socket_path,
-                timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
-            )
-            return
+        if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
+            strategy = _helper_autostart_strategy()
+            if strategy is not None:
+                _restart_os_sandbox_helper_process(socket_path)
+                await _wait_for_helper_async(
+                    socket_path,
+                    timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
+                )
+                return
         raise RuntimeError(
             f"os_sandbox_helper_unreachable:{socket_path}"
         ) from exc
@@ -291,52 +362,73 @@ def _helper_autostart_env() -> dict[str, str]:
 
 
 def _helper_autostart_log_file():
-    path = logs_dir() / "os_sandbox_helper_autostart.log"
+    path = _helper_autostart_log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     return path.open("ab")
 
 
-def _helper_command(socket_path: str) -> list[str]:
+def _helper_autostart_log_path() -> Path:
+    return logs_dir() / "os_sandbox_helper_autostart.log"
+
+
+def _helper_autostart_log_tail() -> str:
+    try:
+        path = _helper_autostart_log_path()
+        if not path.exists():
+            return ""
+        data = path.read_bytes()[-8000:]
+        return data.decode("utf-8", errors="replace").strip()
+    except Exception:
+        return ""
+
+
+def _helper_command(socket_path: str, config: Any | None = None) -> list[str]:
     return [
         *_helper_module_command_prefix(),
         "--os-sandbox-helper-socket",
         socket_path,
         "--os-sandbox-helper-policy-file",
-        get_os_sandbox_policy_file_path(),
+        get_os_sandbox_policy_file_path(config),
         "--os-sandbox-helper-refresh-seconds",
         str(get_os_sandbox_refresh_seconds()),
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
+        "--os-sandbox-helper-token",
+        _ensure_os_sandbox_helper_token(),
     ]
 
 
-def _pkexec_helper_command(socket_path: str) -> list[str]:
+def _pkexec_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
     return [
         "pkexec",
         *_helper_module_command_prefix(),
         "--os-sandbox-helper-socket",
         socket_path,
         "--os-sandbox-helper-policy-file",
-        get_os_sandbox_policy_file_path(),
+        get_os_sandbox_policy_file_path(config),
         "--os-sandbox-helper-refresh-seconds",
         str(get_os_sandbox_refresh_seconds()),
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
+        "--os-sandbox-helper-token",
+        _ensure_os_sandbox_helper_token(),
     ]
 
 
-def _sudo_helper_command(socket_path: str) -> list[str]:
+def _sudo_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
     return [
         "sudo",
         *_helper_module_command_prefix(),
         "--os-sandbox-helper-socket",
         socket_path,
         "--os-sandbox-helper-policy-file",
-        get_os_sandbox_policy_file_path(),
+        get_os_sandbox_policy_file_path(config),
         "--os-sandbox-helper-refresh-seconds",
         str(get_os_sandbox_refresh_seconds()),
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
+        "--os-sandbox-helper-token",
+        _ensure_os_sandbox_helper_token(),
     ]
 
 
@@ -406,6 +498,8 @@ def _stop_tracked_helper_process() -> None:
     finally:
         process_supervisor.unregister(existing)
         app_ctx().os_sandbox_helper_process = None
+        with contextlib.suppress(Exception):
+            setattr(app_ctx(), "os_sandbox_helper_token", "")
 
 
 def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes]:
@@ -416,14 +510,14 @@ def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes
     if strategy is None:
         raise RuntimeError("os_sandbox_helper_autostart_unavailable")
     if strategy == "direct":
-        cmd = _helper_command(socket_path)
+        command = _helper_command(socket_path)
     elif strategy == "pkexec":
-        cmd = _pkexec_helper_command(socket_path)
+        command = _pkexec_helper_command(socket_path)
     else:
-        cmd = _sudo_helper_command(socket_path)
+        command = _sudo_helper_command(socket_path)
     debug_os_sandbox_flow(
         "helper.autostart_spawn",
-        cmd=cmd,
+        cmd=_debug_helper_command(command),
         socket_path=socket_path,
         strategy=strategy,
     )
@@ -437,7 +531,7 @@ def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes
     }
     if strategy == "direct":
         popen_kwargs["start_new_session"] = True
-    proc = subprocess.Popen(cmd, **popen_kwargs)
+    proc = subprocess.Popen(command, **popen_kwargs)
     app_ctx().os_sandbox_helper_process = proc
     process_supervisor.register(proc, name="os-sandbox-helper")
     return proc
@@ -461,8 +555,10 @@ async def _wait_for_helper_async(socket_path: str, *, timeout_seconds: float = 3
             except Exception:
                 returncode = None
             if returncode is not None:
+                log_tail = _helper_autostart_log_tail()
                 raise RuntimeError(
                     f"os_sandbox_helper_process_exited:{int(returncode)}:{socket_path}"
+                    + (f":log_tail={log_tail}" if log_tail else "")
                 )
         try:
             await _request_helper(socket_path=socket_path, payload={"action": "ping"})
@@ -513,14 +609,35 @@ def apply_application_network_allowlist_with_helper(
     )
 
 
-async def apply_application_network_allowlist_with_helper_async(
-    allowlist: ApplicationNetworkAllowlist,
+def apply_current_application_network_allowlist_with_helper(
+    *,
+    pid: int | None = None,
+    config: Any | None = None,
+) -> None:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            apply_current_application_network_allowlist_with_helper_async(
+                pid=pid,
+                config=config,
+            )
+        )
+    _run_async_in_thread(
+        lambda: apply_current_application_network_allowlist_with_helper_async(
+            pid=pid,
+            config=config,
+        )
+    )
+
+
+async def apply_current_application_network_allowlist_with_helper_async(
     *,
     pid: int | None = None,
     config: Any | None = None,
 ) -> None:
     socket_path = get_os_sandbox_helper_socket_path(config)
-    write_os_sandbox_policy_file(allowlist, config=config)
+    _require_os_sandbox_helper_token(config)
     await ensure_os_sandbox_helper_ready_async(config)
     await _request_helper(
         socket_path=socket_path,
@@ -528,47 +645,20 @@ async def apply_application_network_allowlist_with_helper_async(
     )
 
 
-async def apply_application_network_endpoints_with_helper_async(
-    endpoints: list[dict[str, Any]],
+async def apply_application_network_allowlist_with_helper_async(
+    allowlist: ApplicationNetworkAllowlist,
     *,
-    pid: int,
+    pid: int | None = None,
     config: Any | None = None,
 ) -> None:
-    socket_path = get_os_sandbox_helper_socket_path(config)
-    await ensure_os_sandbox_helper_ready_async(config)
-    await _request_helper(
-        socket_path=socket_path,
-        payload={
-            "action": "apply_endpoints",
-            "pid": int(pid),
-            "endpoints": list(endpoints or []),
-        },
-    )
-
-
-def apply_application_network_endpoints_with_helper(
-    endpoints: list[dict[str, Any]],
-    *,
-    pid: int,
-    config: Any | None = None,
-) -> None:
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(
-            apply_application_network_endpoints_with_helper_async(
-                endpoints,
-                pid=pid,
-                config=config,
-            )
-        )
-    _run_async_in_thread(
-        lambda: apply_application_network_endpoints_with_helper_async(
-            endpoints,
+    _require_os_sandbox_helper_token(config)
+    with _POLICY_APPLY_LOCK:
+        with _allow_os_sandbox_policy_write():
+            write_os_sandbox_policy_file(allowlist, config=config)
+        await apply_current_application_network_allowlist_with_helper_async(
             pid=pid,
             config=config,
         )
-    )
 
 
 async def start_application_network_proxy_session_with_helper_async(
@@ -577,6 +667,7 @@ async def start_application_network_proxy_session_with_helper_async(
     config: Any | None = None,
 ) -> dict[str, str]:
     socket_path = get_os_sandbox_helper_socket_path(config)
+    _require_os_sandbox_helper_token(config)
     await ensure_os_sandbox_helper_ready_async(config)
     response = await _request_helper(
         socket_path=socket_path,
@@ -617,6 +708,61 @@ def start_application_network_proxy_session_with_helper(
     return {"session_id": str(result["session_id"]), "proxy_url": str(result["proxy_url"])}
 
 
+async def update_application_network_proxy_session_with_helper_async(
+    session_id: str,
+    allowlist: ApplicationNetworkAllowlist,
+    *,
+    config: Any | None = None,
+) -> dict[str, str]:
+    resolved = str(session_id or "").strip()
+    if not resolved:
+        raise RuntimeError("os_sandbox_proxy_session_id_required")
+    socket_path = get_os_sandbox_helper_socket_path(config)
+    _require_os_sandbox_helper_token(config)
+    await ensure_os_sandbox_helper_ready_async(config)
+    response = await _request_helper(
+        socket_path=socket_path,
+        payload={
+            "action": "update_proxy_session",
+            "session_id": resolved,
+            **_allowlist_to_payload(allowlist),
+        },
+    )
+    response_session_id = str(response.get("session_id") or "").strip()
+    proxy_url = str(response.get("proxy_url") or "").strip()
+    if response_session_id != resolved or not proxy_url:
+        raise RuntimeError("os_sandbox_helper_invalid_proxy_session_response")
+    return {"session_id": response_session_id, "proxy_url": proxy_url}
+
+
+def update_application_network_proxy_session_with_helper(
+    session_id: str,
+    allowlist: ApplicationNetworkAllowlist,
+    *,
+    config: Any | None = None,
+) -> dict[str, str]:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            update_application_network_proxy_session_with_helper_async(
+                session_id,
+                allowlist,
+                config=config,
+            )
+        )
+    result = _run_async_in_thread(
+        lambda: update_application_network_proxy_session_with_helper_async(
+            session_id,
+            allowlist,
+            config=config,
+        )
+    )
+    if not isinstance(result, dict):
+        raise RuntimeError("os_sandbox_helper_invalid_proxy_session_response")
+    return {"session_id": str(result["session_id"]), "proxy_url": str(result["proxy_url"])}
+
+
 async def stop_application_network_proxy_session_with_helper_async(
     session_id: str,
     *,
@@ -626,6 +772,7 @@ async def stop_application_network_proxy_session_with_helper_async(
     if not resolved:
         return
     socket_path = get_os_sandbox_helper_socket_path(config)
+    _require_os_sandbox_helper_token(config)
     await ensure_os_sandbox_helper_ready_async(config)
     await _request_helper(
         socket_path=socket_path,
@@ -683,6 +830,7 @@ async def clear_application_network_allowlist_with_helper_async(
     config: Any | None = None,
 ) -> None:
     socket_path = get_os_sandbox_helper_socket_path(config)
+    _require_os_sandbox_helper_token(config)
     await ensure_os_sandbox_helper_ready_async(config)
     await _request_helper(
         socket_path=socket_path,
@@ -695,6 +843,8 @@ def write_os_sandbox_policy_file(
     *,
     config: Any | None = None,
 ) -> str:
+    if not _POLICY_WRITE_ALLOWED.get():
+        raise RuntimeError("os_sandbox_policy_write_denied")
     policy_path = Path(get_os_sandbox_policy_file_path(config)).expanduser().resolve()
     policy_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {

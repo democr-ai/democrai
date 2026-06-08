@@ -44,7 +44,7 @@ def _import_helper_module(monkeypatch, tmp_path: Path):
     monkeypatch.setitem(
         sys.modules,
         "democrai.core.runtime.foundation.app",
-        SimpleNamespace(app_ctx=lambda: SimpleNamespace(config=None, runtime_mode="server", os_sandbox_helper_process=None)),
+        SimpleNamespace(app_ctx=lambda: SimpleNamespace(config=None, runtime_mode="server", os_sandbox_helper_process=None, os_sandbox_helper_token="test-token")),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -54,6 +54,8 @@ def _import_helper_module(monkeypatch, tmp_path: Path):
             get_base_dir=lambda: str(tmp_path),
             is_frozen=lambda: False,
             logs_dir=lambda: tmp_path,
+            runtime_ipc_dir=lambda: tmp_path,
+            runtime_unix_socket_path=lambda filename: tmp_path / filename,
             state_dir=lambda: tmp_path,
         ),
     )
@@ -85,6 +87,7 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
     monkeypatch.delenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, raising=False)
     monkeypatch.delenv(mod.OS_SANDBOX_POLICY_FILE_ENV, raising=False)
+    monkeypatch.delenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, raising=False)
 
     assert mod.get_os_sandbox_helper_socket_path().endswith(
         f"os_sandbox_helper_{os.getpid()}.sock"
@@ -92,6 +95,9 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
     assert mod.get_os_sandbox_policy_file_path().endswith(
         f"os_sandbox_allowlist_{os.getpid()}.json"
     )
+    assert mod.get_os_sandbox_helper_token() == ""
+    assert mod._ensure_os_sandbox_helper_token()
+    assert mod.get_os_sandbox_helper_token()
     assert mod.get_os_sandbox_refresh_seconds() == 60
     assert (
         mod.get_os_sandbox_refresh_seconds(
@@ -145,17 +151,23 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
 
     monkeypatch.setenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, str(tmp_path / "inherited.sock"))
     monkeypatch.setenv(mod.OS_SANDBOX_POLICY_FILE_ENV, str(tmp_path / "inherited.json"))
+    monkeypatch.setenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, "inherited-token")
     assert mod.get_os_sandbox_helper_socket_path(cfg_empty).endswith("inherited.sock")
     assert mod.get_os_sandbox_policy_file_path(cfg_empty).endswith("inherited.json")
+    assert mod.get_os_sandbox_helper_token(cfg_empty) == "inherited-token"
     assert mod.get_os_sandbox_helper_socket_path(cfg).endswith("inherited.sock")
     assert mod.get_os_sandbox_policy_file_path(cfg).endswith("inherited.json")
 
     payload = mod._allowlist_to_payload(_allowlist())
     assert payload["endpoints"][0]["host"] == "api.local"
 
-    policy_path = mod.write_os_sandbox_policy_file(_allowlist(), config=cfg)
+    with pytest.raises(RuntimeError, match="os_sandbox_policy_write_denied"):
+        mod.write_os_sandbox_policy_file(_allowlist(), config=cfg)
+    with mod._allow_os_sandbox_policy_write():
+        policy_path = mod.write_os_sandbox_policy_file(_allowlist(), config=cfg)
     loaded = json.loads(Path(policy_path).read_text(encoding="utf-8"))
     assert loaded["version"] == 1 and loaded["endpoints"][0]["host"] == "api.local"
+    assert (Path(policy_path).stat().st_mode & 0o777) == 0o600
 
 
 def test_helper_paths_are_per_process_but_inherited_by_children(tmp_path: Path):
@@ -336,6 +348,8 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
 
     cmd = mod._helper_command("/tmp/s.sock")
     assert "--os-sandbox-helper-socket" in cmd and "/tmp/s.sock" in cmd
+    assert "test-token" not in mod._debug_helper_command(cmd)
+    assert "<redacted>" in mod._debug_helper_command(cmd)
     assert mod._pkexec_helper_command("/tmp/s.sock")[0] == "pkexec"
     assert mod._sudo_helper_command("/tmp/s.sock")[0] == "sudo"
 
@@ -423,13 +437,13 @@ def test_helper_process_tracking_and_start(monkeypatch, tmp_path: Path):
     assert not path.exists()
     mod._cleanup_helper_socket("::bad::path::")
 
-    # start helper process branches
+    # existing helper is reused.
     ctx.os_sandbox_helper_process = SimpleNamespace(poll=lambda: None)
     assert mod._start_os_sandbox_helper_process("/tmp/s.sock") is ctx.os_sandbox_helper_process
 
     ctx.os_sandbox_helper_process = None
     monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: None)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="os_sandbox_helper_autostart_unavailable"):
         mod._start_os_sandbox_helper_process("/tmp/s.sock")
 
     class _Popen:
@@ -441,8 +455,8 @@ def test_helper_process_tracking_and_start(monkeypatch, tmp_path: Path):
 
     captured = {}
 
-    def _popen(cmd, **kwargs):
-        captured["cmd"] = cmd
+    def _popen(command, **kwargs):
+        captured["command"] = command
         captured["kwargs"] = kwargs
         return _Popen()
 
@@ -476,10 +490,6 @@ async def test_helper_ready_and_wait_remaining_branches(monkeypatch, tmp_path: P
     monkeypatch.setattr(mod, "_request_helper", _ok_req)
     await mod._request_helper_ready_async()
     monkeypatch.setattr(mod, "_request_helper", lambda **_k: (_ for _ in ()).throw(FileNotFoundError("missing")))
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: None)
-    with pytest.raises(RuntimeError):
-        await mod._request_helper_ready_async()
-
     called = {"restart": 0, "wait": 0}
     monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "pkexec")
     monkeypatch.setattr(mod, "_restart_os_sandbox_helper_process", lambda _s: called.__setitem__("restart", called["restart"] + 1))
@@ -488,15 +498,25 @@ async def test_helper_ready_and_wait_remaining_branches(monkeypatch, tmp_path: P
         return None
     monkeypatch.setattr(mod, "_wait_for_helper_async", _wait)
     await mod._request_helper_ready_async()
-    assert called["restart"] == 1 and called["wait"] == 1
+    assert called == {"restart": 1, "wait": 1}
+
+    monkeypatch.setenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, "/tmp/inherited.sock")
+    monkeypatch.setenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, "test-token")
+    with pytest.raises(RuntimeError, match="os_sandbox_helper_not_running"):
+        await mod._request_helper_ready_async()
+    monkeypatch.delenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, raising=False)
+    monkeypatch.delenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, raising=False)
 
     monkeypatch.setattr(mod, "_request_helper", lambda **_k: (_ for _ in ()).throw(ConnectionRefusedError("no")))
     monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "direct")
     await mod._request_helper_ready_async()
 
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: None)
-    with pytest.raises(RuntimeError):
+    monkeypatch.setenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, "/tmp/inherited.sock")
+    monkeypatch.setenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, "test-token")
+    with pytest.raises(RuntimeError, match="os_sandbox_helper_unreachable"):
         await mod._request_helper_ready_async()
+    monkeypatch.delenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, raising=False)
+    monkeypatch.delenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, raising=False)
 
     # _wait_for_helper_async remaining paths
     monkeypatch.setattr(mod, "_wait_for_helper_async", original_wait_fn)
@@ -575,19 +595,39 @@ def test_helper_sync_async_wrappers_and_apply_clear(monkeypatch, tmp_path: Path)
     # async apply/clear bodies
     monkeypatch.setattr(mod.asyncio, "run", original_run)
     reqs = []
+    policy_write_allowed = []
     monkeypatch.setattr(mod, "get_os_sandbox_helper_socket_path", lambda _cfg=None: "/tmp/hsock")
-    monkeypatch.setattr(mod, "write_os_sandbox_policy_file", lambda *_a, **_k: "/tmp/policy")
+    def _write_policy(*_a, **_k):
+        policy_write_allowed.append(mod._POLICY_WRITE_ALLOWED.get())
+        return "/tmp/policy"
+    monkeypatch.setattr(mod, "write_os_sandbox_policy_file", _write_policy)
     async def _ensure(_cfg=None):
         return None
     async def _req(**kwargs):
         reqs.append(kwargs)
+        if kwargs["payload"]["action"] == "update_proxy_session":
+            return {
+                "ok": True,
+                "session_id": kwargs["payload"]["session_id"],
+                "proxy_url": "http://127.0.0.1:4123",
+            }
         return {"ok": True}
     monkeypatch.setattr(mod, "ensure_os_sandbox_helper_ready_async", _ensure)
     monkeypatch.setattr(mod, "_request_helper", _req)
     asyncio.run(mod.apply_application_network_allowlist_with_helper_async(allowlist, pid=12))
+    update_result = asyncio.run(
+        mod.update_application_network_proxy_session_with_helper_async(
+            "session-1",
+            allowlist,
+        )
+    )
     asyncio.run(mod.clear_application_network_allowlist_with_helper_async(pid=13))
+    assert policy_write_allowed == [True]
     assert reqs[0]["payload"]["action"] == "apply"
-    assert reqs[1]["payload"]["action"] == "clear"
+    assert reqs[1]["payload"]["action"] == "update_proxy_session"
+    assert reqs[1]["payload"]["session_id"] == "session-1"
+    assert update_result["session_id"] == "session-1"
+    assert reqs[2]["payload"]["action"] == "clear"
 
 
 def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Path):
@@ -618,13 +658,12 @@ def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Pat
     mod._stop_tracked_helper_process()
     assert ctx.os_sandbox_helper_process is None
 
-    # start helper with sudo strategy branch line 299
     class _Proc:
         def poll(self):
             return None
 
+    ctx.os_sandbox_helper_process = None
     monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "sudo")
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *_a, **_k: _Proc())
-    ctx.os_sandbox_helper_process = None
     out = mod._start_os_sandbox_helper_process("/tmp/s.sock")
     assert out is ctx.os_sandbox_helper_process

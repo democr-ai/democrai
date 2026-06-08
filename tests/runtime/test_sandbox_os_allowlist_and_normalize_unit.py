@@ -1,4 +1,8 @@
-from democrai.core.infrastructure.sandbox.os.allowlist import build_application_network_allowlist
+from democrai.core.infrastructure.sandbox.os.allowlist import (
+    NetworkPolicyRequest,
+    build_application_network_allowlist,
+    build_subject_network_allowlist,
+)
 from democrai.core.infrastructure.sandbox.os.models import NetworkEndpoint
 from democrai.core.infrastructure.sandbox.os.normalize import (
     _normalize_host,
@@ -69,3 +73,55 @@ def test_build_application_network_allowlist_collects_and_dedupes(monkeypatch):
     allowlist = build_application_network_allowlist(config=object(), modules=object())
     assert len(allowlist.endpoints) == 1
     assert allowlist.endpoints[0].host == "api.local"
+
+
+def test_build_subject_network_allowlist_filters_engine_phase(monkeypatch):
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.allowlist.collect_engine_endpoints",
+        lambda _engines: [
+            NetworkEndpoint(host="install.local", port=443, source="engine:onnx", purpose="engine_install_manifest"),
+            NetworkEndpoint(host="runtime.local", port=443, source="engine:onnx", purpose="engine_runtime_manifest"),
+            NetworkEndpoint(host="other.local", port=443, source="engine:yolo", purpose="engine_install_manifest"),
+        ],
+    )
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.allowlist._approval_endpoints_for_subject", lambda *a, **k: [])
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.allowlist.debug_os_sandbox_flow", lambda *a, **k: None)
+
+    allowlist = build_subject_network_allowlist(
+        NetworkPolicyRequest(
+            scope="engine_install",
+            subject_kind="engine",
+            subject_id="onnx",
+            phase="install",
+        )
+    )
+
+    assert [(item.host, item.source, item.purpose) for item in allowlist.endpoints] == [
+        ("install.local", "engine:onnx", "engine_install_manifest")
+    ]
+
+
+def test_build_subject_network_allowlist_skill_inherits_only_module(monkeypatch):
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.allowlist.collect_module_endpoints",
+        lambda _modules: [
+            NetworkEndpoint(host="system.local", port=443, source="module:system", purpose="module_manifest"),
+            NetworkEndpoint(host="other.local", port=443, source="module:other", purpose="module_manifest"),
+        ],
+    )
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.allowlist._approval_endpoints_for_subject", lambda *a, **k: [])
+    monkeypatch.setattr("democrai.core.infrastructure.sandbox.os.allowlist.debug_os_sandbox_flow", lambda *a, **k: None)
+
+    allowlist = build_subject_network_allowlist(
+        NetworkPolicyRequest(
+            scope="skill_runtime",
+            subject_kind="skill",
+            subject_id="system.demo",
+            subject_chain=({"kind": "module", "name": "system"},),
+            inheritance_mode="parent_subject",
+        )
+    )
+
+    assert [(item.host, item.source) for item in allowlist.endpoints] == [
+        ("system.local", "module:system")
+    ]

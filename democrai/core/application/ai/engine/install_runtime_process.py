@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 import traceback
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from democrai.core.runtime.foundation.paths import (
 
 RESULT_PREFIX = "__DEMOCRAI_ENGINE_INSTALL_RESULT__="
 ERROR_PREFIX = "__DEMOCRAI_ENGINE_INSTALL_ERROR__="
+INSTALL_NETWORK_READY_FILE_ENV = "DEMOCRAI_INSTALL_NETWORK_READY_FILE"
+INSTALL_NETWORK_READY_TIMEOUT_SECONDS = 30.0
 
 
 def main() -> int:
@@ -43,6 +46,7 @@ def main() -> int:
     os.environ.setdefault(ENGINES_PATH_ENV, str(root / "engines"))
     os.environ.setdefault(EXTRACTORS_PATH_ENV, str(root / "extractors"))
 
+    _wait_for_install_network_ready()
     _bootstrap_context()
     request_context = request_context_from_dict(
         json.loads(str(os.environ.get("DEMOCRAI_REQUEST_CONTEXT") or "{}"))
@@ -69,6 +73,19 @@ def main() -> int:
     finally:
         if req_token is not None:
             reset_req_ctx(req_token)
+
+
+def _wait_for_install_network_ready() -> None:
+    raw_path = str(os.environ.get(INSTALL_NETWORK_READY_FILE_ENV) or "").strip()
+    if not raw_path:
+        return
+    path = Path(raw_path)
+    deadline = time.monotonic() + INSTALL_NETWORK_READY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        if path.exists():
+            return
+        time.sleep(0.01)
+    raise RuntimeError(f"engine_install_network_ready_timeout:{path}")
 
 
 if __name__ == "__main__":

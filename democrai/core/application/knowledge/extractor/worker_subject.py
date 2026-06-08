@@ -102,10 +102,8 @@ _WORKER_BOOTSTRAP_CODE = (
     "import os,runpy,sys;"
     "module=sys.argv[1];"
     "paths=[p for p in sys.argv[2].split(os.pathsep) if p];"
-    "root=paths[0] if paths else '';"
-    "deps=paths[1:];"
-    "sys.path.insert(0, root) if root and root not in sys.path else None;"
-    "[sys.path.append(p) for p in deps if p not in sys.path];"
+    "[sys.path.remove(p) for p in paths if p in sys.path];"
+    "[sys.path.insert(i, p) for i, p in enumerate(paths)];"
     "runpy.run_module(module, run_name='__main__')"
 )
 
@@ -200,74 +198,6 @@ def build_extractor_worker_init_payload(
         ],
         "allowed_imports": allowed_imports,
     }
-
-
-def _network_endpoint_payloads_from_access(
-    access: tuple[AccessManifestRule, ...],
-) -> list[dict[str, Any]]:
-    from democrai.core.application.access_policy import ResourceType
-    from democrai.core.infrastructure.sandbox.os.normalize import (
-        dedupe_endpoints,
-        endpoint_from_target,
-    )
-
-    endpoints = []
-    for rule in access:
-        resource = rule.resource
-        if resource.resource_type != ResourceType.NETWORK:
-            continue
-        endpoint = endpoint_from_target(
-            resource.normalized_target,
-            source=f"extractor:{rule.subject.subject_name}",
-            purpose=f"extractor_{resource.operation.value}",
-        )
-        if endpoint is not None:
-            endpoints.append(endpoint)
-    return [
-        {
-            "host": endpoint.host,
-            "port": endpoint.port,
-            "protocol": endpoint.protocol,
-            "source": endpoint.source,
-            "purpose": endpoint.purpose,
-        }
-        for endpoint in dedupe_endpoints(endpoints)
-    ]
-
-
-def _apply_os_network_allowlist_to_worker_process(
-    pid: int | None,
-    *,
-    access: tuple[AccessManifestRule, ...],
-) -> None:
-    if pid is None:
-        return
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        apply_application_network_endpoints_with_helper,
-    )
-    from democrai.core.infrastructure.sandbox.os.state import (
-        is_application_network_allowlist_active,
-        is_application_network_allowlist_enabled,
-    )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
-    )
-
-    ctx = app_ctx()
-    config = ctx.config
-    if not is_application_network_allowlist_enabled(config):
-        return
-    if not is_application_network_allowlist_active():
-        return
-    endpoints = _network_endpoint_payloads_from_access(access)
-    if not endpoints:
-        return
-    with process_guard_bypass_context():
-        apply_application_network_endpoints_with_helper(
-            endpoints,
-            pid=pid,
-            config=config,
-        )
 
 
 def _stop_process_after_start_failure(process: subprocess.Popen[str] | None) -> None:
@@ -401,11 +331,6 @@ class ExtractorWorkerSubject:
             parent_endpoint.close()
             raise
         try:
-            if not worker_os_sandbox_enabled():
-                _apply_os_network_allowlist_to_worker_process(
-                    self._process.pid,
-                    access=phase_access,
-                )
             self._control_conn = accept_connection(
                 control_endpoint,
                 process=self._process,

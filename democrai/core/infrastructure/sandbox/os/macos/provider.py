@@ -26,7 +26,7 @@ class MacOSOsSandboxProvider(BaseOsSandboxProvider):
         return OsSandboxCapabilities(
             filesystem=True,
             network_deny=True,
-            network_proxy=False,
+            network_proxy=True,
             network_allow_all=True,
             execute=True,
         )
@@ -35,8 +35,6 @@ class MacOSOsSandboxProvider(BaseOsSandboxProvider):
         return super().supports(policy)
 
     def prepare(self, policy: SandboxLaunchPolicy) -> SandboxLaunchPolicy:
-        if policy.network_mode == NETWORK_PROXY:
-            raise RuntimeError("macos_sandbox_proxy_unenforceable")
         if not self.supports(policy):
             raise RuntimeError("macos_sandbox_policy_not_supported")
         executable = shutil.which("sandbox-exec") or "/usr/bin/sandbox-exec"

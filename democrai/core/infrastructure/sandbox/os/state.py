@@ -6,7 +6,7 @@ from typing import Any
 from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 from democrai.core.runtime.foundation.app import app_ctx
 
-from .allowlist import build_application_network_allowlist
+from .allowlist import build_framework_network_allowlist
 from .models import ApplicationNetworkAllowlist
 
 
@@ -68,11 +68,9 @@ def refresh_application_network_allowlist(
         approvals_override=access_policy_approvals is not None,
         session_approvals_override=access_policy_session_approvals is not None,
     )
-    allowlist = build_application_network_allowlist(
+    allowlist = build_framework_network_allowlist(
         config=ctx.config if config is None else config,
         modules=ctx.modules if modules is None else modules,
-        engines=engines,
-        extractors=extractors,
         access_policy_approvals=access_policy_approvals,
         access_policy_session_approvals=access_policy_session_approvals,
     )

@@ -99,6 +99,44 @@ def test_skill_loader_discovery_and_assets(tmp_path: Path, monkeypatch):
     assert "<activated_skills>" in SkillLoader.render_activated_skills([s2])
 
 
+def test_skill_script_access_allows_ready_file_read(tmp_path: Path):
+    from democrai.core.platform.agents.models import SkillDefinition
+    from democrai.core.platform.agents.models import SkillMetadata
+    from democrai.core.platform.agents import skill_scripts
+
+    skill_root = tmp_path / "skill"
+    script_path = skill_root / "scripts" / "probe.py"
+    ready_path = tmp_path / "ready" / "network.ready"
+    script_path.parent.mkdir(parents=True)
+    script_path.write_text("print('ok')\n", encoding="utf-8")
+    ready_path.parent.mkdir(parents=True)
+    definition = SkillDefinition(
+        metadata=SkillMetadata(
+            name="system.unit_skill",
+            description="unit",
+            title="unit",
+            script_paths=("probe.py",),
+            module_name="system",
+        ),
+        content="unit",
+        root_dir=skill_root,
+    )
+
+    access = skill_scripts._skill_script_access(definition, script_path, ready_path)
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+    }
+
+    assert ("read", str(ready_path.parent.resolve())) in resources
+    assert ("create", str(ready_path.parent.resolve())) in resources
+    assert ("modify", str(ready_path.parent.resolve())) in resources
+    assert ("delete", str(ready_path.parent.resolve())) in resources
+
+
 @pytest.mark.asyncio
 async def test_agent_runtime_helpers_and_callable(monkeypatch):
     assert runtime_mod._merge_names(("a",), ("a", "b")) == ("a", "b")

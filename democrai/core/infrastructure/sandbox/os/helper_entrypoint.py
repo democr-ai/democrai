@@ -30,6 +30,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--os-sandbox-helper-policy-file", default="")
     parser.add_argument("--os-sandbox-helper-refresh-seconds", type=int, default=60)
     parser.add_argument("--os-sandbox-helper-parent-pid", type=int, default=None)
+    parser.add_argument("--os-sandbox-helper-token", default="")
     return parser.parse_args()
 
 
@@ -66,6 +67,7 @@ def main() -> int:
                 policy_file=policy_file,
                 refresh_seconds=int(args.os_sandbox_helper_refresh_seconds or 60),
                 parent_pid=args.os_sandbox_helper_parent_pid,
+                token=str(args.os_sandbox_helper_token or ""),
             )
         )
         or 0

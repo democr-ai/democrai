@@ -55,8 +55,9 @@ def test_engine_env_paths_and_context(tmp_path: Path, monkeypatch):
         assert os.environ["XDG_CONFIG_HOME"] == str(config)
         path_entries = os.environ["PATH"].split(os.pathsep)
         assert "/home/fabio/Android/Sdk/platform-tools" not in path_entries
-        assert str(local / "bin") in path_entries
-        assert str(local) in path_entries
+        venv = engine_env_mod.get_engine_venv_path()
+        assert str(venv / ("Scripts" if os.name == "nt" else "bin")) in path_entries
+        assert str(venv) in path_entries
         assert "/usr/bin" not in path_entries
         assert "/bin" not in path_entries
         with engine_env_mod.engine_env_context("enginea", env={"DEMO_ENGINE_FLAG": "1"}):
@@ -104,8 +105,10 @@ def test_engine_env_bootstrap_and_clear(tmp_path: Path, monkeypatch):
         root = engine_env_mod.get_engine_local_env_path()
         (root / ".success").write_text("ok", encoding="utf-8")
         boot = engine_env_mod.bootstrap_engine_env()
-        assert boot == root
-        assert str(root) in __import__("sys").path
+        venv = root / ".venv"
+        site_packages = engine_env_mod.get_engine_venv_site_packages_path()
+        assert boot == venv
+        assert str(site_packages) in __import__("sys").path
         engine_env_mod.clear_local_engine_env()
         assert not root.exists()
     assert __import__("sys").path == original_sys_path
@@ -163,8 +166,10 @@ def test_engine_env_error_and_activation_branches(tmp_path: Path, monkeypatch):
 
     with engine_env_mod.engine_env_context("e2"):
         root = engine_env_mod.get_engine_local_env_path()
-        assert engine_env_mod.activate_local_engine_env() == root
-        assert str(root) in __import__("sys").path
+        venv = root / ".venv"
+        site_packages = engine_env_mod.get_engine_venv_site_packages_path()
+        assert engine_env_mod.activate_local_engine_env() == venv
+        assert str(site_packages) in __import__("sys").path
 
 
 def test_engine_env_paths_can_be_resolved_without_creating_dirs(tmp_path: Path, monkeypatch):
@@ -210,7 +215,8 @@ def test_extractor_env_paths_and_context(tmp_path: Path, monkeypatch):
         assert os.environ["HF_HOME"] == str(cache / "huggingface")
         assert os.environ["HF_HUB_CACHE"] == str(cache / "huggingface" / "hub")
         assert os.environ["TORCH_HOME"] == str(cache / "torch")
-        assert str(local / "bin") in os.environ["PATH"].split(os.pathsep)
+        venv = extractor_env_mod.get_extractor_venv_path()
+        assert str(venv / ("Scripts" if os.name == "nt" else "bin")) in os.environ["PATH"].split(os.pathsep)
         with extractor_env_mod.extractor_env_context(
             "docling",
             env={"DEMO_EXTRACTOR_FLAG": "1"},
@@ -311,8 +317,8 @@ def test_isolate_extractor_imports_removes_global_local_modules(
         assert sys.modules["otherpkg"] is other
         assert sys.path[0] == str(local_site)
 
-    assert sys.modules["sharedpkg"] is shared
-    assert sys.modules["sharedpkg.sub"] is shared_sub
+    assert "sharedpkg" not in sys.modules
+    assert "sharedpkg.sub" not in sys.modules
     assert sys.modules["otherpkg"] is other
 
 

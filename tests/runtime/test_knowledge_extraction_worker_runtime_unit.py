@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from contextlib import ExitStack
+import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -137,6 +138,31 @@ def test_extractor_worker_module_keeps_heavy_core_imports_lazy():
         assert item not in "\n".join(
             line for line in source.splitlines() if line.startswith("from ")
         )
+
+
+def test_extractor_worker_bootstrap_prioritizes_application_pythonpath(monkeypatch, tmp_path: Path):
+    app_root = str(tmp_path / "app")
+    app_site = str(tmp_path / "app-site")
+    system_site = str(tmp_path / "system-site")
+    original_path = list(sys.path)
+    calls = []
+
+    def _run_module(module, *, run_name):
+        calls.append((module, run_name, list(sys.path[:4])))
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["python", "demo.module", os.pathsep.join((app_root, app_site))],
+    )
+    monkeypatch.setattr(sys, "path", [system_site, app_site, "tail"])
+    monkeypatch.setitem(sys.modules, "runpy", SimpleNamespace(run_module=_run_module))
+    try:
+        exec(subject_mod._WORKER_BOOTSTRAP_CODE, {})
+    finally:
+        sys.path[:] = original_path
+
+    assert calls == [("demo.module", "__main__", [app_root, app_site, system_site, "tail"])]
 
 
 def test_extractor_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_path: Path):
@@ -294,82 +320,6 @@ def test_extractor_worker_extract_requires_request_context():
         asyncio.run(worker._extract({"config": {}, "files": []}))
 
 
-def test_extractor_worker_applies_os_allowlist_to_child_process(monkeypatch):
-    state_mod = __import__(
-        "democrai.core.infrastructure.sandbox.os.state",
-        fromlist=["is_application_network_allowlist_enabled"],
-    )
-    helper_mod = __import__(
-        "democrai.core.infrastructure.sandbox.os.helper",
-        fromlist=["apply_application_network_endpoints_with_helper"],
-    )
-    guard_mod = __import__(
-        "democrai.core.infrastructure.sandbox.process_guard",
-        fromlist=["process_guard_bypass_context"],
-    )
-    config = object()
-    access = (
-        AccessManifestRule(
-            subject=AccessSubject.create("extractor", "docling"),
-            resource=AccessResource.create(
-                resource_type="network",
-                operation="receive",
-                target="https://files.pythonhosted.org/*",
-            ),
-        ),
-    )
-    calls = []
-
-    @contextmanager
-    def _bypass():
-        calls.append(("bypass_enter",))
-        try:
-            yield
-        finally:
-            calls.append(("bypass_exit",))
-
-    monkeypatch.setattr(
-        subject_mod,
-        "app_ctx",
-        lambda: SimpleNamespace(config=config, logger=None),
-    )
-    monkeypatch.setattr(
-        state_mod,
-        "is_application_network_allowlist_enabled",
-        lambda current_config: current_config is config,
-    )
-    monkeypatch.setattr(state_mod, "is_application_network_allowlist_active", lambda: True)
-    monkeypatch.setattr(guard_mod, "process_guard_bypass_context", _bypass)
-    monkeypatch.setattr(
-        helper_mod,
-        "apply_application_network_endpoints_with_helper",
-        lambda endpoints, *, pid, config: calls.append(
-            ("apply", endpoints, pid, config)
-        ),
-    )
-
-    subject_mod._apply_os_network_allowlist_to_worker_process(4321, access=access)
-
-    assert calls == [
-        ("bypass_enter",),
-        (
-            "apply",
-            [
-                {
-                    "host": "files.pythonhosted.org",
-                    "port": 443,
-                    "protocol": "tcp",
-                    "source": "extractor:docling",
-                    "purpose": "extractor_receive",
-                }
-            ],
-            4321,
-            config,
-        ),
-        ("bypass_exit",),
-    ]
-
-
 def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(monkeypatch, tmp_path: Path):
     popen_calls = []
     listener_kinds = []
@@ -424,7 +374,6 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     monkeypatch.setattr(subject_mod.subprocess, "Popen", _popen)
     monkeypatch.setattr(subject_mod, "get_extractor_venv_python_path", lambda _extractor_id: tmp_path / "python")
     monkeypatch.setattr(subject_mod, "_application_pythonpath", lambda: str(tmp_path))
-    monkeypatch.setattr(subject_mod, "_apply_os_network_allowlist_to_worker_process", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
     monkeypatch.setattr(
         subject_mod,
@@ -501,7 +450,6 @@ def test_extractor_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatc
 
 def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeypatch, tmp_path: Path):
     popen_calls = []
-    network_calls = []
 
     class _Endpoint:
         def __init__(self, kind: str) -> None:
@@ -538,11 +486,6 @@ def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeyp
     )
     monkeypatch.setattr(subject_mod, "get_extractor_venv_python_path", lambda _extractor_id: tmp_path / "python")
     monkeypatch.setattr(subject_mod, "_application_pythonpath", lambda: str(tmp_path))
-    monkeypatch.setattr(
-        subject_mod,
-        "_apply_os_network_allowlist_to_worker_process",
-        lambda *_args, **_kwargs: network_calls.append("called"),
-    )
     monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
     monkeypatch.setattr(
         subject_mod,
@@ -587,7 +530,6 @@ def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeyp
     )
     try:
         assert popen_calls
-        assert network_calls == []
         launch_state = popen_calls[0][1]["state"]
         assert launch_state["subject_kind"] == "extractor"
         assert launch_state["subject"] == "docling"
@@ -598,9 +540,10 @@ def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeyp
 def test_extractor_worker_launch_state_adds_framework_ipc_on_linux(monkeypatch, tmp_path: Path):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",
-        fromlist=["state_dir"],
+        fromlist=["runtime_ipc_dir"],
     )
-    monkeypatch.setattr(worker_launch_mod, "state_dir", lambda: tmp_path)
+    ipc_root = tmp_path / "ipc"
+    monkeypatch.setattr(worker_launch_mod, "runtime_ipc_dir", lambda: ipc_root)
     monkeypatch.setattr(worker_launch_mod.os, "name", "posix", raising=False)
     monkeypatch.setattr(worker_launch_mod.sys, "platform", "linux")
     monkeypatch.setattr(
@@ -627,8 +570,8 @@ def test_extractor_worker_launch_state_adds_framework_ipc_on_linux(monkeypatch, 
     ]
     assert {
         ("extractor", "docling", "read", worker_launch_mod._application_root()),
-        ("extractor", "docling", "read", str((tmp_path / "ipc").resolve())),
-        ("extractor", "docling", "modify", str((tmp_path / "ipc").resolve())),
+        ("extractor", "docling", "read", str(ipc_root.resolve())),
+        ("extractor", "docling", "modify", str(ipc_root.resolve())),
         ("extractor", "docling", "read", "/dev/shm"),
         ("extractor", "docling", "modify", "/dev/shm"),
     }.issubset(resources)
@@ -637,7 +580,7 @@ def test_extractor_worker_launch_state_adds_framework_ipc_on_linux(monkeypatch, 
 def test_extractor_worker_launch_state_does_not_add_windows_ipc_filesystem(monkeypatch):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",
-        fromlist=["state_dir"],
+        fromlist=["runtime_ipc_dir"],
     )
     monkeypatch.setattr(worker_launch_mod.os, "name", "nt", raising=False)
     monkeypatch.setattr(

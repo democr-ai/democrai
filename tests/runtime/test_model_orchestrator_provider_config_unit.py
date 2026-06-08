@@ -12,6 +12,11 @@ def test_llamacpp_provider_config_flattens_nested_runtime_defaults(monkeypatch):
         lambda engine_row_id: {},
     )
     monkeypatch.setattr(
+        orchestrator_mod,
+        "HardwareValidator",
+        lambda: SimpleNamespace(),
+    )
+    monkeypatch.setattr(
         orchestrator_mod.ModelOrchestrator,
         "_catalog_model_metadata",
         lambda self, model: {

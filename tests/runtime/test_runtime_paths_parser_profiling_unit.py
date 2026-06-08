@@ -105,6 +105,35 @@ def test_paths_helpers_and_resolution(monkeypatch, tmp_path: Path):
     assert paths_mod.logs_dir().exists()
     assert paths_mod.get_data_dir() == str(tmp_path / "data2")
 
+    short_state = Path(paths_mod.tempfile.gettempdir()) / f"dc-paths-{os.getpid()}"
+    monkeypatch.setattr(paths_mod, "_state_root", lambda: short_state)
+    ipc_dir = paths_mod.runtime_ipc_dir()
+    if len(str(short_state / "ipc")) + 64 <= paths_mod._AF_UNIX_SOCKET_PATH_LIMIT:
+        assert ipc_dir == short_state / "ipc"
+    else:
+        assert len(str(ipc_dir)) < paths_mod._AF_UNIX_SOCKET_PATH_LIMIT
+    socket_path = paths_mod.runtime_unix_socket_path("unit.sock")
+    assert socket_path.name == "unit.sock"
+    assert socket_path.parent == ipc_dir
+    assert len(str(socket_path)) <= paths_mod._AF_UNIX_SOCKET_PATH_LIMIT
+
+    long_state = tmp_path / ("very-long-state-root-" + ("x" * 120))
+    monkeypatch.setattr(paths_mod, "_state_root", lambda: long_state)
+    ipc_dir = paths_mod.runtime_ipc_dir()
+    socket_path = paths_mod.runtime_unix_socket_path("unit.sock")
+    assert len(str(ipc_dir)) < paths_mod._AF_UNIX_SOCKET_PATH_LIMIT
+    assert socket_path.parent == ipc_dir
+    assert len(str(socket_path)) <= paths_mod._AF_UNIX_SOCKET_PATH_LIMIT
+
+    long_tmp = tmp_path / ("very-long-tmp-root-" + ("y" * 120))
+    monkeypatch.setattr(paths_mod.tempfile, "gettempdir", lambda: str(long_tmp))
+    ipc_dir = paths_mod.runtime_ipc_dir()
+    socket_path = paths_mod.runtime_unix_socket_path(
+        "engine-worker-control-1234567890-abcdef.sock"
+    )
+    assert not str(ipc_dir).startswith(str(long_tmp))
+    assert len(str(socket_path)) <= paths_mod._AF_UNIX_SOCKET_PATH_LIMIT
+
     # model path + runtime dirs
     assert paths_mod.resolve_model_path("") == ""
     abs_model = paths_mod.resolve_model_path(str((tmp_path / "m.bin").resolve()))

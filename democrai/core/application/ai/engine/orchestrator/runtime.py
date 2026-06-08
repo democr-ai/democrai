@@ -18,7 +18,9 @@ from democrai.core.application.ai.engine.orchestrator.config import (
 )
 from democrai.core.infrastructure.sandbox.os.helper import (
     OS_SANDBOX_HELPER_SOCKET_ENV,
+    OS_SANDBOX_HELPER_TOKEN_ENV,
     OS_SANDBOX_POLICY_FILE_ENV,
+    get_os_sandbox_helper_token,
     get_os_sandbox_helper_socket_path,
     get_os_sandbox_policy_file_path,
 )
@@ -48,6 +50,9 @@ def start_engine_orchestrator_process(ctx: Any) -> subprocess.Popen[str] | None:
     config = getattr(ctx, "config", None)
     env[OS_SANDBOX_HELPER_SOCKET_ENV] = get_os_sandbox_helper_socket_path(config)
     env[OS_SANDBOX_POLICY_FILE_ENV] = get_os_sandbox_policy_file_path(config)
+    token = get_os_sandbox_helper_token(config)
+    if token:
+        env[OS_SANDBOX_HELPER_TOKEN_ENV] = token
     current_pythonpath = str(env.get("PYTHONPATH") or "").strip()
     env["PYTHONPATH"] = (
         _application_root()
@@ -115,4 +120,3 @@ def _apply_os_network_allowlist_to_process(ctx: Any, pid: int | None) -> None:
             logger.error(
                 f"[Bootstrap] Engine orchestrator OS allowlist apply failed: {exc}"
             )
-

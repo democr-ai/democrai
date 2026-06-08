@@ -638,9 +638,11 @@ def collect_access_policy_approval_endpoints(
         )
         if resource_type != "network":
             continue
+        subject_type = str(getattr(approval, "subject_type", "") or "").strip().lower()
+        subject_name = str(getattr(approval, "subject_name", "") or "").strip().lower()
         endpoint = endpoint_from_target(
             str(getattr(approval, "target", "") or "").strip(),
-            source="access_policy_approvals",
+            source=f"{subject_type}:{subject_name}" if subject_type and subject_name else "access_policy_approvals",
             purpose="db_approval",
         )
         if endpoint is not None:
@@ -670,9 +672,11 @@ def collect_access_policy_session_approval_endpoints(
         )
         if resource_type != "network":
             continue
+        subject_type = str(getattr(approval, "subject_type", "") or "").strip().lower()
+        subject_name = str(getattr(approval, "subject_name", "") or "").strip().lower()
         endpoint = endpoint_from_target(
             str(getattr(approval, "target", "") or "").strip(),
-            source="access_policy_session_approvals",
+            source=f"{subject_type}:{subject_name}" if subject_type and subject_name else "access_policy_session_approvals",
             purpose="db_session_approval",
         )
         if endpoint is not None:
