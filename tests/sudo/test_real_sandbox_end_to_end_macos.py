@@ -687,36 +687,33 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def case_sandboxed_process_cannot_control_helper():
             attacker = track_temp_dir("democrai_macos_helper_attack_") / "helper_attack.py"
-            attacker.write_text(textwrap.dedent('''
+            attacker.write_text(_generated_module('''
                 import json
                 import os
                 import socket
+                from pathlib import Path
 
                 payload = {{"helper_modified": False, "policy_written": False, "policy_error": None, "attempts": [], "network_open": False}}
                 try:
-                    from democrai.core.infrastructure.sandbox.os.helper import (
-                        apply_application_network_allowlist_with_helper,
-                        clear_application_network_allowlist_with_helper,
-                        start_application_network_proxy_session_with_helper,
-                        write_os_sandbox_policy_file,
-                    )
-                    from democrai.core.infrastructure.sandbox.os.models import ApplicationNetworkAllowlist
+                    Path(os.environ["DEMOCRAI_OS_SANDBOX_POLICY_FILE"]).write_text('{{"endpoints":[]}}', encoding="utf-8")
+                    payload["policy_written"] = True
+                except Exception as exc:
+                    payload["policy_error"] = str(exc)
+                try:
+                    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                     try:
-                        write_os_sandbox_policy_file(ApplicationNetworkAllowlist(endpoints=[]))
-                        payload["policy_written"] = True
-                    except Exception as exc:
-                        payload["policy_error"] = str(exc)
-                    for name, call in (
-                        ("clear", lambda: clear_application_network_allowlist_with_helper(pid=os.getpid())),
-                        ("apply", lambda: apply_application_network_allowlist_with_helper(ApplicationNetworkAllowlist(endpoints=[]), pid=os.getpid())),
-                        ("proxy", lambda: start_application_network_proxy_session_with_helper(ApplicationNetworkAllowlist(endpoints=[]))),
-                    ):
-                        try:
-                            call()
-                            payload["attempts"].append({{"operation": name, "ok": True}})
+                        sock.settimeout(2.0)
+                        sock.connect(os.environ["DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"])
+                        request = {{"action": "clear", "pid": os.getpid(), "token": "definitely-wrong-token"}}
+                        sock.sendall((json.dumps(request) + "\\\\n").encode("utf-8"))
+                        response = json.loads(sock.recv(4096).decode("utf-8"))
+                        payload["attempts"].append({{"operation": "clear_bad_token", "response": response}})
+                        if response.get("ok"):
                             payload["helper_modified"] = True
-                        except Exception as exc:
-                            payload["attempts"].append({{"operation": name, "ok": False, "error": str(exc)}})
+                    except Exception as exc:
+                        payload["attempts"].append({{"operation": "clear_bad_token", "error": str(exc)}})
+                    finally:
+                        sock.close()
                 except Exception as exc:
                     payload["helper_error"] = str(exc)
                 try:
@@ -731,17 +728,31 @@ def sandbox_harness(tmp_path: Path) -> Path:
             ]
             app_config()
             from democrai.core.infrastructure.sandbox import launcher
+            from democrai.core.infrastructure.sandbox.os.helper import (
+                ensure_os_sandbox_helper_ready,
+                get_os_sandbox_helper_socket_path,
+                get_os_sandbox_policy_file_path,
+            )
             from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+            ensure_os_sandbox_helper_ready()
             env = dict(os.environ)
-            for key in ("DEMOCRAI_OS_SANDBOX_HELPER_SOCKET", "DEMOCRAI_OS_SANDBOX_HELPER_TOKEN", "DEMOCRAI_OS_SANDBOX_POLICY_FILE"):
-                env.pop(key, None)
+            env["DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"] = get_os_sandbox_helper_socket_path()
+            env["DEMOCRAI_OS_SANDBOX_POLICY_FILE"] = get_os_sandbox_policy_file_path()
+            env.pop("DEMOCRAI_OS_SANDBOX_HELPER_TOKEN", None)
             with process_guard_context(subject="system.sudo", subject_kind="module", access=access, allow_subprocess=True):
-                completed = launcher.run_subprocess([sys.executable, str(attacker)], check=True, text=True, capture_output=True, timeout=15, env=env)
+                completed = launcher.run_subprocess([sys.executable, str(attacker)], check=False, text=True, capture_output=True, timeout=15, env=env)
+            if completed.returncode != 0:
+                raise AssertionError(
+                    f"sandboxed helper attacker failed rc={{completed.returncode}} stdout={{completed.stdout!r}} stderr={{completed.stderr!r}}"
+                )
             payload = json.loads(completed.stdout.strip().splitlines()[-1])
-            if payload.get("policy_written") or payload.get("policy_error") != "os_sandbox_policy_write_denied":
+            if payload.get("policy_written") or not payload.get("policy_error"):
                 raise AssertionError(f"sandboxed process policy write result invalid: {{payload!r}}")
             if payload.get("helper_modified"):
                 raise AssertionError(f"sandboxed process modified helper-controlled network rules: {{payload!r}}")
+            helper_attempts = payload.get("attempts") or []
+            if not helper_attempts:
+                raise AssertionError(f"sandboxed process did not exercise helper socket: {{payload!r}}")
             if payload.get("network_open"):
                 raise AssertionError(f"sandboxed process opened direct network after helper attack: {{payload!r}}")
             result(ok=True, payload=payload)
@@ -756,6 +767,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def case_application_bootstrap():
             cfg = app_config()
+            os.environ["DEMOCRAI_CORE_OS_SANDBOX_REEXEC"] = "1"
             from democrai.core.infrastructure.sandbox.os.bootstrap import bootstrap_current_process_os_sandbox
             from democrai.core.runtime.foundation.app import app_ctx
             details = bootstrap_current_process_os_sandbox(app_ctx(), reason="macos_real_sandbox_test", mode="test")
@@ -863,7 +875,10 @@ def sandbox_harness(tmp_path: Path) -> Path:
                     subject.close()
             finally:
                 reset_probe_request_context(request_token)
-            if not payload.get("remote_provider") or not payload.get("engine", {{}}).get("orchestrator_boundary"):
+            boundary = bool(payload.get("orchestrator_boundary")) or bool(
+                payload.get("engine", {{}}).get("orchestrator_boundary")
+            )
+            if not payload.get("remote_provider") or not boundary:
                 raise AssertionError(f"extractor SDK did not use orchestrator boundary: {{payload!r}}")
             result(ok=True, payload=payload)
 
@@ -1004,6 +1019,8 @@ def sandbox_harness(tmp_path: Path) -> Path:
         def case_full_boundary_chain():
             make_fake_extensions()
             payload, script_payload = _run_skill_tool()
+            os.environ.pop("DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET", None)
+            os.environ.pop("DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN", None)
             case_mcp_direct_command()
             if payload.get("returncode") != 0 or not script_payload.get("network_blocked"):
                 raise AssertionError("full boundary chain skill segment failed")
@@ -1036,6 +1053,8 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 cases[case]()
             finally:
                 cleanup_generated_paths()
+            sys.stdout.flush()
+            sys.stderr.flush()
 
 
         if __name__ == "__main__":

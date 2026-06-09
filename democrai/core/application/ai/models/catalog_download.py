@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import shutil
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -618,7 +619,7 @@ async def _store_catalog_artifact(
         subject_name=subject.subject_name,
         subject_type=subject.subject_type,
         access=access,
-    ):
+    ), _catalog_artifact_os_network_proxy_scope(access):
         storage_ref = await asyncio.to_thread(
             storage.add_model_from_source,
             model_id,
@@ -628,6 +629,80 @@ async def _store_catalog_artifact(
         )
     await _update_task_progress(task_id, progress_end, "Stored model artifact")
     return storage_ref
+
+
+@contextmanager
+def _catalog_artifact_os_network_proxy_scope(
+    access: tuple[AccessManifestRule, ...],
+):
+    from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+        update_core_os_sandbox_proxy_session,
+    )
+    from democrai.core.infrastructure.sandbox.os.models import (
+        ApplicationNetworkAllowlist,
+    )
+    from democrai.core.infrastructure.sandbox.os.normalize import (
+        dedupe_endpoints,
+        endpoint_from_target,
+    )
+    from democrai.core.infrastructure.sandbox.os.state import (
+        get_current_application_network_allowlist,
+        is_application_network_allowlist_active,
+    )
+    from democrai.core.infrastructure.sandbox.process_guard import (
+        process_guard_bypass_context,
+    )
+
+    if not is_application_network_allowlist_active():
+        yield
+        return
+
+    current_allowlist = get_current_application_network_allowlist()
+    if current_allowlist is None:
+        yield
+        return
+
+    extra_endpoints = []
+    for rule in access:
+        resource = rule.resource
+        resource_type = getattr(resource.resource_type, "value", resource.resource_type)
+        operation = getattr(resource.operation, "value", resource.operation)
+        if resource_type != "network" or operation != "connect":
+            continue
+        endpoint = endpoint_from_target(
+            resource.normalized_target,
+            source=f"{rule.subject.subject_type}:{rule.subject.subject_name}",
+            purpose="catalog_artifact_download",
+        )
+        if endpoint is not None:
+            extra_endpoints.append(endpoint)
+
+    if not extra_endpoints:
+        yield
+        return
+
+    merged_allowlist = ApplicationNetworkAllowlist(
+        endpoints=dedupe_endpoints(
+            [*list(current_allowlist.endpoints or []), *extra_endpoints]
+        )
+    )
+    with process_guard_bypass_context():
+        applied = update_core_os_sandbox_proxy_session(
+            merged_allowlist,
+            config=getattr(app_ctx(), "config", None),
+        )
+    if not applied:
+        yield
+        return
+
+    try:
+        yield
+    finally:
+        with process_guard_bypass_context():
+            update_core_os_sandbox_proxy_session(
+                current_allowlist,
+                config=getattr(app_ctx(), "config", None),
+            )
 
 
 async def _update_task_progress(task_id: str | None, progress: float, label: str) -> None:
@@ -892,6 +967,7 @@ def _catalog_artifact_network_access(
             targets.append(f"https://huggingface.co/{repo}")
             targets.append("https://cas-bridge.xethub.hf.co")
             targets.append("https://transfer.xethub.hf.co")
+            targets.append("https://*.cdn.hf.co")
     return tuple(
         AccessManifestRule(
             subject=subject,

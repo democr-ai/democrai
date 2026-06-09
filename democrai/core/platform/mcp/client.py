@@ -99,6 +99,8 @@ class McpClient:
         if "error" in parsed and parsed["error"] is not None:
             raise RuntimeError(str(parsed["error"]))
         result = parsed.get("result")
+        if result is None:
+            return parsed
         if not isinstance(result, dict):
             raise RuntimeError("invalid_mcp_response_result")
         return result

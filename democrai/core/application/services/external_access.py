@@ -642,7 +642,14 @@ def approve_permanently(
             scope=scope,
         )
     )
-    _resume_rows_after_approval(rows, mode="permanent")
+    if not request_os_filesystem_policy_refresh(
+        resource_type=request.resource.resource_type.value,
+        subject_type=request.subject.subject_type,
+        subject_name=request.subject.subject_name,
+        target=request.resource.normalized_target,
+        mode="permanent",
+    ):
+        _resume_rows_after_approval(rows, mode="permanent")
     _request_os_allowlist_refresh(
         resource_type=request.resource.resource_type.value,
         subject_type=request.subject.subject_type,
@@ -688,7 +695,14 @@ def approve_for_session(
             scope=scope,
         )
     )
-    _resume_rows_after_approval(rows, mode="session")
+    if not request_os_filesystem_policy_refresh(
+        resource_type=request.resource.resource_type.value,
+        subject_type=request.subject.subject_type,
+        subject_name=request.subject.subject_name,
+        target=request.resource.normalized_target,
+        mode="session",
+    ):
+        _resume_rows_after_approval(rows, mode="session")
     _request_os_allowlist_refresh(
         resource_type=request.resource.resource_type.value,
         subject_type=request.subject.subject_type,
@@ -696,6 +710,65 @@ def approve_for_session(
         target=request.resource.normalized_target,
         mode="session",
     )
+
+
+def request_os_filesystem_policy_refresh(
+    *,
+    resource_type: str,
+    subject_type: str,
+    subject_name: str,
+    target: str,
+    mode: str,
+) -> bool:
+    if resource_type != EXTERNAL_RESOURCE_FILESYSTEM:
+        return False
+    try:
+        from democrai.core.infrastructure.sandbox.os.state import (
+            is_application_network_allowlist_enabled,
+        )
+
+        enabled = is_application_network_allowlist_enabled(app_ctx().config)
+    except Exception as exc:
+        _log_allowlist_refresh_event_failure(exc)
+        return False
+    if not enabled:
+        debug_os_sandbox_flow(
+            "external_access.filesystem_policy_refresh_skipped_disabled",
+            resource_type=resource_type,
+            subject_type=subject_type,
+            subject_name=subject_name,
+            target=target,
+            mode=mode,
+        )
+        return False
+    if not _running_in_core_worker():
+        debug_os_sandbox_flow(
+            "external_access.filesystem_policy_refresh_skipped_not_worker",
+            resource_type=resource_type,
+            subject_type=subject_type,
+            subject_name=subject_name,
+            target=target,
+            mode=mode,
+        )
+        return False
+    debug_os_sandbox_flow(
+        "external_access.filesystem_policy_refresh_restart_requested",
+        resource_type=resource_type,
+        subject_type=subject_type,
+        subject_name=subject_name,
+        target=target,
+        mode=mode,
+    )
+    from democrai.core.runtime.lifecycle.restart import request_application_restart
+
+    request_application_restart(app_ctx(), delay_seconds=0.25)
+    return True
+
+
+def _running_in_core_worker() -> bool:
+    import os
+
+    return str(os.environ.get("DEMOCRAI_CORE_PROCESS") or "").strip() == "1"
 
 
 def deny_external_access(
@@ -815,8 +888,14 @@ def _resume_rows_after_approval(rows: list[dict] | None, *, mode: str) -> None:
         return
 
     async def _runner() -> None:
+        consumed: list[int] = []
         for row in resumable:
-            await _run_resume_action(row, mode=mode)
+            if await _run_resume_action(row, mode=mode):
+                request_id = row.get("id")
+                if request_id is not None:
+                    consumed.append(int(request_id))
+        if consumed:
+            access_policy_store.mark_resume_consumed(consumed)
 
     try:
         loop = asyncio.get_running_loop()
@@ -838,13 +917,13 @@ def _log_resume_task_failure(task: asyncio.Task) -> None:
         app_ctx().logger.error(f"[external_access] resume_task_failed error={exc}")
 
 
-async def _run_resume_action(row: dict, *, mode: str) -> None:
+async def _run_resume_action(row: dict, *, mode: str) -> bool:
     resume_action = row.get("resume_action")
     if not isinstance(resume_action, str):
-        return
+        return False
     action_name = resume_action.strip()
     if not action_name:
-        return
+        return False
     try:
         from democrai.core.application.auth.service import get_user_permissions
         from democrai.core.application.handler.dispatcher import ActionDispatcher
@@ -907,8 +986,52 @@ async def _run_resume_action(row: dict, *, mode: str) -> None:
             mode=mode,
             result=result if isinstance(result, dict) else None,
         )
+        return True
     except Exception as exc:
         app_ctx().logger.error(
             f"[external_access] resume_action_failed action={action_name} "
             f"request_id={row.get('id')} error={exc}"
         )
+        return False
+
+
+async def process_deferred_filesystem_resume_actions() -> None:
+    rows = access_policy_store.list_approved_resume_requests(
+        resource_type=EXTERNAL_RESOURCE_FILESYSTEM,
+    )
+    if not rows:
+        return
+    consumed: list[int] = []
+    for row in rows:
+        if await _run_resume_action(dict(row), mode="filesystem_policy_refresh"):
+            request_id = row.get("id")
+            if request_id is not None:
+                consumed.append(int(request_id))
+    if consumed:
+        access_policy_store.mark_resume_consumed(consumed)
+
+
+def process_deferred_filesystem_resume_actions_sync() -> None:
+    rows = access_policy_store.list_approved_resume_requests(
+        resource_type=EXTERNAL_RESOURCE_FILESYSTEM,
+    )
+    if not rows:
+        return
+
+    async def _runner() -> None:
+        consumed: list[int] = []
+        for row in rows:
+            if await _run_resume_action(dict(row), mode="filesystem_policy_refresh"):
+                request_id = row.get("id")
+                if request_id is not None:
+                    consumed.append(int(request_id))
+        if consumed:
+            access_policy_store.mark_resume_consumed(consumed)
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_runner())
+        return
+    task = loop.create_task(_runner())
+    task.add_done_callback(_log_resume_task_failure)

@@ -249,6 +249,58 @@ def get_pending_access_requests() -> list[dict[str, Any]]:
         return []
 
 
+def list_approved_resume_requests(
+    *,
+    resource_type: str = "filesystem",
+) -> list[dict[str, Any]]:
+    normalized_resource_type = str(resource_type or "").strip().lower()
+    try:
+        with session_scope() as db:
+            rows = (
+                db.query(ExternalAccessRequest)
+                .filter(
+                    ExternalAccessRequest.status.in_(("approved", "session")),
+                    ExternalAccessRequest.resource_type == normalized_resource_type,
+                    ExternalAccessRequest.resume_action.isnot(None),
+                    ExternalAccessRequest.resume_action != "",
+                )
+                .order_by(ExternalAccessRequest.updated_at.asc())
+                .all()
+            )
+            return [_request_row_to_dict(row) for row in rows]
+    except OperationalError:
+        return []
+
+
+def mark_resume_consumed(request_ids: list[int] | tuple[int, ...] | set[int]) -> None:
+    normalized_ids: list[int] = []
+    for raw_id in request_ids:
+        try:
+            request_id = int(raw_id)
+        except Exception:
+            continue
+        if request_id > 0:
+            normalized_ids.append(request_id)
+    if not normalized_ids:
+        return
+    now = utc_now_naive()
+    try:
+        with session_scope() as db:
+            rows = (
+                db.query(ExternalAccessRequest)
+                .filter(ExternalAccessRequest.id.in_(tuple(dict.fromkeys(normalized_ids))))
+                .all()
+            )
+            for row in rows:
+                row.resume_action = None
+                row.resume_context = None
+                row.resume_context_hash = None
+                row.updated_at = now
+            db.commit()
+    except OperationalError as exc:
+        raise RuntimeError("[AccessPolicy] Failed to mark resume consumed") from exc
+
+
 def _find_request_row(db: Any, request: AccessRequest):
     return (
         db.query(ExternalAccessRequest)

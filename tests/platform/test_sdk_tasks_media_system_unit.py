@@ -363,6 +363,44 @@ def test_media_add_model_variants(tmp_path: Path, monkeypatch):
     assert storage["models/m8/nested-model/tokenizer.json"] == b"owner/targeted:tokenizer.json"
 
 
+def test_remote_model_storage_uses_framework_media_bypass(monkeypatch, tmp_path: Path):
+    from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+    from democrai.core.infrastructure.storage.media.providers.local import LocalMediaProvider
+
+    sdk = SimpleNamespace(module_name="system", session={}, module_path=str(tmp_path))
+    media = media_mod.Media(sdk)
+    provider = LocalMediaProvider(str(tmp_path / "media"))
+    monkeypatch.setattr(media_mod, "app_ctx", lambda: SimpleNamespace(media=provider))
+    monkeypatch.setattr(
+        media_mod.Media,
+        "_download_huggingface_file_to_path",
+        classmethod(
+            lambda cls, repo_id, revision, remote_path, token, target_path, **kwargs: Path(
+                target_path
+            ).write_bytes(b"model")
+        ),
+    )
+
+    with process_guard_context(
+        subject="system",
+        subject_kind="module",
+        access=(),
+        include_runtime_access=False,
+        inherit_parent_access=False,
+    ):
+        out = media.add_model_from_source(
+            "guarded",
+            source={
+                "type": "huggingface",
+                "repo": "owner/repo",
+                "files": ["nested/model.bin"],
+            },
+        )
+
+    assert out == "models/guarded/model.bin"
+    assert (tmp_path / "media" / "models" / "guarded" / "model.bin").read_bytes() == b"model"
+
+
 def test_media_provider_and_add_model_error_branches(tmp_path: Path, monkeypatch):
     sdk = SimpleNamespace(module_name="mod", session={}, module_path=str(tmp_path))
 

@@ -12,6 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from democrai.core.application.access_policy import AccessManifestRule
+from democrai.core.application.ai.engine.orchestrator.config import (
+    orchestrator_socket_path,
+    orchestrator_transport,
+)
 from democrai.core.application.ai.engine.runtime.serialization import json_value
 from democrai.core.application.ai.engine.runtime.serialization import python_value
 from democrai.core.runtime.foundation.app import app_ctx
@@ -148,6 +152,8 @@ def worker_runtime_config() -> dict[str, Any]:
         value = getter(key, marker)
         if value is not marker:
             values[key] = value
+    if orchestrator_transport(config) == "unix":
+        values["ai.engine_orchestrator.socket_path"] = orchestrator_socket_path(config)
     return values
 
 
@@ -632,6 +638,10 @@ class ExtractorWorkerSubject:
                         process.wait(timeout=3)
                     except subprocess.TimeoutExpired:
                         process.kill()
+            cleanup = getattr(process, "cleanup", None)
+            if callable(cleanup):
+                with contextlib.suppress(Exception):
+                    cleanup()
         finally:
             for channel in (self._control_channel, self._parent_channel):
                 try:

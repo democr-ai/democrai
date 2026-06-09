@@ -208,6 +208,31 @@ def test_extractor_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_pa
     assert payload["access"][0]["resource"]["target"] == str(tmp_path / "source")
 
 
+def test_extractor_worker_runtime_config_materializes_unix_orchestrator_socket(monkeypatch):
+    class _Config:
+        def get(self, key, default=None):
+            values = {
+                "ai.engine_orchestrator.transport": "unix",
+                "ai.engine_orchestrator.socket_path": "",
+            }
+            return values.get(key, default)
+
+    monkeypatch.setattr(subject_mod, "app_ctx", lambda: SimpleNamespace(config=_Config()))
+    monkeypatch.setattr(
+        subject_mod,
+        "orchestrator_socket_path",
+        lambda _config: "/tmp/democrai-test/engine-orchestrator.sock",
+    )
+
+    runtime_config = subject_mod.worker_runtime_config()
+
+    assert runtime_config["ai.engine_orchestrator.transport"] == "unix"
+    assert (
+        runtime_config["ai.engine_orchestrator.socket_path"]
+        == "/tmp/democrai-test/engine-orchestrator.sock"
+    )
+
+
 def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypatch):
     calls = []
 

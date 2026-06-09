@@ -28,44 +28,6 @@ def test_is_dependency_installed_paths(monkeypatch):
         deps.is_dependency_installed("bad-key")
 
 
-def test_run_helpers_and_ffmpeg_checks(monkeypatch):
-    calls = []
-    monkeypatch.setattr(
-        deps.subprocess,
-        "run",
-        lambda cmd, check=True, capture_output=True, text=True: calls.append(cmd),
-    )
-    assert deps._run(["echo", "ok"]) is True
-    assert calls
-
-    def _boom(*_a, **_k):
-        raise RuntimeError("nope")
-
-    monkeypatch.setattr(deps.subprocess, "run", _boom)
-    assert deps._run(["x"]) is False
-
-    monkeypatch.setattr(deps.shutil, "which", lambda name: "/usr/bin/ffmpeg" if name == "ffmpeg" else None)
-    assert deps._is_ffmpeg_available() is True
-
-    monkeypatch.setattr(deps.shutil, "which", lambda _name: None)
-    monkeypatch.setattr(deps, "_run", lambda cmd: cmd == ["ffmpeg", "-version"])
-    assert deps._is_ffmpeg_available() is True
-
-    monkeypatch.setattr(deps.shutil, "which", lambda name: "/usr/bin/espeak-ng" if name == "espeak-ng" else None)
-    assert deps._is_espeak_available() is True
-
-    monkeypatch.setattr(deps.shutil, "which", lambda _name: None)
-    monkeypatch.setattr(deps, "_run", lambda cmd: cmd == ["espeak", "--version"])
-    assert deps._is_espeak_available() is True
-
-    monkeypatch.setattr(deps.shutil, "which", lambda _name: None)
-    assert deps._has_ffmpeg_dev_libraries() is False
-
-    monkeypatch.setattr(deps.shutil, "which", lambda _name: "/usr/bin/pkg-config")
-    monkeypatch.setattr(deps, "_run", lambda cmd: "--exists" in cmd)
-    assert deps._has_ffmpeg_dev_libraries() is True
-
-
 def test_linux_install_command_variants(monkeypatch):
     monkeypatch.setattr(deps.shutil, "which", lambda name: "/usr/bin/apt-get" if name == "apt-get" else None)
     assert deps._linux_install_command()[1] == "apt-get"

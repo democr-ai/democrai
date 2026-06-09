@@ -35,6 +35,7 @@ from democrai.core.runtime.dependencies.engine_env import (
     get_engine_venv_python_path,
 )
 from democrai.core.runtime.foundation.app import app_ctx
+from democrai.core.runtime.foundation.paths import logs_dir
 
 
 def _policy_path(path: Path) -> str:
@@ -194,6 +195,7 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
         cache_path = _policy_path(get_engine_local_cache_path(engine_id, create=False))
         config_path = _policy_path(get_engine_local_config_path(engine_id, create=False))
         tmp_path = _policy_path(get_engine_local_tmp_path(engine_id, create=False))
+        log_path = _policy_path(logs_dir())
         rules.extend(
             AccessManifestRule(
                 subject=subject,
@@ -227,6 +229,17 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
             )
             for operation in ("read", "create", "modify")
         )
+        rules.extend(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="filesystem",
+                    operation=operation,
+                    target=log_path,
+                ),
+            )
+            for operation in ("read", "create", "modify", "delete")
+        )
     if phase in {"install", "runtime"}:
         executable_targets = tuple(
             dict.fromkeys(
@@ -245,11 +258,12 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 subject=subject,
                 resource=AccessResource.create(
                     resource_type="filesystem",
-                    operation="execute",
+                    operation=operation,
                     target=target,
                 ),
             )
             for target in executable_targets
+            for operation in ("read", "execute")
         )
     if phase == "runtime":
         rules.extend(

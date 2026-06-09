@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+import os
 import socket
 import sys
+import tempfile
 import time
 from types import SimpleNamespace
 
@@ -158,7 +160,7 @@ def test_ipc_bus_provider_branches(monkeypatch, tmp_path):
 
     recv = []
     disc = []
-    endpoint = str(tmp_path / "ipc.sock")
+    endpoint = os.path.join(tempfile.gettempdir(), f"dc-ipc-{os.getpid()}.sock")
     bus = ipc_mod.IpcBusProvider(endpoint, on_message=lambda cid, msg: recv.append((cid, msg)), on_disconnect=lambda cid: disc.append(cid))
     bus.start()
     assert logger.infos
@@ -204,7 +206,7 @@ def test_ipc_bus_provider_branches(monkeypatch, tmp_path):
 
     bus.stop()
     assert bus._sockets == {}
-    assert not (tmp_path / "ipc.sock").exists()
+    assert not os.path.exists(endpoint)
 
     rel_bus = ipc_mod.IpcBusProvider("relative.sock")
     assert rel_bus.endpoint.startswith("unix:")

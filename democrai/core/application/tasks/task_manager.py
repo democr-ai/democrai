@@ -136,16 +136,57 @@ def _organization_log_value(organization_id: Optional[int]) -> str:
     return "none" if organization_id is None else str(organization_id)
 
 
+def _capture_process_guard_state() -> dict[str, Any] | None:
+    try:
+        from democrai.core.infrastructure.sandbox import process_guard
+
+        state = process_guard._state()
+    except Exception:
+        return None
+    if not isinstance(state, dict) or not state:
+        return None
+    return {
+        "subject": str(state.get("subject") or "").strip(),
+        "subject_kind": str(state.get("subject_kind") or "module").strip() or "module",
+        "access": tuple(state.get("access") or ()),
+        "allowed_imports": list(state.get("allowed_imports") or ()),
+        "allowed_subprocess_commands": list(
+            state.get("allowed_subprocess_commands") or ()
+        ),
+        "allow_subprocess": bool(state.get("allow_subprocess")),
+        "allow_fork": bool(state.get("allow_fork")),
+    }
+
 def _task_execution_context(
     *,
     module_name: str,
     request_context: RequestContext,
+    inherited_sandbox_state: dict[str, Any] | None = None,
 ) -> contextlib.AbstractContextManager[Any]:
     from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
 
     resolved_module_name = _required_module_name(module_name)
     if resolved_module_name == "core":
         return contextlib.nullcontext()
+    if isinstance(inherited_sandbox_state, dict) and inherited_sandbox_state:
+        inherited_subject = str(inherited_sandbox_state.get("subject") or resolved_module_name)
+        inherited_subject_kind = str(inherited_sandbox_state.get("subject_kind") or "module")
+        return process_guard_context(
+            subject=inherited_subject,
+            subject_kind=inherited_subject_kind,
+            access=tuple(inherited_sandbox_state.get("access") or ()),
+            allowed_imports=list(inherited_sandbox_state.get("allowed_imports") or ()),
+            allowed_subprocess_commands=list(
+                inherited_sandbox_state.get("allowed_subprocess_commands") or ()
+            ),
+            allow_subprocess=bool(inherited_sandbox_state.get("allow_subprocess")),
+            allow_fork=bool(inherited_sandbox_state.get("allow_fork")),
+            include_runtime_access=True,
+            inherit_parent_access=False,
+            user_id=request_context.user,
+            organization_id=request_context.organization_id,
+            session_key=request_context.session_key,
+        )
     registered = _registered_module(resolved_module_name)
     return process_guard_context(
         subject=resolved_module_name,
@@ -298,6 +339,7 @@ class TaskManager:
             organization_id=organization_id,
             current=_capture_request_context(),
         )
+        inherited_sandbox_state = _capture_process_guard_state()
 
         async def _runner():
             req_token = set_req_ctx(task_request_context)
@@ -308,6 +350,7 @@ class TaskManager:
                 with _task_execution_context(
                     module_name=module,
                     request_context=task_request_context,
+                    inherited_sandbox_state=inherited_sandbox_state,
                 ):
                     result = await coro
                 bg_task.status = "completed"

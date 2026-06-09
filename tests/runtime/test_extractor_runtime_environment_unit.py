@@ -141,6 +141,54 @@ def test_extractor_access_includes_runtime_system_and_dependency_reads(monkeypat
     assert ("create", "/usr") not in resources
 
 
+def test_model_registry_extractor_runtime_can_resolve_orchestrator_socket():
+    import democrai.core.application.knowledge.extractor.runtime as mod
+    from democrai.core.application.ai.engine.orchestrator.config import (
+        orchestrator_socket_path,
+    )
+    from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+    from democrai.core.runtime.foundation.paths import runtime_ipc_dir
+
+    ipc_dir = str(runtime_ipc_dir().resolve())
+    resources = {
+        (
+            rule.subject.subject_type,
+            rule.subject.subject_name,
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in mod.get_extractor_access("ai_audio", "runtime")
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    assert ("extractor", "ai_audio", "read", ipc_dir) in resources
+    with process_guard_context(
+        subject="ai_audio",
+        subject_kind="extractor",
+        access=mod.get_extractor_access("ai_audio", "runtime"),
+        include_runtime_access=False,
+        inherit_parent_access=False,
+    ):
+        assert orchestrator_socket_path(None).endswith("engine-orchestrator.sock")
+
+
+def test_plain_extractor_runtime_does_not_get_orchestrator_ipc_access():
+    import democrai.core.application.knowledge.extractor.runtime as mod
+    from democrai.core.runtime.foundation.paths import runtime_ipc_dir
+
+    ipc_dir = str(runtime_ipc_dir().resolve())
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in mod.get_extractor_access("docling", "runtime")
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    assert ("read", ipc_dir) not in resources
+
+
 def test_docling_manifest_does_not_declare_ineffective_execute_allowlist():
     manifest = json.loads(Path("extractors/docling/manifest.json").read_text(encoding="utf-8"))
     install = manifest["install"]

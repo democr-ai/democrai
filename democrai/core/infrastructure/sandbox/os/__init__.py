@@ -46,7 +46,7 @@ from .base import (
     BaseOsSandboxProvider,
     NoopOsSandboxProvider,
 )
-from .factory import get_os_sandbox_provider
+from .factory import get_core_launch_strategy, get_helper_backend, get_os_sandbox_provider
 from .launch_policy import (
     NETWORK_ALLOW_ALL,
     NETWORK_DENY,
@@ -119,6 +119,8 @@ __all__ = [
     "SandboxLaunchPolicy",
     "build_launch_policy",
     "get_os_sandbox_provider",
+    "get_helper_backend",
+    "get_core_launch_strategy",
     "policy_from_payload",
     "set_application_network_allowlist_active",
     "set_current_application_network_allowlist",

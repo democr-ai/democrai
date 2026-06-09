@@ -67,6 +67,7 @@ def isolated_ctx(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         engine.dispose()
 
 
+@pytest.mark.linux_only
 def test_security_sandbox_path_traversal_and_symlink_escape_blocked(tmp_path: Path):
     safe = tmp_path / "safe"
     safe.mkdir(parents=True, exist_ok=True)

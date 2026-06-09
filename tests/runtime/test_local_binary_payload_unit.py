@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 import subprocess
 import sys
@@ -306,36 +307,57 @@ right.close()
     assert "KeyError" not in result.stderr
 
 
-def test_local_binary_payload_cross_process_has_no_resource_tracker_warning():
-    script = """
-from multiprocessing import Pipe, Process
+def _run_cross_process_shared_memory_script(tmp_path, start_method: str):
+    script = f"""
+from multiprocessing import get_context
 from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 
 def child(conn):
     channel = LocalBinaryPayloadChannel(conn, threshold_bytes=8)
     assert channel.recv()["data"] == b"abcdef" * 8
-    channel.send({"ok": True})
+    channel.send({{"ok": True}})
     channel.close()
     conn.close()
 
-left, right = Pipe()
-process = Process(target=child, args=(right,))
-process.start()
-right.close()
-sender = LocalBinaryPayloadChannel(left, threshold_bytes=8)
-sender.send({"data": b"abcdef" * 8})
-assert sender.recv() == {"ok": True}
-sender.close()
-left.close()
-process.join()
-raise SystemExit(process.exitcode or 0)
+if __name__ == "__main__":
+    ctx = get_context({start_method!r})
+    left, right = ctx.Pipe()
+    process = ctx.Process(target=child, args=(right,))
+    process.start()
+    right.close()
+    sender = LocalBinaryPayloadChannel(left, threshold_bytes=8)
+    sender.send({{"data": b"abcdef" * 8}})
+    assert sender.recv() == {{"ok": True}}
+    sender.close()
+    left.close()
+    process.join()
+    raise SystemExit(process.exitcode or 0)
 """
+    script_path = tmp_path / "local_binary_payload_cross_process.py"
+    script_path.write_text(script, encoding="utf-8")
     result = subprocess.run(
-        [sys.executable, "-c", script],
+        [sys.executable, str(script_path)],
         check=False,
         capture_output=True,
+        env={**os.environ, "PYTHONPATH": os.getcwd()},
         text=True,
     )
 
     assert result.returncode == 0
     assert "resource_tracker" not in result.stderr
+    assert "KeyError" not in result.stderr
+
+
+@pytest.mark.linux_only
+def test_local_binary_payload_cross_process_linux_has_no_resource_tracker_warning(tmp_path):
+    _run_cross_process_shared_memory_script(tmp_path, "fork")
+
+
+@pytest.mark.macos_only
+def test_local_binary_payload_cross_process_macos_has_no_resource_tracker_warning(tmp_path):
+    _run_cross_process_shared_memory_script(tmp_path, "fork")
+
+
+@pytest.mark.windows_only
+def test_local_binary_payload_cross_process_windows_has_no_resource_tracker_warning(tmp_path):
+    _run_cross_process_shared_memory_script(tmp_path, "spawn")

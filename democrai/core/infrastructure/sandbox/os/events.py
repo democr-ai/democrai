@@ -12,6 +12,8 @@ from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.registry import module_event_registry
 
 from .helper import apply_application_network_allowlist_with_helper
+from .core_relaunch import update_core_os_sandbox_proxy_session
+from .factory import get_helper_backend
 from .state import (
     is_application_network_allowlist_active,
     refresh_application_network_allowlist,
@@ -101,12 +103,17 @@ async def _refresh_application_network_allowlist_listener(
 
         def _apply() -> None:
             with process_guard_bypass_context():
-                apply_application_network_allowlist_with_helper(allowlist)
-                if engine_orchestrator_pid is not None:
-                    apply_application_network_allowlist_with_helper(
-                        allowlist,
-                        pid=engine_orchestrator_pid,
-                    )
+                update_core_os_sandbox_proxy_session(
+                    allowlist,
+                    config=getattr(app_ctx(), "config", None),
+                )
+                if getattr(get_helper_backend(), "supports_pid_enforcement", False):
+                    apply_application_network_allowlist_with_helper(allowlist)
+                    if engine_orchestrator_pid is not None:
+                        apply_application_network_allowlist_with_helper(
+                            allowlist,
+                            pid=engine_orchestrator_pid,
+                        )
 
         await asyncio.to_thread(_apply)
         applied = True

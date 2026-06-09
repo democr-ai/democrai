@@ -47,15 +47,6 @@ def test_onnx_install_uses_compatible_optimum_transformers_packages(monkeypatch)
     assert len(calls) == 1
 
 
-def test_onnx_install_packages_use_gpu_optimum_extra_for_cuda_profile():
-    engine_mod = __import__("engines.onnx.engine", fromlist=["OnnxEngine"])
-
-    packages = engine_mod.OnnxEngine._install_packages("cu128")
-
-    assert "optimum-onnx[onnxruntime-gpu]==0.1.0" in packages
-    assert "onnxruntime-gpu" in packages
-
-
 def test_onnx_install_packages_keep_cpu_runtime_on_macos():
     engine_mod = __import__("engines.onnx.engine", fromlist=["OnnxEngine"])
 

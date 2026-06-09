@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
@@ -9,6 +11,27 @@ if ROOT_DIR not in sys.path:
 import democrai.sdk as sdk_module
 
 sys.modules["sdk"] = sdk_module
+
+
+def pytest_collection_modifyitems(config, items):
+    platform_markers = {
+        "linux_only": (
+            sys.platform.startswith("linux"),
+            "test platform-dependent Linux-only behavior",
+        ),
+        "macos_only": (
+            sys.platform == "darwin",
+            "test platform-dependent macOS-only behavior",
+        ),
+        "windows_only": (
+            sys.platform == "win32",
+            "test platform-dependent Windows-only behavior",
+        ),
+    }
+    for item in items:
+        for marker_name, (enabled, reason) in platform_markers.items():
+            if item.get_closest_marker(marker_name) and not enabled:
+                item.add_marker(pytest.mark.skip(reason=reason))
 
 
 def _install_process_guard_test_compat() -> None:

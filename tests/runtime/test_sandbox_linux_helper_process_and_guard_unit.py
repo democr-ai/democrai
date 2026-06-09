@@ -69,6 +69,7 @@ def _guard_state(mod, rules, *, subject: str = "s", subject_kind: str = "module"
     }
 
 
+@pytest.mark.linux_only
 def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
     guard_mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
@@ -123,6 +124,7 @@ def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_
     assert "DEMOCRAI_OS_SANDBOX_POLICY_FILE" not in calls[0][2]["env"]
 
 
+@pytest.mark.linux_only
 def test_process_guard_popen_launcher_releases_ready_file_under_bypass(monkeypatch, tmp_path: Path):
     guard_mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
     launcher_mod = importlib.import_module("democrai.core.infrastructure.sandbox.launcher")
@@ -1848,6 +1850,7 @@ def test_runtime_filesystem_read_paths_include_configured_local_media_path(monke
     mod._ORIGINALS.clear()
 
 
+@pytest.mark.linux_only
 def test_linux_remaining_branches(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
@@ -2212,6 +2215,7 @@ def test_process_guard_filesystem_operation_classification(monkeypatch, tmp_path
     ]
 
 
+@pytest.mark.linux_only
 def test_process_guard_process_calls_can_use_filesystem_execute_approval(monkeypatch):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
 
@@ -2625,6 +2629,7 @@ def test_process_guard_propagates_context_to_threadpool(monkeypatch, tmp_path: P
         mod.disable_process_guard(token)
 
 
+@pytest.mark.linux_only
 def test_process_guard_engine_system_read_baseline_allows_os_release_only_with_explicit_rule(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
     monkeypatch.setattr(mod, "_runtime_filesystem_read_paths", lambda: [])

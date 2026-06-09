@@ -28,7 +28,9 @@ from democrai.core.application.knowledge.extractor.manifests import (
     load_extractor_class,
 )
 from democrai.core.application.knowledge.extractor.runtime import (
+    _extractor_install_proxy_access,
     check_extractor_ready_runtime,
+    get_extractor_access,
 )
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models import (
@@ -50,6 +52,7 @@ from democrai.core.runtime.foundation.paths import (
 )
 from democrai.core.runtime.lifecycle.process_supervisor import process_supervisor
 from democrai.core.application.ai.engine.runtime.environment import application_root
+from democrai.core.infrastructure.sandbox.worker_launch import build_worker_launch_state
 
 
 EXTRACTOR_INSTALL_STREAM_ID = "system.extractor.install.events"
@@ -339,6 +342,7 @@ async def _apply_os_network_allowlist_to_install_process(
     from democrai.core.infrastructure.sandbox.os.helper import (
         apply_application_network_allowlist_with_helper,
     )
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
     from democrai.core.infrastructure.sandbox.os.base import proxy_endpoint_payload
     from democrai.core.infrastructure.sandbox.os.models import (
         ApplicationNetworkAllowlist,
@@ -354,6 +358,8 @@ async def _apply_os_network_allowlist_to_install_process(
     ctx = app_ctx()
     config = ctx.config
     if not is_application_network_allowlist_enabled(config):
+        return
+    if not getattr(get_helper_backend(), "supports_pid_enforcement", False):
         return
     endpoints = []
     proxy_url = str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip()
@@ -416,9 +422,13 @@ async def _start_os_network_proxy_for_install(
     env["HTTP_PROXY"] = proxy_url
     env["HTTPS_PROXY"] = proxy_url
     env["ALL_PROXY"] = proxy_url
+    env["WS_PROXY"] = proxy_url
+    env["WSS_PROXY"] = proxy_url
     env["http_proxy"] = proxy_url
     env["https_proxy"] = proxy_url
     env["all_proxy"] = proxy_url
+    env["ws_proxy"] = proxy_url
+    env["wss_proxy"] = proxy_url
     env["NO_PROXY"] = "127.0.0.1,localhost,::1"
     env["no_proxy"] = "127.0.0.1,localhost,::1"
     proxy_connect_target = _proxy_connect_target(proxy_url)
@@ -481,19 +491,82 @@ async def _stop_os_network_proxy_for_install(session_id: str) -> None:
     await asyncio.to_thread(_stop)
 
 
-async def _terminate_install_process(process: asyncio.subprocess.Process) -> None:
-    if process.returncode is not None:
+async def _read_install_process_stdout_line(process: Any) -> bytes:
+    stdout = getattr(process, "stdout", None)
+    if stdout is None:
+        return b""
+    line = await asyncio.to_thread(stdout.readline)
+    if isinstance(line, str):
+        return line.encode("utf-8")
+    return bytes(line or b"")
+
+
+async def _wait_install_process(process: Any) -> int:
+    return int(await asyncio.to_thread(process.wait))
+
+
+async def _terminate_install_process(process: Any) -> None:
+    poll = getattr(process, "poll", None)
+    returncode = process.returncode
+    if callable(poll):
+        returncode = poll()
+    if returncode is not None:
+        cleanup = getattr(process, "cleanup", None)
+        if callable(cleanup):
+            cleanup()
         return
     with contextlib.suppress(ProcessLookupError):
         process.terminate()
     with contextlib.suppress(Exception):
-        await asyncio.wait_for(process.wait(), timeout=2.0)
-    if process.returncode is not None:
-        return
-    with contextlib.suppress(ProcessLookupError):
-        process.kill()
-    with contextlib.suppress(Exception):
-        await asyncio.wait_for(process.wait(), timeout=2.0)
+        await asyncio.wait_for(asyncio.to_thread(process.wait), timeout=2.0)
+    returncode = process.returncode
+    if callable(poll):
+        returncode = poll()
+    if returncode is None:
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(asyncio.to_thread(process.wait), timeout=2.0)
+    cleanup = getattr(process, "cleanup", None)
+    if callable(cleanup):
+        cleanup()
+
+
+def _extractor_install_launch_state(
+    extractor_id: str,
+    *,
+    env: dict[str, str],
+) -> dict[str, Any]:
+    return build_worker_launch_state(
+        subject_kind="extractor",
+        subject_name=extractor_id,
+        access=(
+            *get_extractor_access(extractor_id, "install"),
+            *_extractor_install_proxy_access(
+                extractor_id,
+                str(env.get(EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV) or ""),
+            ),
+        ),
+    )
+
+
+def _start_extractor_install_process(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    extractor_id: str,
+):
+    from democrai.core.infrastructure.sandbox import launcher as sandbox_launcher
+
+    return sandbox_launcher.popen(
+        command,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=False,
+        state=_extractor_install_launch_state(extractor_id, env=env),
+    )
 
 
 def _new_install_ready_file() -> str:
@@ -569,12 +642,11 @@ async def _run_extractor_install_runtime_process(
         extractor_id=extractor_id,
     )
     try:
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+        process = await asyncio.to_thread(
+            _start_extractor_install_process,
+            command,
             env=env,
+            extractor_id=extractor_id,
         )
     except BaseException:
         with contextlib.suppress(Exception):
@@ -583,11 +655,6 @@ async def _run_extractor_install_runtime_process(
         raise
     process_supervisor.register(process, name=f"extractor-install:{extractor_id}")
     try:
-        await _apply_os_network_allowlist_to_install_process(
-            process.pid,
-            env=env,
-            extractor_id=extractor_id,
-        )
         _release_install_ready_file(ready_file)
         ready_released = True
         assert process.stdout is not None
@@ -596,7 +663,7 @@ async def _run_extractor_install_runtime_process(
         last_line = ""
         output_tail: deque[str] = deque(maxlen=80)
         while True:
-            raw = await process.stdout.readline()
+            raw = await _read_install_process_stdout_line(process)
             if not raw:
                 break
             line = raw.decode("utf-8", errors="replace").rstrip()
@@ -618,7 +685,7 @@ async def _run_extractor_install_runtime_process(
             output_tail.append(line)
             last_line = line
             emit_extractor_install_output(line, phase="install")
-        return_code = await process.wait()
+        return_code = await _wait_install_process(process)
         if return_code != 0:
             raise RuntimeError(
                 error_message

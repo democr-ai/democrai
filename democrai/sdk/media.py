@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import time
+import contextlib
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import quote, urlencode
@@ -32,6 +33,19 @@ MODEL_MANIFEST_NAME = ".democrai-model-manifest.json"
 _DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 _PROGRESS_INTERVAL_SECONDS = 0.75
 ProgressCallback = Callable[[dict[str, Any]], None]
+
+
+@contextlib.contextmanager
+def _framework_media_storage_context():
+    try:
+        from democrai.core.infrastructure.sandbox.process_guard import (
+            process_guard_bypass_context,
+        )
+    except Exception:
+        yield
+        return
+    with process_guard_bypass_context():
+        yield
 
 
 def require_media_provider():
@@ -168,22 +182,23 @@ class Media:
                 raise ValueError("url_source_required")
             source_target = self._model_source_target(resolved_source)
             target_name = os.path.basename(str(filename or "").strip()) or os.path.basename(url.split("?", 1)[0]) or "model"
-            staging_dir = self._model_staging_dir(normalized_model_id)
-            try:
-                target = staging_dir / source_target if source_target else staging_dir / target_name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                self._download_url_to_file(
-                    url,
-                    target_path=target,
-                    progress_callback=progress_callback,
-                    label=target_name,
-                )
-                if source_target:
-                    return self.add_model(normalized_model_id, source_path=str(staging_dir))
-                return self.add_model(normalized_model_id, source_path=str(target))
-            finally:
-                if staging_dir.exists():
-                    shutil.rmtree(staging_dir)
+            with _framework_media_storage_context():
+                staging_dir = self._model_staging_dir(normalized_model_id)
+                try:
+                    target = staging_dir / source_target if source_target else staging_dir / target_name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    self._download_url_to_file(
+                        url,
+                        target_path=target,
+                        progress_callback=progress_callback,
+                        label=target_name,
+                    )
+                    if source_target:
+                        return self.add_model(normalized_model_id, source_path=str(staging_dir))
+                    return self.add_model(normalized_model_id, source_path=str(target))
+                finally:
+                    if staging_dir.exists():
+                        shutil.rmtree(staging_dir)
         raise ValueError(f"unsupported_model_source:{source_type or 'unknown'}")
 
     def _add_huggingface_model_from_source(
@@ -210,40 +225,42 @@ class Media:
         if not should_store_snapshot:
             remote_path = files[0]
             target_name = os.path.basename(str(filename or "").strip()) or os.path.basename(remote_path) or "model"
+            with _framework_media_storage_context():
+                staging_dir = self._model_staging_dir(model_id)
+                try:
+                    target = staging_dir / source_target if source_target else staging_dir / target_name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    self._download_huggingface_file_to_path(
+                        repo_id=repo,
+                        revision=revision,
+                        remote_path=remote_path,
+                        token=token,
+                        target_path=target,
+                        progress_callback=progress_callback,
+                    )
+                    if source_target:
+                        return self.add_model(model_id, source_path=str(staging_dir))
+                    return self.add_model(model_id, source_path=str(target), filename=target_name)
+                finally:
+                    if staging_dir.exists():
+                        shutil.rmtree(staging_dir)
+
+        with _framework_media_storage_context():
             staging_dir = self._model_staging_dir(model_id)
             try:
-                target = staging_dir / source_target if source_target else staging_dir / target_name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                self._download_huggingface_file_to_path(
+                destination = staging_dir / target_prefix if target_prefix else staging_dir
+                self._download_huggingface_snapshot(
                     repo_id=repo,
+                    destination_path=str(destination),
                     revision=revision,
-                    remote_path=remote_path,
+                    files=files,
                     token=token,
-                    target_path=target,
                     progress_callback=progress_callback,
                 )
-                if source_target:
-                    return self.add_model(model_id, source_path=str(staging_dir))
-                return self.add_model(model_id, source_path=str(target), filename=target_name)
+                return self.add_model(model_id, source_path=str(staging_dir))
             finally:
                 if staging_dir.exists():
                     shutil.rmtree(staging_dir)
-
-        staging_dir = self._model_staging_dir(model_id)
-        try:
-            destination = staging_dir / target_prefix if target_prefix else staging_dir
-            self._download_huggingface_snapshot(
-                repo_id=repo,
-                destination_path=str(destination),
-                revision=revision,
-                files=files,
-                token=token,
-                progress_callback=progress_callback,
-            )
-            return self.add_model(model_id, source_path=str(staging_dir))
-        finally:
-            if staging_dir.exists():
-                shutil.rmtree(staging_dir)
 
     @staticmethod
     def _model_source_target(source: dict[str, Any]) -> str:

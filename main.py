@@ -14,14 +14,14 @@ import importlib.util
 import argparse
 import tempfile
 
-from democrai.sdk.runtime import start, stop
-
 
 _LOGGER = logging.getLogger(__name__)
 _IGNORED_RELOAD_SUFFIXES = (".pyc", ".pyo", ".tmp", ".swp", "~")
 _CORE_CHILD_ENV = "DEMOCRAI_CORE_PROCESS"
+_CORE_WORKER_ARG = "--core-worker"
 _CORE_ENDPOINT_FD_ENV = "DEMOCRAI_CORE_ENDPOINT_FD"
 _CORE_ENDPOINT_FILE_ENV = "DEMOCRAI_CORE_ENDPOINT_FILE"
+_HOME_DIR_ENV = "DEMOCRAI_HOME_DIR"
 _APPLICATION_RESTART_EXIT_CODE = 75
 
 
@@ -31,6 +31,23 @@ def _runner_base_dir() -> str:
 
 def _debug(message: str) -> None:
     _LOGGER.debug(message)
+
+
+def _runtime_start(
+    *,
+    argv: list[str] | None = None,
+    app_dir: str | None = None,
+    configure_args=None,
+):
+    from democrai.sdk.runtime import start
+
+    return start(argv=argv, app_dir=app_dir, configure_args=configure_args)
+
+
+def _runtime_stop(*, reloader=None, child_proc=None) -> None:
+    from democrai.sdk.runtime import stop
+
+    stop(reloader=reloader, child_proc=child_proc)
 
 
 def _wait_for_shutdown(*, reloader=None, child_proc=None, reload_event=None) -> int:
@@ -57,7 +74,7 @@ def _wait_for_shutdown(*, reloader=None, child_proc=None, reload_event=None) -> 
                 return _APPLICATION_RESTART_EXIT_CODE
             time.sleep(0.1)
     finally:
-        stop(reloader=reloader, child_proc=child_proc)
+        _runtime_stop(reloader=reloader, child_proc=child_proc)
 
     return exit_code["value"]
 
@@ -92,30 +109,46 @@ def _current_binary_path() -> str:
 def _server_command(
     args, *, listen_fd: int | None = None, worker_index: int | None = None
 ) -> list[str]:
+    return _core_worker_command(
+        _copy_args(
+            args,
+            server_worker=True,
+            workers=1,
+            listen_fd=listen_fd,
+            worker_index=worker_index,
+        )
+    )
+
+
+def _core_worker_command(args) -> list[str]:
     if _is_frozen_runtime():
         cmd = [_current_binary_path()]
     else:
         cmd = [sys.executable, _current_binary_path()]
 
+    cmd.append(_CORE_WORKER_ARG)
     cmd.extend(
         [
             "--mode",
-            "server",
+            str(args.mode),
             "--host",
             str(args.host),
             "--port",
             str(args.port),
             "--workers",
             "1",
-            "--server-worker",
         ]
     )
     if args.http:
         cmd.append("--http")
     if args.dev:
         cmd.extend(["--dev", str(args.dev)])
+    if bool(getattr(args, "server_worker", False)):
+        cmd.append("--server-worker")
+    listen_fd = getattr(args, "listen_fd", None)
     if listen_fd is not None:
         cmd.extend(["--listen-fd", str(listen_fd)])
+    worker_index = getattr(args, "worker_index", None)
     if worker_index is not None:
         cmd.extend(["--worker-index", str(worker_index)])
     return cmd
@@ -212,7 +245,10 @@ def _read_core_endpoint_file(path: str, proc) -> str:
         if line:
             return _parse_core_endpoint(line)
         if proc.poll() is not None:
-            raise RuntimeError("Core process exited before publishing IPC endpoint")
+            raise RuntimeError(
+                "Core process exited before publishing IPC endpoint"
+                f" (return_code={getattr(proc, 'returncode', None)})"
+            )
         time.sleep(0.05)
 
 
@@ -223,48 +259,10 @@ def _main_command() -> list[str]:
 
 
 def _core_child_argv(args) -> list[str]:
-    argv = [
-        "--mode",
-        "desktop",
-        "--host",
-        str(args.host),
-        "--port",
-        str(args.port),
-    ]
-    if bool(getattr(args, "http", False)):
-        argv.append("--http")
-    if int(getattr(args, "dev", 0) or 0):
-        argv.extend(["--dev", str(args.dev)])
-    return argv
+    return _core_worker_command(args)[len(_main_command()) :]
 
 
 def _start_desktop_core_process(args):
-    if os.name == "nt":
-        return _start_desktop_core_process_windows(args)
-
-    read_fd, write_fd = os.pipe()
-    env = os.environ.copy()
-    env[_CORE_CHILD_ENV] = "1"
-    env[_CORE_ENDPOINT_FD_ENV] = str(write_fd)
-    proc = subprocess.Popen(
-        [*_main_command(), *_core_child_argv(args)],
-        env=env,
-        pass_fds=(write_fd,),
-        close_fds=True,
-    )
-    os.close(write_fd)
-    try:
-        endpoint = _read_core_endpoint(read_fd)
-    except Exception:
-        try:
-            proc.terminate()
-        except Exception:
-            pass
-        raise
-    return proc, endpoint
-
-
-def _start_desktop_core_process_windows(args):
     fd, endpoint_file = tempfile.mkstemp(prefix="democrai-core-endpoint-", suffix=".json")
     os.close(fd)
     try:
@@ -273,13 +271,8 @@ def _start_desktop_core_process_windows(args):
         pass
 
     env = os.environ.copy()
-    env[_CORE_CHILD_ENV] = "1"
     env[_CORE_ENDPOINT_FILE_ENV] = endpoint_file
-    proc = subprocess.Popen(
-        [*_main_command(), *_core_child_argv(args)],
-        env=env,
-        close_fds=True,
-    )
+    proc = _start_core_worker(args, env=env)
     try:
         endpoint = _read_core_endpoint_file(endpoint_file, proc)
     except Exception:
@@ -296,9 +289,107 @@ def _start_desktop_core_process_windows(args):
     return proc, endpoint
 
 
+def _start_core_worker(args, *, env: dict[str, str] | None = None, pass_fds: tuple[int, ...] = ()):
+    command = _core_worker_command(args)
+    worker_env = dict(os.environ if env is None else env)
+    worker_env[_CORE_CHILD_ENV] = "1"
+    home = _resolved_home_for_env()
+    if home:
+        worker_env["HOME"] = home
+        worker_env[_HOME_DIR_ENV] = home
+    config = _load_master_config()
+    broker = None
+    if _core_worker_sandbox_enabled(config) and _core_worker_spawn_broker_enabled():
+        from democrai.core.infrastructure.sandbox.spawn_broker import (
+            broker_env,
+            start_spawn_broker,
+        )
+
+        broker = start_spawn_broker()
+        worker_env.update(broker_env(broker))
+    if _core_worker_sandbox_enabled(config):
+        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+            build_core_worker_launch_policy,
+        )
+        from democrai.core.infrastructure.sandbox.os.factory import (
+            get_core_launch_strategy,
+        )
+
+        policy = build_core_worker_launch_policy(
+            config,
+            command=command,
+            env=worker_env,
+            cwd=os.getcwd(),
+        )
+        process = get_core_launch_strategy().spawn(policy, pass_fds=pass_fds)
+        _attach_spawn_broker(process, broker)
+        return process
+    process = subprocess.Popen(
+        command,
+        env=worker_env,
+        pass_fds=pass_fds,
+        close_fds=True,
+    )
+    _attach_spawn_broker(process, broker)
+    return process
+
+
+def _core_worker_spawn_broker_enabled() -> bool:
+    return sys.platform in {"darwin", "win32"}
+
+
+def _attach_spawn_broker(proc, broker) -> None:
+    if broker is not None:
+        setattr(proc, "democrai_spawn_broker", broker)
+
+
+def _close_spawn_broker_for_process(proc) -> None:
+    broker = getattr(proc, "democrai_spawn_broker", None) if proc is not None else None
+    if broker is None:
+        return
+    try:
+        broker.close()
+    except Exception:
+        pass
+    try:
+        setattr(proc, "democrai_spawn_broker", None)
+    except Exception:
+        pass
+
+
+def _resolved_home_for_env() -> str:
+    raw_home = str(os.environ.get("HOME") or "").strip()
+    if raw_home and not raw_home.startswith("~"):
+        return raw_home
+    try:
+        import pwd
+
+        return str(pwd.getpwuid(os.getuid()).pw_dir or "").strip()
+    except Exception:
+        return ""
+
+
+def _load_master_config():
+    from democrai.core.platform.config.yaml_config import YamlConfigProvider
+    from democrai.core.runtime.foundation.paths import get_data_dir
+
+    config_path = os.path.join(get_data_dir(), "config.yaml")
+    if not os.path.exists(config_path):
+        return None
+    return YamlConfigProvider(config_path)
+
+
+def _core_worker_sandbox_enabled(config) -> bool:
+    getter = getattr(config, "get", None)
+    if not callable(getter):
+        return False
+    return bool(getter("sandbox.os.enabled", False))
+
+
 def _kill_process_tree(proc) -> None:
     if proc is None:
         return
+    _close_spawn_broker_for_process(proc)
     pid = getattr(proc, "pid", None)
     try:
         if pid:
@@ -484,6 +575,7 @@ def _run_server_master(args) -> int:
 
     def _shutdown_children(force: bool = False) -> None:
         for child in list(children):
+            _close_spawn_broker_for_process(child)
             try:
                 if force:
                     child.kill()
@@ -527,14 +619,16 @@ def _run_server_master(args) -> int:
             f"[ServerMaster] Starting {worker_count} workers on {args.host}:{args.port}"
         )
         for worker_index in range(worker_count):
-            child = subprocess.Popen(
-                _server_command(
-                    args,
-                    listen_fd=listener.fileno(),
-                    worker_index=worker_index,
-                ),
+            worker_args = _copy_args(
+                args,
+                server_worker=True,
+                workers=1,
+                listen_fd=listener.fileno(),
+                worker_index=worker_index,
+            )
+            child = _start_core_worker(
+                worker_args,
                 pass_fds=(listener.fileno(),),
-                close_fds=True,
             )
             children.append(child)
 
@@ -566,29 +660,37 @@ def _run_server_master(args) -> int:
 
 
 def _configure_runtime_args(args) -> None:
-    _normalize_windows_server_workers(args)
     if str(getattr(args, "mode", "") or "") != "desktop":
         return
     client_name = str(getattr(args, "client", "") or "").strip() or "qtdesktop"
     _configure_desktop_client_runtime(args, client_name)
 
 
-def _run_core_child(handle) -> int:
-    _write_core_endpoint(handle.endpoint)
+def _run_core_worker_process() -> int:
+    _normalize_core_worker_home_env()
+    bootstrap = _runtime_start(
+        argv=[item for item in sys.argv[1:] if item != _CORE_WORKER_ARG],
+        app_dir=_runner_base_dir(),
+        configure_args=_configure_runtime_args,
+    )
+    if bootstrap.exit_code is not None:
+        return int(bootstrap.exit_code)
+    _write_core_endpoint(bootstrap.endpoint)
     return _wait_for_shutdown()
 
 
-def _normalize_windows_server_workers(args) -> None:
-    if os.name != "nt":
+def _normalize_core_worker_home_env() -> None:
+    raw_home = str(os.environ.get("HOME") or "").strip()
+    if raw_home and not raw_home.startswith("~"):
         return
-    if int(getattr(args, "workers", 1) or 1) <= 1:
-        return
-    print("[Server] Windows supports one worker; using --workers 1.")
-    args.workers = 1
+    fallback = str(os.environ.get(_HOME_DIR_ENV) or "").strip()
+    if fallback and not fallback.startswith("~"):
+        os.environ["HOME"] = fallback
 
 
 def _parse_launcher_args(argv: list[str]):
     parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(_CORE_WORKER_ARG, action="store_true", dest="core_worker")
     parser.add_argument("--mode", choices=["desktop", "server"], default="desktop")
     parser.add_argument("--http", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
@@ -598,12 +700,22 @@ def _parse_launcher_args(argv: list[str]):
     parser.add_argument("--client", default=None)
     parser.add_argument("--tauri-web-client", default="webclient")
     parser.add_argument("--server-worker", action="store_true")
+    parser.add_argument("--listen-fd", type=int, default=None)
+    parser.add_argument("--worker-index", type=int, default=None)
     args, unknown = parser.parse_known_args(argv)
     return args, unknown
 
 
 def _has_runtime_command(unknown: list[str]) -> bool:
     return any(str(item).strip() and not str(item).startswith("-") for item in unknown)
+
+
+def _copy_args(args, **overrides):
+    values = vars(args).copy() if hasattr(args, "__dict__") else {}
+    values.update(overrides)
+    from types import SimpleNamespace
+
+    return SimpleNamespace(**values)
 
 
 def _run_desktop_mode(args) -> int:
@@ -692,6 +804,7 @@ def _run_desktop_mode(args) -> int:
         if child_proc is not None:
             child_proc.terminate()
         if core_proc is not None:
+            _close_spawn_broker_for_process(core_proc)
             core_proc.terminate()
             try:
                 core_proc.wait(timeout=5.0)
@@ -712,59 +825,37 @@ def main() -> int:
 
     launcher_args, unknown = _parse_launcher_args(sys.argv[1:])
 
-    if os.environ.get(_CORE_CHILD_ENV) != "1" and launcher_args.mode == "desktop" and not _has_runtime_command(unknown):
+    if bool(getattr(launcher_args, "core_worker", False)):
+        return _run_core_worker_process()
+
+    if launcher_args.mode == "desktop" and not _has_runtime_command(unknown):
         _configure_runtime_args(launcher_args)
         return _run_desktop_mode(launcher_args)
 
-    bootstrap = start(
+    if launcher_args.mode == "server" and not _has_runtime_command(unknown):
+        client_proc = None
+        client_name = str(getattr(launcher_args, "client", "") or "").strip()
+        try:
+            if client_name:
+                client_proc = _start_yarn_client(client_name)
+            rc = _run_server_master(launcher_args)
+            if int(rc) == _APPLICATION_RESTART_EXIT_CODE:
+                _restart_current_process()
+            return int(rc)
+        finally:
+            if client_proc is not None:
+                client_proc.terminate()
+
+    bootstrap = _runtime_start(
         app_dir=_runner_base_dir(),
         configure_args=_configure_runtime_args,
     )
     if bootstrap.exit_code is not None:
         return int(bootstrap.exit_code)
     args = bootstrap.args
-
-    if os.environ.get(_CORE_CHILD_ENV) == "1":
-        return _run_core_child(bootstrap)
-
-    if args.mode == "server":
-        client_proc = None
-        reloader = None
-        reload_event = threading.Event()
-        client_name = str(getattr(args, "client", "") or "").strip()
-        _normalize_windows_server_workers(args)
-        if not args.server_worker and int(args.workers or 1) > 1:
-            if client_name:
-                client_proc = _start_yarn_client(client_name)
-            try:
-                rc = _run_server_master(args)
-            finally:
-                if client_proc is not None:
-                    client_proc.terminate()
-            if int(rc) == _APPLICATION_RESTART_EXIT_CODE:
-                _restart_current_process()
-            return rc
-        try:
-            if client_name:
-                client_proc = _start_yarn_client(client_name)
-            if not args.server_worker and int(getattr(args, "dev", 0) or 0) == 1:
-                reloader = _start_server_reloader(
-                    restart_application=reload_event.set,
-                )
-            rc = _wait_for_shutdown(
-                reloader=reloader,
-                child_proc=client_proc,
-                reload_event=reload_event,
-            )
-            if int(rc) == _APPLICATION_RESTART_EXIT_CODE:
-                _restart_current_process()
-            return rc
-        except Exception:
-            if client_proc is not None:
-                client_proc.terminate()
-            raise
-
-    return _run_desktop_mode(args)
+    if getattr(args, "mode", "") == "desktop":
+        return _run_desktop_mode(args)
+    return _wait_for_shutdown()
 
 
 if __name__ == "__main__":

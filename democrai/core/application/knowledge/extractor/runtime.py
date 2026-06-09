@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
+import json
 import os
+from pathlib import Path
 import sys
 import threading
 from dataclasses import dataclass, field
@@ -45,12 +47,27 @@ from democrai.core.application.knowledge.extractor.worker_subject import (
 )
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
 from democrai.core.platform.utils.normalize import os_key
+from democrai.core.runtime.foundation.paths import logs_dir
 
 _EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV = "DEMOCRAI_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET"
 
 
 def _extractor_phase_section(extractor_id: str, phase: str) -> dict[str, Any]:
     manifest = get_extractor_manifest(extractor_id) or {}
+    if not manifest:
+        normalized = str(extractor_id or "").strip().lower()
+        manifest_path = (
+            Path(__file__).resolve().parents[5]
+            / "extractors"
+            / normalized
+            / "manifest.json"
+        )
+        try:
+            loaded = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            loaded = None
+        if isinstance(loaded, dict):
+            manifest = loaded
     section = manifest.get(phase) if isinstance(manifest, dict) else None
     return section if isinstance(section, dict) else {}
 
@@ -92,6 +109,36 @@ def get_extractor_environment(extractor_id: str, phase: str) -> dict[str, str]:
     return dict(environment)
 
 
+def _contains_model_registry_source(value: Any) -> bool:
+    if isinstance(value, dict):
+        source = value.get("source")
+        if isinstance(source, dict) and source.get("type") == "model_registry":
+            return True
+        return any(_contains_model_registry_source(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_model_registry_source(item) for item in value)
+    return False
+
+
+def _extractor_uses_engine_orchestrator(extractor_id: str) -> bool:
+    runtime_section = _extractor_phase_section(extractor_id, "runtime")
+    return _contains_model_registry_source(runtime_section.get("config_schema"))
+
+
+def _extractor_framework_runtime_access(
+    extractor_id: str,
+    phase: str,
+) -> tuple[AccessManifestRule, ...]:
+    if phase != "runtime" or not _extractor_uses_engine_orchestrator(extractor_id):
+        return ()
+    from democrai.core.infrastructure.sandbox.worker_launch import framework_ipc_access
+
+    return framework_ipc_access(
+        subject_kind="extractor",
+        subject_name=extractor_id,
+    )
+
+
 def get_extractor_access(
     extractor_id: str,
     phase: str,
@@ -110,6 +157,7 @@ def get_extractor_access(
         config_path = str(get_extractor_local_config_path(extractor_id).resolve())
         tmp_path = str(get_extractor_local_tmp_path(extractor_id).resolve())
         venv_path = str(get_extractor_venv_path(extractor_id).resolve())
+        log_path = str(logs_dir().resolve())
         rules.append(
             AccessManifestRule(
                 subject=subject,
@@ -163,6 +211,17 @@ def get_extractor_access(
                 ),
             )
             for operation in ("read", "create", "modify")
+        )
+        rules.extend(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="filesystem",
+                    operation=operation,
+                    target=log_path,
+                ),
+            )
+            for operation in ("read", "create", "modify", "delete")
         )
         for operation, paths in (
             (
@@ -222,11 +281,24 @@ def get_extractor_access(
                 )
                 for path in paths
             )
+    framework_rules = _extractor_framework_runtime_access(extractor_id, phase)
+    if framework_rules:
+        from democrai.core.infrastructure.sandbox.worker_launch import merge_access_rules
+
+        return merge_access_rules(tuple(rules), framework_rules)
     return tuple(rules)
 
 
-def _extractor_install_proxy_access(extractor_id: str) -> tuple[AccessManifestRule, ...]:
-    target = str(os.environ.get(_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV) or "").strip()
+def _extractor_install_proxy_access(
+    extractor_id: str,
+    target: str | None = None,
+) -> tuple[AccessManifestRule, ...]:
+    target = str(
+        target
+        if target is not None
+        else os.environ.get(_EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV)
+        or ""
+    ).strip()
     host, separator, raw_port = target.rpartition(":")
     if host != "127.0.0.1" or separator != ":" or not raw_port.isdigit():
         return ()

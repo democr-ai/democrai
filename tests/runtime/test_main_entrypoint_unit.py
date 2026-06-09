@@ -26,23 +26,25 @@ def _handle(**overrides):
 def test_main_returns_sdk_start_exit_code(monkeypatch):
     import main as main_mod
 
-    monkeypatch.setattr(main_mod, "start", lambda app_dir=None, configure_args=None: _handle(exit_code=77))
+    monkeypatch.setattr(main_mod.sys, "argv", ["main.py", "config", "validate"])
+    monkeypatch.setattr(main_mod, "_runtime_start", lambda app_dir=None, configure_args=None: _handle(exit_code=77))
 
     assert main_mod.main() == 77
 
 
-def test_main_routes_multi_worker_server_without_second_core_start(monkeypatch):
+def test_main_routes_server_to_master_without_runtime_start(monkeypatch):
     import main as main_mod
 
     observed = {}
-    handle = _handle(mode="server", workers=2, dev=1)
+    monkeypatch.setattr(
+        main_mod.sys,
+        "argv",
+        ["main.py", "--mode", "server", "--workers", "2", "--dev", "1"],
+    )
     monkeypatch.setattr(
         main_mod,
-        "start",
-        lambda app_dir=None, configure_args=None: (
-            observed.setdefault("start", (app_dir, configure_args)),
-            handle,
-        )[1],
+        "_runtime_start",
+        lambda **_kwargs: observed.setdefault("runtime_start", True),
     )
     monkeypatch.setattr(
         main_mod,
@@ -60,36 +62,37 @@ def test_main_routes_multi_worker_server_without_second_core_start(monkeypatch):
 
     assert rc == 23
     assert observed["server_master"] == ("server", 2, 1, False)
-    assert callable(observed["start"][1])
+    assert "runtime_start" not in observed
 
 
-def test_main_degrades_windows_multi_worker_server_to_single_worker(monkeypatch):
+def test_main_routes_core_worker_to_runtime_start(monkeypatch):
     import main as main_mod
 
     observed = {}
-    handle = _handle(mode="server", workers=2, dev=0)
-    monkeypatch.setattr(main_mod.os, "name", "nt")
-    monkeypatch.setattr(main_mod, "start", lambda app_dir=None, configure_args=None: handle)
+    handle = _handle(mode="server", workers=1, dev=0, endpoint=None)
+    monkeypatch.setattr(main_mod.sys, "argv", ["main.py", "--core-worker", "--mode", "server"])
     monkeypatch.setattr(
         main_mod,
-        "_run_server_master",
-        lambda args: observed.setdefault("server_master", args.workers),
+        "_runtime_start",
+        lambda argv=None, app_dir=None, configure_args=None: (
+            observed.setdefault("start", (argv, app_dir, configure_args)),
+            handle,
+        )[1],
     )
     monkeypatch.setattr(
         main_mod,
         "_wait_for_shutdown",
         lambda **kwargs: (
-            observed.setdefault("wait_workers", handle.args.workers),
-            0,
+            observed.setdefault("wait", kwargs),
+            31,
         )[1],
     )
 
-    rc = main_mod.main()
-
-    assert rc == 0
-    assert handle.args.workers == 1
-    assert observed["wait_workers"] == 1
-    assert "server_master" not in observed
+    assert main_mod.main() == 31
+    assert observed["start"][0] == ["--mode", "server"]
+    assert observed["start"][1] == main_mod._runner_base_dir()
+    assert callable(observed["start"][2])
+    assert "wait" in observed
 
 
 def test_main_server_web_client_starts_yarn_client(monkeypatch):
@@ -100,8 +103,7 @@ def test_main_server_web_client_starts_yarn_client(monkeypatch):
         poll=lambda: None,
         terminate=lambda: observed.setdefault("client_terminate", True),
     )
-    handle = _handle(mode="server", client="webclient")
-    monkeypatch.setattr(main_mod, "start", lambda app_dir=None, configure_args=None: handle)
+    monkeypatch.setattr(main_mod.sys, "argv", ["main.py", "--mode", "server", "--client", "webclient"])
     monkeypatch.setattr(
         main_mod,
         "_start_yarn_client",
@@ -109,16 +111,14 @@ def test_main_server_web_client_starts_yarn_client(monkeypatch):
     )
     monkeypatch.setattr(
         main_mod,
-        "_wait_for_shutdown",
-        lambda **kwargs: (
-            observed.setdefault("server_run", kwargs.get("child_proc")),
-            0,
-        )[1],
+        "_run_server_master",
+        lambda args: (observed.setdefault("server_run", args.client), 0)[1],
     )
 
     assert main_mod.main() == 0
     assert observed["client"] == "webclient"
-    assert observed["server_run"] == client_proc
+    assert observed["server_run"] == "webclient"
+    assert observed["client_terminate"] is True
 
 
 def test_run_desktop_mode_starts_client_and_stops(monkeypatch):
@@ -150,12 +150,6 @@ def test_run_desktop_mode_starts_client_and_stops(monkeypatch):
             child_proc,
         )[1],
     )
-    monkeypatch.setattr(
-        main_mod,
-        "stop",
-        lambda reloader=None, child_proc=None: observed.setdefault("stop", (reloader, child_proc)),
-    )
-
     rc = main_mod._run_desktop_mode(args)
 
     assert rc == 0
@@ -260,39 +254,7 @@ def test_start_yarn_client_runs_in_selected_client_root(monkeypatch):
     assert observed["popen"] == (["yarn", "dev"], "/app/clients/webclient")
 
 
-def test_start_desktop_core_process_posix_uses_pass_fds(monkeypatch):
-    import main as main_mod
-
-    observed = {}
-    proc = SimpleNamespace(
-        terminate=lambda: observed.setdefault("terminated", True),
-    )
-    args = _handle(mode="desktop").args
-    monkeypatch.setattr(main_mod.os, "name", "posix")
-    monkeypatch.setattr(main_mod.os, "pipe", lambda: (10, 11))
-    monkeypatch.setattr(main_mod.os, "close", lambda fd: observed.setdefault("closed", fd))
-    monkeypatch.setattr(
-        main_mod,
-        "_read_core_endpoint",
-        lambda fd: (observed.setdefault("read_fd", fd), "ipc")[1],
-    )
-
-    def _popen(command, **kwargs):
-        observed["popen"] = (command, kwargs)
-        return proc
-
-    monkeypatch.setattr(main_mod.subprocess, "Popen", _popen)
-
-    assert main_mod._start_desktop_core_process(args) == (proc, "ipc")
-    assert observed["popen"][1]["pass_fds"] == (11,)
-    assert observed["popen"][1]["close_fds"] is True
-    assert observed["popen"][1]["env"][main_mod._CORE_ENDPOINT_FD_ENV] == "11"
-    assert main_mod._CORE_ENDPOINT_FILE_ENV not in observed["popen"][1]["env"]
-    assert observed["closed"] == 11
-    assert observed["read_fd"] == 10
-
-
-def test_start_desktop_core_process_windows_uses_endpoint_file(monkeypatch, tmp_path):
+def test_start_desktop_core_process_uses_endpoint_file(monkeypatch, tmp_path):
     import main as main_mod
 
     observed = {}
@@ -306,9 +268,9 @@ def test_start_desktop_core_process_windows_uses_endpoint_file(monkeypatch, tmp_
             observed.setdefault("terminated", True)
 
     args = _handle(mode="desktop").args
-    monkeypatch.setattr(main_mod.os, "name", "nt")
     monkeypatch.setattr(main_mod.tempfile, "mkstemp", lambda **_kwargs: (12, str(endpoint_file)))
     monkeypatch.setattr(main_mod.os, "close", lambda fd: observed.setdefault("closed", fd))
+    monkeypatch.setattr(main_mod, "_load_master_config", lambda: None)
     real_unlink = os.unlink
 
     def _unlink(path):
@@ -331,10 +293,145 @@ def test_start_desktop_core_process_windows_uses_endpoint_file(monkeypatch, tmp_
 
     assert isinstance(proc, _Proc)
     assert endpoint == "ipc"
-    assert "pass_fds" not in observed["popen"][1]
+    assert observed["popen"][1]["pass_fds"] == ()
     assert observed["popen"][1]["close_fds"] is True
     assert observed["popen"][1]["env"][main_mod._CORE_ENDPOINT_FILE_ENV] == str(endpoint_file)
-    assert main_mod._CORE_ENDPOINT_FD_ENV not in observed["popen"][1]["env"]
+    assert main_mod._CORE_WORKER_ARG in observed["popen"][0]
+
+
+def test_run_server_master_launches_core_workers_with_listener_fd(monkeypatch):
+    import main as main_mod
+
+    observed = {"workers": []}
+
+    class _Listener:
+        def fileno(self):
+            return 44
+
+        def close(self):
+            observed["closed"] = True
+
+    class _Proc:
+        def __init__(self):
+            self._polls = 0
+
+        def poll(self):
+            self._polls += 1
+            return 0 if self._polls > 1 else None
+
+        def terminate(self):
+            observed.setdefault("terminated", 0)
+            observed["terminated"] += 1
+
+        def wait(self, timeout=None):
+            observed.setdefault("waits", []).append(timeout)
+            return 0
+
+        def kill(self):
+            observed["killed"] = True
+
+    args = _handle(mode="server", workers=1, host="127.0.0.1", port=8000, dev=0).args
+    monkeypatch.setattr(main_mod, "_create_shared_listener", lambda host, port: _Listener())
+    monkeypatch.setattr(main_mod.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(main_mod.signal, "signal", lambda *_args: None)
+    monkeypatch.setattr(
+        main_mod,
+        "_start_core_worker",
+        lambda worker_args, pass_fds=(): (
+            observed["workers"].append((worker_args, pass_fds)),
+            _Proc(),
+        )[1],
+    )
+
+    assert main_mod._run_server_master(args) == 0
+    worker_args, pass_fds = observed["workers"][0]
+    assert worker_args.server_worker is True
+    assert worker_args.listen_fd == 44
+    assert pass_fds == (44,)
+    assert observed["closed"] is True
+
+
+def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
+    import main as main_mod
+
+    observed = {}
+    config = SimpleNamespace(get=lambda key, default=None: True if key == "sandbox.os.enabled" else default)
+    proc = SimpleNamespace(poll=lambda: None)
+
+    class _Strategy:
+        def spawn(self, policy, *, pass_fds=()):
+            observed["spawn"] = (policy, pass_fds)
+            return proc
+
+    monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
+
+    def _build_policy(cfg, command, env, cwd):
+        observed["policy_input"] = (cfg, command, env, cwd)
+        return SimpleNamespace(command=command, env=env, cwd=cwd)
+
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.build_core_worker_launch_policy",
+        _build_policy,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
+        lambda: _Strategy(),
+    )
+    monkeypatch.setattr(main_mod, "_core_worker_spawn_broker_enabled", lambda: False)
+
+    args = _handle(mode="desktop").args
+    assert main_mod._start_core_worker(args, env={"A": "B"}, pass_fds=(9,)) is proc
+    cfg, command, env, cwd = observed["policy_input"]
+    assert cfg is config
+    assert main_mod._CORE_WORKER_ARG in command
+    assert env[main_mod._CORE_CHILD_ENV] == "1"
+    assert cwd
+    assert observed["spawn"][1] == (9,)
+
+
+def test_start_core_worker_passes_spawn_broker_env(monkeypatch):
+    import main as main_mod
+
+    observed = {}
+    config = SimpleNamespace(get=lambda key, default=None: True if key == "sandbox.os.enabled" else default)
+    proc = SimpleNamespace(poll=lambda: None)
+    broker = SimpleNamespace(close=lambda: observed.setdefault("broker_closed", True))
+
+    class _Strategy:
+        def spawn(self, policy, *, pass_fds=()):
+            observed["spawn"] = (policy, pass_fds)
+            return proc
+
+    def _build_policy(cfg, command, env, cwd):
+        observed["policy_input"] = (cfg, command, env, cwd)
+        return SimpleNamespace(command=command, env=env, cwd=cwd)
+
+    monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
+    monkeypatch.setattr(main_mod, "_core_worker_spawn_broker_enabled", lambda: True)
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.spawn_broker.start_spawn_broker",
+        lambda: broker,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.spawn_broker.broker_env",
+        lambda value: {"DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET": "sock", "DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN": "tok"},
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.build_core_worker_launch_policy",
+        _build_policy,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
+        lambda: _Strategy(),
+    )
+
+    args = _handle(mode="desktop").args
+    assert main_mod._start_core_worker(args, env={"A": "B"}) is proc
+    _cfg, _command, env, _cwd = observed["policy_input"]
+    assert env["DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET"] == "sock"
+    assert env["DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN"] == "tok"
+    main_mod._close_spawn_broker_for_process(proc)
+    assert observed["broker_closed"] is True
 
 
 def test_configure_runtime_args_delegates_desktop_launcher(monkeypatch):

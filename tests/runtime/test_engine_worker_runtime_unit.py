@@ -297,6 +297,19 @@ def test_engine_worker_no_response_message_keeps_diagnostics():
     assert "sandbox denied /dev/null" in message
 
 
+def test_engine_worker_init_timeout_is_configurable():
+    cfg = SimpleNamespace(
+        get=lambda key, default=None: 45
+        if key == "ai.engine_worker.init_timeout_seconds"
+        else default
+    )
+
+    assert subject_mod.engine_worker_init_timeout_seconds(cfg) == 45.0
+    assert subject_mod.engine_worker_init_timeout_seconds(
+        SimpleNamespace(get=lambda _key, default=None: 1)
+    ) == 15.0
+
+
 def test_engine_worker_start_failure_message_keeps_stderr():
     class _Process:
         stderr = io.StringIO("landlock_add_rule_failed:/dev/null:13\n")
@@ -616,6 +629,63 @@ def test_get_engine_runtime_access_does_not_create_engine_env(monkeypatch, tmp_p
 
     assert access
     assert not (tmp_path / "engine_env_cache" / "onnx").exists()
+
+
+def test_engine_install_and_runtime_access_include_log_dir(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    log_dir = tmp_path / "logs"
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "logs_dir", lambda: log_dir)
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+
+    for phase in ("install", "runtime"):
+        access = access_mod.get_engine_access("onnx", phase, config={})
+        operations = {
+            rule.resource.operation.value
+            for rule in access
+            if rule.resource.normalized_target == str(log_dir.resolve())
+        }
+
+        assert {"read", "create", "modify", "delete"}.issubset(operations)
+
+
+def test_engine_install_access_reads_resolved_venv_python(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    venv_root = tmp_path / "engine_env_cache" / "llamacpp" / ".venv"
+    uv_python = tmp_path / "uv" / "python" / "bin" / "python3.12"
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(
+        access_mod,
+        "get_engine_venv_python_path",
+        lambda _engine_id, create=False: venv_root / "bin" / "python",
+    )
+    monkeypatch.setattr(
+        access_mod.os.path,
+        "realpath",
+        lambda path, *args, **kwargs: str(uv_python)
+        if str(path).endswith(".venv/bin/python")
+        else str(path),
+    )
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+
+    access = access_mod.get_engine_access("llamacpp", "install", config={})
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    venv_python = access_mod._policy_path(venv_root / "bin" / "python")
+    resolved_python = access_mod._policy_path(uv_python)
+    assert ("read", venv_python) in resources
+    assert ("read", resolved_python) in resources
+    assert ("execute", venv_python) in resources
+    assert ("execute", resolved_python) in resources
 
 
 def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_path: Path):

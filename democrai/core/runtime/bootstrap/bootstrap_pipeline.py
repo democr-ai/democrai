@@ -68,6 +68,7 @@ class RuntimeBootstrapper:
             configure_temp_environment()
             self.init_config(ctx)
             self.configure_logging(ctx)
+            self.ensure_core_os_sandbox_relaunched(ctx, args)
             ensure_engine_env_base()
             self.refresh_os_network_allowlist(ctx)
             self.init_storage(ctx)
@@ -76,6 +77,7 @@ class RuntimeBootstrapper:
             self.init_modules(ctx, args)
             self.sync_environment_definitions(ctx)
             self.warmup_routing(ctx, args)
+            self.process_deferred_external_access_resumes(ctx)
             owns_background_services = self.acquire_background_services_lock(ctx)
 
             if not ctx.setup_mode:
@@ -249,6 +251,19 @@ class RuntimeBootstrapper:
             reason="bootstrap_config_initialized",
             mode="bootstrap",
         )
+
+    def ensure_core_os_sandbox_relaunched(
+        self,
+        ctx: AppContext,
+        args: RuntimeArgs,
+    ) -> None:
+        if getattr(ctx, "setup_mode", False):
+            return
+        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+            ensure_core_os_sandbox_relaunched,
+        )
+
+        ensure_core_os_sandbox_relaunched(args)
 
     def init_config(self, ctx: AppContext) -> None:
         config_path = os.path.join(get_data_dir(), "config.yaml")
@@ -605,6 +620,15 @@ class RuntimeBootstrapper:
         )
 
         start_external_access_cache_consumer()
+
+    def process_deferred_external_access_resumes(self, ctx: AppContext) -> None:
+        if getattr(ctx, "setup_mode", False):
+            return
+        from democrai.core.application.services.external_access import (
+            process_deferred_filesystem_resume_actions_sync,
+        )
+
+        process_deferred_filesystem_resume_actions_sync()
 
     def start_extractor_install_runtime(self, ctx: AppContext) -> None:
         if getattr(ctx, "setup_mode", False):

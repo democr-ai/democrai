@@ -70,6 +70,7 @@ class LinuxOsSandboxProvider(BaseOsSandboxProvider):
             network_proxy=True,
             network_allow_all=True,
             execute=True,
+            current_process=True,
         )
 
     def apply_current_process_os_sandbox(self, config: Any) -> dict[str, object]:

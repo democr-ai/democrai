@@ -1795,12 +1795,60 @@ def _run_subprocess_via_launcher(
             return None
         launcher_env = sandbox_launcher._with_os_sandbox_helper_env(policy_env)
         runtime_env = sandbox_launcher._without_os_sandbox_helper_env(launcher_env)
+        local_broker = sandbox_launcher._ensure_spawn_broker_for_launch(runtime_env)
         policy = sandbox_launcher._build_policy(
             command=command_sequence,
             cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
             env=runtime_env,
         )
         policy, _appcontainer_sid, proxy_session_id = sandbox_launcher._prepare_policy_for_launch(policy, runtime_env)
+        if sandbox_launcher._spawn_broker_available():
+            if call_name == "subprocess.run":
+                timeout = kwargs.get("timeout")
+                input_value = kwargs.get("input")
+                capture_output = bool(kwargs.get("capture_output", False))
+                stdout_value = subprocess.PIPE if capture_output else kwargs.get("stdout")
+                stderr_value = subprocess.PIPE if capture_output else kwargs.get("stderr")
+                proc = sandbox_launcher._popen_via_spawn_broker(
+                    policy,
+                    command=command_sequence,
+                    stdin=subprocess.PIPE if input_value is not None else kwargs.get("stdin"),
+                    stdout=stdout_value,
+                    stderr=stderr_value,
+                    text=kwargs.get("text"),
+                )
+                try:
+                    stdout, stderr = proc.communicate(input=input_value, timeout=timeout)
+                finally:
+                    proc.cleanup()
+                    sandbox_launcher._close_local_spawn_broker(local_broker)
+                    sandbox_launcher._stop_launch_proxy_session(proxy_session_id)
+                completed = subprocess.CompletedProcess(
+                    command_sequence,
+                    proc.returncode,
+                    stdout,
+                    stderr,
+                )
+                if kwargs.get("check") and proc.returncode:
+                    raise subprocess.CalledProcessError(
+                        proc.returncode,
+                        command_sequence,
+                        output=stdout,
+                        stderr=stderr,
+                    )
+                return completed
+            launched = sandbox_launcher._popen_via_spawn_broker(
+                policy,
+                command=command_sequence,
+                stdin=kwargs.get("stdin"),
+                stdout=kwargs.get("stdout"),
+                stderr=kwargs.get("stderr"),
+                text=kwargs.get("text"),
+            )
+            if proxy_session_id:
+                setattr(launched, "democrai_os_sandbox_proxy_session_id", proxy_session_id)
+            sandbox_launcher._attach_local_spawn_broker(launched, local_broker)
+            return launched
         policy_path = sandbox_launcher._write_policy(policy)
         ready_file = sandbox_launcher._new_launch_ready_file()
     launcher_env = dict(launcher_env)
@@ -1917,6 +1965,17 @@ def _blocked_process_call(name: str, original):
             return original(*args, **kwargs)
         current_state = _state()
         if bool(current_state.get("allow_subprocess")):
+            target = _process_executable_target(name, args, kwargs)
+            if target and name in {"subprocess.run", "subprocess.Popen"}:
+                launched = _run_subprocess_via_launcher(
+                    original,
+                    args,
+                    kwargs,
+                    call_name=name,
+                    cleanup_policy=name != "subprocess.Popen",
+                )
+                if launched is not None:
+                    return launched
             return original(*args, **kwargs)
         if name == "os.fork" and bool(current_state.get("allow_fork")):
             return original(*args, **kwargs)
@@ -2284,34 +2343,33 @@ def enable_process_guard(
         _patch_attr(shutil, "unpack_archive", _wrap_shutil_unpack_archive)
         _patch_attr(shutil, "make_archive", _wrap_shutil_make_archive)
 
-        if not allow_subprocess:
-            for owner, attr in (
-                (os, "system"),
-                (os, "popen"),
-                (subprocess, "Popen"),
-                (subprocess, "run"),
-                (subprocess, "call"),
-                (subprocess, "check_call"),
-                (subprocess, "check_output"),
-            ):
-                original = getattr(owner, attr, None)
-                if callable(original):
-                    _ORIGINALS[f"{owner.__name__}.{attr}"] = original
-                    setattr(
-                        owner,
-                        attr,
-                        _blocked_process_call(f"{owner.__name__}.{attr}", original),
-                    )
-            if hasattr(os, "fork"):
-                _ORIGINALS["os.fork"] = os.fork
-                os.fork = _blocked_process_call("os.fork", _ORIGINALS["os.fork"])
-            for attr in ("create_subprocess_exec", "create_subprocess_shell"):
-                original = getattr(asyncio, attr, None)
-                if callable(original):
-                    _ORIGINALS[f"asyncio.{attr}"] = original
-                    setattr(
-                        asyncio, attr, _blocked_process_call(f"asyncio.{attr}", original)
-                    )
+        for owner, attr in (
+            (os, "system"),
+            (os, "popen"),
+            (subprocess, "Popen"),
+            (subprocess, "run"),
+            (subprocess, "call"),
+            (subprocess, "check_call"),
+            (subprocess, "check_output"),
+        ):
+            original = getattr(owner, attr, None)
+            if callable(original):
+                _ORIGINALS[f"{owner.__name__}.{attr}"] = original
+                setattr(
+                    owner,
+                    attr,
+                    _blocked_process_call(f"{owner.__name__}.{attr}", original),
+                )
+        if hasattr(os, "fork"):
+            _ORIGINALS["os.fork"] = os.fork
+            os.fork = _blocked_process_call("os.fork", _ORIGINALS["os.fork"])
+        for attr in ("create_subprocess_exec", "create_subprocess_shell"):
+            original = getattr(asyncio, attr, None)
+            if callable(original):
+                _ORIGINALS[f"asyncio.{attr}"] = original
+                setattr(
+                    asyncio, attr, _blocked_process_call(f"asyncio.{attr}", original)
+                )
     return token
 
 

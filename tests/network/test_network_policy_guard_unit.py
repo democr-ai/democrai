@@ -138,6 +138,27 @@ def test_policy_guard_context_access_allows_receive_and_connect(monkeypatch):
     assert calls == []
 
 
+def test_policy_guard_allows_only_configured_loopback_proxy_connect(monkeypatch):
+    monkeypatch.setenv("ALL_PROXY", "http://token:x@127.0.0.1:4123")
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("HTTP_PROXY", raising=False)
+
+    assert mod._network_access_allowed("127.0.0.1:4123", operation="connect")
+    assert mod._network_access_allowed("https://127.0.0.1:4123", operation="connect")
+    assert mod._network_access_allowed("https://localhost:4123", operation="connect")
+
+    assert not mod._network_access_allowed("127.0.0.1:4124", operation="connect")
+    assert not mod._network_access_allowed("https://127.0.0.1:4123", operation="receive")
+
+
+def test_policy_guard_ignores_non_loopback_proxy_env(monkeypatch):
+    monkeypatch.setenv("ALL_PROXY", "http://proxy.example.com:8080")
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("HTTP_PROXY", raising=False)
+
+    assert not mod._network_access_allowed("proxy.example.com:8080", operation="connect")
+
+
 def test_policy_guard_enable_disable_and_context(monkeypatch):
     # fake optional libs imported inside enable/disable
     fake_requests_sessions = SimpleNamespace(Session=SimpleNamespace(request=lambda *a, **k: None))

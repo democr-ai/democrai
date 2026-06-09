@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import os
 import socket
 import threading
 from http import client as http_client
@@ -67,6 +68,8 @@ def _request_context_from_runtime() -> tuple[int | None, int | None, str | None]
 
 
 def _network_access_allowed(target: str, *, operation: str) -> bool:
+    if operation == "connect" and _configured_loopback_proxy_target_allowed(target):
+        return True
     if _configured_remote_service_target_allowed(target):
         return True
     state_access = tuple(_state().get("access") or ())
@@ -87,6 +90,54 @@ def _network_access_allowed(target: str, *, operation: str) -> bool:
         if is_network_target_allowed(target, [resource.normalized_target]):
             return True
     return False
+
+
+def _configured_loopback_proxy_target_allowed(target: str) -> bool:
+    patterns: list[str] = []
+    for key in (
+        "ALL_PROXY",
+        "all_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+    ):
+        endpoint = _loopback_proxy_endpoint(os.environ.get(key, ""))
+        if endpoint is None:
+            continue
+        host, port = endpoint
+        for candidate in _loopback_proxy_host_patterns(host):
+            patterns.extend(
+                (
+                    f"{candidate}:{port}",
+                    f"http://{candidate}:{port}",
+                    f"https://{candidate}:{port}",
+                )
+            )
+    if not patterns:
+        return False
+    return is_network_target_allowed(target, tuple(dict.fromkeys(patterns)))
+
+
+def _loopback_proxy_endpoint(proxy_url: str) -> tuple[str, int] | None:
+    value = str(proxy_url or "").strip()
+    if not value:
+        return None
+    parsed = urlparse(value)
+    host = str(parsed.hostname or "").strip().lower()
+    port = int(parsed.port or 0)
+    if host == "localhost":
+        host = "127.0.0.1"
+    if host not in {"127.0.0.1", "::1"} or port <= 0:
+        return None
+    return host, port
+
+
+def _loopback_proxy_host_patterns(host: str) -> tuple[str, ...]:
+    normalized = str(host or "").strip().lower()
+    if normalized == "::1":
+        return ("[::1]", "::1", "localhost", "127.0.0.1")
+    return ("127.0.0.1", "localhost", "[::1]", "::1")
 
 
 def _configured_remote_service_target_allowed(target: str) -> bool:
@@ -548,4 +599,3 @@ class network_policy_context:
         tb: TracebackType | None,
     ) -> None:
         disable_network_policy(self._token)
-

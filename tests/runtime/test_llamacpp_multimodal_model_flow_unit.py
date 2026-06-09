@@ -12,6 +12,7 @@ from democrai.core.application.ai.engine.runtime.handles import create_engine_ha
 from democrai.core.application.ai.models.catalog_download import (
     ModelStorageOps,
     _catalog_artifact_network_access,
+    _catalog_artifact_os_network_proxy_scope,
     _catalog_inventory_extra_config,
     _download_catalog_to_storage,
 )
@@ -80,6 +81,86 @@ def test_huggingface_catalog_download_access_includes_xet_redirect_hosts():
     assert "https://huggingface.co/tensorblock/tiny-llama3-test-GGUF" in targets
     assert "https://cas-bridge.xethub.hf.co" in targets
     assert "https://transfer.xethub.hf.co" in targets
+    assert "https://*.cdn.hf.co" in targets
+
+
+def test_catalog_download_proxy_scope_temporarily_adds_artifact_endpoints(monkeypatch):
+    from democrai.core.infrastructure.sandbox.os import core_relaunch
+    from democrai.core.infrastructure.sandbox.os.models import (
+        ApplicationNetworkAllowlist,
+        NetworkEndpoint,
+    )
+    from democrai.core.runtime.foundation.app import app_ctx
+
+    current = ApplicationNetworkAllowlist(
+        endpoints=[
+            NetworkEndpoint(
+                host="127.0.0.1",
+                port=9000,
+                source="framework",
+                purpose="existing",
+            )
+        ]
+    )
+    updates: list[ApplicationNetworkAllowlist] = []
+    monkeypatch.setattr(app_ctx(), "os_network_allowlist", current, raising=False)
+    monkeypatch.setattr(app_ctx(), "os_network_allowlist_active", True, raising=False)
+    monkeypatch.setattr(
+        core_relaunch,
+        "update_core_os_sandbox_proxy_session",
+        lambda allowlist, *, config=None: updates.append(allowlist) or True,
+    )
+
+    access = _catalog_artifact_network_access(
+        {
+            "source": {
+                "type": "url",
+                "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt",
+            }
+        },
+        subject=AccessSubject.create("module", "system"),
+    )
+
+    with _catalog_artifact_os_network_proxy_scope(access):
+        assert updates
+        hosts = {endpoint.host for endpoint in updates[-1].endpoints}
+        assert "127.0.0.1" in hosts
+        assert "github.com" in hosts
+        assert "release-assets.githubusercontent.com" in hosts
+
+    assert updates[-1] is current
+
+
+def test_catalog_download_proxy_scope_adds_huggingface_cdn_wildcard(monkeypatch):
+    from democrai.core.infrastructure.sandbox.os import core_relaunch
+    from democrai.core.infrastructure.sandbox.os.models import ApplicationNetworkAllowlist
+    from democrai.core.runtime.foundation.app import app_ctx
+
+    current = ApplicationNetworkAllowlist(endpoints=[])
+    updates: list[ApplicationNetworkAllowlist] = []
+    monkeypatch.setattr(app_ctx(), "os_network_allowlist", current, raising=False)
+    monkeypatch.setattr(app_ctx(), "os_network_allowlist_active", True, raising=False)
+    monkeypatch.setattr(
+        core_relaunch,
+        "update_core_os_sandbox_proxy_session",
+        lambda allowlist, *, config=None: updates.append(allowlist) or True,
+    )
+
+    access = _catalog_artifact_network_access(
+        {
+            "source": {
+                "type": "huggingface",
+                "repo": "urchade/gliner_medium-v2.1",
+            }
+        },
+        subject=AccessSubject.create("module", "system"),
+    )
+
+    with _catalog_artifact_os_network_proxy_scope(access):
+        hosts = {endpoint.host for endpoint in updates[-1].endpoints}
+        assert "*.cdn.hf.co" in hosts
+
+    assert updates[-1] is current
 
 
 def test_multimodal_catalog_download_preserves_model_directory_with_dotted_id():

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import site
 import sys
+import sysconfig
 from typing import Any
 
 from democrai.core.application.access_policy import AccessManifestRule
@@ -9,6 +12,7 @@ from democrai.core.application.access_policy import AccessResource
 from democrai.core.application.access_policy import AccessSubject
 from democrai.core.runtime.foundation.paths import is_frozen
 from democrai.core.runtime.foundation.paths import runtime_ipc_dir
+from democrai.core.runtime.foundation.paths import state_dir
 
 
 def payload_access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]:
@@ -56,6 +60,7 @@ def build_worker_launch_state(
     launch_access = merge_access_rules(
         access,
         framework_runtime_access(subject_kind=kind, subject_name=name),
+        process_guard_mod._runtime_access(),
     )
     return {
         "subject": name,
@@ -100,6 +105,10 @@ def framework_runtime_access(
     except Exception:
         return tuple(rules)
     paths = [ipc_path]
+    if sys.platform == "darwin" and ipc_path.startswith("/var/"):
+        paths.append("/private" + ipc_path)
+    if sys.platform == "darwin":
+        paths.extend(_darwin_runtime_ipc_variants())
     if sys.platform.startswith("linux"):
         paths.append("/dev/shm")
     subject = AccessSubject.create(subject_kind, subject_name)
@@ -115,7 +124,73 @@ def framework_runtime_access(
         for path in paths
         for operation in ("read", "create", "modify", "delete")
     )
+    rules.extend(
+        AccessManifestRule(
+            subject=subject,
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation="read",
+                target=path,
+            ),
+        )
+        for path in _python_runtime_read_paths()
+    )
     return tuple(rules)
+
+
+def _darwin_runtime_ipc_variants() -> tuple[str, ...]:
+    try:
+        candidate = state_dir() / "ipc"
+        raw_uid = str(os.getuid()) if hasattr(os, "getuid") else "user"
+        digest = hashlib.sha1(str(candidate).encode("utf-8")).hexdigest()[:12]
+    except Exception:
+        return ()
+    bases = [
+        os.environ.get("TMPDIR", ""),
+        "/tmp",
+        "/private/tmp",
+        "/var/tmp",
+        "/private/var/tmp",
+    ]
+    return tuple(
+        dict.fromkeys(
+            os.path.join(str(base).rstrip("/"), f"dc-ipc-{raw_uid}-{digest}")
+            for base in bases
+            if str(base or "").strip()
+        )
+    )
+
+
+def _python_runtime_read_paths() -> tuple[str, ...]:
+    paths: list[str] = []
+    try:
+        paths.extend(str(item) for item in site.getsitepackages())
+    except Exception:
+        pass
+    try:
+        paths.append(str(site.getusersitepackages()))
+    except Exception:
+        pass
+    if sys.platform == "darwin":
+        home = str(os.environ.get("HOME") or "").strip()
+        if home:
+            version = f"{sys.version_info.major}.{sys.version_info.minor}"
+            paths.append(
+                os.path.join(
+                    home,
+                    "Library",
+                    "Python",
+                    version,
+                    "lib",
+                    "python",
+                    "site-packages",
+                )
+            )
+    try:
+        paths.extend(str(item) for item in sysconfig.get_paths().values())
+    except Exception:
+        pass
+    return tuple(dict.fromkeys(path for path in paths if path))
 
 
 def _framework_application_access(

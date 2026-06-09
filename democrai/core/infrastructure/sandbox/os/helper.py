@@ -70,6 +70,8 @@ def get_os_sandbox_helper_socket_path(config: Any | None = None) -> str:
         configured = str(getter("sandbox.os.helper_socket", "") or "").strip()
         if configured:
             return _process_scoped_config_path(configured)
+    if sys.platform == "darwin":
+        return str(Path("/tmp") / f"dc-os-helper-{os.getpid()}.sock")
     return str(runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve())
 
 
@@ -341,8 +343,7 @@ def _installed_helper_script() -> str:
     for candidate in candidates:
         if candidate.exists() and os.access(candidate, os.X_OK):
             return str(candidate)
-    resolved = shutil.which(script_name)
-    return str(resolved or "")
+    return ""
 
 
 def _application_root() -> str:
@@ -383,6 +384,9 @@ def _helper_autostart_log_tail() -> str:
 
 
 def _helper_command(socket_path: str, config: Any | None = None) -> list[str]:
+    token = _ensure_os_sandbox_helper_token()
+    if not token:
+        raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
     return [
         *_helper_module_command_prefix(),
         "--os-sandbox-helper-socket",
@@ -394,11 +398,14 @@ def _helper_command(socket_path: str, config: Any | None = None) -> list[str]:
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
         "--os-sandbox-helper-token",
-        _ensure_os_sandbox_helper_token(),
+        token,
     ]
 
 
 def _pkexec_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
+    token = _ensure_os_sandbox_helper_token()
+    if not token:
+        raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
     return [
         "pkexec",
         *_helper_module_command_prefix(),
@@ -411,11 +418,14 @@ def _pkexec_helper_command(socket_path: str, config: Any | None = None) -> list[
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
         "--os-sandbox-helper-token",
-        _ensure_os_sandbox_helper_token(),
+        token,
     ]
 
 
 def _sudo_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
+    token = _ensure_os_sandbox_helper_token()
+    if not token:
+        raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
     return [
         "sudo",
         *_helper_module_command_prefix(),
@@ -428,11 +438,13 @@ def _sudo_helper_command(socket_path: str, config: Any | None = None) -> list[st
         "--os-sandbox-helper-parent-pid",
         str(os.getpid()),
         "--os-sandbox-helper-token",
-        _ensure_os_sandbox_helper_token(),
+        token,
     ]
 
 
 def _can_autostart_helper() -> bool:
+    if sys.platform in {"darwin", "win32"}:
+        return True
     try:
         ensure_linux_network_enforcement_ready()
     except Exception as exc:
@@ -531,7 +543,12 @@ def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes
     }
     if strategy == "direct":
         popen_kwargs["start_new_session"] = True
-    proc = subprocess.Popen(command, **popen_kwargs)
+    from democrai.core.infrastructure.sandbox.process_guard import (
+        process_guard_bypass_context,
+    )
+
+    with process_guard_bypass_context():
+        proc = subprocess.Popen(command, **popen_kwargs)
     app_ctx().os_sandbox_helper_process = proc
     process_supervisor.register(proc, name="os-sandbox-helper")
     return proc

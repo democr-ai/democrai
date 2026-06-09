@@ -147,6 +147,9 @@ def _run_skill_script_sync(
         finally:
             if proc is not None:
                 _clear_skill_script_network_policy(proc.pid)
+                cleanup = getattr(proc, "cleanup", None)
+                if callable(cleanup):
+                    cleanup()
             _stop_skill_script_proxy_session(proxy_session_id)
             try:
                 ready_path.unlink()
@@ -271,6 +274,10 @@ def _prepare_skill_script_network_policy(
 def _apply_skill_script_network_policy(pid: int, *, env: dict[str, str]) -> None:
     if not is_application_network_allowlist_active():
         return
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+    if not getattr(get_helper_backend(), "supports_pid_enforcement", False):
+        return
     endpoints = []
     proxy_url = str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip()
     if proxy_url:
@@ -293,6 +300,10 @@ def _apply_skill_script_network_policy(pid: int, *, env: dict[str, str]) -> None
 
 def _clear_skill_script_network_policy(pid: int) -> None:
     if not is_application_network_allowlist_active():
+        return
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+    if not getattr(get_helper_backend(), "supports_pid_enforcement", False):
         return
     try:
         with process_guard_bypass_context():

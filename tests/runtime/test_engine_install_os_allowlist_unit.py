@@ -23,7 +23,7 @@ class _FakeStdout:
         self._lines = list(lines)
         self._events = events
 
-    async def readline(self) -> bytes:
+    def readline(self) -> bytes:
         self._events.append("read")
         if not self._lines:
             return b""
@@ -36,12 +36,22 @@ class _FakeProcess:
         self.stdout = stdout
         self.returncode = 0
         self.terminated = False
+        self.cleaned = False
 
-    async def wait(self) -> int:
+    def wait(self, timeout: float | None = None) -> int:
         return int(self.returncode)
+
+    def poll(self) -> int | None:
+        return self.returncode
 
     def terminate(self) -> None:
         self.terminated = True
+
+    def kill(self) -> None:
+        self.terminated = True
+
+    def cleanup(self) -> None:
+        self.cleaned = True
 
 
 class _StreamManager:
@@ -128,6 +138,10 @@ async def test_engine_install_apply_uses_proxy_loopback_only(monkeypatch):
         "democrai.core.infrastructure.sandbox.os.helper.apply_application_network_allowlist_with_helper",
         lambda allowlist, **kwargs: applied.append((allowlist, kwargs)),
     )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_helper_backend",
+        lambda: SimpleNamespace(supports_pid_enforcement=True),
+    )
 
     await mod._apply_os_network_allowlist_to_install_process(
         123,
@@ -177,13 +191,15 @@ async def test_engine_install_proxy_session_uses_engine_network_access(monkeypat
 
     assert session_id == "session-1"
     assert env["ALL_PROXY"] == "http://127.0.0.1:4123"
+    assert env["WSS_PROXY"] == "http://127.0.0.1:4123"
+    assert env["wss_proxy"] == "http://127.0.0.1:4123"
     assert [(endpoint.host, endpoint.port) for endpoint in started[0][0].endpoints] == [
         ("download.pytorch.org", 443)
     ]
 
 
 @pytest.mark.asyncio
-async def test_engine_install_process_applies_os_allowlist_to_child_pid(monkeypatch):
+async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
     import democrai.core.application.ai.engine.install_events as mod
 
     events: list[str] = []
@@ -197,19 +213,46 @@ async def test_engine_install_process_applies_os_allowlist_to_child_pid(monkeypa
         )
     )
 
-    async def _create_subprocess_exec(*_args, **_kwargs):
+    def _popen(command, **kwargs):
         events.append("spawn")
-        assert mod.INSTALL_NETWORK_READY_FILE_ENV in _kwargs["env"]
-        assert not Path(_kwargs["env"][mod.INSTALL_NETWORK_READY_FILE_ENV]).exists()
+        assert command[:2] == [mod.sys.executable, "-m"]
+        env = kwargs["env"]
+        assert env["ALL_PROXY"] == "http://127.0.0.1:4123"
+        assert env["WSS_PROXY"] == "http://127.0.0.1:4123"
+        assert mod.INSTALL_NETWORK_READY_FILE_ENV in env
+        assert not Path(env[mod.INSTALL_NETWORK_READY_FILE_ENV]).exists()
+        assert kwargs["stdin"] is mod.subprocess.DEVNULL
+        assert kwargs["stdout"] is mod.subprocess.PIPE
+        assert kwargs["stderr"] is mod.subprocess.STDOUT
+        assert kwargs["text"] is False
+        assert kwargs["state"] == {"access": mod.get_engine_access("demo", "install", config={})}
         return fake_process
 
-    async def _apply(pid, *, env, engine_id):
-        events.append(f"apply:{pid}")
-        assert isinstance(env, dict)
-        assert engine_id == "demo"
+    states = []
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.launcher.popen",
+        _popen,
+    )
+    async def _start_proxy(env, **_kwargs):
+        events.append("proxy_start")
+        env.update(
+            {
+                "ALL_PROXY": "http://127.0.0.1:4123",
+                "WSS_PROXY": "http://127.0.0.1:4123",
+            }
+        )
+        return "session-1"
 
-    monkeypatch.setattr(mod.asyncio, "create_subprocess_exec", _create_subprocess_exec)
-    monkeypatch.setattr(mod, "_apply_os_network_allowlist_to_install_process", _apply)
+    monkeypatch.setattr(mod, "_start_os_network_proxy_for_install", _start_proxy)
+    async def _stop_proxy(session_id):
+        events.append(f"proxy_stop:{session_id}")
+
+    monkeypatch.setattr(mod, "_stop_os_network_proxy_for_install", _stop_proxy)
+    monkeypatch.setattr(
+        mod,
+        "build_worker_launch_state",
+        lambda **kwargs: states.append(kwargs) or {"access": kwargs["access"]},
+    )
     monkeypatch.setattr(mod, "emit_engine_install_output", lambda *_a, **_k: None)
     monkeypatch.setattr(
         mod,
@@ -231,7 +274,16 @@ async def test_engine_install_process_applies_os_allowlist_to_child_pid(monkeypa
     )
 
     assert result == {"config_updates": {"ok": True}}
-    assert events[:3] == ["spawn", "apply:12345", "read"]
+    assert events[:3] == ["proxy_start", "spawn", "read"]
+    assert events[-1] == "proxy_stop:session-1"
+    assert fake_process.cleaned is True
+    assert states == [
+        {
+            "subject_kind": "engine",
+            "subject_name": "demo",
+            "access": mod.get_engine_access("demo", "install", config={}),
+        }
+    ]
 
 
 @pytest.mark.asyncio

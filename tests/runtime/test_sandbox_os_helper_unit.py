@@ -5,6 +5,7 @@ import importlib
 import json
 import os
 import subprocess
+import struct
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -89,9 +90,14 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
     monkeypatch.delenv(mod.OS_SANDBOX_POLICY_FILE_ENV, raising=False)
     monkeypatch.delenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, raising=False)
 
-    assert mod.get_os_sandbox_helper_socket_path().endswith(
-        f"os_sandbox_helper_{os.getpid()}.sock"
-    )
+    def _assert_default_socket_path(path: str) -> None:
+        if sys.platform == "darwin":
+            assert path.endswith(f"dc-os-helper-{os.getpid()}.sock")
+        else:
+            assert path.endswith(f"os_sandbox_helper_{os.getpid()}.sock")
+
+    socket_path = mod.get_os_sandbox_helper_socket_path()
+    _assert_default_socket_path(socket_path)
     assert mod.get_os_sandbox_policy_file_path().endswith(
         f"os_sandbox_allowlist_{os.getpid()}.json"
     )
@@ -142,9 +148,7 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
             "sandbox.os.policy_file": "",
         }.get(key, default)
     )
-    assert mod.get_os_sandbox_helper_socket_path(cfg_empty).endswith(
-        f"os_sandbox_helper_{os.getpid()}.sock"
-    )
+    _assert_default_socket_path(mod.get_os_sandbox_helper_socket_path(cfg_empty))
     assert mod.get_os_sandbox_policy_file_path(cfg_empty).endswith(
         f"os_sandbox_allowlist_{os.getpid()}.json"
     )
@@ -353,6 +357,7 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
     assert mod._pkexec_helper_command("/tmp/s.sock")[0] == "pkexec"
     assert mod._sudo_helper_command("/tmp/s.sock")[0] == "sudo"
 
+    monkeypatch.setattr(mod.sys, "platform", "linux")
     monkeypatch.setattr(mod, "ensure_linux_network_enforcement_ready", lambda: None)
     assert mod._can_autostart_helper() is True
     monkeypatch.setattr(
@@ -361,6 +366,11 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
         lambda: (_ for _ in ()).throw(RuntimeError("x")),
     )
     assert mod._can_autostart_helper() is False
+    monkeypatch.setattr(mod.sys, "platform", "darwin")
+    assert mod._can_autostart_helper() is True
+    monkeypatch.setattr(mod.sys, "platform", "win32")
+    assert mod._can_autostart_helper() is True
+    monkeypatch.setattr(mod.sys, "platform", "linux")
 
     monkeypatch.setattr(mod.shutil, "which", lambda x: "/bin/x" if x in {"pkexec", "sudo"} else None)
     assert mod._can_pkexec_autostart_helper() is True
@@ -667,3 +677,171 @@ def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Pat
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *_a, **_k: _Proc())
     out = mod._start_os_sandbox_helper_process("/tmp/s.sock")
     assert out is ctx.os_sandbox_helper_process
+
+
+def test_helper_backend_factory_and_platform_validation(monkeypatch):
+    from democrai.core.infrastructure.sandbox.os import factory
+    from democrai.core.infrastructure.sandbox.os.linux.helper import (
+        LinuxHelperBackend,
+    )
+    from democrai.core.infrastructure.sandbox.os.macos.helper import (
+        MacOSHelperBackend,
+    )
+    from democrai.core.infrastructure.sandbox.os.windows.helper import (
+        WindowsHelperBackend,
+    )
+
+    assert isinstance(factory.get_helper_backend("linux"), LinuxHelperBackend)
+    assert isinstance(factory.get_helper_backend("linux2"), LinuxHelperBackend)
+    assert isinstance(factory.get_helper_backend("darwin"), MacOSHelperBackend)
+    assert isinstance(factory.get_helper_backend("win32"), WindowsHelperBackend)
+    assert factory.get_helper_backend("sunos").supports_pid_enforcement is False
+
+    import democrai.core.infrastructure.sandbox.os.macos.helper as macos_helper_mod
+
+    monkeypatch.setattr(macos_helper_mod.os, "getuid", lambda: 501)
+    monkeypatch.setattr(macos_helper_mod.socket, "LOCAL_PEERCRED", 1, raising=False)
+
+    class _MacOSSock:
+        def __init__(self, uid: int):
+            self.uid = uid
+            self.calls = []
+
+        def getsockopt(self, level, option, buflen):
+            self.calls.append((level, option, buflen))
+            return struct.pack("3i", 1, self.uid, 20)
+
+    good_sock = _MacOSSock(501)
+    writer = SimpleNamespace(
+        get_extra_info=lambda name: good_sock if name == "socket" else None
+    )
+    backend = MacOSHelperBackend()
+    assert backend.validate_client_and_target_pid(
+        writer=writer,
+        requested_pid=123,
+        parent_pid=999,
+    ) == 123
+    assert good_sock.calls[0][1] == macos_helper_mod.socket.LOCAL_PEERCRED
+
+    bad_writer = SimpleNamespace(
+        get_extra_info=lambda name: _MacOSSock(999) if name == "socket" else None
+    )
+    with pytest.raises(RuntimeError, match="os_sandbox_helper_invalid_client_uid"):
+        backend.validate_client_and_target_pid(
+            writer=bad_writer,
+            requested_pid=None,
+            parent_pid=None,
+        )
+
+    portable = factory.get_helper_backend("other")
+    assert portable.validate_client_and_target_pid(
+        writer=SimpleNamespace(get_extra_info=lambda _name: None),
+        requested_pid=77,
+        parent_pid=1,
+    ) == 77
+    with pytest.raises(RuntimeError, match="network_enforcement_not_supported"):
+        portable.apply([], pid=None)
+
+
+@pytest.mark.asyncio
+async def test_helper_process_dispatch_uses_non_linux_backend(monkeypatch, tmp_path: Path):
+    import democrai.core.infrastructure.sandbox.os.helper_process as helper_process
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+    class _Reader:
+        def __init__(self, line: bytes):
+            self.line = line
+
+        async def readline(self):
+            return self.line
+
+    class _Writer:
+        def __init__(self):
+            self.buf = b""
+
+        def write(self, data):
+            self.buf += data
+
+        async def drain(self):
+            return None
+
+        def close(self):
+            return None
+
+        async def wait_closed(self):
+            return None
+
+    class _Proxy:
+        async def start(self):
+            return None
+
+        def create_session(self, *, endpoints):
+            return {
+                "session_id": "session-1",
+                "proxy_url": "http://127.0.0.1:1",
+            }
+
+        def update_session(self, session_id, *, endpoints):
+            return {
+                "session_id": session_id,
+                "proxy_url": "http://127.0.0.1:1",
+            }
+
+        def stop_session(self, _session_id):
+            return None
+
+    backend = get_helper_backend("sunos")
+    policy = tmp_path / "policy.json"
+    policy.write_text(json.dumps({"endpoints": []}), encoding="utf-8")
+
+    monkeypatch.setattr(
+        helper_process,
+        "ensure_linux_network_enforcement_ready",
+        lambda: (_ for _ in ()).throw(AssertionError("linux readiness called")),
+    )
+
+    writer = _Writer()
+    await helper_process._handle_helper_client(
+        _Reader(b'{"action":"ping","token":"test-token"}\n'),
+        writer,
+        policy_file=str(policy),
+        parent_pid=None,
+        applied_pids=set(),
+        applied_pids_lock=__import__("threading").Lock(),
+        proxy=_Proxy(),
+        token="test-token",
+        backend=backend,
+    )
+    assert json.loads(writer.buf.decode("utf-8"))["ok"] is True
+
+    writer = _Writer()
+    await helper_process._handle_helper_client(
+        _Reader(b'{"action":"start_proxy_session","endpoints":[],"token":"test-token"}\n'),
+        writer,
+        policy_file=str(policy),
+        parent_pid=None,
+        applied_pids=set(),
+        applied_pids_lock=__import__("threading").Lock(),
+        proxy=_Proxy(),
+        token="test-token",
+        backend=backend,
+    )
+    proxy_response = json.loads(writer.buf.decode("utf-8"))
+    assert proxy_response["ok"] is True
+    assert proxy_response["session_id"] == "session-1"
+
+    writer = _Writer()
+    await helper_process._handle_helper_client(
+        _Reader(b'{"action":"apply","token":"test-token"}\n'),
+        writer,
+        policy_file=str(policy),
+        parent_pid=None,
+        applied_pids=set(),
+        applied_pids_lock=__import__("threading").Lock(),
+        proxy=_Proxy(),
+        token="test-token",
+        backend=backend,
+    )
+    apply_response = json.loads(writer.buf.decode("utf-8"))
+    assert apply_response["ok"] is False
+    assert "network_enforcement_not_supported:sunos" in apply_response["error"]

@@ -93,6 +93,7 @@ def _apply_os_network_allowlist_to_process(ctx: Any, pid: int | None) -> None:
         from democrai.core.infrastructure.sandbox.os.helper import (
             apply_application_network_allowlist_with_helper,
         )
+        from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
         from democrai.core.infrastructure.sandbox.os.state import (
             is_application_network_allowlist_active,
             is_application_network_allowlist_enabled,
@@ -106,6 +107,8 @@ def _apply_os_network_allowlist_to_process(ctx: Any, pid: int | None) -> None:
         if not is_application_network_allowlist_enabled(config):
             return
         if not is_application_network_allowlist_active():
+            return
+        if not getattr(get_helper_backend(), "supports_pid_enforcement", False):
             return
         allowlist = refresh_application_network_allowlist()
         with process_guard_bypass_context():

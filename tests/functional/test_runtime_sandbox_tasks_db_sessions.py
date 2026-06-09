@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -31,6 +32,7 @@ from democrai.core.application.tasks.task_manager import TaskManager
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
 
 
+@pytest.mark.linux_only
 def test_functional_sandbox_python_level(tmp_path: Path):
     allowed_dir = tmp_path / "allowed"
     allowed_dir.mkdir(parents=True, exist_ok=True)

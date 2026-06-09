@@ -250,6 +250,82 @@ def launch_appcontainer_process(
     prepared: WindowsPreparedSandbox,
     env: dict[str, str],
 ) -> int:
+    process = spawn_appcontainer_process(policy, prepared, env)
+    return int(process.wait())
+
+
+class WindowsAppContainerProcess:
+    def __init__(
+        self,
+        *,
+        prepared: WindowsPreparedSandbox,
+        process_handle,
+        thread_handle,
+        pid: int,
+    ) -> None:
+        self._prepared = prepared
+        self._process_handle = process_handle
+        self._thread_handle = thread_handle
+        self.pid = int(pid)
+        self.returncode: int | None = None
+        self._closed = False
+
+    def poll(self):
+        if self.returncode is not None:
+            return self.returncode
+        kernel32 = ctypes.windll.kernel32
+        result = kernel32.WaitForSingleObject(self._process_handle, 0)
+        if int(result) == 0:
+            self.returncode = self._exit_code()
+            self._close()
+            return self.returncode
+        return None
+
+    def wait(self, timeout: float | None = None):
+        if self.returncode is not None:
+            return self.returncode
+        kernel32 = ctypes.windll.kernel32
+        milliseconds = 0xFFFFFFFF if timeout is None else max(0, int(float(timeout) * 1000))
+        result = kernel32.WaitForSingleObject(self._process_handle, milliseconds)
+        if int(result) != 0:
+            raise TimeoutError("windows_appcontainer_process_wait_timeout")
+        self.returncode = self._exit_code()
+        self._close()
+        return self.returncode
+
+    def terminate(self):
+        if self.poll() is not None:
+            return
+        ctypes.windll.kernel32.TerminateProcess(self._process_handle, 1)
+
+    def kill(self):
+        self.terminate()
+
+    def _exit_code(self) -> int:
+        exit_code = wintypes.DWORD(1)
+        ctypes.windll.kernel32.GetExitCodeProcess(
+            self._process_handle,
+            ctypes.byref(exit_code),
+        )
+        return int(exit_code.value)
+
+    def _close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        kernel32 = ctypes.windll.kernel32
+        try:
+            kernel32.CloseHandle(self._thread_handle)
+        finally:
+            kernel32.CloseHandle(self._process_handle)
+            cleanup_windows_appcontainer(self._prepared)
+
+
+def spawn_appcontainer_process(
+    policy: SandboxLaunchPolicy,
+    prepared: WindowsPreparedSandbox,
+    env: dict[str, str],
+) -> WindowsAppContainerProcess:
     _require_windows_appcontainer()
     appcontainer_sid = _derive_appcontainer_sid(prepared.appcontainer_name)
     security_capabilities = SECURITY_CAPABILITIES()
@@ -297,14 +373,12 @@ def launch_appcontainer_process(
             ctypes.byref(process_info),
         ):
             raise ctypes.WinError(ctypes.get_last_error())
-        try:
-            kernel32.WaitForSingleObject(process_info.hProcess, 0xFFFFFFFF)
-            exit_code = wintypes.DWORD(1)
-            kernel32.GetExitCodeProcess(process_info.hProcess, ctypes.byref(exit_code))
-            return int(exit_code.value)
-        finally:
-            kernel32.CloseHandle(process_info.hThread)
-            kernel32.CloseHandle(process_info.hProcess)
+        return WindowsAppContainerProcess(
+            prepared=prepared,
+            process_handle=process_info.hProcess,
+            thread_handle=process_info.hThread,
+            pid=int(process_info.dwProcessId),
+        )
     finally:
         kernel32.DeleteProcThreadAttributeList(attribute_list)
 

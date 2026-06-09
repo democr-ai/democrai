@@ -208,6 +208,7 @@ def test_process_guard_filesystem_denial_does_not_register_implicit_request(
         subject="system",
         subject_kind="module",
         allowed_paths=[str(allowed)],
+        include_runtime_paths=False,
         user_id=7,
         organization_id=2,
         session_key="sess-7",
@@ -636,6 +637,155 @@ def test_resume_action_runs_after_approval_with_original_request_context(
             "request_session": "sess-21",
             "action_name": "system.resume_demo",
         }
+    ]
+
+
+def test_filesystem_approval_with_os_sandbox_defers_resume_and_requests_restart(
+    external_access_db,
+    monkeypatch,
+):
+    from democrai.core.application.services import external_access
+    from democrai.core.infrastructure.database import access_policy as access_policy_store
+
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        external_access,
+        "get_user_access_profile",
+        lambda _user_id: {
+            "role": "super",
+            "access_level": None,
+            "organization_id": None,
+        },
+    )
+    monkeypatch.setattr(
+        external_access,
+        "request_os_filesystem_policy_refresh",
+        lambda **kwargs: calls.append(("refresh", kwargs)) or True,
+    )
+    monkeypatch.setattr(
+        external_access,
+        "_resume_rows_after_approval",
+        lambda rows, mode: calls.append(("resume", rows, mode)),
+    )
+    request_token = set_req_ctx(
+        RequestContext(
+            request_id="user-req",
+            user=21,
+            role="user",
+            organization_id=None,
+            access_level=1,
+            channel="ws",
+            session_key="sess-21",
+        )
+    )
+    try:
+        external_access.check_external_access(
+            subject_type="module",
+            subject_name="system",
+            resource_type="filesystem",
+            operation="read",
+            target="/var/lib/deferred-resume-demo",
+            register_request=True,
+            resume_action="system.resume_demo",
+            resume_context={"inventory_id": 9},
+        )
+    finally:
+        reset_req_ctx(request_token)
+    token = set_req_ctx(
+        RequestContext(
+            request_id="admin-req",
+            user=1,
+            role="super",
+            organization_id=None,
+            access_level=10,
+            channel="ws",
+            session_key="admin-session",
+        )
+    )
+    try:
+        external_access.approve_for_session(
+            subject_type="module",
+            subject_name="system",
+            resource_type="filesystem",
+            operation="read",
+            target="/var/lib/deferred-resume-demo",
+            session_key="sess-21",
+        )
+    finally:
+        reset_req_ctx(token)
+
+    assert calls
+    assert calls[0][0] == "refresh"
+    assert calls[0][1]["resource_type"] == "filesystem"
+    assert all(item[0] != "resume" for item in calls)
+    resumable = access_policy_store.list_approved_resume_requests(
+        resource_type="filesystem"
+    )
+    assert [row["resume_action"] for row in resumable] == ["system.resume_demo"]
+    access_policy_store.mark_resume_consumed([resumable[0]["id"]])
+    assert (
+        access_policy_store.list_approved_resume_requests(resource_type="filesystem")
+        == []
+    )
+
+
+def test_filesystem_policy_refresh_requests_worker_restart(monkeypatch):
+    from democrai.core.application.services import external_access
+
+    calls: list[object] = []
+    ctx = app_ctx()
+    previous_config = getattr(ctx, "config", None)
+    ctx.config = SimpleNamespace(get=lambda key, default=None: True if key == "sandbox.os.enabled" else default)
+    monkeypatch.setenv("DEMOCRAI_CORE_PROCESS", "1")
+    monkeypatch.setattr(
+        "democrai.core.runtime.lifecycle.restart.request_application_restart",
+        lambda received_ctx, delay_seconds=1.0: calls.append((received_ctx, delay_seconds)),
+    )
+    try:
+        assert external_access.request_os_filesystem_policy_refresh(
+            resource_type="filesystem",
+            subject_type="module",
+            subject_name="system",
+            target="/var/lib/demo",
+            mode="session",
+        )
+    finally:
+        ctx.config = previous_config
+
+    assert calls == [(ctx, 0.25)]
+
+
+def test_deferred_filesystem_resume_consumes_only_success(monkeypatch):
+    from democrai.core.application.services import external_access
+
+    calls: list[tuple] = []
+    rows = [
+        {"id": 1, "resume_action": "system.ok"},
+        {"id": 2, "resume_action": "system.fail"},
+    ]
+    monkeypatch.setattr(
+        external_access.access_policy_store,
+        "list_approved_resume_requests",
+        lambda resource_type="filesystem": rows,
+    )
+    monkeypatch.setattr(
+        external_access.access_policy_store,
+        "mark_resume_consumed",
+        lambda ids: calls.append(("consumed", list(ids))),
+    )
+
+    async def _run(row, *, mode):
+        calls.append(("run", row["id"], mode))
+        return row["id"] == 1
+
+    monkeypatch.setattr(external_access, "_run_resume_action", _run)
+
+    external_access.process_deferred_filesystem_resume_actions_sync()
+
+    assert calls == [
+        ("run", 1, "filesystem_policy_refresh"),
+        ("run", 2, "filesystem_policy_refresh"),
+        ("consumed", [1]),
     ]
 
 

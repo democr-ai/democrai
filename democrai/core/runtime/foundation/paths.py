@@ -14,6 +14,7 @@ APP_NAME = "democrai"
 MODULES_PATH_ENV = "DEMOCRAI_MODULES_PATH"
 ENGINES_PATH_ENV = "DEMOCRAI_ENGINES_PATH"
 EXTRACTORS_PATH_ENV = "DEMOCRAI_EXTRACTORS_PATH"
+HOME_DIR_ENV = "DEMOCRAI_HOME_DIR"
 _AF_UNIX_SOCKET_PATH_LIMIT = 100
 
 
@@ -60,6 +61,9 @@ def get_base_dir() -> str:
 
 
 def _home() -> Path:
+    raw_democrai_home = str(os.environ.get(HOME_DIR_ENV) or "").strip()
+    if raw_democrai_home and not raw_democrai_home.startswith("~"):
+        return Path(raw_democrai_home)
     raw_elevated_uid = os.environ.get("SUDO_UID")
     if raw_elevated_uid is None:
         raw_elevated_uid = os.environ.get("PKEXEC_UID")
@@ -69,6 +73,14 @@ def _home() -> Path:
     if elevated_uid and pwd is not None and sys.platform not in {"win32"}:
         try:
             return Path(pwd.getpwuid(int(elevated_uid)).pw_dir)
+        except Exception:
+            pass
+    raw_home = str(os.environ.get("HOME") or "").strip()
+    if raw_home and not raw_home.startswith("~"):
+        return Path(raw_home)
+    if pwd is not None and sys.platform not in {"win32"}:
+        try:
+            return Path(pwd.getpwuid(os.getuid()).pw_dir)
         except Exception:
             pass
     return Path.home()

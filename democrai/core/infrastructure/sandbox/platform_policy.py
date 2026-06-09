@@ -81,6 +81,7 @@ DARWIN_RUNTIME_DEPENDENCY_READ_PATHS = (
     "/opt/local",
     "/usr/local",
     "/usr/local/share/fonts",
+    "/Network/Library/Fonts",
     "~/.local/share/fonts",
     "~/.fonts",
 )

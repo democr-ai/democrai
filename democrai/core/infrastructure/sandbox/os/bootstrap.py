@@ -12,8 +12,8 @@ def bootstrap_current_process_os_sandbox(
     *,
     reason: str,
     mode: str,
-) -> None:
-    asyncio.run(
+) -> dict[str, Any]:
+    return asyncio.run(
         bootstrap_current_process_os_sandbox_async(
             ctx,
             reason=reason,
@@ -27,10 +27,10 @@ async def bootstrap_current_process_os_sandbox_async(
     *,
     reason: str,
     mode: str,
-) -> None:
+) -> dict[str, Any]:
     if getattr(ctx, "setup_mode", False):
         debug_os_sandbox_flow("bootstrap.allowlist_refresh_skipped_setup_mode")
-        return
+        return {"enabled": False, "skipped": "setup_mode"}
 
     _apply_current_process_os_sandbox(ctx)
 
@@ -50,7 +50,7 @@ async def bootstrap_current_process_os_sandbox_async(
     set_application_network_allowlist_active(enabled)
     if not enabled:
         debug_os_sandbox_flow("bootstrap.allowlist_refresh_skipped_disabled")
-        return
+        return {"enabled": False, "skipped": "network_allowlist_disabled"}
 
     register_os_sandbox_event_listeners()
     ensure_os_sandbox_helper_ready(ctx.config)
@@ -64,11 +64,16 @@ async def bootstrap_current_process_os_sandbox_async(
     }
     debug_os_sandbox_flow("bootstrap.allowlist_refresh_emit", payload=payload)
     await emit_application_network_allowlist_refresh_event(payload=payload)
+    return {"enabled": True, "payload": payload}
 
 
 def _apply_current_process_os_sandbox(ctx: Any) -> None:
     enabled = False
     try:
+        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+            is_core_os_sandbox_relaunched,
+            provider_supports_current_process_os_sandbox,
+        )
         from democrai.core.infrastructure.sandbox.os.current_process import (
             apply_current_process_os_sandbox,
             is_os_sandbox_enabled,
@@ -76,6 +81,13 @@ def _apply_current_process_os_sandbox(ctx: Any) -> None:
 
         enabled = is_os_sandbox_enabled(ctx.config)
         if enabled:
+            if not provider_supports_current_process_os_sandbox():
+                if is_core_os_sandbox_relaunched():
+                    debug_os_sandbox_flow(
+                        "bootstrap.current_process_skipped_launch_only_relaunched"
+                    )
+                    return
+                raise RuntimeError("os_sandbox_core_relaunch_required")
             from democrai.core.infrastructure.sandbox.process_guard import (
                 process_guard_bypass_context,
             )

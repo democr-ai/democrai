@@ -16,11 +16,15 @@ NETWORK_MODES = {NETWORK_DENY, NETWORK_PROXY, NETWORK_ALLOW_ALL}
 class FilesystemLaunchAccess:
     operation: str
     target: str
+    subject: str = ""
+    subject_kind: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return {
             "operation": self.operation,
             "target": self.target,
+            "subject": self.subject,
+            "subject_kind": self.subject_kind,
         }
 
 
@@ -140,7 +144,15 @@ def build_launch_policy(
         if not target:
             continue
         if resource_type == ResourceType.FILESYSTEM.value:
-            filesystem_access.append(FilesystemLaunchAccess(operation=operation, target=target))
+            subject = getattr(rule, "subject", None)
+            filesystem_access.append(
+                FilesystemLaunchAccess(
+                    operation=operation,
+                    target=target,
+                    subject=str(getattr(subject, "subject_name", "") or "").strip(),
+                    subject_kind=str(getattr(subject, "subject_type", "") or "").strip(),
+                )
+            )
         elif resource_type == ResourceType.NETWORK.value:
             network_endpoints.append(NetworkLaunchEndpoint(operation=operation, target=target))
     network_mode = NETWORK_ALLOW_ALL if allow_all_network else NETWORK_PROXY if network_endpoints else NETWORK_DENY
@@ -170,7 +182,14 @@ def _filesystem_access_from_payload(payload: dict[str, Any]) -> tuple[Filesystem
         operation = str(item.get("operation") or "").strip()
         target = str(item.get("target") or "").strip()
         if operation and target:
-            result.append(FilesystemLaunchAccess(operation=operation, target=target))
+            result.append(
+                FilesystemLaunchAccess(
+                    operation=operation,
+                    target=target,
+                    subject=str(item.get("subject") or "").strip(),
+                    subject_kind=str(item.get("subject_kind") or "").strip(),
+                )
+            )
     return tuple(result)
 
 

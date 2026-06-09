@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import inspect
 import os
+import subprocess
 import traceback
 from typing import Any
 
@@ -350,13 +351,21 @@ class _Worker:
                 }
             )
         except Exception as exc:
+            error = str(exc)
+            if isinstance(exc, subprocess.CalledProcessError):
+                output = str(exc.output or "").strip()
+                stderr = str(exc.stderr or "").strip()
+                if output:
+                    error += f"\nstdout={output[-4000:]}"
+                if stderr:
+                    error += f"\nstderr={stderr[-4000:]}"
             try:
                 from democrai.core.runtime.foundation.app import app_ctx
 
                 app_ctx().logger.error(
                     "[EngineWorker] Task failed "
                     f"engine_id={self._engine_id} response_id={response_id} "
-                    f"execution_id={execution_id} error={exc}\n{traceback.format_exc()}"
+                    f"execution_id={execution_id} error={error}\n{traceback.format_exc()}"
                 )
             except Exception:
                 pass
@@ -364,7 +373,7 @@ class _Worker:
                 {
                     "id": response_id,
                     "ok": False,
-                    "error": str(exc),
+                    "error": error,
                     "traceback": traceback.format_exc(),
                 }
             )

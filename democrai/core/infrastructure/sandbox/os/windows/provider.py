@@ -13,6 +13,7 @@ from democrai.core.infrastructure.sandbox.os.windows.appcontainer import (
     cleanup_windows_appcontainer,
     is_windows,
     launch_appcontainer_process,
+    spawn_appcontainer_process,
     prepare_windows_appcontainer,
 )
 
@@ -66,3 +67,13 @@ class WindowsOsSandboxProvider(BaseOsSandboxProvider):
         )
         self.apply_current_process(prepared, env)
         self.exec(prepared, env)
+
+    def spawn(self, policy: SandboxLaunchPolicy):
+        prepared = self.prepare(policy)
+        env = network_env(prepared)
+        sandbox = prepare_windows_appcontainer(
+            prepared,
+            proxy_url=str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip(),
+        )
+        self.apply_current_process(prepared, env)
+        return spawn_appcontainer_process(prepared, sandbox, env)

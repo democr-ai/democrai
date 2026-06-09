@@ -233,13 +233,37 @@ async def test_task_manager_runtime_paths(monkeypatch):
             ),
         ),
     )
+    guard_kwargs = {}
     monkeypatch.setitem(
         __import__("sys").modules,
         "democrai.core.infrastructure.sandbox.process_guard",
-        SimpleNamespace(process_guard_context=lambda **_k: _CM()),
+        SimpleNamespace(
+            process_guard_context=lambda **kwargs: guard_kwargs.update(kwargs) or _CM()
+        ),
     )
-    with mod._task_execution_context(module_name="demo", request_context=built):
+    inherited_access = (
+        _access_rule("module", "demo", "filesystem", "read", "/tmp/demo"),
+        _access_rule("module", "demo", "filesystem", "create", "/tmp/models"),
+    )
+    inherited_state = {
+        "subject": "demo",
+        "subject_kind": "module",
+        "access": inherited_access,
+        "allowed_imports": ["json"],
+        "allowed_subprocess_commands": ["tool"],
+        "allow_subprocess": True,
+        "allow_fork": False,
+    }
+    with mod._task_execution_context(
+        module_name="demo",
+        request_context=built,
+        inherited_sandbox_state=inherited_state,
+    ):
         pass
+    assert tuple(guard_kwargs["access"]) == inherited_access
+    assert guard_kwargs["include_runtime_access"] is True
+    assert guard_kwargs["inherit_parent_access"] is False
+    assert guard_kwargs["allow_subprocess"] is True
 
     manager = mod.TaskManager()
     monkeypatch.setattr(manager, "_persist_task", lambda *_a, **_k: None)

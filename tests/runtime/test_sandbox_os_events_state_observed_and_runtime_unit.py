@@ -100,9 +100,23 @@ async def test_sandbox_events_listener_and_emit(monkeypatch):
     monkeypatch.setattr(mod, "is_application_network_allowlist_active", lambda: True)
     monkeypatch.setattr(mod, "process_guard_bypass_context", _bypass)
     monkeypatch.setattr(mod, "apply_application_network_allowlist_with_helper", _apply)
+    monkeypatch.setattr(
+        mod,
+        "get_helper_backend",
+        lambda: SimpleNamespace(supports_pid_enforcement=True),
+    )
 
     result = await mod._refresh_application_network_allowlist_listener(payload={"reason": "test"})
     assert result["endpoint_count"] == 3 and result["applied"] is True and "apply" in calls
+
+    monkeypatch.setattr(
+        mod,
+        "get_helper_backend",
+        lambda: SimpleNamespace(supports_pid_enforcement=False),
+    )
+    calls.clear()
+    result_no_pid = await mod._refresh_application_network_allowlist_listener(payload={"reason": "macos"})
+    assert result_no_pid["applied"] is True and "apply" not in calls
 
     monkeypatch.setattr(mod, "is_application_network_allowlist_active", lambda: False)
     calls.clear()

@@ -20,6 +20,7 @@ class OsSandboxCapabilities:
     network_proxy: bool
     network_allow_all: bool
     execute: bool
+    current_process: bool = False
 
 
 class BaseFilesystemSandbox:
@@ -54,6 +55,7 @@ class BaseOsSandboxProvider:
             network_proxy=type(self.network) is not BaseNetworkSandbox,
             network_allow_all=True,
             execute=True,
+            current_process=False,
         )
 
     def supports(self, policy: SandboxLaunchPolicy) -> bool:
@@ -143,7 +145,18 @@ def network_env(policy: SandboxLaunchPolicy) -> dict[str, str]:
     proxy_url = _loopback_proxy_url(str(env.get("ALL_PROXY") or env.get("all_proxy") or "").strip())
     if not proxy_url:
         raise RuntimeError("os_sandbox_proxy_required")
-    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+    for key in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "WS_PROXY",
+        "WSS_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "ws_proxy",
+        "wss_proxy",
+    ):
         env[key] = proxy_url
     env["NO_PROXY"] = "127.0.0.1,localhost,::1"
     env["no_proxy"] = "127.0.0.1,localhost,::1"

@@ -65,6 +65,17 @@ _WORKER_BOOTSTRAP_CODE = (
 )
 
 
+def engine_worker_init_timeout_seconds(config: Any | None = None) -> float:
+    resolved = getattr(app_ctx(), "config", None) if config is None else config
+    getter = getattr(resolved, "get", None)
+    raw = getter("ai.engine_worker.init_timeout_seconds", 120.0) if callable(getter) else 120.0
+    try:
+        value = float(raw)
+    except Exception:
+        value = 120.0
+    return max(15.0, value)
+
+
 def worker_logging_config() -> dict[str, Any]:
     config = getattr(app_ctx(), "config", None)
     getter = getattr(config, "get", None)
@@ -630,9 +641,19 @@ class EngineWorkerSubject:
                 json_value,
             )
         with self._response_condition:
-            self._response_condition.wait_for(
-                lambda: request_id in self._responses or self._closed
+            ready = self._response_condition.wait_for(
+                lambda: request_id in self._responses or self._closed,
+                timeout=engine_worker_init_timeout_seconds()
+                if operation == "init"
+                else None,
             )
+            if not ready and operation == "init":
+                return_code = self._process.poll()
+                message = self._log_worker_no_response(
+                    operation=operation,
+                    return_code=return_code,
+                )
+                raise RuntimeError(message)
             if request_id not in self._responses and self._closed:
                 return_code = self._process.poll()
                 message = self._log_worker_no_response(
@@ -784,6 +805,9 @@ class EngineWorkerSubject:
                         process.wait(timeout=3)
                     except subprocess.TimeoutExpired:
                         process.kill()
+            cleanup = getattr(process, "cleanup", None)
+            if callable(cleanup):
+                cleanup()
         finally:
             for channel in (self._control_channel, self._parent_channel):
                 try:
