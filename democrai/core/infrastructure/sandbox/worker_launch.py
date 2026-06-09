@@ -135,6 +135,7 @@ def framework_runtime_access(
         )
         for path in _python_runtime_read_paths()
     )
+    rules.extend(_python_runtime_execute_access(subject))
     return tuple(rules)
 
 
@@ -191,6 +192,89 @@ def _python_runtime_read_paths() -> tuple[str, ...]:
     except Exception:
         pass
     return tuple(dict.fromkeys(path for path in paths if path))
+
+
+def _python_runtime_execute_access(
+    subject: AccessSubject,
+) -> tuple[AccessManifestRule, ...]:
+    paths = _python_runtime_execute_paths()
+    return tuple(
+        AccessManifestRule(
+            subject=subject,
+            resource=AccessResource.create(
+                resource_type="filesystem",
+                operation=operation,
+                target=path,
+            ),
+        )
+        for path in paths
+        for operation in ("read", "execute")
+    )
+
+
+def _python_runtime_execute_paths() -> tuple[str, ...]:
+    from democrai.core.infrastructure.sandbox.process_guard import (
+        process_guard_bypass_context,
+    )
+
+    with process_guard_bypass_context():
+        paths: list[str] = []
+        executable = str(sys.executable or "").strip()
+        if executable:
+            paths.extend(_executable_path_chain(executable))
+        for raw in (
+            sys.prefix,
+            sys.exec_prefix,
+            sys.base_prefix,
+            sys.base_exec_prefix,
+        ):
+            if isinstance(raw, str) and raw.strip():
+                paths.extend(_path_variants(raw))
+        return tuple(dict.fromkeys(path for path in paths if path))
+
+
+def _executable_path_chain(path: str) -> tuple[str, ...]:
+    items: list[str] = []
+    current = os.path.abspath(os.path.expanduser(path))
+    seen: set[str] = set()
+    for _ in range(16):
+        if current in seen:
+            break
+        seen.add(current)
+        items.extend(_path_variants(current))
+        parent = os.path.dirname(current)
+        if parent:
+            items.extend(_path_variants(parent))
+        try:
+            if not os.path.islink(current):
+                break
+            target = os.readlink(current)
+        except OSError:
+            break
+        current = (
+            target
+            if os.path.isabs(target)
+            else os.path.abspath(os.path.join(parent, target))
+        )
+    return tuple(dict.fromkeys(item for item in items if item))
+
+
+def _path_variants(path: object) -> tuple[str, ...]:
+    raw = str(path or "").strip()
+    if not raw:
+        return ()
+    variants: list[str] = []
+    try:
+        variants.append(os.path.normpath(os.path.abspath(os.path.expanduser(raw))))
+    except Exception:
+        variants.append(raw)
+    try:
+        real = os.path.normpath(os.path.realpath(os.path.expanduser(raw)))
+        if real:
+            variants.append(real)
+    except Exception:
+        pass
+    return tuple(dict.fromkeys(item for item in variants if item))
 
 
 def _framework_application_access(

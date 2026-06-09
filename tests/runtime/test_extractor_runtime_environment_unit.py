@@ -141,6 +141,96 @@ def test_extractor_access_includes_runtime_system_and_dependency_reads(monkeypat
     assert ("create", "/usr") not in resources
 
 
+def test_extractor_access_reads_resolved_venv_python(monkeypatch, tmp_path):
+    import democrai.core.application.knowledge.extractor.runtime as mod
+
+    venv_root = tmp_path / "extractor_env_cache" / "docling" / ".venv"
+    uv_python = tmp_path / "uv" / "python" / "bin" / "python3.12"
+    monkeypatch.setattr(mod, "_extractor_phase_section", lambda *_args: {})
+    monkeypatch.setattr(mod, "get_extractor_local_env_path", lambda _id=None: tmp_path / "env")
+    monkeypatch.setattr(mod, "get_extractor_local_cache_path", lambda _id=None: tmp_path / "cache")
+    monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
+    monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
+    monkeypatch.setattr(mod, "get_extractor_venv_path", lambda _id=None: venv_root)
+    monkeypatch.setattr(
+        mod,
+        "get_extractor_venv_python_path",
+        lambda _id=None: venv_root / "bin" / "python",
+    )
+    monkeypatch.setattr(
+        mod.os.path,
+        "realpath",
+        lambda path, *args, **kwargs: str(uv_python)
+        if str(path).endswith(".venv/bin/python")
+        else str(path),
+    )
+    monkeypatch.setattr(mod, "extractor_runtime_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_system_probe_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_dependency_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_create_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_modify_paths", lambda: ())
+
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in mod.get_extractor_access("docling", "install")
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    venv_python = str((venv_root / "bin" / "python").resolve())
+    resolved_python = str(uv_python.resolve())
+    assert ("read", venv_python) in resources
+    assert ("read", resolved_python) in resources
+    assert ("execute", venv_python) in resources
+    assert ("execute", resolved_python) in resources
+
+
+def test_extractor_access_reads_python_executable_symlink_chain(monkeypatch, tmp_path):
+    import democrai.core.application.knowledge.extractor.runtime as mod
+
+    bin_root = tmp_path / "bin"
+    final_root = tmp_path / "runtime" / "bin"
+    bin_root.mkdir(parents=True)
+    final_root.mkdir(parents=True)
+    first = bin_root / "python"
+    second = bin_root / "python3.12"
+    third = tmp_path / "local" / "bin" / "python3.12"
+    third.parent.mkdir(parents=True)
+    final = final_root / "python3.12"
+    final.write_text("", encoding="utf-8")
+    first.symlink_to("python3.12")
+    second.symlink_to(third)
+    third.symlink_to(final)
+    monkeypatch.setattr(mod, "_extractor_phase_section", lambda *_args: {})
+    monkeypatch.setattr(mod, "get_extractor_local_env_path", lambda _id=None: tmp_path / "env")
+    monkeypatch.setattr(mod, "get_extractor_local_cache_path", lambda _id=None: tmp_path / "cache")
+    monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
+    monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
+    monkeypatch.setattr(mod, "get_extractor_venv_path", lambda _id=None: tmp_path / "env" / ".venv")
+    monkeypatch.setattr(mod, "get_extractor_venv_python_path", lambda _id=None: first)
+    monkeypatch.setattr(mod.sys, "executable", str(first))
+    monkeypatch.setattr(mod, "extractor_runtime_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_system_probe_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_dependency_read_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_create_paths", lambda: ())
+    monkeypatch.setattr(mod, "extractor_runtime_modify_paths", lambda: ())
+
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in mod.get_extractor_access("docling", "install")
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    for path in (first, second, third, final):
+        assert ("read", str(path.resolve(strict=False))) in resources
+        assert ("execute", str(path.resolve(strict=False))) in resources
+
+
 def test_model_registry_extractor_runtime_can_resolve_orchestrator_socket():
     import democrai.core.application.knowledge.extractor.runtime as mod
     from democrai.core.application.ai.engine.orchestrator.config import (

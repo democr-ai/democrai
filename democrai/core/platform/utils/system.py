@@ -117,11 +117,17 @@ class SystemResourceMonitor:
 
     def get_resources(self) -> Dict[str, Any]:
         """Returns a summary of available resources."""
+        free_ram_mb = self.get_free_ram_mb()
+        total_ram_mb = self.get_total_ram_mb()
         total_vram_mb = self.get_total_vram_mb()
         free_vram_mb = self.get_free_vram_mb()
+        # On macOS without a discrete NVIDIA GPU, the GPU uses unified system memory
+        if sys.platform == "darwin" and total_vram_mb == 0:
+            total_vram_mb = total_ram_mb
+            free_vram_mb = free_ram_mb
         return {
-            "ram_free_mb": self.get_free_ram_mb(),
-            "ram_total_mb": self.get_total_ram_mb(),
+            "ram_free_mb": free_ram_mb,
+            "ram_total_mb": total_ram_mb,
             "vram_free_mb": free_vram_mb,
             "vram_total_mb": total_vram_mb,
             "has_nvidia_gpu": self._nvml_initialized,

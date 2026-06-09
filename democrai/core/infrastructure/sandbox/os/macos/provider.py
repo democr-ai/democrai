@@ -42,6 +42,24 @@ _MACOS_BASELINE_DEVICE_PATHS = (
     "/dev/urandom",
 )
 
+_MACOS_BASELINE_MACH_SERVICES = (
+    "com.apple.system.notification_center",
+    "com.apple.logd",
+    "com.apple.system.opendirectoryd.membership",
+    "com.apple.system.opendirectoryd.libinfo",
+    "com.apple.bsd.dirhelper",
+    "com.apple.cfprefsd.agent",
+    "com.apple.cfprefsd.daemon",
+    "com.apple.windowserver.active",
+    "com.apple.tccd.system",
+    "com.apple.MTLCompilerService",
+)
+
+_MACOS_BASELINE_IOKIT_USER_CLIENTS = (
+    "AGXDeviceUserClient",
+    "IOSurfaceRootUserClient",
+)
+
 _MACOS_OPTIONAL_RUNTIME_READ_PATHS = (
     "/opt/homebrew",
     "/Library/Frameworks/Python.framework",
@@ -111,9 +129,13 @@ def seatbelt_profile(policy: SandboxLaunchPolicy, *, proxy_url: str = "") -> str
         "(allow file-read-metadata)",
         '(allow file-read* (subpath "/"))',
         "(allow ipc-posix-shm*)",
-        '(allow mach-lookup (global-name "com.apple.system.notification_center"))',
-        '(allow mach-lookup (global-name "com.apple.logd"))',
     ]
+    for service in _MACOS_BASELINE_MACH_SERVICES:
+        lines.append(f"(allow mach-lookup (global-name {json.dumps(service)}))")
+    for user_client in _MACOS_BASELINE_IOKIT_USER_CLIENTS:
+        lines.append(
+            f"(allow iokit-open (iokit-user-client-class {json.dumps(user_client)}))"
+        )
     for path in _macos_baseline_read_paths():
         lines.append(f"(allow file-read* (subpath {_seatbelt_path(path)}))")
     for path in _MACOS_BASELINE_DEVICE_PATHS:
@@ -360,4 +382,3 @@ def _seatbelt_host(host: str) -> str:
     if resolved in {"127.0.0.1", "::1", "localhost"}:
         return "localhost"
     return resolved
-

@@ -918,6 +918,10 @@ def test_process_guard_all_paths(monkeypatch, tmp_path: Path):
     assert mod._path_allowed("/outside", operation="read") is False
     mod._STATE.reset(st_token)
 
+    st_token = mod._STATE.set(_guard_state(mod, ()))
+    mod._check_path("", operation="read")
+    mod._STATE.reset(st_token)
+
     depth_token = mod._PATH_CHECK_DEPTH.set(1)
     mod._check_path("/x", operation="read")
     mod._check_path_pair("/x", "/y", source_operation="read", target_operation="read")

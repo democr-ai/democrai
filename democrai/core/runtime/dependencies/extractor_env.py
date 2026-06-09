@@ -386,10 +386,13 @@ def _restore_parent_module_attribute(
 
 
 def _module_from_path(module: object, root: str) -> bool:
-    origin = getattr(module, "__file__", None)
+    module_dict = getattr(module, "__dict__", {})
+    if not isinstance(module_dict, dict):
+        module_dict = {}
+    origin = module_dict.get("__file__")
     if origin and _path_is_within(str(origin), root):
         return True
-    locations = getattr(module, "__path__", None)
+    locations = module_dict.get("__path__")
     if locations is None:
         return False
     try:

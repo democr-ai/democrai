@@ -32,6 +32,9 @@ from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
 )
+from democrai.core.infrastructure.sandbox.process_guard import (
+    process_guard_bypass_context,
+)
 from democrai.core.infrastructure.sandbox.worker_launch import (
     build_worker_launch_state,
     payload_access_rules,
@@ -294,102 +297,106 @@ class ExtractorWorkerSubject:
 
         control_endpoint = create_local_listener("extractor-worker-control")
         parent_endpoint = create_local_listener("extractor-worker-parent")
-        env = _with_extractor_temp_env(
-            _with_auth_secret_env(_clean_worker_env()),
-            self._extractor_id,
-        )
-        env.update(control_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_CONTROL"))
-        env.update(parent_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_PARENT"))
-        command = [
-            str(get_extractor_venv_python_path(self._extractor_id)),
-            "-c",
-            _WORKER_BOOTSTRAP_CODE,
-            "democrai.core.application.knowledge.extractor.worker",
-            _application_pythonpath(),
-        ]
-        phase_access = get_extractor_access(
-            self._extractor_id,
-            self._phase,
-        )
-        init_payload = build_extractor_worker_init_payload(
-            extractor_id=self._extractor_id,
-            phase=self._phase,
-            config=config,
-            access=phase_access,
-            allowed_imports=get_extractor_allowed_imports(
+        stdout_context = contextvars.copy_context()
+        with process_guard_bypass_context():
+            env = _with_extractor_temp_env(
+                _with_auth_secret_env(_clean_worker_env()),
+                self._extractor_id,
+            )
+            env.update(control_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_CONTROL"))
+            env.update(parent_endpoint.env("DEMOCRAI_EXTRACTOR_WORKER_PARENT"))
+            command = [
+                str(get_extractor_venv_python_path(self._extractor_id)),
+                "-c",
+                _WORKER_BOOTSTRAP_CODE,
+                "democrai.core.application.knowledge.extractor.worker",
+                _application_pythonpath(),
+            ]
+            phase_access = get_extractor_access(
                 self._extractor_id,
                 self._phase,
-            ),
-        )
-        try:
-            self._process = _spawn_extractor_worker_process(
-                command,
-                env=env,
-                launch_state=_extractor_worker_launch_state(
-                    extractor_id=self._extractor_id,
-                    access=payload_access_rules(list(init_payload.get("access") or [])),
+            )
+            init_payload = build_extractor_worker_init_payload(
+                extractor_id=self._extractor_id,
+                phase=self._phase,
+                config=config,
+                access=phase_access,
+                allowed_imports=get_extractor_allowed_imports(
+                    self._extractor_id,
+                    self._phase,
                 ),
             )
-            if self._process is not None and self._process.stdout is not None:
-                self._stdout_reader = self._process.stdout
-        except Exception:
-            control_endpoint.close()
-            parent_endpoint.close()
-            raise
-        try:
-            self._control_conn = accept_connection(
-                control_endpoint,
-                process=self._process,
-                timeout_seconds=10.0,
-            )
-            self._control_channel = LocalBinaryPayloadChannel(
-                self._control_conn,
-                shared_memory_package_sid=getattr(
-                    self._process,
-                    "democrai_os_sandbox_appcontainer_sid",
-                    "",
-                ),
-            )
-            self._parent_conn = accept_connection(
-                parent_endpoint,
-                process=self._process,
-                timeout_seconds=10.0,
-            )
-            self._parent_channel = LocalBinaryPayloadChannel(
-                self._parent_conn,
-                shared_memory_package_sid=getattr(
-                    self._process,
-                    "democrai_os_sandbox_appcontainer_sid",
-                    "",
-                ),
-            )
-        except Exception as exc:
-            message = self._worker_start_failure_message(
-                stage="control_connect",
-                error=exc,
-            )
-            _stop_process_after_start_failure(self._process)
-            control_endpoint.close()
-            parent_endpoint.close()
-            raise RuntimeError(message) from exc
-        threading.Thread(
-            target=self._read_responses,
-            name=f"extractor-worker-reader-{self._extractor_id}",
-            daemon=True,
-        ).start()
-        threading.Thread(
-            target=self._read_parent_requests,
-            name=f"extractor-worker-parent-request-{self._extractor_id}",
-            daemon=True,
-        ).start()
-        if self._stdout_reader is not None:
-            stdout_context = contextvars.copy_context()
+            try:
+                self._process = _spawn_extractor_worker_process(
+                    command,
+                    env=env,
+                    launch_state=_extractor_worker_launch_state(
+                        extractor_id=self._extractor_id,
+                        access=payload_access_rules(
+                            list(init_payload.get("access") or [])
+                        ),
+                    ),
+                )
+                if self._process is not None and self._process.stdout is not None:
+                    self._stdout_reader = self._process.stdout
+            except Exception:
+                control_endpoint.close()
+                parent_endpoint.close()
+                raise
+        with process_guard_bypass_context():
+            try:
+                self._control_conn = accept_connection(
+                    control_endpoint,
+                    process=self._process,
+                    timeout_seconds=10.0,
+                )
+                self._control_channel = LocalBinaryPayloadChannel(
+                    self._control_conn,
+                    shared_memory_package_sid=getattr(
+                        self._process,
+                        "democrai_os_sandbox_appcontainer_sid",
+                        "",
+                    ),
+                )
+                self._parent_conn = accept_connection(
+                    parent_endpoint,
+                    process=self._process,
+                    timeout_seconds=10.0,
+                )
+                self._parent_channel = LocalBinaryPayloadChannel(
+                    self._parent_conn,
+                    shared_memory_package_sid=getattr(
+                        self._process,
+                        "democrai_os_sandbox_appcontainer_sid",
+                        "",
+                    ),
+                )
+            except Exception as exc:
+                message = self._worker_start_failure_message(
+                    stage="control_connect",
+                    error=exc,
+                )
+                _stop_process_after_start_failure(self._process)
+                control_endpoint.close()
+                parent_endpoint.close()
+                raise RuntimeError(message) from exc
             threading.Thread(
-                target=lambda: stdout_context.run(self._read_stdout),
-                name=f"extractor-worker-stdout-{self._extractor_id}",
+                target=self._read_responses,
+                name=f"extractor-worker-reader-{self._extractor_id}",
                 daemon=True,
             ).start()
-        self._request("init", init_payload)
+            threading.Thread(
+                target=self._read_parent_requests,
+                name=f"extractor-worker-parent-request-{self._extractor_id}",
+                daemon=True,
+            ).start()
+            if self._stdout_reader is not None:
+                threading.Thread(
+                    target=lambda: stdout_context.run(self._read_stdout),
+                    name=f"extractor-worker-stdout-{self._extractor_id}",
+                    daemon=True,
+                ).start()
+            self._request("init", init_payload)
 
     def _read_responses(self) -> None:
         try:

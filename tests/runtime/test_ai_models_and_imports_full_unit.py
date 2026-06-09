@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -308,7 +309,12 @@ def test_hardware_compatibility_module(monkeypatch):
     monkeypatch.setattr(hw_mod, "nvml", None)
     monkeypatch.setattr(hw_mod, "app_ctx", lambda: SimpleNamespace(logger=SimpleNamespace(debug=lambda *_a, **_k: None)))
     res = validator.get_system_resources()
-    assert res.ram_gb == 16.0 and res.has_gpu is False
+    assert res.ram_gb == 16.0
+    if sys.platform == "darwin":
+        assert res.has_gpu is True
+        assert res.vram_gb == 16.0
+    else:
+        assert res.has_gpu is False
 
     class _NVML:
         def nvmlInit(self):

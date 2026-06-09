@@ -1,3 +1,4 @@
+import sys
 import psutil
 from typing import Dict, List, Optional
 from pydantic import BaseModel
@@ -117,6 +118,12 @@ class HardwareValidator:
         except Exception:
             # Fallback if NVML fails or no NVIDIA GPU
             app_ctx().logger.debug("nvml FAIL")
+
+        # On macOS without a discrete GPU, the integrated/Apple Silicon GPU uses
+        # unified system memory — treat RAM as available VRAM for requirement checks
+        if sys.platform == "darwin" and not has_gpu:
+            has_gpu = True
+            vram_gb = ram_gb
 
         return SystemResources(
             ram_gb=round(ram_gb, 2),

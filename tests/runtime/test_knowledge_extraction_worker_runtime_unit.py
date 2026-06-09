@@ -349,6 +349,16 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     popen_calls = []
     listener_kinds = []
     accepted_prefixes = []
+    bypass_state = {"active": False}
+    bypass_observations = []
+
+    @contextmanager
+    def _bypass():
+        bypass_state["active"] = True
+        try:
+            yield
+        finally:
+            bypass_state["active"] = False
 
     class _Endpoint:
         def __init__(self, kind: str) -> None:
@@ -382,6 +392,7 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
             pass
 
     def _popen(command, **kwargs):
+        bypass_observations.append(("popen", bypass_state["active"]))
         popen_calls.append((command, kwargs))
         return _Process()
 
@@ -390,6 +401,7 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
         return _Endpoint(kind)
 
     def _accept(endpoint, *, process, timeout_seconds):
+        bypass_observations.append((f"accept:{endpoint.kind}", bypass_state["active"]))
         accepted_prefixes.append(endpoint.kind)
         return SimpleNamespace(close=lambda: None)
 
@@ -397,6 +409,7 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     monkeypatch.setattr(subject_mod, "accept_connection", _accept)
     monkeypatch.setattr(subject_mod.threading, "Thread", _Thread)
     monkeypatch.setattr(subject_mod.subprocess, "Popen", _popen)
+    monkeypatch.setattr(subject_mod, "process_guard_bypass_context", _bypass)
     monkeypatch.setattr(subject_mod, "get_extractor_venv_python_path", lambda _extractor_id: tmp_path / "python")
     monkeypatch.setattr(subject_mod, "_application_pythonpath", lambda: str(tmp_path))
     monkeypatch.setattr(subject_mod, "worker_runtime_config", lambda: {})
@@ -444,6 +457,8 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
         assert legacy_prefix + "_WRITE_FD" not in env
         assert listener_kinds == ["extractor-worker-control", "extractor-worker-parent"]
         assert accepted_prefixes == ["extractor-worker-control", "extractor-worker-parent"]
+        assert bypass_observations
+        assert all(active for _name, active in bypass_observations)
     finally:
         subject.close()
 

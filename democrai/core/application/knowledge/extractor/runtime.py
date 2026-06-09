@@ -46,6 +46,7 @@ from democrai.core.application.knowledge.extractor.worker_subject import (
     worker_runtime_config,
 )
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+from democrai.core.infrastructure.sandbox.worker_launch import framework_runtime_access
 from democrai.core.platform.utils.normalize import os_key
 from democrai.core.runtime.foundation.paths import logs_dir
 
@@ -107,6 +108,33 @@ def get_extractor_environment(extractor_id: str, phase: str) -> dict[str, str]:
         if not isinstance(key, str) or not isinstance(value, str):
             raise ValueError("invalid_extractor_environment")
     return dict(environment)
+
+
+def _executable_path_chain(path: str | Path) -> tuple[str, ...]:
+    items: list[str] = []
+    current = os.path.abspath(os.fsdecode(os.fspath(path)))
+    seen: set[str] = set()
+    for _ in range(16):
+        if current in seen:
+            break
+        seen.add(current)
+        items.append(current)
+        try:
+            if not os.path.islink(current):
+                break
+            target = os.readlink(current)
+        except OSError:
+            break
+        current = (
+            target
+            if os.path.isabs(target)
+            else os.path.abspath(os.path.join(os.path.dirname(current), target))
+        )
+    try:
+        items.append(os.path.realpath(os.fsdecode(os.fspath(path))))
+    except OSError:
+        pass
+    return tuple(dict.fromkeys(item for item in items if item))
 
 
 def _contains_model_registry_source(value: Any) -> bool:
@@ -249,10 +277,8 @@ def get_extractor_access(
         executable_targets = tuple(
             dict.fromkeys(
                 (
-                    str(sys.executable),
-                    os.path.realpath(str(sys.executable)),
-                    str(get_extractor_venv_python_path(extractor_id)),
-                    os.path.realpath(str(get_extractor_venv_python_path(extractor_id))),
+                    *_executable_path_chain(sys.executable),
+                    *_executable_path_chain(get_extractor_venv_python_path(extractor_id)),
                 )
             )
         )
@@ -261,11 +287,12 @@ def get_extractor_access(
                 subject=subject,
                 resource=AccessResource.create(
                     resource_type="filesystem",
-                    operation="execute",
+                    operation=operation,
                     target=target,
                 ),
             )
             for target in executable_targets
+            for operation in ("read", "execute")
         )
         for operation, paths in (
             ("create", extractor_runtime_create_paths()),
@@ -498,6 +525,10 @@ def install_extractor_runtime(
         access=(
             *get_extractor_access(extractor_id, "install"),
             *_extractor_install_proxy_access(extractor_id),
+            *framework_runtime_access(
+                subject_kind="extractor",
+                subject_name=extractor_id,
+            ),
         ),
         allowed_imports=get_extractor_allowed_imports(extractor_id, "install"),
         allow_subprocess=True,

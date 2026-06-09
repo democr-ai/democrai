@@ -336,6 +336,33 @@ def test_extractor_env_context_restores_module_cache(tmp_path: Path, monkeypatch
     assert "extractor_only" not in sys.modules
 
 
+def test_extractor_env_context_restore_does_not_trigger_lazy_module_getattr(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        extractor_env_mod,
+        "_EXTRACTOR_ENV_ROOT",
+        tmp_path / "extractor_env_cache",
+    )
+    local_root = tmp_path / "extractor_env_cache" / "docling"
+    local_module_path = local_root / "lazypkg" / "__init__.py"
+    local_module_path.parent.mkdir(parents=True)
+    local_module_path.write_text("", encoding="utf-8")
+
+    class _LazyModule(ModuleType):
+        def __getattr__(self, name):
+            raise AssertionError(f"lazy getattr triggered:{name}")
+
+    local_module = _LazyModule("lazypkg")
+    local_module.__dict__["__file__"] = str(local_module_path)
+
+    with extractor_env_mod.extractor_env_context("docling"):
+        sys.modules["lazypkg"] = local_module
+
+    assert "lazypkg" not in sys.modules
+
+
 def test_isolate_extractor_imports_removes_global_local_modules(
     tmp_path: Path,
     monkeypatch,

@@ -337,6 +337,11 @@ def test_macos_proxy_profile_allows_only_loopback_proxy(monkeypatch, tmp_path):
     assert '(allow file-read* file-write* (literal "/dev/null"))' in profile
     assert "(allow ipc-posix-shm*)" in profile
     assert 'com.apple.system.notification_center' in profile
+    assert 'com.apple.MTLCompilerService' in profile
+    assert 'com.apple.system.opendirectoryd.libinfo' in profile
+    assert 'com.apple.bsd.dirhelper' in profile
+    assert '(allow iokit-open (iokit-user-client-class "AGXDeviceUserClient"))' in profile
+    assert '(allow iokit-open (iokit-user-client-class "IOSurfaceRootUserClient"))' in profile
     assert "(allow network*)" in profile
     assert '(deny network-outbound (remote tcp "*:*"))' in profile
     assert '(allow network-outbound (remote tcp "localhost:4123"))' in profile

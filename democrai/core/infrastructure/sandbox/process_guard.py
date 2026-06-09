@@ -1297,6 +1297,8 @@ def _raise_config_access_denied(path_value: Any, *, operation: str) -> None:
 
 def _check_path(path_value: Any, *, operation: str) -> None:
     _profile_count("process_guard.check_path.calls")
+    if _skip_path_check_for_empty_path(path_value):
+        return
     depth = _PATH_CHECK_DEPTH.get()
     if depth > 0:
         return
@@ -1326,6 +1328,8 @@ def _check_path_pair(
     target_operation: str,
 ) -> None:
     _profile_count("process_guard.check_path_pair.calls")
+    if _skip_path_check_for_empty_path(source) or _skip_path_check_for_empty_path(target):
+        return
     depth = _PATH_CHECK_DEPTH.get()
     if depth > 0:
         return
@@ -1378,6 +1382,15 @@ def _skip_path_check_for_dir_fd(kwargs: dict[str, Any]) -> bool:
 
 def _skip_path_check_for_fd_path(path: Any) -> bool:
     return isinstance(path, int)
+
+
+def _skip_path_check_for_empty_path(path: Any) -> bool:
+    if isinstance(path, int):
+        return False
+    try:
+        return os.fsdecode(os.fspath(path)) == ""
+    except TypeError:
+        return False
 
 
 def _path_exists_for_operation(path_value: Any) -> bool:

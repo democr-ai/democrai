@@ -102,10 +102,12 @@ def _run_skill_script_sync(
     env = _script_env()
     env["DEMOCRAI_SKILL_SCRIPT_NETWORK_READY_FILE"] = str(ready_path)
     proxy_session_id = _prepare_skill_script_network_policy(definition, env)
+    with process_guard_bypass_context():
+        access = _skill_script_access(definition, script_path, ready_path)
     with process_guard_context(
         subject=definition.metadata.name,
         subject_kind="skill",
-        access=_skill_script_access(definition, script_path, ready_path),
+        access=access,
         include_runtime_access=False,
         inherit_parent_access=False,
     ):
