@@ -344,6 +344,7 @@ def test_macos_proxy_profile_allows_only_loopback_proxy(monkeypatch, tmp_path):
     assert '(allow iokit-open (iokit-user-client-class "IOSurfaceRootUserClient"))' in profile
     assert "(allow network*)" in profile
     assert '(deny network-outbound (remote tcp "*:*"))' in profile
+    assert '(deny network-outbound (remote udp "*:*"))' in profile
     assert '(allow network-outbound (remote tcp "localhost:4123"))' in profile
     assert 'api.local:443' not in profile
     assert '(allow file-read* (subpath "/tmp/ro"))' in profile
@@ -405,6 +406,8 @@ def test_macos_profile_denies_unapproved_siblings_under_policy_parent(monkeypatc
 
     profile = seatbelt_profile(policy)
 
+    assert '(deny network-outbound (remote tcp "*:*"))' in profile
+    assert '(deny network-outbound (remote udp "*:*"))' in profile
     assert f'(deny file-read* file-write* (subpath "{os.path.realpath(denied)}"))' in profile
     assert f'(deny file-read* file-write* (subpath "{os.path.realpath(allowed)}"))' not in profile
     assert profile.index(f'(allow file-read* (subpath "{allowed}"))') < profile.index(

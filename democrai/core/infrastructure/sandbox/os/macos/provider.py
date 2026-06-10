@@ -147,10 +147,14 @@ def seatbelt_profile(policy: SandboxLaunchPolicy, *, proxy_url: str = "") -> str
         target = json.dumps(f"{_seatbelt_host(host)}:{port}")
         lines.append("(allow network*)")
         lines.append('(deny network-outbound (remote tcp "*:*"))')
+        # macOS resolves names via mDNSResponder (mach IPC), not in-process
+        # UDP 53, so denying UDP egress here doesn't break DNS.
+        lines.append('(deny network-outbound (remote udp "*:*"))')
         lines.append(f"(allow network-outbound (remote tcp {target}))")
     elif policy.network_mode == NETWORK_DENY:
         lines.append("(allow network*)")
         lines.append('(deny network-outbound (remote tcp "*:*"))')
+        lines.append('(deny network-outbound (remote udp "*:*"))')
     for item in policy.filesystem_access:
         if item.operation == "read":
             for path in _seatbelt_path_variants(item.target):
