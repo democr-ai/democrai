@@ -42,6 +42,20 @@ class WindowsOsSandboxProvider(BaseOsSandboxProvider):
             raise RuntimeError("windows_sandbox_appcontainer_unavailable")
         return policy
 
+    def prepare_launch_env(
+        self,
+        policy: SandboxLaunchPolicy,
+        env: dict[str, str],
+    ) -> str:
+        from democrai.core.infrastructure.sandbox.os.windows.appcontainer import (
+            shared_memory_package_sid,
+        )
+
+        package_sid = shared_memory_package_sid(policy)
+        if package_sid:
+            env["DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"] = package_sid
+        return package_sid
+
     def apply_current_process(
         self,
         policy: SandboxLaunchPolicy,

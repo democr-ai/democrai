@@ -13,6 +13,7 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models import (
     EngineNodeInstallRegistry,
@@ -25,7 +26,10 @@ from democrai.core.application.ai.engine.registry_config import (
 from democrai.core.application.ai.engine.runtime import (
     check_engine_ready_runtime,
 )
-from democrai.core.application.ai.engine.runtime.environment import application_root
+from democrai.core.application.ai.engine.runtime.environment import (
+    application_root,
+    get_engine_install_env,
+)
 from democrai.core.application.ai.engine.manifests import get_engine_manifest, load_engine_class
 from democrai.core.application.ai.engine.runtime.access import get_engine_access
 from democrai.core.application.ai.engine.runtime.methods import _engine_guard
@@ -583,45 +587,22 @@ async def _apply_os_network_allowlist_to_install_process(
 
 
 async def _start_os_network_proxy_for_install(env: dict[str, str], *, engine_id: str) -> str:
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        start_application_network_proxy_session_with_helper,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
     from democrai.core.infrastructure.sandbox.os.state import (
         is_application_network_allowlist_enabled,
     )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
-    )
 
-    ctx = app_ctx()
-    config = ctx.config
+    config = app_ctx().config
     if not is_application_network_allowlist_enabled(config):
         return ""
     allowlist = _engine_install_network_allowlist(engine_id)
     if not allowlist.endpoints:
         return ""
-
-    def _start() -> dict[str, str]:
-        with process_guard_bypass_context():
-            return start_application_network_proxy_session_with_helper(
-                allowlist,
-                config=config,
-            )
-
-    session = await asyncio.to_thread(_start)
-    proxy_url = session["proxy_url"]
-    env["HTTP_PROXY"] = proxy_url
-    env["HTTPS_PROXY"] = proxy_url
-    env["ALL_PROXY"] = proxy_url
-    env["WS_PROXY"] = proxy_url
-    env["WSS_PROXY"] = proxy_url
-    env["http_proxy"] = proxy_url
-    env["https_proxy"] = proxy_url
-    env["all_proxy"] = proxy_url
-    env["ws_proxy"] = proxy_url
-    env["wss_proxy"] = proxy_url
-    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
-    env["no_proxy"] = "127.0.0.1,localhost,::1"
+    manager = ProxySessionManager(config)
+    session = await asyncio.to_thread(manager.start, allowlist)
+    manager.apply_env(env, session["proxy_url"])
     return session["session_id"]
 
 
@@ -660,23 +641,12 @@ def _engine_install_network_allowlist(engine_id: str):
 async def _stop_os_network_proxy_for_install(session_id: str) -> None:
     if not session_id:
         return
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        stop_application_network_proxy_session_with_helper,
-    )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
 
-    config = app_ctx().config
-
-    def _stop() -> None:
-        with process_guard_bypass_context():
-            stop_application_network_proxy_session_with_helper(
-                session_id,
-                config=config,
-            )
-
-    await asyncio.to_thread(_stop)
+    manager = ProxySessionManager(app_ctx().config)
+    await asyncio.to_thread(manager.stop, session_id)
 
 
 async def _read_install_process_stdout_line(process: Any) -> bytes:
@@ -725,6 +695,7 @@ def _engine_install_launch_state(engine_id: str) -> dict[str, Any]:
         subject_kind="engine",
         subject_name=engine_id,
         access=get_engine_access(engine_id, "install", config={}),
+        inherit_os_sandbox_helper_env=True,
     )
 
 
@@ -790,6 +761,7 @@ async def _run_engine_install_runtime_process(
     _set_path_env(env, MODULES_PATH_ENV, ctx.runtime_module_paths)
     _set_path_env(env, ENGINES_PATH_ENV, ctx.runtime_engine_paths)
     _set_path_env(env, EXTRACTORS_PATH_ENV, ctx.runtime_extractor_paths)
+    env.update(get_engine_install_env(engine_id))
     if request_context:
         env["DEMOCRAI_REQUEST_CONTEXT"] = json.dumps(request_context, sort_keys=True)
     ready_file = _new_install_ready_file()
@@ -859,17 +831,21 @@ async def _run_engine_install_runtime_process(
             emit_engine_install_output(line, phase="install")
         return_code = await _wait_install_process(process)
         if return_code != 0:
+            message = ChildProcessFailure.format(
+                subject=f"engine:{engine_id}",
+                stage="install",
+                error=error_message
+                or last_line
+                or f"engine_install_process_failed:{return_code}",
+                returncode=return_code,
+                details={"node": node_id, "event_id": event_id},
+                output_tail="\n".join(output_tail),
+                output_label="output tail",
+            )
             logger = app_ctx().logger
             if logger is not None:
-                logger.error(
-                    "[EngineInstall] install process failed "
-                    f"engine={engine_id} node={node_id} event_id={event_id} "
-                    f"return_code={return_code} error={error_message or last_line} "
-                    f"output_tail={list(output_tail)}"
-                )
-            raise RuntimeError(
-                error_message or last_line or f"engine install process failed:{return_code}"
-            )
+                logger.error(f"[EngineInstall] install process failed\n{message}")
+            raise RuntimeError(message)
         return result
     finally:
         if ready_released:

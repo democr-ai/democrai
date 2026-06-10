@@ -2,8 +2,12 @@ from democrai.core.infrastructure.sandbox.os.allowlist import (
     NetworkPolicyRequest,
     build_application_network_allowlist,
     build_subject_network_allowlist,
+    direct_enforcement_allowlist,
 )
-from democrai.core.infrastructure.sandbox.os.models import NetworkEndpoint
+from democrai.core.infrastructure.sandbox.os.models import (
+    ApplicationNetworkAllowlist,
+    NetworkEndpoint,
+)
 from democrai.core.infrastructure.sandbox.os.normalize import (
     _normalize_host,
     _normalize_port,
@@ -124,4 +128,25 @@ def test_build_subject_network_allowlist_skill_inherits_only_module(monkeypatch)
 
     assert [(item.host, item.source) for item in allowlist.endpoints] == [
         ("system.local", "module:system")
+    ]
+
+
+def test_direct_enforcement_allowlist_keeps_only_direct_endpoints():
+    allowlist = ApplicationNetworkAllowlist(
+        endpoints=[
+            NetworkEndpoint(host="db.local", port=5432, source="config.database", purpose="database"),
+            NetworkEndpoint(host="redis.local", port=6379, source="config.network_redis", purpose="redis"),
+            NetworkEndpoint(host="mcp.local", port=8080, source="mcp:tools", purpose="mcp_runtime"),
+            NetworkEndpoint(host="huggingface.co", port=443, source="engine:vllm", purpose="engine_install_manifest"),
+            NetworkEndpoint(host="cdn-lfs.huggingface.co", port=443, source="observed", purpose="observed"),
+            NetworkEndpoint(host="api.example.com", port=443, source="module:demo", purpose="module_manifest"),
+        ]
+    )
+
+    filtered = direct_enforcement_allowlist(allowlist)
+
+    assert [(item.host, item.source) for item in filtered.endpoints] == [
+        ("db.local", "config.database"),
+        ("redis.local", "config.network_redis"),
+        ("mcp.local", "mcp:tools"),
     ]

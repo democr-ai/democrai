@@ -277,6 +277,7 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 ),
             )
         )
+    if phase in {"install", "runtime"}:
         rules.extend(
             AccessManifestRule(
                 subject=subject,
@@ -298,6 +299,22 @@ def get_engine_filesystem_access(engine_id: str, phase: str) -> tuple[AccessMani
                 ),
             )
             for path in engine_runtime_device_modify_paths()
+        )
+    if phase == "runtime":
+        from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+            RuntimeAccessBaseline,
+        )
+
+        rules.extend(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="filesystem",
+                    operation="modify",
+                    target=path,
+                ),
+            )
+            for path in RuntimeAccessBaseline.process_self_write_paths()
         )
         driver_lib_path = Path(engine_env_path) / ENGINE_RUNTIME_DRIVER_LIBRARY_DIR_NAME
         rules.extend(

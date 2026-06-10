@@ -24,10 +24,13 @@ class _LoggerCapture:
     def warning(self, message, *args, **kwargs):
         self.warnings.append(message)
 
+    def debug(self, message, *args, **kwargs):
+        pass
+
 
 def test_service_manager_config_scan_and_ensure(monkeypatch, tmp_path):
     logger = _LoggerCapture()
-    app_ctx().logger = logger
+    monkeypatch.setattr(app_ctx(), "logger", logger, raising=False)
     original_load_config = service_manager_mod.ServiceManager.load_config
     monkeypatch.setattr(service_manager_mod.ServiceManager, "load_config", lambda self: None)
 
@@ -77,7 +80,7 @@ def test_service_manager_config_scan_and_ensure(monkeypatch, tmp_path):
 
 def test_service_manager_docker_run_and_load_config_error(monkeypatch, tmp_path):
     logger = _LoggerCapture()
-    app_ctx().logger = logger
+    monkeypatch.setattr(app_ctx(), "logger", logger, raising=False)
     original_load_config = service_manager_mod.ServiceManager.load_config
     monkeypatch.setattr(service_manager_mod.ServiceManager, "load_config", lambda self: None)
     manager = service_manager_mod.ServiceManager()

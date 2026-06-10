@@ -10,7 +10,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from democrai.core.infrastructure.sandbox.os.factory import get_os_sandbox_provider
+from democrai.core.infrastructure.sandbox.os.factory import (
+    get_core_launch_strategy,
+    get_os_sandbox_provider,
+)
 from democrai.core.infrastructure.sandbox.os.launch_policy import (
     NETWORK_ALLOW_ALL,
     NETWORK_DENY,
@@ -53,7 +56,9 @@ def run_subprocess(
     ready_file = _new_launch_ready_file()
     launcher_env[_LAUNCH_READY_ENV] = str(ready_file)
     policy = _build_policy(command=command, cwd=cwd, env=runtime_env)
-    policy, _appcontainer_sid, proxy_session_id = _prepare_policy_for_launch(policy, runtime_env)
+    policy, _appcontainer_sid, proxy_session_id = _prepare_policy_for_launch(
+        policy, runtime_env
+    )
     if _spawn_broker_available():
         from democrai.core.infrastructure.sandbox.spawn_broker import (
             popen_via_broker,
@@ -91,7 +96,12 @@ def run_subprocess(
     process: subprocess.Popen[Any] | None = None
     try:
         process = subprocess.Popen(
-            [sys.executable, "-m", "democrai.core.infrastructure.sandbox.launcher", str(policy_path)],
+            [
+                sys.executable,
+                "-m",
+                "democrai.core.infrastructure.sandbox.launcher",
+                str(policy_path),
+            ],
             text=bool(text),
             stdin=subprocess.PIPE if input is not None else None,
             stdout=subprocess.PIPE if capture_output else None,
@@ -154,12 +164,19 @@ def popen(
         )
 
     launcher_env = _with_os_sandbox_helper_env(env)
-    runtime_env = _without_os_sandbox_helper_env(launcher_env)
+    inherit_helper_env = _state_inherits_os_sandbox_helper_env(state)
+    runtime_env = (
+        launcher_env
+        if inherit_helper_env
+        else _without_os_sandbox_helper_env(launcher_env)
+    )
     local_broker = _ensure_spawn_broker_for_launch(runtime_env)
     ready_file = _new_launch_ready_file()
     launcher_env[_LAUNCH_READY_ENV] = str(ready_file)
     policy = _build_policy(command=command, cwd=cwd, env=runtime_env, state=state)
-    policy, appcontainer_sid, proxy_session_id = _prepare_policy_for_launch(policy, runtime_env)
+    policy, appcontainer_sid, proxy_session_id = _prepare_policy_for_launch(
+        policy, runtime_env
+    )
     if _spawn_broker_available():
         from democrai.core.infrastructure.sandbox.spawn_broker import (
             popen_via_broker,
@@ -182,7 +199,12 @@ def popen(
     policy_path = _write_policy(policy)
     try:
         process = subprocess.Popen(
-            [sys.executable, "-m", "democrai.core.infrastructure.sandbox.launcher", str(policy_path)],
+            [
+                sys.executable,
+                "-m",
+                "democrai.core.infrastructure.sandbox.launcher",
+                str(policy_path),
+            ],
             env=launcher_env,
             stdin=stdin,
             stdout=stdout,
@@ -209,7 +231,7 @@ def popen(
 
 
 def _os_sandbox_enabled() -> bool:
-    if sys.platform in {"darwin", "win32"} and _spawn_broker_available():
+    if get_core_launch_strategy().uses_spawn_broker and _spawn_broker_available():
         return True
     config = getattr(app_ctx(), "config", None)
     getter = getattr(config, "get", None)
@@ -230,24 +252,33 @@ def _with_os_sandbox_helper_env(env: dict[str, str] | None) -> dict[str, str]:
         OS_SANDBOX_HELPER_SOCKET_ENV,
         OS_SANDBOX_HELPER_TOKEN_ENV,
         OS_SANDBOX_POLICY_FILE_ENV,
-        _ensure_os_sandbox_helper_token,
+        ensure_os_sandbox_helper_token,
         get_os_sandbox_helper_token,
         get_os_sandbox_helper_socket_path,
         get_os_sandbox_policy_file_path,
     )
 
     config = getattr(app_ctx(), "config", None)
-    resolved.setdefault(
-        OS_SANDBOX_HELPER_SOCKET_ENV,
-        get_os_sandbox_helper_socket_path(config),
+    socket_path = (
+        resolved.get(OS_SANDBOX_HELPER_SOCKET_ENV)
+        or os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV)
+        or get_os_sandbox_helper_socket_path(config)
     )
-    resolved.setdefault(
-        OS_SANDBOX_POLICY_FILE_ENV,
-        get_os_sandbox_policy_file_path(config),
+    policy_file = (
+        resolved.get(OS_SANDBOX_POLICY_FILE_ENV)
+        or os.environ.get(OS_SANDBOX_POLICY_FILE_ENV)
+        or get_os_sandbox_policy_file_path(config)
     )
-    token = get_os_sandbox_helper_token(config) or _ensure_os_sandbox_helper_token()
+    token = (
+        resolved.get(OS_SANDBOX_HELPER_TOKEN_ENV)
+        or os.environ.get(OS_SANDBOX_HELPER_TOKEN_ENV)
+        or get_os_sandbox_helper_token(config)
+        or ensure_os_sandbox_helper_token()
+    )
+    resolved[OS_SANDBOX_HELPER_SOCKET_ENV] = socket_path
+    resolved[OS_SANDBOX_POLICY_FILE_ENV] = policy_file
     if token:
-        resolved.setdefault(OS_SANDBOX_HELPER_TOKEN_ENV, token)
+        resolved[OS_SANDBOX_HELPER_TOKEN_ENV] = token
     return resolved
 
 
@@ -273,8 +304,14 @@ def _without_os_sandbox_helper_env(env: dict[str, str]) -> dict[str, str]:
     return resolved
 
 
+def _state_inherits_os_sandbox_helper_env(state: dict[str, Any] | None) -> bool:
+    if not isinstance(state, dict):
+        return False
+    return bool(state.get("inherit_os_sandbox_helper_env", False))
+
+
 def _spawn_broker_available() -> bool:
-    if sys.platform not in {"darwin", "win32"}:
+    if not get_core_launch_strategy().uses_spawn_broker:
         return False
     try:
         from democrai.core.infrastructure.sandbox.spawn_broker import (
@@ -287,7 +324,7 @@ def _spawn_broker_available() -> bool:
 
 
 def _ensure_spawn_broker_for_launch(env: dict[str, str]) -> Any:
-    if sys.platform not in {"darwin", "win32"}:
+    if not get_core_launch_strategy().uses_spawn_broker:
         return None
     if _spawn_broker_available():
         return None
@@ -323,6 +360,7 @@ def _attach_local_spawn_broker(process: Any, broker: Any) -> None:
         setattr(process, "democrai_local_spawn_broker", broker)
         cleanup = getattr(process, "cleanup", None)
         if callable(cleanup):
+
             def _cleanup_with_broker(*args, **kwargs):
                 try:
                     return cleanup(*args, **kwargs)
@@ -342,7 +380,10 @@ def _close_local_spawn_broker(broker: Any) -> None:
         )
 
         socket_path = str(getattr(broker, "socket_path", "") or "")
-        if socket_path and str(os.environ.get(SPAWN_BROKER_SOCKET_ENV) or "") == socket_path:
+        if (
+            socket_path
+            and str(os.environ.get(SPAWN_BROKER_SOCKET_ENV) or "") == socket_path
+        ):
             os.environ.pop(SPAWN_BROKER_SOCKET_ENV, None)
             os.environ.pop(SPAWN_BROKER_TOKEN_ENV, None)
     except Exception:
@@ -351,14 +392,6 @@ def _close_local_spawn_broker(broker: Any) -> None:
         broker.close()
     except Exception:
         pass
-    try:
-        from democrai.core.infrastructure.sandbox.spawn_broker import (
-            broker_available,
-        )
-
-        return broker_available()
-    except Exception:
-        return False
 
 
 def _popen_via_spawn_broker(
@@ -417,35 +450,19 @@ def _write_policy(policy: SandboxLaunchPolicy) -> Path:
     return path
 
 
-def _attach_windows_shared_memory_sid(
-    policy: SandboxLaunchPolicy,
-    env: dict[str, str],
-) -> str:
-    if sys.platform != "win32":
-        return ""
-    from democrai.core.infrastructure.sandbox.os.windows.appcontainer import (
-        shared_memory_package_sid,
-    )
-
-    package_sid = shared_memory_package_sid(policy)
-    if package_sid:
-        env["DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"] = package_sid
-    return package_sid
-
-
 def _prepare_policy_for_launch(
     policy: SandboxLaunchPolicy,
     env: dict[str, str],
 ) -> tuple[SandboxLaunchPolicy, str, str]:
     policy, proxy_session_id = _prepare_network_for_launch(policy, env)
-    package_sid = _attach_windows_shared_memory_sid(policy, env)
-    if package_sid:
-        return replace(policy, env=dict(env)), package_sid, proxy_session_id
-    return replace(policy, env=dict(env)), "", proxy_session_id
+    package_sid = get_os_sandbox_provider().prepare_launch_env(policy, env)
+    return replace(policy, env=dict(env)), package_sid, proxy_session_id
 
 
 def _new_launch_ready_file() -> Path:
-    fd, raw_path = tempfile.mkstemp(prefix="democrai_sandbox_launch_ready_", suffix=".flag")
+    fd, raw_path = tempfile.mkstemp(
+        prefix="democrai_sandbox_launch_ready_", suffix=".flag"
+    )
     os.close(fd)
     path = Path(raw_path)
     path.unlink()
@@ -474,51 +491,29 @@ def _prepare_network_for_launch(
         return policy, ""
     if _spawn_broker_available():
         return replace(policy, env=dict(env)), ""
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        start_application_network_proxy_session_with_helper,
+    from democrai.core.infrastructure.sandbox.os.base import (
+        _network_endpoint_from_target,
     )
     from democrai.core.infrastructure.sandbox.os.models import (
         ApplicationNetworkAllowlist,
     )
-    from democrai.core.infrastructure.sandbox.os.base import (
-        _network_endpoint_from_target,
-    )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
 
     endpoints = [
         endpoint
-        for endpoint in (_network_endpoint_from_target(item) for item in policy.network_endpoints)
+        for endpoint in (
+            _network_endpoint_from_target(item) for item in policy.network_endpoints
+        )
         if endpoint is not None
     ]
     if not endpoints:
         raise RuntimeError("os_sandbox_proxy_endpoints_required")
-    config = getattr(app_ctx(), "config", None)
-    with process_guard_bypass_context():
-        session = start_application_network_proxy_session_with_helper(
-            ApplicationNetworkAllowlist(endpoints=endpoints),
-            config=config,
-        )
-    proxy_url = str(session.get("proxy_url") or "").strip()
-    if not proxy_url:
-        raise RuntimeError("os_sandbox_proxy_url_missing")
-    for key in (
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "WS_PROXY",
-        "WSS_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-        "ws_proxy",
-        "wss_proxy",
-    ):
-        env[key] = proxy_url
-    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
-    env["no_proxy"] = "127.0.0.1,localhost,::1"
-    return replace(policy, env=dict(env)), str(session.get("session_id") or "").strip()
+    session_id = ProxySessionManager(
+        getattr(app_ctx(), "config", None)
+    ).start_for_env(ApplicationNetworkAllowlist(endpoints=endpoints), env)
+    return replace(policy, env=dict(env)), session_id
 
 
 def _apply_launch_network_policy(policy: SandboxLaunchPolicy, pid: int) -> None:
@@ -540,7 +535,9 @@ def _apply_launch_network_policy(policy: SandboxLaunchPolicy, pid: int) -> None:
     if policy.network_mode == NETWORK_PROXY:
         proxy_url = ""
         if policy.env is not None:
-            proxy_url = str(policy.env.get("ALL_PROXY") or policy.env.get("all_proxy") or "")
+            proxy_url = str(
+                policy.env.get("ALL_PROXY") or policy.env.get("all_proxy") or ""
+            )
         proxy_endpoint = proxy_endpoint_payload(proxy_url)
         endpoints.append(
             NetworkEndpoint(
@@ -567,23 +564,11 @@ def _apply_launch_network_policy(policy: SandboxLaunchPolicy, pid: int) -> None:
 
 
 def _stop_launch_proxy_session(session_id: str) -> None:
-    if not session_id:
-        return
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        stop_application_network_proxy_session_with_helper,
-    )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
 
-    try:
-        with process_guard_bypass_context():
-            stop_application_network_proxy_session_with_helper(
-                session_id,
-                config=getattr(app_ctx(), "config", None),
-            )
-    except Exception:
-        pass
+    ProxySessionManager(getattr(app_ctx(), "config", None)).stop(session_id)
 
 
 def _run_child(policy_path: str) -> None:

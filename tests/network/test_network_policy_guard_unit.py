@@ -309,3 +309,78 @@ def test_policy_guard_nested_context_extends_parent_scope(monkeypatch):
     assert mod._request_context() == (10, 20, "parent-session")
 
     mod.disable_network_policy(parent)
+
+
+def test_resolved_ip_recheck_skipped_inside_approved_host_connect(monkeypatch):
+    # Simulate the CDN case: hostnames pass, raw resolved IPs are denied
+    # (because the rotated IP is not in the host's reverse-resolution set).
+    def _check_target(host, port=None, **kw):
+        if mod._is_ip_address(str(host)):
+            raise PermissionError(f"ip denied: {host}")
+        return None
+
+    monkeypatch.setattr(mod, "_check_target", _check_target)
+
+    connect_wrapper = mod._wrap_socket_connect(
+        lambda self_conn, addr, *a, **k: ("connected", addr)
+    )
+
+    # Bare connect to a resolved IP (no enclosing approved host) → denied.
+    with pytest.raises(PermissionError):
+        connect_wrapper("sock", ("203.0.113.7", 443))
+
+    # create_connection approves the hostname, then does the inner connect to a
+    # rotated CDN IP; that IP re-check must be skipped inside the scope.
+    def _create_connection_original(address, *a, **k):
+        return connect_wrapper("sock", ("203.0.113.7", 443))
+
+    cc_wrapper = mod._wrap_create_connection(_create_connection_original)
+    assert cc_wrapper(("cdn.rotating.test", 443)) == ("connected", ("203.0.113.7", 443))
+
+    # Scope is cleaned up afterwards: the bare IP connect is denied again.
+    assert mod._APPROVED_HOST_CONNECT_DEPTH.get() == 0
+    with pytest.raises(PermissionError):
+        connect_wrapper("sock", ("203.0.113.7", 443))
+
+
+def test_create_connection_to_ip_literal_still_checks_inner_connect(monkeypatch):
+    # When create_connection itself targets an IP, no host approval exists, so
+    # the inner connect must still be checked (no scope opened).
+    def _check_target(host, port=None, **kw):
+        if mod._is_ip_address(str(host)):
+            raise PermissionError(f"ip denied: {host}")
+        return None
+
+    monkeypatch.setattr(mod, "_check_target", _check_target)
+
+    # _check_target raises on the IP at the create_connection level already.
+    cc_wrapper = mod._wrap_create_connection(lambda address, *a, **k: ("connected", address))
+    with pytest.raises(PermissionError):
+        cc_wrapper(("203.0.113.7", 443))
+    assert mod._APPROVED_HOST_CONNECT_DEPTH.get() == 0
+
+
+def test_approved_host_scope_still_checks_inner_hostname_connect(monkeypatch):
+    # Inside an approved-host scope, an inner connect to a *hostname* (not an IP)
+    # is still validated — only resolved IPs are exempted.
+    seen = []
+
+    def _check_target(host, port=None, **kw):
+        seen.append(str(host))
+        if str(host) == "blocked.test":
+            raise PermissionError("blocked host")
+        return None
+
+    monkeypatch.setattr(mod, "_check_target", _check_target)
+
+    connect_wrapper = mod._wrap_socket_connect(
+        lambda self_conn, addr, *a, **k: ("connected", addr)
+    )
+
+    def _create_connection_original(address, *a, **k):
+        return connect_wrapper("sock", ("blocked.test", 443))
+
+    cc_wrapper = mod._wrap_create_connection(_create_connection_original)
+    with pytest.raises(PermissionError):
+        cc_wrapper(("approved.test", 443))
+    assert "blocked.test" in seen

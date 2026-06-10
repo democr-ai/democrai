@@ -94,7 +94,7 @@ def test_sandbox_launcher_uses_wrapper_when_os_sandbox_enabled(monkeypatch, tmp_
         pid = 1234
         returncode = 0
 
-        def communicate(self, timeout=None):
+        def communicate(self, input=None, timeout=None):
             return "ok", ""
 
         def poll(self):

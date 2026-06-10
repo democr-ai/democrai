@@ -181,7 +181,9 @@ async def ai_pipeline_step(
     error: BaseException | None = None
     cancelled = False
     try:
-        app_ctx().logger.debug(f"[PIPELINE STEP] STARTING PIPELINE STEP {step["name"]}\n", name="PIPELINE_STEP")
+        logger = getattr(app_ctx(), "logger", None)
+        if logger is not None:
+            logger.debug(f"[PIPELINE STEP] STARTING PIPELINE STEP {step["name"]}\n", name="PIPELINE_STEP")
         yield step
     except asyncio.CancelledError as exc:
         error = exc
@@ -206,7 +208,10 @@ async def ai_pipeline_step(
         duration_ms = (time.perf_counter() - started) * 1000.0
         step_error = step.get("error") or (str(error) if error is not None else None)
         if status == "error":
-            app_ctx().logger.error(f"[PIPELINE STEP] ERROR PIPELINE STEP {step["name"]} {step["type"]}: {error} {step_error}\n", name="PIPELINE_STEP")
+            # Never let logging failures mask the original step error.
+            logger = getattr(app_ctx(), "logger", None)
+            if logger is not None:
+                logger.error(f"[PIPELINE STEP] ERROR PIPELINE STEP {step["name"]} {step["type"]}: {error} {step_error}\n", name="PIPELINE_STEP")
             #_log_ai_pipeline_step_error(
                 #context,
                 #step_id=step_id,

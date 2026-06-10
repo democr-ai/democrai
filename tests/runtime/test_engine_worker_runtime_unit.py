@@ -179,6 +179,36 @@ def test_engine_runtime_env_pins_parent_runtime_env(monkeypatch):
     assert env[RUNTIME_ENV_JSON_ENV] == '{"gpu": {"has_nvidia": true}, "os": "linux"}'
 
 
+def test_engine_install_env_pins_parent_runtime_env(monkeypatch):
+    from democrai.core.application.ai.engine.runtime import environment as env_mod
+    from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
+
+    monkeypatch.setattr(env_mod, "_engine_phase_env", lambda *_args: {})
+    monkeypatch.setattr(env_mod, "runtime_env", lambda: {"os": "linux", "gpu": {"has_nvidia": True}})
+
+    env = env_mod.get_engine_install_env("onnx")
+
+    assert env[RUNTIME_ENV_JSON_ENV] == '{"gpu": {"has_nvidia": true}, "os": "linux"}'
+
+
+def test_engine_install_env_prefers_inherited_runtime_env(monkeypatch):
+    from democrai.core.application.ai.engine.runtime import environment as env_mod
+    from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
+
+    inherited = '{"gpu": {"has_nvidia": true}, "os": "linux"}'
+    monkeypatch.setenv(RUNTIME_ENV_JSON_ENV, inherited)
+    monkeypatch.setattr(env_mod, "_engine_phase_env", lambda *_args: {})
+    monkeypatch.setattr(
+        env_mod,
+        "runtime_env",
+        lambda: {"os": "linux", "gpu": {"has_nvidia": False}},
+    )
+
+    env = env_mod.get_engine_install_env("onnx")
+
+    assert env[RUNTIME_ENV_JSON_ENV] == inherited
+
+
 def test_engine_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatch):
     calls = []
     monkeypatch.setattr(subject_mod, "worker_os_sandbox_enabled", lambda: True)
@@ -368,10 +398,17 @@ def test_engine_worker_init_uses_in_memory_config_and_explicit_guard(monkeypatch
         lambda engine_id, path_overrides: calls.append(("paths", engine_id, path_overrides)),
     )
     monkeypatch.setattr(worker_mod, "_apply_worker_landlock", lambda **kwargs: calls.append(("landlock", kwargs)))
+    @contextmanager
+    def _bypass():
+        yield
+
     monkeypatch.setitem(
         sys.modules,
         "democrai.core.infrastructure.sandbox.process_guard",
-        SimpleNamespace(process_guard_context=_guard),
+        SimpleNamespace(
+            process_guard_context=_guard,
+            process_guard_bypass_context=_bypass,
+        ),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -686,6 +723,68 @@ def test_engine_install_access_reads_resolved_venv_python(monkeypatch, tmp_path:
     assert ("read", resolved_python) in resources
     assert ("execute", venv_python) in resources
     assert ("execute", resolved_python) in resources
+
+
+def test_engine_install_access_includes_writable_device_paths(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_device_read_paths",
+        lambda: ("/dev/null",),
+    )
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_device_modify_paths",
+        lambda: ("/dev/null",),
+    )
+
+    access = access_mod.get_engine_access("llamacpp", "install", config={})
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    assert ("read", "/dev/null") in resources
+    assert ("modify", "/dev/null") in resources
+
+
+def test_engine_runtime_access_includes_nvidia_device_paths(monkeypatch, tmp_path: Path):
+    from democrai.core.application.ai.engine.runtime import access as access_mod
+
+    monkeypatch.setattr(engine_env_mod, "_ENGINE_ENV_ROOT", tmp_path / "engine_env_cache")
+    monkeypatch.setattr(access_mod, "app_ctx", lambda: SimpleNamespace(config=None))
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_device_read_paths",
+        lambda: ("/dev/nvidiactl", "/dev/nvidia0"),
+    )
+    monkeypatch.setattr(
+        access_mod,
+        "engine_runtime_device_modify_paths",
+        lambda: ("/dev/nvidiactl", "/dev/nvidia0"),
+    )
+
+    access = access_mod.get_engine_access("vllm", "runtime", config={})
+    resources = {
+        (
+            rule.resource.operation.value,
+            rule.resource.normalized_target,
+        )
+        for rule in access
+        if rule.resource.resource_type.value == "filesystem"
+    }
+
+    assert ("read", "/dev/nvidiactl") in resources
+    assert ("modify", "/dev/nvidiactl") in resources
+    assert ("read", "/dev/nvidia0") in resources
+    assert ("modify", "/dev/nvidia0") in resources
 
 
 def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_path: Path):

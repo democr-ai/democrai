@@ -32,8 +32,6 @@ async def bootstrap_current_process_os_sandbox_async(
         debug_os_sandbox_flow("bootstrap.allowlist_refresh_skipped_setup_mode")
         return {"enabled": False, "skipped": "setup_mode"}
 
-    _apply_current_process_os_sandbox(ctx)
-
     from democrai.core.infrastructure.sandbox.os.events import (
         emit_application_network_allowlist_refresh_event,
         register_os_sandbox_event_listeners,
@@ -48,12 +46,30 @@ async def bootstrap_current_process_os_sandbox_async(
 
     enabled = is_application_network_allowlist_enabled(ctx.config)
     set_application_network_allowlist_active(enabled)
+
+    # Start the privileged helper BEFORE sandboxing this process. The helper
+    # manages the enforcement cgroup under /sys/fs/cgroup, which the core's own
+    # Landlock domain grants read-only. Landlock is inherited by children and
+    # can never be relaxed — a process restricts itself and its descendants but
+    # cannot loosen its own domain — so a helper spawned as a child after
+    # Landlock would inherit the read-only /sys and fail to create the cgroup
+    # (linux_network_enforcement_requires_writable_cgroup_parent). Started
+    # first, it runs in an unrestricted domain.
+    if enabled:
+        register_os_sandbox_event_listeners()
+        ensure_os_sandbox_helper_ready(ctx.config)
+
+    _apply_current_process_os_sandbox(ctx)
+
     if not enabled:
         debug_os_sandbox_flow("bootstrap.allowlist_refresh_skipped_disabled")
         return {"enabled": False, "skipped": "network_allowlist_disabled"}
 
-    register_os_sandbox_event_listeners()
-    ensure_os_sandbox_helper_ready(ctx.config)
+    from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+        ensure_in_process_core_proxy_session,
+    )
+
+    ensure_in_process_core_proxy_session(ctx.config)
 
     payload = {
         "reason": str(reason or "bootstrap_config_initialized"),

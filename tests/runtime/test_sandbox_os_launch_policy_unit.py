@@ -818,6 +818,78 @@ def test_launcher_keeps_helper_env_out_of_runtime_policy(monkeypatch, tmp_path):
     assert written_policies[0].env == {"A": "B"}
 
 
+def test_launcher_keeps_helper_env_for_authorized_runtime_policy(monkeypatch, tmp_path):
+    written_policies = []
+
+    class _Proc:
+        pid = 2345
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(sandbox_launcher, "_os_sandbox_enabled", lambda: True)
+    monkeypatch.setattr(
+        sandbox_launcher,
+        "_with_os_sandbox_helper_env",
+        lambda env: {
+            **dict(env or {}),
+            "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET": "/tmp/helper.sock",
+            "DEMOCRAI_OS_SANDBOX_POLICY_FILE": "/tmp/policy.json",
+            "DEMOCRAI_OS_SANDBOX_HELPER_TOKEN": "secret-token",
+        },
+    )
+    monkeypatch.setattr(
+        sandbox_launcher,
+        "_write_policy",
+        lambda policy: written_policies.append(policy) or tmp_path / "policy.json",
+    )
+    monkeypatch.setattr(sandbox_launcher.subprocess, "Popen", lambda *_a, **_k: _Proc())
+    monkeypatch.setattr(sandbox_launcher, "_apply_launch_network_policy", lambda *_a: None)
+    monkeypatch.setattr(sandbox_launcher, "_ensure_spawn_broker_for_launch", lambda env: None)
+
+    sandbox_launcher.popen(
+        ["python", "-V"],
+        env={"A": "B"},
+        state={"inherit_os_sandbox_helper_env": True},
+    )
+
+    assert written_policies[0].env["A"] == "B"
+    assert (
+        written_policies[0].env["DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"]
+        == "/tmp/helper.sock"
+    )
+    assert written_policies[0].env["DEMOCRAI_OS_SANDBOX_POLICY_FILE"] == "/tmp/policy.json"
+    assert written_policies[0].env["DEMOCRAI_OS_SANDBOX_HELPER_TOKEN"] == "secret-token"
+    assert written_policies[0].inherit_os_sandbox_helper_env is True
+
+
+def test_launcher_helper_env_prefers_process_inherited_values(monkeypatch):
+    monkeypatch.setattr(sandbox_launcher, "_os_sandbox_enabled", lambda: True)
+    monkeypatch.setenv("DEMOCRAI_OS_SANDBOX_HELPER_SOCKET", "/tmp/core-helper.sock")
+    monkeypatch.setenv("DEMOCRAI_OS_SANDBOX_POLICY_FILE", "/tmp/core-policy.json")
+    monkeypatch.setenv("DEMOCRAI_OS_SANDBOX_HELPER_TOKEN", "core-token")
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.helper.get_os_sandbox_helper_socket_path",
+        lambda _config=None: "/tmp/recomputed-helper.sock",
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.helper.get_os_sandbox_policy_file_path",
+        lambda _config=None: "/tmp/recomputed-policy.json",
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.helper.get_os_sandbox_helper_token",
+        lambda _config=None: "recomputed-token",
+    )
+
+    env = sandbox_launcher._with_os_sandbox_helper_env({"A": "B"})
+
+    assert env["A"] == "B"
+    assert env["DEMOCRAI_OS_SANDBOX_HELPER_SOCKET"] == "/tmp/core-helper.sock"
+    assert env["DEMOCRAI_OS_SANDBOX_POLICY_FILE"] == "/tmp/core-policy.json"
+    assert env["DEMOCRAI_OS_SANDBOX_HELPER_TOKEN"] == "core-token"
+
+
 def test_apply_launch_network_policy_skips_without_pid_enforcement(monkeypatch):
     calls = []
     policy = launch_policy.SandboxLaunchPolicy(

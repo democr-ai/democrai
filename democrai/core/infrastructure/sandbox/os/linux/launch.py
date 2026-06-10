@@ -7,6 +7,7 @@ from democrai.core.infrastructure.sandbox.os.launch_policy import SandboxLaunchP
 
 class LinuxCoreLaunchStrategy:
     requires_relaunch = False
+    uses_spawn_broker = False
 
     def run(self, policy: SandboxLaunchPolicy) -> None:
         raise RuntimeError("os_sandbox_core_relaunch_not_required:linux")

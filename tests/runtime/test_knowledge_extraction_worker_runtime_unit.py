@@ -23,6 +23,7 @@ from democrai.core.runtime.dependencies import extractor_env as extractor_env_mo
 class _Process:
     pid = 1234
     stdout = None
+    stderr = None
 
     def poll(self):
         return None
@@ -253,10 +254,17 @@ def test_extractor_worker_runtime_init_does_not_require_request_context(monkeypa
     def _set_paths(extractor_id, **kwargs):
         calls.append(("paths", extractor_id, kwargs))
 
+    @contextmanager
+    def _bypass():
+        yield
+
     monkeypatch.setitem(
         sys.modules,
         "democrai.core.infrastructure.sandbox.process_guard",
-        SimpleNamespace(process_guard_context=_guard),
+        SimpleNamespace(
+            process_guard_context=_guard,
+            process_guard_bypass_context=_bypass,
+        ),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -377,6 +385,7 @@ def test_extractor_worker_subject_starts_with_local_ipc_without_inherited_fds(mo
     class _Process:
         pid = 1234
         stdout = None
+        stderr = None
 
         def poll(self):
             return None

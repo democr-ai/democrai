@@ -203,6 +203,7 @@ async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
     import democrai.core.application.ai.engine.install_events as mod
 
     events: list[str] = []
+    runtime_env_json = '{"gpu": {"has_nvidia": true}, "os": "linux"}'
     payload = json.dumps({"config_updates": {"ok": True}}, sort_keys=True)
     fake_process = _FakeProcess(
         _FakeStdout(
@@ -219,6 +220,7 @@ async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
         env = kwargs["env"]
         assert env["ALL_PROXY"] == "http://127.0.0.1:4123"
         assert env["WSS_PROXY"] == "http://127.0.0.1:4123"
+        assert env["DEMOCRAI_RUNTIME_ENV_JSON"] == runtime_env_json
         assert mod.INSTALL_NETWORK_READY_FILE_ENV in env
         assert not Path(env[mod.INSTALL_NETWORK_READY_FILE_ENV]).exists()
         assert kwargs["stdin"] is mod.subprocess.DEVNULL
@@ -253,6 +255,11 @@ async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
         "build_worker_launch_state",
         lambda **kwargs: states.append(kwargs) or {"access": kwargs["access"]},
     )
+    monkeypatch.setattr(
+        mod,
+        "get_engine_install_env",
+        lambda _engine_id: {"DEMOCRAI_RUNTIME_ENV_JSON": runtime_env_json},
+    )
     monkeypatch.setattr(mod, "emit_engine_install_output", lambda *_a, **_k: None)
     monkeypatch.setattr(
         mod,
@@ -282,6 +289,7 @@ async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
             "subject_kind": "engine",
             "subject_name": "demo",
             "access": mod.get_engine_access("demo", "install", config={}),
+            "inherit_os_sandbox_helper_env": True,
         }
     ]
 

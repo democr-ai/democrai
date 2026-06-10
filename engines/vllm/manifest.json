@@ -107,6 +107,7 @@
       "HOST_IP": "127.0.0.1",
       "VLLM_NO_USAGE_STATS": "1",
       "VLLM_DO_NOT_TRACK": "1",
+      "VLLM_LOGGING_STREAM": "ext://sys.stderr",
       "FLASHINFER_WORKSPACE_BASE": "{engine_cache}"
     },
     "access": [

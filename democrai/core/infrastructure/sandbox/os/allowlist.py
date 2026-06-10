@@ -20,6 +20,39 @@ from .sources import (
 )
 
 
+# Endpoints reached directly by their declared host:port, outside the CONNECT
+# proxy: infrastructure services from config (database, redis, storage,
+# observability, logging, session) and declared MCP servers. Everything else
+# (manifest/approval/observed HTTP endpoints, CDNs) goes through the proxy and
+# must not be IP-tracked by the packet-level allowlist.
+_DIRECT_ENFORCEMENT_SOURCE_PREFIXES = ("config.", "mcp:")
+
+
+def direct_enforcement_allowlist(
+    allowlist: ApplicationNetworkAllowlist,
+) -> ApplicationNetworkAllowlist:
+    """Reduce an allowlist to the endpoints enforced at packet level.
+
+    When a CONNECT proxy session is active, iptables is defense-in-depth: it
+    only needs to allow direct infrastructure endpoints (plus loopback and
+    DNS, handled by the enforcement layer itself). Hostname-based allowlisting
+    of HTTP traffic happens at the proxy.
+    """
+    endpoints = [
+        endpoint
+        for endpoint in list(allowlist.endpoints or [])
+        if str(endpoint.source or "").strip().lower().startswith(
+            _DIRECT_ENFORCEMENT_SOURCE_PREFIXES
+        )
+    ]
+    debug_os_sandbox_flow(
+        "allowlist.direct_enforcement",
+        endpoint_count=len(endpoints),
+        total_count=len(list(allowlist.endpoints or [])),
+    )
+    return ApplicationNetworkAllowlist(endpoints=endpoints)
+
+
 @dataclass(frozen=True)
 class NetworkPolicyRequest:
     scope: str

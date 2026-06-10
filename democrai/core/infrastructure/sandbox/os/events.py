@@ -11,6 +11,7 @@ from democrai.core.platform.utils.env import SERVER_NAME
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.registry import module_event_registry
 
+from .allowlist import direct_enforcement_allowlist
 from .helper import apply_application_network_allowlist_with_helper
 from .core_relaunch import update_core_os_sandbox_proxy_session
 from .factory import get_helper_backend
@@ -103,15 +104,26 @@ async def _refresh_application_network_allowlist_listener(
 
         def _apply() -> None:
             with process_guard_bypass_context():
-                update_core_os_sandbox_proxy_session(
+                proxied = update_core_os_sandbox_proxy_session(
                     allowlist,
                     config=getattr(app_ctx(), "config", None),
                 )
                 if getattr(get_helper_backend(), "supports_pid_enforcement", False):
-                    apply_application_network_allowlist_with_helper(allowlist)
+                    # With an active proxy session the packet-level allowlist
+                    # is defense-in-depth: direct infra endpoints only, no
+                    # CDN IP tracking. Hostname allowlisting lives in the
+                    # proxy session updated above.
+                    enforcement_allowlist = (
+                        direct_enforcement_allowlist(allowlist)
+                        if proxied
+                        else allowlist
+                    )
+                    apply_application_network_allowlist_with_helper(
+                        enforcement_allowlist
+                    )
                     if engine_orchestrator_pid is not None:
                         apply_application_network_allowlist_with_helper(
-                            allowlist,
+                            enforcement_allowlist,
                             pid=engine_orchestrator_pid,
                         )
 

@@ -365,8 +365,8 @@ def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
 
     monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
 
-    def _build_policy(cfg, command, env, cwd):
-        observed["policy_input"] = (cfg, command, env, cwd)
+    def _build_policy(cfg, command, env, cwd, runtime_mode=None):
+        observed["policy_input"] = (cfg, command, env, cwd, runtime_mode)
         return SimpleNamespace(command=command, env=env, cwd=cwd)
 
     monkeypatch.setattr(
@@ -381,11 +381,12 @@ def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
 
     args = _handle(mode="desktop").args
     assert main_mod._start_core_worker(args, env={"A": "B"}, pass_fds=(9,)) is proc
-    cfg, command, env, cwd = observed["policy_input"]
+    cfg, command, env, cwd, runtime_mode = observed["policy_input"]
     assert cfg is config
     assert main_mod._CORE_WORKER_ARG in command
     assert env[main_mod._CORE_CHILD_ENV] == "1"
     assert cwd
+    assert runtime_mode == "desktop"
     assert observed["spawn"][1] == (9,)
 
 
@@ -402,8 +403,8 @@ def test_start_core_worker_passes_spawn_broker_env(monkeypatch):
             observed["spawn"] = (policy, pass_fds)
             return proc
 
-    def _build_policy(cfg, command, env, cwd):
-        observed["policy_input"] = (cfg, command, env, cwd)
+    def _build_policy(cfg, command, env, cwd, runtime_mode=None):
+        observed["policy_input"] = (cfg, command, env, cwd, runtime_mode)
         return SimpleNamespace(command=command, env=env, cwd=cwd)
 
     monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
@@ -427,7 +428,7 @@ def test_start_core_worker_passes_spawn_broker_env(monkeypatch):
 
     args = _handle(mode="desktop").args
     assert main_mod._start_core_worker(args, env={"A": "B"}) is proc
-    _cfg, _command, env, _cwd = observed["policy_input"]
+    _cfg, _command, env, _cwd, _runtime_mode = observed["policy_input"]
     assert env["DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET"] == "sock"
     assert env["DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN"] == "tok"
     main_mod._close_spawn_broker_for_process(proc)

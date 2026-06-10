@@ -4,6 +4,7 @@ import asyncio
 import os
 import socket
 import struct
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from democrai.core.infrastructure.sandbox.os.linux.network import (
     clear_application_network_allowlist,
     ensure_linux_network_enforcement_ready,
 )
+from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 
 
 class LinuxHelperBackend:
@@ -19,6 +21,31 @@ class LinuxHelperBackend:
 
     def ensure_ready(self) -> None:
         ensure_linux_network_enforcement_ready()
+
+    def default_socket_path(self) -> str:
+        from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
+
+        return str(
+            runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve()
+        )
+
+    def can_autostart_directly(self) -> bool:
+        try:
+            ensure_linux_network_enforcement_ready()
+        except Exception as exc:
+            debug_os_sandbox_flow("helper.autostart_unavailable", error=str(exc))
+            return False
+        return True
+
+    def autostart_interactive(self, runtime_mode: str | None) -> bool:
+        # An explicit runtime mode means the core is being launched from a
+        # terminal/desktop session where sudo/pkexec can prompt the user.
+        return runtime_mode is not None
+
+    def autostart_stdin(self, *, strategy: str, interactive: bool) -> Any:
+        if interactive and strategy == "sudo":
+            return None
+        return subprocess.DEVNULL
 
     def peer_credentials(
         self,

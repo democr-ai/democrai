@@ -6,6 +6,7 @@ from democrai.core.infrastructure.sandbox.os.windows.provider import WindowsOsSa
 
 class WindowsCoreLaunchStrategy:
     requires_relaunch = True
+    uses_spawn_broker = True
 
     def run(self, policy: SandboxLaunchPolicy) -> None:
         WindowsOsSandboxProvider().run(policy)

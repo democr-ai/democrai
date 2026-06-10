@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 
 from democrai.core.infrastructure.sandbox.os.base import (
@@ -26,6 +28,22 @@ class PortableHelperBackend:
     def ensure_ready(self) -> None:
         return
 
+    def default_socket_path(self) -> str:
+        from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
+
+        return str(
+            runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve()
+        )
+
+    def can_autostart_directly(self) -> bool:
+        return False
+
+    def autostart_interactive(self, runtime_mode: str | None) -> bool:
+        return False
+
+    def autostart_stdin(self, *, strategy: str, interactive: bool):
+        return subprocess.DEVNULL
+
     def validate_client_and_target_pid(
         self,
         *,
@@ -50,6 +68,7 @@ class PortableHelperBackend:
 
 class PortableCoreLaunchStrategy:
     requires_relaunch = False
+    uses_spawn_broker = False
 
     def __init__(self, *, platform: str = "portable") -> None:
         self.platform = str(platform or "portable")

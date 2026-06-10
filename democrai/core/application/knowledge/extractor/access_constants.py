@@ -8,6 +8,16 @@ from democrai.core.infrastructure.sandbox.platform_policy import (
 from democrai.core.platform.utils.normalize import os_key
 
 
+# Package infrastructure every extractor install needs, mirroring
+# DEFAULT_ENGINE_INSTALL_RECEIVE_URLS on the engine twin (pytorch ships its
+# wheels from the download-r2 CDN mirror via redirect).
+DEFAULT_EXTRACTOR_INSTALL_RECEIVE_URLS = (
+    "https://pypi.org",
+    "https://files.pythonhosted.org",
+    "https://download.pytorch.org",
+    "https://download-r2.pytorch.org",
+)
+
 EXTRACTOR_RUNTIME_READ_PATHS_BY_OS = {
     "linux": ("/dev/null",),
     "darwin": ("/dev/null",),

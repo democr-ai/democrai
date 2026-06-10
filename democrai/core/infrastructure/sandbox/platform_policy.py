@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 
@@ -30,6 +31,10 @@ LINUX_SYSTEM_PROBE_READ_PATHS = (
     "/usr/lib/magic",
     "/etc/ssl/certs",
     "/etc/ssl/openssl.cnf",
+    # Debian/Ubuntu nvcc reads its profile from /etc to prepend its compiler
+    # shim dir to PATH; without it nvcc silently falls back to the (possibly
+    # unsupported) default gcc and CUDA source builds fail.
+    "/etc/nvcc.profile",
     "/etc/localtime",
     "/etc/hostname",
     "/etc/os-release",
@@ -228,5 +233,51 @@ def platform_system_read_paths(os_name: str | None = None) -> tuple[str, ...]:
                     *runtime_dependency_read_paths(os_name),
                 )
             )
+        )
+    )
+
+
+def runtime_ipc_path_variants(
+    ipc_path: str,
+    os_name: str | None = None,
+) -> tuple[str, ...]:
+    """Per-OS filesystem aliases of the runtime IPC directory.
+
+    Workers need access to every alias under which the IPC directory can be
+    reached: macOS symlinks (/var -> /private/var) and TMPDIR-based fallbacks,
+    Linux shared memory for multiprocessing primitives.
+    """
+    key = os_name or platform_key()
+    paths = [str(ipc_path or "").strip()]
+    if key == "darwin":
+        if paths[0].startswith("/var/"):
+            paths.append("/private" + paths[0])
+        paths.extend(_darwin_runtime_ipc_variants())
+    if key == "linux":
+        paths.append("/dev/shm")
+    return tuple(dict.fromkeys(path for path in paths if path))
+
+
+def _darwin_runtime_ipc_variants() -> tuple[str, ...]:
+    from democrai.core.runtime.foundation.paths import state_dir
+
+    try:
+        candidate = state_dir() / "ipc"
+        raw_uid = str(os.getuid()) if hasattr(os, "getuid") else "user"
+        digest = hashlib.sha1(str(candidate).encode("utf-8")).hexdigest()[:12]
+    except Exception:
+        return ()
+    bases = [
+        os.environ.get("TMPDIR", ""),
+        "/tmp",
+        "/private/tmp",
+        "/var/tmp",
+        "/private/var/tmp",
+    ]
+    return tuple(
+        dict.fromkeys(
+            os.path.join(str(base).rstrip("/"), f"dc-ipc-{raw_uid}-{digest}")
+            for base in bases
+            if str(base or "").strip()
         )
     )

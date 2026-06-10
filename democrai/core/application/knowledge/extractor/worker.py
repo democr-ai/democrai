@@ -233,17 +233,30 @@ class _Worker:
             dict(payload.get("path_overrides") or {}),
         )
         from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
+        from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+            RuntimeAccessBaseline,
+        )
         from democrai.core.runtime.dependencies.extractor_env import extractor_env_context
         from democrai.core.runtime.dependencies.extractor_env import isolate_extractor_imports
         from democrai.core.application.knowledge.extractor.manifests import (
             load_extractor_class,
         )
 
+        # The guard below runs with inherit_parent_access=False, so the
+        # launch state's runtime access is dropped; the worker recomputes the
+        # python-runtime baseline under its own venv interpreter.
+        access = [
+            *_access_rules(list(payload.get("access") or [])),
+            *RuntimeAccessBaseline.python_runtime_rules(
+                subject_kind="extractor",
+                subject_name=extractor_id,
+            ),
+        ]
         self._stack.enter_context(
             process_guard_context(
                 subject=extractor_id,
                 subject_kind="extractor",
-                access=_access_rules(list(payload.get("access") or [])),
+                access=access,
                 allowed_imports=[
                     str(item).strip()
                     for item in list(payload.get("allowed_imports") or [])

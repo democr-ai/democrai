@@ -153,10 +153,17 @@ class McpRuntime:
         return rules
 
     @contextmanager
-    def _mcp_guard(self, *, server: McpServerRecord):
+    def _mcp_guard(self, *, server: McpServerRecord, module_name: str = ""):
+        from democrai.core.infrastructure.sandbox.owner_module_access import (
+            OwnerModuleAccess,
+        )
+
         user_id, organization_id, session_key = self._request_scope()
         subject = AccessSubject.create("mcp", f"mcp.{server.name}")
-        access = []
+        # Fail-closed guard (inherit_parent_access=False): the server inherits
+        # the owning module's declared access plus its own minimal rules.
+        _owner_module, owner_access = OwnerModuleAccess.resolve_for(module_name)
+        access = [*owner_access]
         if server.transport == "http":
             access.extend(
                 [
@@ -246,7 +253,7 @@ class McpRuntime:
         cached = self._cached_tools(server.name)
         if cached is not None:
             return cached
-        with self._mcp_guard(server=server):
+        with self._mcp_guard(server=server, module_name=module_name):
             tools = McpClient(server).list_tools()
         defs: list[AgentToolDefinition] = [
             AgentToolDefinition(
@@ -305,7 +312,7 @@ class McpRuntime:
         server = get_server_by_name(server_name)
         if server is None:
             raise ValueError(f"unknown_mcp_server:{server_name}")
-        with self._mcp_guard(server=server):
+        with self._mcp_guard(server=server, module_name=module_name):
             return McpClient(server).call_tool(
                 tool_name=remote_tool_name,
                 arguments={} if arguments is None else dict(arguments),

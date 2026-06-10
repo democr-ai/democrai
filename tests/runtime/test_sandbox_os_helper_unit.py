@@ -102,7 +102,7 @@ def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
         f"os_sandbox_allowlist_{os.getpid()}.json"
     )
     assert mod.get_os_sandbox_helper_token() == ""
-    assert mod._ensure_os_sandbox_helper_token()
+    assert mod.ensure_os_sandbox_helper_token()
     assert mod.get_os_sandbox_helper_token()
     assert mod.get_os_sandbox_refresh_seconds() == 60
     assert (
@@ -354,23 +354,28 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
     assert "--os-sandbox-helper-socket" in cmd and "/tmp/s.sock" in cmd
     assert "test-token" not in mod._debug_helper_command(cmd)
     assert "<redacted>" in mod._debug_helper_command(cmd)
-    assert mod._pkexec_helper_command("/tmp/s.sock")[0] == "pkexec"
-    assert mod._sudo_helper_command("/tmp/s.sock")[0] == "sudo"
+    assert mod._helper_command("/tmp/s.sock", privilege_prefix=("pkexec",))[0] == "pkexec"
+    assert mod._helper_command("/tmp/s.sock", privilege_prefix=("sudo",))[0] == "sudo"
 
-    monkeypatch.setattr(mod.sys, "platform", "linux")
-    monkeypatch.setattr(mod, "ensure_linux_network_enforcement_ready", lambda: None)
-    assert mod._can_autostart_helper() is True
+    import democrai.core.infrastructure.sandbox.os.linux.helper as linux_helper_mod
+    from democrai.core.infrastructure.sandbox.os.linux.helper import LinuxHelperBackend
+    from democrai.core.infrastructure.sandbox.os.macos.helper import MacOSHelperBackend
+    from democrai.core.infrastructure.sandbox.os.windows.helper import (
+        WindowsHelperBackend,
+    )
+
     monkeypatch.setattr(
-        mod,
+        linux_helper_mod, "ensure_linux_network_enforcement_ready", lambda: None
+    )
+    assert LinuxHelperBackend().can_autostart_directly() is True
+    monkeypatch.setattr(
+        linux_helper_mod,
         "ensure_linux_network_enforcement_ready",
         lambda: (_ for _ in ()).throw(RuntimeError("x")),
     )
-    assert mod._can_autostart_helper() is False
-    monkeypatch.setattr(mod.sys, "platform", "darwin")
-    assert mod._can_autostart_helper() is True
-    monkeypatch.setattr(mod.sys, "platform", "win32")
-    assert mod._can_autostart_helper() is True
-    monkeypatch.setattr(mod.sys, "platform", "linux")
+    assert LinuxHelperBackend().can_autostart_directly() is False
+    assert MacOSHelperBackend().can_autostart_directly() is True
+    assert WindowsHelperBackend().can_autostart_directly() is True
 
     monkeypatch.setattr(mod.shutil, "which", lambda x: "/bin/x" if x in {"pkexec", "sudo"} else None)
     assert mod._can_pkexec_autostart_helper() is True
@@ -382,6 +387,7 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mod, "_can_autostart_helper", lambda: False)
     monkeypatch.setattr(mod, "_can_pkexec_autostart_helper", lambda: True)
     assert mod._helper_autostart_strategy() == "pkexec"
+    assert mod._helper_autostart_strategy(runtime_mode="server") == "sudo"
     monkeypatch.setattr(mod, "app_ctx", lambda: SimpleNamespace(runtime_mode="server"))
     monkeypatch.setattr(mod, "_can_sudo_autostart_helper", lambda: True)
     assert mod._helper_autostart_strategy() == "sudo"
@@ -452,7 +458,7 @@ def test_helper_process_tracking_and_start(monkeypatch, tmp_path: Path):
     assert mod._start_os_sandbox_helper_process("/tmp/s.sock") is ctx.os_sandbox_helper_process
 
     ctx.os_sandbox_helper_process = None
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: None)
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: None)
     with pytest.raises(RuntimeError, match="os_sandbox_helper_autostart_unavailable"):
         mod._start_os_sandbox_helper_process("/tmp/s.sock")
 
@@ -471,19 +477,30 @@ def test_helper_process_tracking_and_start(monkeypatch, tmp_path: Path):
         return _Popen()
 
     monkeypatch.setattr(mod.subprocess, "Popen", _popen)
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "direct")
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "direct")
     proc_started = mod._start_os_sandbox_helper_process("/tmp/s.sock")
     assert proc_started is ctx.os_sandbox_helper_process
     assert captured["kwargs"]["start_new_session"] is True
 
     ctx.os_sandbox_helper_process = None
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "pkexec")
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "pkexec")
     mod._start_os_sandbox_helper_process("/tmp/s.sock")
     assert "start_new_session" not in captured["kwargs"]
+    assert captured["kwargs"]["stdin"] is mod.subprocess.DEVNULL
+
+    ctx.os_sandbox_helper_process = None
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "sudo")
+    monkeypatch.setattr(mod.sys, "platform", "linux")
+    mod._start_os_sandbox_helper_process(
+        "/tmp/s.sock",
+        interactive=True,
+        runtime_mode="server",
+    )
+    assert captured["kwargs"]["stdin"] is None
 
     monkeypatch.setattr(mod, "_stop_tracked_helper_process", lambda: calls.append(("stop",)))
     monkeypatch.setattr(mod, "_cleanup_helper_socket", lambda _p: calls.append(("cleanup",)))
-    monkeypatch.setattr(mod, "_start_os_sandbox_helper_process", lambda _p: "started")
+    monkeypatch.setattr(mod, "_start_os_sandbox_helper_process", lambda _p, **_k: "started")
     assert mod._restart_os_sandbox_helper_process("/tmp/s.sock") == "started"
     assert ("stop",) in calls and ("cleanup",) in calls
 
@@ -501,8 +518,12 @@ async def test_helper_ready_and_wait_remaining_branches(monkeypatch, tmp_path: P
     await mod._request_helper_ready_async()
     monkeypatch.setattr(mod, "_request_helper", lambda **_k: (_ for _ in ()).throw(FileNotFoundError("missing")))
     called = {"restart": 0, "wait": 0}
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "pkexec")
-    monkeypatch.setattr(mod, "_restart_os_sandbox_helper_process", lambda _s: called.__setitem__("restart", called["restart"] + 1))
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "pkexec")
+    monkeypatch.setattr(
+        mod,
+        "_restart_os_sandbox_helper_process",
+        lambda _s, **_k: called.__setitem__("restart", called["restart"] + 1),
+    )
     async def _wait(*_a, **_k):
         called["wait"] += 1
         return None
@@ -518,7 +539,7 @@ async def test_helper_ready_and_wait_remaining_branches(monkeypatch, tmp_path: P
     monkeypatch.delenv(mod.OS_SANDBOX_HELPER_TOKEN_ENV, raising=False)
 
     monkeypatch.setattr(mod, "_request_helper", lambda **_k: (_ for _ in ()).throw(ConnectionRefusedError("no")))
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "direct")
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "direct")
     await mod._request_helper_ready_async()
 
     monkeypatch.setenv(mod.OS_SANDBOX_HELPER_SOCKET_ENV, "/tmp/inherited.sock")
@@ -582,7 +603,7 @@ def test_helper_sync_async_wrappers_and_apply_clear(monkeypatch, tmp_path: Path)
     # explicit async passthrough
     monkeypatch.setattr(mod.asyncio, "run", original_run)
     ran = {"n": 0}
-    async def _ready(_cfg=None):
+    async def _ready(_cfg=None, *, interactive=False, runtime_mode=None):
         ran["n"] += 1
     monkeypatch.setattr(mod, "_request_helper_ready_async", _ready)
     asyncio.run(mod.ensure_os_sandbox_helper_ready_async())
@@ -673,7 +694,7 @@ def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Pat
             return None
 
     ctx.os_sandbox_helper_process = None
-    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda: "sudo")
+    monkeypatch.setattr(mod, "_helper_autostart_strategy", lambda **_k: "sudo")
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *_a, **_k: _Proc())
     out = mod._start_os_sandbox_helper_process("/tmp/s.sock")
     assert out is ctx.os_sandbox_helper_process
@@ -793,6 +814,7 @@ async def test_helper_process_dispatch_uses_non_linux_backend(monkeypatch, tmp_p
     backend = get_helper_backend("sunos")
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({"endpoints": []}), encoding="utf-8")
+    policy.chmod(0o600)
 
     monkeypatch.setattr(
         helper_process,

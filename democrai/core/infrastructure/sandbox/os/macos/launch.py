@@ -14,6 +14,7 @@ from democrai.core.infrastructure.sandbox.os.macos.provider import (
 
 class MacOSCoreLaunchStrategy:
     requires_relaunch = True
+    uses_spawn_broker = True
 
     def run(self, policy: SandboxLaunchPolicy) -> None:
         MacOSOsSandboxProvider().run(policy)

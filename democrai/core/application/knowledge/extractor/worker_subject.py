@@ -32,6 +32,7 @@ from democrai.core.runtime.ipc.local_connection import (
     accept_connection,
     create_local_listener,
 )
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 from democrai.core.infrastructure.sandbox.process_guard import (
     process_guard_bypass_context,
 )
@@ -232,6 +233,7 @@ def _extractor_worker_launch_state(
         subject_kind="extractor",
         subject_name=extractor_id,
         access=access,
+        inherit_os_sandbox_helper_env=True,
     )
 
 
@@ -246,7 +248,7 @@ def _spawn_extractor_worker_process(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
             env=env,
             text=True,
             bufsize=1,
@@ -257,7 +259,7 @@ def _spawn_extractor_worker_process(
         command,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         env=env,
         text=True,
         state=launch_state,
@@ -283,6 +285,10 @@ class ExtractorWorkerSubject:
         self._stdout_reader = None
         self._stdout_tail: list[str] = []
         self._stdout_lock = threading.Lock()
+        self._stderr_reader = None
+        self._stderr_tail: list[str] = []
+        self._stderr_lock = threading.Lock()
+        self._stderr_thread: threading.Thread | None = None
         self._control_conn = None
         self._control_channel: LocalBinaryPayloadChannel | None = None
         self._parent_conn = None
@@ -339,6 +345,8 @@ class ExtractorWorkerSubject:
                 )
                 if self._process is not None and self._process.stdout is not None:
                     self._stdout_reader = self._process.stdout
+                if self._process is not None and self._process.stderr is not None:
+                    self._stderr_reader = self._process.stderr
             except Exception:
                 control_endpoint.close()
                 parent_endpoint.close()
@@ -396,6 +404,13 @@ class ExtractorWorkerSubject:
                     name=f"extractor-worker-stdout-{self._extractor_id}",
                     daemon=True,
                 ).start()
+            if self._stderr_reader is not None:
+                self._stderr_thread = threading.Thread(
+                    target=self._read_stderr,
+                    name=f"extractor-worker-stderr-{self._extractor_id}",
+                    daemon=True,
+                )
+                self._stderr_thread.start()
             self._request("init", init_payload)
 
     def _read_responses(self) -> None:
@@ -500,30 +515,65 @@ class ExtractorWorkerSubject:
             except Exception:
                 pass
 
+    def _read_stderr(self) -> None:
+        reader = self._stderr_reader
+        if reader is None:
+            return
+        try:
+            while True:
+                line = reader.readline()
+                if not line:
+                    break
+                text = str(line).rstrip()
+                if not text:
+                    continue
+                with self._stderr_lock:
+                    self._stderr_tail.append(text)
+                    if len(self._stderr_tail) > 500:
+                        self._stderr_tail = self._stderr_tail[-500:]
+        except Exception:
+            return
+
+    def _worker_stderr_tail(self) -> str:
+        with self._stderr_lock:
+            return "\n".join(self._stderr_tail[-300:])
+
     def _worker_stdout_tail(self) -> str:
         with self._stdout_lock:
             return "\n".join(self._stdout_tail[-80:])
+
+    def _worker_output_tail(self) -> tuple[str, str]:
+        stderr_tail = self._worker_stderr_tail()
+        if stderr_tail:
+            return stderr_tail, "stderr tail"
+        return self._worker_stdout_tail(), "stdout tail"
 
     def _worker_start_failure_message(self, *, stage: str, error: BaseException) -> str:
         process = self._process
         return_code = process.poll() if process is not None else None
         status = "still_running" if process is not None and return_code is None else "exited"
-        stdout_tail = self._worker_stdout_tail()
-        reader = self._stdout_reader
-        if not stdout_tail and return_code is not None and reader is not None:
+        output_tail, output_label = self._worker_output_tail()
+        reader = self._stderr_reader
+        if not output_tail and return_code is not None and reader is not None:
             try:
-                stdout_tail = str(reader.read() or "").strip()
+                output_tail = str(reader.read() or "").strip()
+                output_label = "stderr tail"
             except Exception:
-                stdout_tail = ""
-        return (
-            "extractor_worker_start_failed"
-            f" extractor_id={self._extractor_id}"
-            f" phase={self._phase}"
-            f" stage={stage}"
-            f" return_code={return_code}"
-            f" status={status}"
-            f" error={error}"
-            + (f" stdout_tail={stdout_tail[-4000:]}" if stdout_tail else "")
+                output_tail = ""
+        return ChildProcessFailure.format(
+            subject=f"extractor:{self._extractor_id}",
+            stage=stage,
+            error="extractor_worker_start_failed",
+            returncode=return_code,
+            details={
+                "extractor_id": self._extractor_id,
+                "phase": self._phase,
+                "return_code": return_code,
+                "status": status,
+                "error": error,
+            },
+            output_tail=output_tail,
+            output_label=output_label,
         )
 
     def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> str:
@@ -534,24 +584,28 @@ class ExtractorWorkerSubject:
                 return_code = process.poll()
             except subprocess.TimeoutExpired:
                 return_code = process.poll()
-        stdout_tail = self._worker_stdout_tail()
+        thread = self._stderr_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=0.5)
+        output_tail, output_label = self._worker_output_tail()
         still_running = process is not None and process.poll() is None
         status = "still_running_after_pipe_close" if still_running else "closed"
-        message = (
-            f"extractor_worker_no_response:{return_code}"
-            f" extractor_id={self._extractor_id}"
-            f" phase={self._phase}"
-            f" operation={operation}"
-            f" status={status}"
-            + (f" stdout_tail={stdout_tail[-4000:]}" if stdout_tail else "")
+        message = ChildProcessFailure.format(
+            subject=f"extractor:{self._extractor_id}",
+            stage=operation,
+            error=f"extractor_worker_no_response:{return_code}",
+            details={
+                "extractor_id": self._extractor_id,
+                "phase": self._phase,
+                "operation": operation,
+                "status": status,
+            },
+            output_tail=output_tail,
+            output_label=output_label,
         )
         try:
             app_ctx().logger.error(
-                "[ExtractorWorkerSubject] Worker closed without response "
-                f"extractor_id={self._extractor_id} phase={self._phase} "
-                f"operation={operation} return_code={return_code}"
-                + (" status=still_running_after_pipe_close" if still_running else "")
-                + (f"\n[ExtractorWorkerSubject stdout]\n{stdout_tail}" if stdout_tail else "")
+                f"[ExtractorWorkerSubject] Worker closed without response\n{message}"
             )
         except Exception:
             pass
@@ -590,13 +644,24 @@ class ExtractorWorkerSubject:
         if not bool(response.get("ok")):
             error = str(response.get("error") or "extractor_worker_error")
             details = str(response.get("traceback") or "").strip()
+            output_tail, output_label = self._worker_output_tail()
+            message = ChildProcessFailure.format(
+                subject=f"extractor:{self._extractor_id}",
+                stage=operation,
+                error=error,
+                details={
+                    "extractor_id": self._extractor_id,
+                    "phase": self._phase,
+                    "operation": operation,
+                    "payload_keys": sorted(payload.keys()),
+                },
+                traceback=details,
+                output_tail=output_tail,
+                output_label=output_label,
+            )
             try:
                 app_ctx().logger.error(
-                    "[ExtractorWorkerSubject] Worker request failed "
-                    f"extractor_id={self._extractor_id} phase={self._phase} "
-                    f"operation={operation} payload_keys={sorted(payload.keys())} "
-                    f"error={error}"
-                    + (f"\n{details}" if details else "")
+                    f"[ExtractorWorkerSubject] Worker request failed\n{message}"
                 )
             except Exception:
                 pass
@@ -656,7 +721,12 @@ class ExtractorWorkerSubject:
                         channel.close()
                 except Exception:
                     pass
-            for handle in (self._stdout_reader, self._control_conn, self._parent_conn):
+            for handle in (
+                self._stdout_reader,
+                self._stderr_reader,
+                self._control_conn,
+                self._parent_conn,
+            ):
                 try:
                     if handle is not None:
                         handle.close()

@@ -701,6 +701,8 @@ def _close_fd(fd: int) -> None:
 
 
 def _validate_peer_uid(conn: socket.socket) -> None:
+    # Deliberate local platform check: LOCAL_PEERCRED is a Darwin-only socket
+    # option, not a per-OS strategy concern worth a backend method.
     if sys.platform != "darwin" or not hasattr(socket, "LOCAL_PEERCRED"):
         return
     raw = conn.getsockopt(0, socket.LOCAL_PEERCRED, struct.calcsize("3i"))

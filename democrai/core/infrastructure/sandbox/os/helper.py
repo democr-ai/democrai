@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.paths import (
@@ -23,12 +24,10 @@ from democrai.core.runtime.foundation.paths import (
     is_frozen,
     logs_dir,
     runtime_ipc_dir,
-    runtime_unix_socket_path,
     state_dir,
 )
 from democrai.core.runtime.lifecycle.process_supervisor import process_supervisor
 
-from .linux import ensure_linux_network_enforcement_ready
 from .models import ApplicationNetworkAllowlist
 
 
@@ -70,9 +69,9 @@ def get_os_sandbox_helper_socket_path(config: Any | None = None) -> str:
         configured = str(getter("sandbox.os.helper_socket", "") or "").strip()
         if configured:
             return _process_scoped_config_path(configured)
-    if sys.platform == "darwin":
-        return str(Path("/tmp") / f"dc-os-helper-{os.getpid()}.sock")
-    return str(runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve())
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+    return get_helper_backend().default_socket_path()
 
 
 def get_os_sandbox_policy_file_path(config: Any | None = None) -> str:
@@ -95,7 +94,7 @@ def get_os_sandbox_helper_token(config: Any | None = None) -> str:
     return str(getattr(app_ctx(), "os_sandbox_helper_token", "") or "").strip()
 
 
-def _ensure_os_sandbox_helper_token() -> str:
+def ensure_os_sandbox_helper_token() -> str:
     token = get_os_sandbox_helper_token()
     if token:
         return token
@@ -242,26 +241,41 @@ async def _request_helper(
     return response
 
 
-async def _request_helper_ready_async(config: Any | None = None) -> None:
+async def _request_helper_ready_async(
+    config: Any | None = None,
+    *,
+    interactive: bool | None = None,
+    runtime_mode: str | None = None,
+) -> None:
+    if interactive is None:
+        from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+        interactive = get_helper_backend().autostart_interactive(runtime_mode)
     socket_path = get_os_sandbox_helper_socket_path(config)
     _cleanup_stale_helper_sockets()
     _cleanup_stale_policy_files()
     if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
-        _ensure_os_sandbox_helper_token()
+        ensure_os_sandbox_helper_token()
     try:
         await _request_helper(socket_path=socket_path, payload={"action": "ping"})
         return
     except FileNotFoundError as exc:
         if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
-            strategy = _helper_autostart_strategy()
+            strategy = _helper_autostart_strategy(runtime_mode=runtime_mode)
             if strategy is not None:
-                _restart_os_sandbox_helper_process(socket_path)
+                _restart_os_sandbox_helper_process(
+                    socket_path,
+                    interactive=interactive,
+                    runtime_mode=runtime_mode,
+                )
                 await _wait_for_helper_async(
                     socket_path,
                     timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
                 )
                 return
-            start_command = " ".join(_sudo_helper_command(socket_path, config))
+            start_command = " ".join(
+                _helper_command(socket_path, config, privilege_prefix=("sudo",))
+            )
             raise RuntimeError(
                 "os_sandbox_helper_not_running:"
                 f"{socket_path}:start_with={start_command}"
@@ -271,9 +285,13 @@ async def _request_helper_ready_async(config: Any | None = None) -> None:
         ) from exc
     except ConnectionRefusedError as exc:
         if not str(os.environ.get(OS_SANDBOX_HELPER_SOCKET_ENV) or "").strip():
-            strategy = _helper_autostart_strategy()
+            strategy = _helper_autostart_strategy(runtime_mode=runtime_mode)
             if strategy is not None:
-                _restart_os_sandbox_helper_process(socket_path)
+                _restart_os_sandbox_helper_process(
+                    socket_path,
+                    interactive=interactive,
+                    runtime_mode=runtime_mode,
+                )
                 await _wait_for_helper_async(
                     socket_path,
                     timeout_seconds=60.0 if strategy in {"pkexec", "sudo"} else 3.0,
@@ -383,51 +401,24 @@ def _helper_autostart_log_tail() -> str:
         return ""
 
 
-def _helper_command(socket_path: str, config: Any | None = None) -> list[str]:
-    token = _ensure_os_sandbox_helper_token()
+_AUTOSTART_PRIVILEGE_PREFIXES: dict[str, tuple[str, ...]] = {
+    "direct": (),
+    "pkexec": ("pkexec",),
+    "sudo": ("sudo",),
+}
+
+
+def _helper_command(
+    socket_path: str,
+    config: Any | None = None,
+    *,
+    privilege_prefix: tuple[str, ...] = (),
+) -> list[str]:
+    token = ensure_os_sandbox_helper_token()
     if not token:
         raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
     return [
-        *_helper_module_command_prefix(),
-        "--os-sandbox-helper-socket",
-        socket_path,
-        "--os-sandbox-helper-policy-file",
-        get_os_sandbox_policy_file_path(config),
-        "--os-sandbox-helper-refresh-seconds",
-        str(get_os_sandbox_refresh_seconds()),
-        "--os-sandbox-helper-parent-pid",
-        str(os.getpid()),
-        "--os-sandbox-helper-token",
-        token,
-    ]
-
-
-def _pkexec_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
-    token = _ensure_os_sandbox_helper_token()
-    if not token:
-        raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
-    return [
-        "pkexec",
-        *_helper_module_command_prefix(),
-        "--os-sandbox-helper-socket",
-        socket_path,
-        "--os-sandbox-helper-policy-file",
-        get_os_sandbox_policy_file_path(config),
-        "--os-sandbox-helper-refresh-seconds",
-        str(get_os_sandbox_refresh_seconds()),
-        "--os-sandbox-helper-parent-pid",
-        str(os.getpid()),
-        "--os-sandbox-helper-token",
-        token,
-    ]
-
-
-def _sudo_helper_command(socket_path: str, config: Any | None = None) -> list[str]:
-    token = _ensure_os_sandbox_helper_token()
-    if not token:
-        raise RuntimeError("os_sandbox_helper_token_missing_before_spawn")
-    return [
-        "sudo",
+        *privilege_prefix,
         *_helper_module_command_prefix(),
         "--os-sandbox-helper-socket",
         socket_path,
@@ -443,14 +434,9 @@ def _sudo_helper_command(socket_path: str, config: Any | None = None) -> list[st
 
 
 def _can_autostart_helper() -> bool:
-    if sys.platform in {"darwin", "win32"}:
-        return True
-    try:
-        ensure_linux_network_enforcement_ready()
-    except Exception as exc:
-        debug_os_sandbox_flow("helper.autostart_unavailable", error=str(exc))
-        return False
-    return True
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
+    return get_helper_backend().can_autostart_directly()
 
 
 def _can_pkexec_autostart_helper() -> bool:
@@ -461,13 +447,18 @@ def _can_sudo_autostart_helper() -> bool:
     return shutil.which("sudo") is not None
 
 
-def _helper_autostart_strategy() -> str | None:
+def _helper_autostart_strategy(*, runtime_mode: str | None = None) -> str | None:
     if _can_autostart_helper():
         return "direct"
-    runtime_mode = str(getattr(app_ctx(), "runtime_mode", "") or "").strip().lower()
-    if runtime_mode == "desktop" and _can_pkexec_autostart_helper():
+    raw_runtime_mode = (
+        runtime_mode
+        if runtime_mode is not None
+        else getattr(app_ctx(), "runtime_mode", "")
+    )
+    resolved_runtime_mode = str(raw_runtime_mode).strip().lower()
+    if resolved_runtime_mode == "desktop" and _can_pkexec_autostart_helper():
         return "pkexec"
-    if runtime_mode != "desktop" and _can_sudo_autostart_helper():
+    if resolved_runtime_mode != "desktop" and _can_sudo_autostart_helper():
         return "sudo"
     return None
 
@@ -514,32 +505,40 @@ def _stop_tracked_helper_process() -> None:
             setattr(app_ctx(), "os_sandbox_helper_token", "")
 
 
-def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes]:
+def _start_os_sandbox_helper_process(
+    socket_path: str,
+    *,
+    interactive: bool = False,
+    runtime_mode: str | None = None,
+) -> subprocess.Popen[bytes]:
     existing = getattr(app_ctx(), "os_sandbox_helper_process", None)
     if existing is not None and existing.poll() is None:
         return existing
-    strategy = _helper_autostart_strategy()
+    strategy = _helper_autostart_strategy(runtime_mode=runtime_mode)
     if strategy is None:
         raise RuntimeError("os_sandbox_helper_autostart_unavailable")
-    if strategy == "direct":
-        command = _helper_command(socket_path)
-    elif strategy == "pkexec":
-        command = _pkexec_helper_command(socket_path)
-    else:
-        command = _sudo_helper_command(socket_path)
+    command = _helper_command(
+        socket_path,
+        privilege_prefix=_AUTOSTART_PRIVILEGE_PREFIXES[strategy],
+    )
     debug_os_sandbox_flow(
         "helper.autostart_spawn",
         cmd=_debug_helper_command(command),
         socket_path=socket_path,
         strategy=strategy,
     )
+    from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
+
     popen_kwargs: dict[str, Any] = {
         "close_fds": True,
-        "stdin": subprocess.DEVNULL,
         "stdout": _helper_autostart_log_file(),
         "stderr": subprocess.STDOUT,
         "cwd": _application_root(),
         "env": _helper_autostart_env(),
+        "stdin": get_helper_backend().autostart_stdin(
+            strategy=strategy,
+            interactive=interactive,
+        ),
     }
     if strategy == "direct":
         popen_kwargs["start_new_session"] = True
@@ -554,11 +553,20 @@ def _start_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes
     return proc
 
 
-def _restart_os_sandbox_helper_process(socket_path: str) -> subprocess.Popen[bytes]:
+def _restart_os_sandbox_helper_process(
+    socket_path: str,
+    *,
+    interactive: bool = False,
+    runtime_mode: str | None = None,
+) -> subprocess.Popen[bytes]:
     debug_os_sandbox_flow("helper.autostart_restart", socket_path=socket_path)
     _stop_tracked_helper_process()
     _cleanup_helper_socket(socket_path)
-    return _start_os_sandbox_helper_process(socket_path)
+    return _start_os_sandbox_helper_process(
+        socket_path,
+        interactive=interactive,
+        runtime_mode=runtime_mode,
+    )
 
 
 async def _wait_for_helper_async(socket_path: str, *, timeout_seconds: float = 3.0) -> None:
@@ -572,10 +580,15 @@ async def _wait_for_helper_async(socket_path: str, *, timeout_seconds: float = 3
             except Exception:
                 returncode = None
             if returncode is not None:
-                log_tail = _helper_autostart_log_tail()
                 raise RuntimeError(
-                    f"os_sandbox_helper_process_exited:{int(returncode)}:{socket_path}"
-                    + (f":log_tail={log_tail}" if log_tail else "")
+                    ChildProcessFailure.format(
+                        subject="os-sandbox-helper",
+                        stage="autostart",
+                        error=f"os_sandbox_helper_process_exited:{int(returncode)}:{socket_path}",
+                        returncode=int(returncode),
+                        output_tail=_helper_autostart_log_tail(),
+                        output_label="helper log tail",
+                    )
                 )
         try:
             await _request_helper(socket_path=socket_path, payload={"action": "ping"})
@@ -588,17 +601,43 @@ async def _wait_for_helper_async(socket_path: str, *, timeout_seconds: float = 3
     raise RuntimeError(f"os_sandbox_helper_wait_timeout:{socket_path}")
 
 
-def ensure_os_sandbox_helper_ready(config: Any | None = None) -> None:
+def ensure_os_sandbox_helper_ready(
+    config: Any | None = None,
+    *,
+    interactive: bool | None = None,
+    runtime_mode: str | None = None,
+) -> None:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(_request_helper_ready_async(config))
-    _run_async_in_thread(lambda: _request_helper_ready_async(config))
+        return asyncio.run(
+            _request_helper_ready_async(
+                config,
+                interactive=interactive,
+                runtime_mode=runtime_mode,
+            )
+        )
+    _run_async_in_thread(
+        lambda: _request_helper_ready_async(
+            config,
+            interactive=interactive,
+            runtime_mode=runtime_mode,
+        )
+    )
     return None
 
 
-async def ensure_os_sandbox_helper_ready_async(config: Any | None = None) -> None:
-    await _request_helper_ready_async(config)
+async def ensure_os_sandbox_helper_ready_async(
+    config: Any | None = None,
+    *,
+    interactive: bool | None = None,
+    runtime_mode: str | None = None,
+) -> None:
+    await _request_helper_ready_async(
+        config,
+        interactive=interactive,
+        runtime_mode=runtime_mode,
+    )
 
 
 def apply_application_network_allowlist_with_helper(

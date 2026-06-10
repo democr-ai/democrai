@@ -25,6 +25,7 @@ from democrai.core.application.ai.engine.runtime.environment import (
 )
 from democrai.core.application.ai.engine.runtime.serialization import json_value
 from democrai.core.application.ai.engine.runtime.serialization import python_value
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 from democrai.core.infrastructure.sandbox.access_constants import system_read_paths
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_bypass_context
 from democrai.core.runtime.foundation.app import app_ctx
@@ -107,6 +108,7 @@ def _engine_worker_launch_state(
         subject_kind="engine",
         subject_name=engine_id,
         access=access,
+        inherit_os_sandbox_helper_env=True,
     )
 
 
@@ -470,14 +472,14 @@ class EngineWorkerSubject:
                     continue
                 with self._stderr_lock:
                     self._stderr_tail.append(text)
-                    if len(self._stderr_tail) > 200:
-                        self._stderr_tail = self._stderr_tail[-200:]
+                    if len(self._stderr_tail) > 500:
+                        self._stderr_tail = self._stderr_tail[-500:]
         except Exception:
             return
 
     def _worker_stderr_tail(self) -> str:
         with self._stderr_lock:
-            return "\n".join(self._stderr_tail[-80:])
+            return "\n".join(self._stderr_tail[-300:])
 
     def _worker_start_failure_message(self, *, stage: str, error: BaseException) -> str:
         process = self._process
@@ -490,14 +492,18 @@ class EngineWorkerSubject:
                 stderr_tail = str(reader.read() or "").strip()
             except Exception:
                 stderr_tail = ""
-        return (
-            "engine_worker_start_failed"
-            f" engine_id={self._engine_id}"
-            f" stage={stage}"
-            f" return_code={return_code}"
-            f" status={status}"
-            f" error={error}"
-            + (f" stderr_tail={stderr_tail[-4000:]}" if stderr_tail else "")
+        return ChildProcessFailure.format(
+            subject=f"engine:{self._engine_id}",
+            stage=stage,
+            error="engine_worker_start_failed",
+            returncode=return_code,
+            details={
+                "engine_id": self._engine_id,
+                "return_code": return_code,
+                "status": status,
+                "error": error,
+            },
+            output_tail=stderr_tail,
         )
 
     def _log_worker_no_response(self, *, operation: str, return_code: int | None) -> str:
@@ -520,21 +526,21 @@ class EngineWorkerSubject:
             except Exception:
                 signal_text = f" signal={-return_code}"
         status = "still_running_after_pipe_close" if still_running else "closed"
-        message = (
-            f"engine_worker_no_response:{return_code}"
-            f" engine_id={self._engine_id}"
-            f" operation={operation}"
-            f" status={status}"
-            f"{signal_text}"
-            + (f" stderr_tail={stderr_tail[-4000:]}" if stderr_tail else "")
+        message = ChildProcessFailure.format(
+            subject=f"engine:{self._engine_id}",
+            stage=operation,
+            error=f"engine_worker_no_response:{return_code}",
+            details={
+                "engine_id": self._engine_id,
+                "operation": operation,
+                "status": status,
+                **({"signal": signal_text.split("=", 1)[1]} if signal_text else {}),
+            },
+            output_tail=stderr_tail,
         )
         try:
             app_ctx().logger.error(
-                "[EngineWorkerSubject] Worker closed without response "
-                f"engine_id={self._engine_id} operation={operation} "
-                f"return_code={return_code}{signal_text}"
-                + (" status=still_running_after_pipe_close" if still_running else "")
-                + (f"\n[EngineWorkerSubject stderr]\n{stderr_tail}" if stderr_tail else "")
+                f"[EngineWorkerSubject] Worker closed without response\n{message}"
             )
         except Exception:
             pass
@@ -665,12 +671,22 @@ class EngineWorkerSubject:
         if not bool(response.get("ok")):
             error = str(response.get("error") or "engine_worker_error")
             details = str(response.get("traceback") or "").strip()
+            stderr_tail = self._worker_stderr_tail()
+            message = ChildProcessFailure.format(
+                subject=f"engine:{self._engine_id}",
+                stage=operation,
+                error=error,
+                details={
+                    "engine_id": self._engine_id,
+                    "operation": operation,
+                    "payload_keys": sorted(payload.keys()),
+                },
+                traceback=details,
+                output_tail=stderr_tail,
+            )
             try:
                 app_ctx().logger.error(
-                    "[EngineWorkerSubject] Worker request failed "
-                    f"engine_id={self._engine_id} operation={operation} "
-                    f"payload_keys={sorted(payload.keys())} error={error}"
-                    + (f"\n{details}" if details else "")
+                    f"[EngineWorkerSubject] Worker request failed\n{message}"
                 )
             except Exception:
                 pass
@@ -773,6 +789,20 @@ class EngineWorkerSubject:
                     if not bool(response.get("ok")):
                         error = str(response.get("error") or "engine_worker_error")
                         details = str(response.get("traceback") or "").strip()
+                        try:
+                            app_ctx().logger.error(
+                                "[EngineWorkerSubject] Worker stream failed\n"
+                                + ChildProcessFailure.format(
+                                    subject=f"engine:{self._engine_id}",
+                                    stage=f"invoke_stream:{method}",
+                                    error=error,
+                                    details={"engine_id": self._engine_id},
+                                    traceback=details,
+                                    output_tail=self._worker_stderr_tail(),
+                                )
+                            )
+                        except Exception:
+                            pass
                         raise RuntimeError(error + (f"\n{details}" if details else ""))
                     return
                 raise RuntimeError(f"engine_worker_stream_response_unknown:{stream_kind}")

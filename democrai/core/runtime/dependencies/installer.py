@@ -9,9 +9,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
+
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 
 from democrai.core.platform.utils.normalize import normalize_bool
 from democrai.core.platform.utils.system import get_resource_monitor
@@ -156,6 +159,15 @@ def run_pip_internal(
     install_env["PIP_CONFIG_FILE"] = "/dev/null"
     install_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     install_env["UV_CACHE_DIR"] = str(cache_dir)
+    # Hermetic source builds: the user's git config is unreadable under the
+    # install sandbox and git treats EACCES on it as fatal.
+    install_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    # ccache defaults to XDG_RUNTIME_DIR/HOME for temp and cache files, which
+    # are not writable under the install sandbox; keep it inside the build
+    # cache so native rebuilds stay cached.
+    ccache_root = Path(cache_dir).parent / "ccache"
+    install_env.setdefault("CCACHE_DIR", str(ccache_root))
+    install_env.setdefault("CCACHE_TEMPDIR", str(ccache_root / "tmp"))
     from democrai.core.runtime.dependencies.engine_env import has_engine_env_context
     from democrai.core.runtime.dependencies.extractor_env import (
         has_extractor_env_context,
@@ -255,18 +267,29 @@ def _run_install_subprocess(
         env=env,
     )
     assert process.stdout is not None
+    output_tail: deque[str] = deque(maxlen=300)
     try:
         for line in process.stdout:
             text = str(line or "").rstrip()
             if not text:
                 continue
             print(text, flush=True)
+            output_tail.append(text)
             _emit_install_output(text, phase="install", stream="stdout")
     finally:
         process.stdout.close()
     return_code = process.wait()
     if return_code != 0:
-        raise RuntimeError(f"installer failed with exit code {return_code}")
+        raise RuntimeError(
+            ChildProcessFailure.format(
+                subject="installer",
+                stage=label,
+                error="installer_subprocess_failed",
+                returncode=return_code,
+                output_tail="\n".join(output_tail),
+                output_label="output tail",
+            )
+        )
 
 
 def _sanitized_path_for_pip() -> str:

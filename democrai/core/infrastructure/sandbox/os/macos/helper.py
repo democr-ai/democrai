@@ -4,6 +4,8 @@ import asyncio
 import os
 import socket
 import struct
+import subprocess
+from pathlib import Path
 from typing import Any
 
 
@@ -12,6 +14,18 @@ class MacOSHelperBackend:
 
     def ensure_ready(self) -> None:
         return
+
+    def default_socket_path(self) -> str:
+        return str(Path("/tmp") / f"dc-os-helper-{os.getpid()}.sock")
+
+    def can_autostart_directly(self) -> bool:
+        return True
+
+    def autostart_interactive(self, runtime_mode: str | None) -> bool:
+        return False
+
+    def autostart_stdin(self, *, strategy: str, interactive: bool) -> Any:
+        return subprocess.DEVNULL
 
     def peer_credentials(
         self,

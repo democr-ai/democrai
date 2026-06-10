@@ -21,6 +21,7 @@ from democrai.core.application.access_policy import AccessResource
 from democrai.core.application.access_policy import AccessSubject
 from democrai.core.application.access_policy.manifest import parse_access_manifest_rules
 from democrai.core.application.knowledge.extractor.access_constants import (
+    DEFAULT_EXTRACTOR_INSTALL_RECEIVE_URLS,
     extractor_runtime_create_paths,
     extractor_runtime_dependency_read_paths,
     extractor_runtime_modify_paths,
@@ -179,6 +180,18 @@ def get_extractor_access(
             subject_name=extractor_id,
         )
     )
+    if phase == "install":
+        rules.extend(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="network",
+                    operation="receive",
+                    target=target,
+                ),
+            )
+            for target in DEFAULT_EXTRACTOR_INSTALL_RECEIVE_URLS
+        )
     if phase in {"install", "runtime"}:
         env_path = str(get_extractor_local_env_path(extractor_id).resolve())
         cache_path = str(get_extractor_local_cache_path(extractor_id).resolve())
@@ -273,6 +286,22 @@ def get_extractor_access(
                 )
                 for path in paths
             )
+    if phase == "runtime":
+        from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+            RuntimeAccessBaseline,
+        )
+
+        rules.extend(
+            AccessManifestRule(
+                subject=subject,
+                resource=AccessResource.create(
+                    resource_type="filesystem",
+                    operation="modify",
+                    target=path,
+                ),
+            )
+            for path in RuntimeAccessBaseline.process_self_write_paths()
+        )
     if phase in {"install", "runtime"}:
         executable_targets = tuple(
             dict.fromkeys(

@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import os
-import hashlib
-import site
 import sys
-import sysconfig
 from typing import Any
 
 from democrai.core.application.access_policy import AccessManifestRule
 from democrai.core.application.access_policy import AccessResource
 from democrai.core.application.access_policy import AccessSubject
+from democrai.core.infrastructure.sandbox.platform_policy import (
+    runtime_ipc_path_variants,
+)
+from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+    RuntimeAccessBaseline,
+)
 from democrai.core.runtime.foundation.paths import is_frozen
 from democrai.core.runtime.foundation.paths import runtime_ipc_dir
-from democrai.core.runtime.foundation.paths import state_dir
 
 
 def payload_access_rules(items: list[dict[str, Any]]) -> tuple[AccessManifestRule, ...]:
@@ -43,6 +45,7 @@ def build_worker_launch_state(
     subject_kind: str,
     subject_name: str,
     access: tuple[AccessManifestRule, ...],
+    inherit_os_sandbox_helper_env: bool = False,
 ) -> dict[str, Any]:
     from democrai.core.infrastructure.sandbox import process_guard as process_guard_mod
 
@@ -73,6 +76,7 @@ def build_worker_launch_state(
         "os_sandbox_network_allow_all": bool(
             current_state.get("os_sandbox_network_allow_all")
         ),
+        "inherit_os_sandbox_helper_env": bool(inherit_os_sandbox_helper_env),
     }
 
 
@@ -104,13 +108,7 @@ def framework_runtime_access(
         ipc_path = str(runtime_ipc_dir().resolve())
     except Exception:
         return tuple(rules)
-    paths = [ipc_path]
-    if sys.platform == "darwin" and ipc_path.startswith("/var/"):
-        paths.append("/private" + ipc_path)
-    if sys.platform == "darwin":
-        paths.extend(_darwin_runtime_ipc_variants())
-    if sys.platform.startswith("linux"):
-        paths.append("/dev/shm")
+    paths = list(runtime_ipc_path_variants(ipc_path))
     subject = AccessSubject.create(subject_kind, subject_name)
     rules.extend(
         AccessManifestRule(
@@ -133,72 +131,12 @@ def framework_runtime_access(
                 target=path,
             ),
         )
-        for path in _python_runtime_read_paths()
-    )
-    rules.extend(_python_runtime_execute_access(subject))
-    return tuple(rules)
-
-
-def _darwin_runtime_ipc_variants() -> tuple[str, ...]:
-    try:
-        candidate = state_dir() / "ipc"
-        raw_uid = str(os.getuid()) if hasattr(os, "getuid") else "user"
-        digest = hashlib.sha1(str(candidate).encode("utf-8")).hexdigest()[:12]
-    except Exception:
-        return ()
-    bases = [
-        os.environ.get("TMPDIR", ""),
-        "/tmp",
-        "/private/tmp",
-        "/var/tmp",
-        "/private/var/tmp",
-    ]
-    return tuple(
-        dict.fromkeys(
-            os.path.join(str(base).rstrip("/"), f"dc-ipc-{raw_uid}-{digest}")
-            for base in bases
-            if str(base or "").strip()
+        for path in (
+            *RuntimeAccessBaseline.python_runtime_read_paths(),
+            *RuntimeAccessBaseline.native_library_read_paths(),
         )
     )
-
-
-def _python_runtime_read_paths() -> tuple[str, ...]:
-    paths: list[str] = []
-    try:
-        paths.extend(str(item) for item in site.getsitepackages())
-    except Exception:
-        pass
-    try:
-        paths.append(str(site.getusersitepackages()))
-    except Exception:
-        pass
-    if sys.platform == "darwin":
-        home = str(os.environ.get("HOME") or "").strip()
-        if home:
-            version = f"{sys.version_info.major}.{sys.version_info.minor}"
-            paths.append(
-                os.path.join(
-                    home,
-                    "Library",
-                    "Python",
-                    version,
-                    "lib",
-                    "python",
-                    "site-packages",
-                )
-            )
-    try:
-        paths.extend(str(item) for item in sysconfig.get_paths().values())
-    except Exception:
-        pass
-    return tuple(dict.fromkeys(path for path in paths if path))
-
-
-def _python_runtime_execute_access(
-    subject: AccessSubject,
-) -> tuple[AccessManifestRule, ...]:
-    paths = _python_runtime_execute_paths()
-    return tuple(
+    rules.extend(
         AccessManifestRule(
             subject=subject,
             resource=AccessResource.create(
@@ -207,74 +145,10 @@ def _python_runtime_execute_access(
                 target=path,
             ),
         )
-        for path in paths
+        for path in RuntimeAccessBaseline.python_runtime_execute_paths()
         for operation in ("read", "execute")
     )
-
-
-def _python_runtime_execute_paths() -> tuple[str, ...]:
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
-    )
-
-    with process_guard_bypass_context():
-        paths: list[str] = []
-        executable = str(sys.executable or "").strip()
-        if executable:
-            paths.extend(_executable_path_chain(executable))
-        for raw in (
-            sys.prefix,
-            sys.exec_prefix,
-            sys.base_prefix,
-            sys.base_exec_prefix,
-        ):
-            if isinstance(raw, str) and raw.strip():
-                paths.extend(_path_variants(raw))
-        return tuple(dict.fromkeys(path for path in paths if path))
-
-
-def _executable_path_chain(path: str) -> tuple[str, ...]:
-    items: list[str] = []
-    current = os.path.abspath(os.path.expanduser(path))
-    seen: set[str] = set()
-    for _ in range(16):
-        if current in seen:
-            break
-        seen.add(current)
-        items.extend(_path_variants(current))
-        parent = os.path.dirname(current)
-        if parent:
-            items.extend(_path_variants(parent))
-        try:
-            if not os.path.islink(current):
-                break
-            target = os.readlink(current)
-        except OSError:
-            break
-        current = (
-            target
-            if os.path.isabs(target)
-            else os.path.abspath(os.path.join(parent, target))
-        )
-    return tuple(dict.fromkeys(item for item in items if item))
-
-
-def _path_variants(path: object) -> tuple[str, ...]:
-    raw = str(path or "").strip()
-    if not raw:
-        return ()
-    variants: list[str] = []
-    try:
-        variants.append(os.path.normpath(os.path.abspath(os.path.expanduser(raw))))
-    except Exception:
-        variants.append(raw)
-    try:
-        real = os.path.normpath(os.path.realpath(os.path.expanduser(raw)))
-        if real:
-            variants.append(real)
-    except Exception:
-        pass
-    return tuple(dict.fromkeys(item for item in variants if item))
+    return tuple(rules)
 
 
 def _framework_application_access(

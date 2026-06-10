@@ -645,7 +645,7 @@ def test_core_launch_policy_initializes_helper_before_env(monkeypatch):
     calls: list[str] = []
     token_ready = {"value": False}
 
-    def _ready(_cfg):
+    def _ready(_cfg, *, runtime_mode=None):
         calls.append("ready")
         token_ready["value"] = True
 

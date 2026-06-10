@@ -229,3 +229,30 @@ async def test_extractor_install_process_uses_sandbox_launcher_state(monkeypatch
 
     assert result == {"status": "installed"}
     assert events[:2] == ["spawn", "read"]
+
+
+def test_extractor_install_access_includes_default_package_infrastructure():
+    from democrai.core.application.knowledge.extractor.access_constants import (
+        DEFAULT_EXTRACTOR_INSTALL_RECEIVE_URLS,
+    )
+    from democrai.core.application.knowledge.extractor.runtime import (
+        get_extractor_access,
+    )
+
+    install_targets = {
+        rule.resource.normalized_target
+        for rule in get_extractor_access("docling", "install")
+        if rule.resource.resource_type.value == "network"
+    }
+    # Mirrors the engine twin: every extractor install reaches the package
+    # infrastructure without declaring it in the manifest. pytorch redirects
+    # wheel downloads to the download-r2 CDN mirror.
+    for url in DEFAULT_EXTRACTOR_INSTALL_RECEIVE_URLS:
+        assert any(url in target for target in install_targets), url
+
+    runtime_targets = {
+        rule.resource.normalized_target
+        for rule in get_extractor_access("docling", "runtime")
+        if rule.resource.resource_type.value == "network"
+    }
+    assert not any("download-r2" in target for target in runtime_targets)

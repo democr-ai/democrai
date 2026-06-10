@@ -77,6 +77,18 @@ class BaseOsSandboxProvider:
             raise RuntimeError("os_sandbox_policy_not_supported")
         return policy
 
+    def prepare_launch_env(
+        self,
+        policy: SandboxLaunchPolicy,
+        env: dict[str, str],
+    ) -> str:
+        """Platform hook run before a sandboxed launch to enrich the env.
+
+        Returns an opaque platform identifier ("" when unused). Windows uses
+        it for the AppContainer shared-memory package SID.
+        """
+        return ""
+
     def apply_current_process_os_sandbox(self, config) -> dict[str, object]:
         raise RuntimeError("os_sandbox_current_process_not_supported")
 

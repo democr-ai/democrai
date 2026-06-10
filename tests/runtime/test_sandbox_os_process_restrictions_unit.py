@@ -144,14 +144,25 @@ def test_landlock_status_and_apply_branches(monkeypatch):
     landlock_mod.apply_landlock_filesystem_rules(read_only_paths=[], read_write_paths=[])
 
 
+def test_landlock_libc_falls_back_to_loaded_process_libc(monkeypatch):
+    calls = []
+    monkeypatch.setattr(landlock_mod.ctypes.util, "find_library", lambda _name: None)
+    monkeypatch.setattr(
+        landlock_mod.ctypes,
+        "CDLL",
+        lambda name, **kwargs: calls.append((name, kwargs)) or object(),
+    )
+
+    assert landlock_mod._libc() is not None
+    assert calls == [(None, {"use_errno": True})]
+
+
 def test_linux_process_restrictions_apply_and_status(monkeypatch):
     events: list[str] = []
 
     class _Cfg:
         def get(self, key, default=None):
             data = {
-                "sandbox.os.seccomp.enabled": True,
-                "sandbox.os.landlock.enabled": True,
                 "sandbox.os.landlock.extra_read_paths": ["/ro-extra"],
                 "sandbox.os.landlock.extra_write_paths": ["/rw-extra"],
             }
@@ -183,22 +194,71 @@ def test_linux_process_restrictions_apply_and_status(monkeypatch):
     assert "process_restrictions.landlock_applied" in events
 
     monkeypatch.setattr(linux_restrictions_mod, "apply_seccomp_blocklist", lambda: (_ for _ in ()).throw(RuntimeError("sec-bad")))
-    monkeypatch.setattr(linux_restrictions_mod, "apply_landlock_filesystem_rules", lambda **_k: (_ for _ in ()).throw(RuntimeError("ll-bad")))
-    failed = linux_restrictions_mod.apply_process_restrictions(_Cfg())
-    assert failed["seccomp"]["error"] == "sec-bad"
-    assert failed["landlock"]["error"] == "ll-bad"
+    with pytest.raises(RuntimeError, match="sec-bad"):
+        linux_restrictions_mod.apply_process_restrictions(_Cfg())
 
-    monkeypatch.setattr(linux_restrictions_mod, "is_seccomp_supported", lambda: False)
-    monkeypatch.setattr(linux_restrictions_mod, "is_landlock_supported", lambda: False)
-    monkeypatch.setattr(linux_restrictions_mod, "get_seccomp_status", lambda: {"supported": False, "machine": "x"})
-    monkeypatch.setattr(linux_restrictions_mod, "get_landlock_status", lambda: {"supported": False, "abi_version": 0})
-    unsupported = linux_restrictions_mod.apply_process_restrictions(_Cfg())
-    assert unsupported["seccomp"]["applied"] is False
-    assert unsupported["landlock"]["applied"] is False
+    monkeypatch.setattr(linux_restrictions_mod, "apply_seccomp_blocklist", lambda: None)
+    monkeypatch.setattr(linux_restrictions_mod, "apply_landlock_filesystem_rules", lambda **_k: (_ for _ in ()).throw(RuntimeError("ll-bad")))
+    with pytest.raises(RuntimeError, match="ll-bad"):
+        linux_restrictions_mod.apply_process_restrictions(_Cfg())
 
     status = linux_restrictions_mod.get_process_restrictions_status(_Cfg())
-    assert status["seccomp"]["enabled"] is True
-    assert status["landlock"]["enabled"] is True
+    assert "supported" in status["seccomp"] or status["seccomp"]
+    assert "enabled" not in status["seccomp"]
+    assert "enabled" not in status["landlock"]
+
+
+def test_linux_app_read_write_paths_include_device_nodes():
+    paths = linux_restrictions_mod._collect_app_read_write_paths(None)
+    # /dev/null must be writable: subprocess stdin/stdout DEVNULL redirection
+    # opens it O_RDWR, which a read-only /dev rule does not cover.
+    assert "/dev/null" in paths
+    assert "/dev/shm" in paths
+
+
+def test_linux_app_read_write_paths_include_process_self_proc():
+    # The core's Landlock layer is the most restrictive ancestor every
+    # sandboxed descendant inherits, and layers can only narrow. Native
+    # runtimes (CUDA/torch) write /proc/self/task/<tid>/comm to name threads;
+    # if the core grants /proc read-only, a child engine worker cannot
+    # re-grant write and cuInit fails with error 304. The core must grant it.
+    paths = linux_restrictions_mod._collect_app_read_write_paths(None)
+    assert "/proc" in paths
+
+
+def test_linux_app_read_write_paths_cover_core_endpoint_dir(monkeypatch):
+    # The launcher unlinks the endpoint file before spawning (its appearance
+    # is the readiness signal), so the core needs create access on the
+    # PARENT directory, not on the not-yet-existing file.
+    monkeypatch.setenv(
+        "DEMOCRAI_CORE_ENDPOINT_FILE",
+        "/tmp/democrai-core-endpoint-test.json",
+    )
+    paths = linux_restrictions_mod._collect_app_read_write_paths(None)
+    assert "/tmp" in paths
+
+
+def test_linux_process_restrictions_unsupported_kernel_hard_fails(monkeypatch):
+    monkeypatch.setattr(linux_restrictions_mod, "_resolve_config", lambda _cfg=None: None)
+    monkeypatch.setattr(linux_restrictions_mod, "debug_os_sandbox_flow", lambda *_a, **_k: None)
+    monkeypatch.setattr(linux_restrictions_mod, "get_seccomp_status", lambda: {"supported": False, "machine": "x"})
+    monkeypatch.setattr(linux_restrictions_mod, "get_landlock_status", lambda: {"supported": False, "abi_version": 0})
+    applied: list[str] = []
+    monkeypatch.setattr(linux_restrictions_mod, "apply_seccomp_blocklist", lambda: applied.append("seccomp"))
+    monkeypatch.setattr(linux_restrictions_mod, "apply_landlock_filesystem_rules", lambda **_k: applied.append("landlock"))
+
+    monkeypatch.setattr(linux_restrictions_mod, "is_seccomp_supported", lambda: False)
+    monkeypatch.setattr(linux_restrictions_mod, "is_landlock_supported", lambda: True)
+    with pytest.raises(RuntimeError, match="os_sandbox_seccomp_unsupported"):
+        linux_restrictions_mod.apply_process_restrictions(None)
+
+    monkeypatch.setattr(linux_restrictions_mod, "is_seccomp_supported", lambda: True)
+    monkeypatch.setattr(linux_restrictions_mod, "is_landlock_supported", lambda: False)
+    with pytest.raises(RuntimeError, match="os_sandbox_landlock_unsupported"):
+        linux_restrictions_mod.apply_process_restrictions(None)
+
+    # Support is verified for both mechanisms before applying either one.
+    assert applied == []
 
 
 def test_os_process_restrictions_dispatches_through_provider(monkeypatch):

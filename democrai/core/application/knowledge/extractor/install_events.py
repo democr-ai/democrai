@@ -32,6 +32,7 @@ from democrai.core.application.knowledge.extractor.runtime import (
     check_extractor_ready_runtime,
     get_extractor_access,
 )
+from democrai.core.infrastructure.process.child_failure import ChildProcessFailure
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models import (
     ExtractorNodeInstallRegistry,
@@ -392,45 +393,23 @@ async def _start_os_network_proxy_for_install(
     *,
     extractor_id: str,
 ) -> str:
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        start_application_network_proxy_session_with_helper,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
     from democrai.core.infrastructure.sandbox.os.state import (
         is_application_network_allowlist_enabled,
     )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
-    )
 
-    ctx = app_ctx()
-    config = ctx.config
+    config = app_ctx().config
     if not is_application_network_allowlist_enabled(config):
         return ""
     allowlist = _extractor_install_network_allowlist(extractor_id)
     if not allowlist.endpoints:
         return ""
-
-    def _start() -> dict[str, str]:
-        with process_guard_bypass_context():
-            return start_application_network_proxy_session_with_helper(
-                allowlist,
-                config=config,
-            )
-
-    session = await asyncio.to_thread(_start)
+    manager = ProxySessionManager(config)
+    session = await asyncio.to_thread(manager.start, allowlist)
     proxy_url = session["proxy_url"]
-    env["HTTP_PROXY"] = proxy_url
-    env["HTTPS_PROXY"] = proxy_url
-    env["ALL_PROXY"] = proxy_url
-    env["WS_PROXY"] = proxy_url
-    env["WSS_PROXY"] = proxy_url
-    env["http_proxy"] = proxy_url
-    env["https_proxy"] = proxy_url
-    env["all_proxy"] = proxy_url
-    env["ws_proxy"] = proxy_url
-    env["wss_proxy"] = proxy_url
-    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
-    env["no_proxy"] = "127.0.0.1,localhost,::1"
+    manager.apply_env(env, proxy_url)
     proxy_connect_target = _proxy_connect_target(proxy_url)
     if proxy_connect_target:
         env[EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV] = proxy_connect_target
@@ -472,23 +451,12 @@ def _extractor_install_network_allowlist(extractor_id: str):
 async def _stop_os_network_proxy_for_install(session_id: str) -> None:
     if not session_id:
         return
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        stop_application_network_proxy_session_with_helper,
-    )
-    from democrai.core.infrastructure.sandbox.process_guard import (
-        process_guard_bypass_context,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
 
-    config = app_ctx().config
-
-    def _stop() -> None:
-        with process_guard_bypass_context():
-            stop_application_network_proxy_session_with_helper(
-                session_id,
-                config=config,
-            )
-
-    await asyncio.to_thread(_stop)
+    manager = ProxySessionManager(app_ctx().config)
+    await asyncio.to_thread(manager.stop, session_id)
 
 
 async def _read_install_process_stdout_line(process: Any) -> bytes:
@@ -547,6 +515,7 @@ def _extractor_install_launch_state(
                 str(env.get(EXTRACTOR_INSTALL_PROXY_CONNECT_TARGET_ENV) or ""),
             ),
         ),
+        inherit_os_sandbox_helper_env=True,
     )
 
 
@@ -688,9 +657,16 @@ async def _run_extractor_install_runtime_process(
         return_code = await _wait_install_process(process)
         if return_code != 0:
             raise RuntimeError(
-                error_message
-                or last_line
-                or f"extractor install process failed:{return_code}"
+                ChildProcessFailure.format(
+                    subject=f"extractor:{extractor_id}",
+                    stage="install",
+                    error=error_message
+                    or last_line
+                    or f"extractor_install_process_failed:{return_code}",
+                    returncode=return_code,
+                    output_tail="\n".join(output_tail),
+                    output_label="output tail",
+                )
             )
         return result
     finally:

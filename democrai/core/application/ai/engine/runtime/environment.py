@@ -176,7 +176,7 @@ def _engine_phase_env(engine_id: str, phase: str) -> dict[str, str]:
 
 def get_engine_runtime_env(engine_id: str) -> dict[str, str]:
     env = _engine_phase_env(engine_id, "runtime")
-    env.setdefault(RUNTIME_ENV_JSON_ENV, json.dumps(runtime_env(), sort_keys=True))
+    env.setdefault(RUNTIME_ENV_JSON_ENV, _runtime_env_json())
     driver_lib_path, _ = ensure_engine_runtime_driver_libs(engine_id)
     if driver_lib_path is not None:
         driver_lib_value = str(driver_lib_path)
@@ -205,7 +205,16 @@ def get_engine_runtime_env(engine_id: str) -> dict[str, str]:
 
 
 def get_engine_install_env(engine_id: str) -> dict[str, str]:
-    return _engine_phase_env(engine_id, "install")
+    env = _engine_phase_env(engine_id, "install")
+    env.setdefault(RUNTIME_ENV_JSON_ENV, _runtime_env_json())
+    return env
+
+
+def _runtime_env_json() -> str:
+    pinned = str(os.environ.get(RUNTIME_ENV_JSON_ENV) or "").strip()
+    if pinned:
+        return pinned
+    return json.dumps(runtime_env(), sort_keys=True)
 
 
 def get_engine_allowed_subprocess_commands(engine_id: str, phase: str) -> list[str]:

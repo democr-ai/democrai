@@ -320,6 +320,7 @@ def _start_core_worker(args, *, env: dict[str, str] | None = None, pass_fds: tup
             command=command,
             env=worker_env,
             cwd=os.getcwd(),
+            runtime_mode=str(getattr(args, "mode", "") or ""),
         )
         process = get_core_launch_strategy().spawn(policy, pass_fds=pass_fds)
         _attach_spawn_broker(process, broker)
@@ -335,7 +336,11 @@ def _start_core_worker(args, *, env: dict[str, str] | None = None, pass_fds: tup
 
 
 def _core_worker_spawn_broker_enabled() -> bool:
-    return sys.platform in {"darwin", "win32"}
+    from democrai.core.infrastructure.sandbox.os.factory import (
+        get_core_launch_strategy,
+    )
+
+    return bool(get_core_launch_strategy().uses_spawn_broker)
 
 
 def _attach_spawn_broker(proc, broker) -> None:

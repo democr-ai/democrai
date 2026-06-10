@@ -53,12 +53,14 @@ def build_core_worker_launch_policy(
     command: list[str],
     env: dict[str, str],
     cwd: str | None,
+    runtime_mode: str | None = None,
 ) -> SandboxLaunchPolicy:
     return _build_core_launch_policy(
         config,
         command=list(command),
         env=dict(env),
         cwd=cwd,
+        runtime_mode=runtime_mode,
     )
 
 
@@ -70,15 +72,64 @@ def update_core_os_sandbox_proxy_session(
     session_id = str(os.environ.get(CORE_OS_SANDBOX_PROXY_SESSION_ENV) or "").strip()
     if not session_id:
         return False
-    from democrai.core.infrastructure.sandbox.os.helper import (
-        update_application_network_proxy_session_with_helper,
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
 
-    update_application_network_proxy_session_with_helper(
-        session_id,
-        allowlist,
-        config=config,
+    ProxySessionManager(config).update(session_id, allowlist)
+    return True
+
+
+def ensure_in_process_core_proxy_session(config: Any | None = None) -> bool:
+    """Route in-process core traffic through the OS sandbox CONNECT proxy.
+
+    On platforms where the OS sandbox is applied in-process (Linux: seccomp +
+    landlock + iptables) rather than via relaunch (macOS/Windows), the proxy
+    env that ``_build_core_launch_policy`` injects on relaunch is never set, so
+    in-process HTTP clients (urllib/requests) connect directly to the resolved
+    IP. CDN hosts (HuggingFace via CloudFront) rotate IPs, so the IP never
+    matches the allowlist and the connection is denied.
+
+    This starts a CONNECT proxy session via the helper and points this
+    process's ``HTTP(S)_PROXY`` env at it, so traffic is allowlisted by
+    hostname (rotation-immune). A loopback connection passes both iptables (the
+    ``RETURN`` rule on loopback) and the Python policy guard
+    (``_configured_loopback_proxy_target_allowed``) unchanged.
+
+    The proxy is the primary enforcement mechanism: with the sandbox enabled a
+    failure to establish the session is a hard error, never a silent
+    degradation to IP-based allowlisting. Returns True when a session is
+    active, False when the sandbox is disabled or this process is covered by a
+    relaunch-time session.
+    """
+    resolved_config = config if config is not None else _current_config()
+    if not _os_sandbox_enabled(resolved_config):
+        return False
+    # macOS/Windows relaunch already set the proxy env in the child process.
+    if not provider_supports_current_process_os_sandbox():
+        return False
+    if is_core_os_sandbox_relaunched():
+        return False
+    if str(os.environ.get(CORE_OS_SANDBOX_PROXY_SESSION_ENV) or "").strip():
+        return True
+
+    from democrai.core.infrastructure.sandbox.os.proxy_session import (
+        ProxySessionManager,
     )
+    from democrai.core.infrastructure.sandbox.process_guard import (
+        process_guard_bypass_context,
+    )
+
+    with process_guard_bypass_context():
+        _ensure_core_sandbox_helper_ready(resolved_config)
+        allowlist = build_framework_network_allowlist(config=resolved_config)
+        session = _start_core_proxy_session(allowlist, config=resolved_config)
+        proxy_url = str(session.get("proxy_url") or "").strip()
+        session_id = str(session.get("session_id") or "").strip()
+        if not proxy_url or not session_id:
+            raise RuntimeError("os_sandbox_core_proxy_session_invalid")
+        ProxySessionManager(resolved_config).apply_env(os.environ, proxy_url)
+        os.environ[CORE_OS_SANDBOX_PROXY_SESSION_ENV] = session_id
     return True
 
 
@@ -88,6 +139,7 @@ def _build_core_launch_policy(
     command: list[str] | None = None,
     env: dict[str, str] | None = None,
     cwd: str | None = None,
+    runtime_mode: str | None = None,
 ) -> SandboxLaunchPolicy:
     from democrai.core.infrastructure.sandbox import process_guard as process_guard_mod
     from democrai.core.infrastructure.sandbox.process_guard import (
@@ -95,7 +147,7 @@ def _build_core_launch_policy(
     )
 
     with process_guard_bypass_context():
-        _ensure_core_sandbox_helper_ready(config)
+        _ensure_core_sandbox_helper_ready(config, runtime_mode=runtime_mode)
         launch_env = _with_core_os_sandbox_helper_env(
             dict(os.environ if env is None else env),
             config=config,
@@ -107,7 +159,11 @@ def _build_core_launch_policy(
         session_id = str(session.get("session_id") or "").strip()
         if not proxy_url or not session_id:
             raise RuntimeError("os_sandbox_core_proxy_session_invalid")
-        _set_proxy_env(launch_env, proxy_url)
+        from democrai.core.infrastructure.sandbox.os.proxy_session import (
+            ProxySessionManager,
+        )
+
+        ProxySessionManager(config).apply_env(launch_env, proxy_url)
         launch_env[CORE_OS_SANDBOX_PROXY_SESSION_ENV] = session_id
         access = process_guard_mod._merge_access_rules(
             process_guard_mod._runtime_access(),
@@ -148,12 +204,19 @@ def _start_core_proxy_session(
     )
 
 
-def _ensure_core_sandbox_helper_ready(config: Any) -> None:
+def _ensure_core_sandbox_helper_ready(
+    config: Any,
+    *,
+    runtime_mode: str | None = None,
+) -> None:
     from democrai.core.infrastructure.sandbox.os.helper import (
         ensure_os_sandbox_helper_ready,
     )
 
-    ensure_os_sandbox_helper_ready(config)
+    ensure_os_sandbox_helper_ready(
+        config,
+        runtime_mode=runtime_mode,
+    )
 
 
 def _with_core_os_sandbox_helper_env(
@@ -242,24 +305,6 @@ def _network_launch_endpoints(
             )
         )
     return tuple(endpoints)
-
-
-def _set_proxy_env(env: dict[str, str], proxy_url: str) -> None:
-    for key in (
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "WS_PROXY",
-        "WSS_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-        "ws_proxy",
-        "wss_proxy",
-    ):
-        env[key] = proxy_url
-    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
-    env["no_proxy"] = "127.0.0.1,localhost,::1"
 
 
 def _core_relaunch_command() -> list[str]:

@@ -142,8 +142,36 @@ def test_mcp_config_is_encrypted_at_rest(db_session_local, crypto_key, monkeypat
         assert encrypted.strip() != ""
 
 
+def _install_owner_module(monkeypatch, *, module_name="system", access=()):
+    from democrai.core.runtime.foundation.app import app_ctx
+
+    class _Modules:
+        def get_module(self, name):
+            assert name == module_name
+            return SimpleNamespace(access=tuple(access))
+
+    monkeypatch.setattr(app_ctx(), "modules", _Modules(), raising=False)
+
+
+def _owner_module_rule(module_name: str, target: str):
+    from democrai.core.application.access_policy import AccessManifestRule
+    from democrai.core.application.access_policy import AccessResource
+    from democrai.core.application.access_policy import AccessSubject
+
+    return AccessManifestRule(
+        subject=AccessSubject.create("module", module_name),
+        resource=AccessResource.create(
+            resource_type="filesystem",
+            operation="read",
+            target=target,
+        ),
+    )
+
+
 def test_mcp_runtime_invocation_uses_network_only_guard(monkeypatch):
     runtime = mcp_runtime_mod.McpRuntime()
+    owner_rule = _owner_module_rule("system", "/srv/system/files")
+    _install_owner_module(monkeypatch, access=(owner_rule,))
 
     monkeypatch.setattr(
         mcp_runtime_mod,
@@ -188,12 +216,23 @@ def test_mcp_runtime_invocation_uses_network_only_guard(monkeypatch):
     )
     assert result["tool"] == "lookup"
     assert captured_guard["allow_subprocess"] is False
-    assert {rule.resource.operation.value for rule in captured_guard["access"]} == {"connect", "send", "receive"}
-    assert {rule.resource.target for rule in captured_guard["access"]} == {"https://mcp.local/rpc"}
+    network_rules = [
+        rule
+        for rule in captured_guard["access"]
+        if rule.resource.resource_type.value == "network"
+    ]
+    assert {rule.resource.operation.value for rule in network_rules} == {"connect", "send", "receive"}
+    assert {rule.resource.target for rule in network_rules} == {"https://mcp.local/rpc"}
+    # The owning module's declared access is inherited by the MCP guard.
+    assert any(
+        rule.resource.target == "/srv/system/files" for rule in captured_guard["access"]
+    )
     assert captured_guard["include_runtime_access"] is False
+    assert captured_guard["inherit_parent_access"] is False
 
 
 def _install_list_tools_stubs(monkeypatch, *, servers_by_name, list_tools_counter):
+    _install_owner_module(monkeypatch)
     monkeypatch.setattr(
         mcp_runtime_mod,
         "get_server_by_name",

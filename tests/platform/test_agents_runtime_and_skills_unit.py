@@ -137,6 +137,101 @@ def test_skill_script_access_allows_ready_file_read(tmp_path: Path):
     assert ("delete", str(ready_path.parent.resolve())) in resources
 
 
+def test_skill_script_run_inherits_owner_module_access(monkeypatch, tmp_path: Path):
+    from democrai.core.application.access_policy import AccessManifestRule
+    from democrai.core.application.access_policy import AccessResource
+    from democrai.core.application.access_policy import AccessSubject
+    from democrai.core.platform.agents import skill_scripts
+    from democrai.core.platform.agents.models import SkillDefinition
+    from democrai.core.platform.agents.models import SkillMetadata
+
+    skill_root = tmp_path / "skill"
+    script_path = skill_root / "scripts" / "probe.py"
+    script_path.parent.mkdir(parents=True)
+    script_path.write_text("print('ok')\n", encoding="utf-8")
+    definition = SkillDefinition(
+        metadata=SkillMetadata(
+            name="system.unit_skill",
+            description="unit",
+            title="unit",
+            script_paths=("probe.py",),
+            module_name="system",
+        ),
+        content="unit",
+        root_dir=skill_root,
+    )
+
+    owner_rule = AccessManifestRule(
+        subject=AccessSubject.create("module", "system"),
+        resource=AccessResource.create(
+            resource_type="filesystem",
+            operation="read",
+            target="/srv/system/files",
+        ),
+    )
+    monkeypatch.setattr(
+        skill_scripts.OwnerModuleAccess,
+        "resolve",
+        classmethod(lambda cls: ("system", (owner_rule,))),
+    )
+    monkeypatch.setattr(skill_scripts, "_resolve_selected_skill", lambda name: definition)
+    monkeypatch.setattr(skill_scripts, "_script_env", lambda: {})
+    monkeypatch.setattr(
+        skill_scripts, "_prepare_skill_script_network_policy", lambda *_a, **_k: ""
+    )
+    monkeypatch.setattr(
+        skill_scripts, "_apply_skill_script_network_policy", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        skill_scripts, "_clear_skill_script_network_policy", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        skill_scripts, "_stop_skill_script_proxy_session", lambda *_a, **_k: None
+    )
+
+    captured_guard = {}
+
+    class _Guard:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+    def _guard_context(**kwargs):
+        captured_guard.update(kwargs)
+        return _Guard()
+
+    monkeypatch.setattr(skill_scripts, "process_guard_context", _guard_context)
+
+    class _Proc:
+        pid = 4321
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return "ok", ""
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(
+        skill_scripts.subprocess, "Popen", lambda *_a, **_k: _Proc()
+    )
+
+    result = skill_scripts._run_skill_script_sync(
+        skill="system.unit_skill",
+        script="probe.py",
+        args=(),
+        timeout_seconds=5,
+    )
+
+    assert result["returncode"] == 0
+    assert captured_guard["inherit_parent_access"] is False
+    targets = {rule.resource.target for rule in captured_guard["access"]}
+    assert "/srv/system/files" in targets
+    assert str(script_path.resolve()) in targets
+
+
 @pytest.mark.asyncio
 async def test_agent_runtime_helpers_and_callable(monkeypatch):
     assert runtime_mod._merge_names(("a",), ("a", "b")) == ("a", "b")

@@ -89,9 +89,12 @@ class _PathBeneathAttr(ctypes.Structure):
 
 def _libc() -> ctypes.CDLL:
     name = ctypes.util.find_library("c")
-    if not name:
-        raise RuntimeError("landlock_failed:libc_not_found")
-    return ctypes.CDLL(name, use_errno=True)
+    if name:
+        return ctypes.CDLL(name, use_errno=True)
+    try:
+        return ctypes.CDLL(None, use_errno=True)
+    except Exception as exc:
+        raise RuntimeError("landlock_failed:libc_not_found") from exc
 
 
 def _syscall(libc: ctypes.CDLL, nr: int, *args: Any) -> int:

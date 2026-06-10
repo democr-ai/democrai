@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import sys
-import sysconfig
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -19,8 +18,11 @@ from democrai.core.application.ai.pipeline_context import emit_ai_pipeline_event
 from democrai.core.infrastructure.sandbox.os.helper import (
     apply_application_network_allowlist_with_helper,
     clear_application_network_allowlist_with_helper,
-    start_application_network_proxy_session_with_helper,
-    stop_application_network_proxy_session_with_helper,
+)
+from democrai.core.infrastructure.sandbox.os.proxy_session import ProxySessionManager
+from democrai.core.infrastructure.sandbox.owner_module_access import OwnerModuleAccess
+from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+    RuntimeAccessBaseline,
 )
 from democrai.core.infrastructure.sandbox.os.allowlist import (
     NetworkPolicyRequest,
@@ -103,7 +105,14 @@ def _run_skill_script_sync(
     env["DEMOCRAI_SKILL_SCRIPT_NETWORK_READY_FILE"] = str(ready_path)
     proxy_session_id = _prepare_skill_script_network_policy(definition, env)
     with process_guard_bypass_context():
-        access = _skill_script_access(definition, script_path, ready_path)
+        # The guard below is fail-closed (inherit_parent_access=False): the
+        # script inherits the owning module's declared access plus its own
+        # minimal rules, not the arbitrary parent guard state.
+        _owner_module, owner_access = OwnerModuleAccess.resolve()
+        access = (
+            *owner_access,
+            *_skill_script_access(definition, script_path, ready_path),
+        )
     with process_guard_context(
         subject=definition.metadata.name,
         subject_kind="skill",
@@ -243,12 +252,7 @@ def _prepare_skill_script_network_policy(
 ) -> str:
     if not is_application_network_allowlist_active():
         return ""
-    context = current_ai_pipeline_context()
-    module_name = ""
-    if context is not None:
-        module_name = str(getattr(context, "caller_module", "") or "").strip().lower()
-    if not module_name:
-        return ""
+    module_name = OwnerModuleAccess.resolve_name()
     allowlist = build_subject_network_allowlist(
         NetworkPolicyRequest(
             scope="skill_runtime",
@@ -261,16 +265,7 @@ def _prepare_skill_script_network_policy(
     )
     if not allowlist.endpoints:
         return ""
-    with process_guard_bypass_context():
-        session = start_application_network_proxy_session_with_helper(allowlist)
-    proxy_url = str(session.get("proxy_url") or "").strip()
-    if not proxy_url:
-        raise RuntimeError("skill_script_proxy_url_missing")
-    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
-        env[key] = proxy_url
-    env["NO_PROXY"] = "127.0.0.1,localhost,::1"
-    env["no_proxy"] = "127.0.0.1,localhost,::1"
-    return str(session.get("session_id") or "").strip()
+    return ProxySessionManager().start_for_env(allowlist, env)
 
 
 def _apply_skill_script_network_policy(pid: int, *, env: dict[str, str]) -> None:
@@ -315,13 +310,7 @@ def _clear_skill_script_network_policy(pid: int) -> None:
 
 
 def _stop_skill_script_proxy_session(session_id: str) -> None:
-    if not session_id:
-        return
-    try:
-        with process_guard_bypass_context():
-            stop_application_network_proxy_session_with_helper(session_id)
-    except Exception:
-        pass
+    ProxySessionManager().stop(session_id)
 
 
 def _timeout_process_info(
@@ -363,9 +352,12 @@ def _skill_script_access(
     read_paths = [
         str(skill.root_dir.resolve()),
         str(Path(__file__).resolve().parents[3]),
-        *_python_runtime_read_paths(),
+        *[item for item in sys.path if isinstance(item, str) and item.strip()],
+        *RuntimeAccessBaseline.python_runtime_read_paths(),
+        *RuntimeAccessBaseline.native_library_read_paths(),
+        *RuntimeAccessBaseline.python_runtime_execute_paths(),
     ]
-    execute_paths = _path_variants(sys.executable)
+    execute_paths = list(RuntimeAccessBaseline.python_runtime_execute_paths())
     return (
         *_filesystem_rules(subject, "read", read_paths),
         *_filesystem_rules(subject, "execute", execute_paths),
@@ -375,22 +367,6 @@ def _skill_script_access(
         *_filesystem_rules(subject, "modify", [str(ready_path.parent.resolve())]),
         *_filesystem_rules(subject, "delete", [str(ready_path.parent.resolve())]),
     )
-
-
-def _python_runtime_read_paths() -> list[str]:
-    paths: list[str] = []
-    for item in list(sys.path):
-        if isinstance(item, str) and item.strip():
-            paths.append(str(item))
-    for key in ("stdlib", "platstdlib", "purelib", "platlib"):
-        raw = sysconfig.get_paths().get(key)
-        if isinstance(raw, str) and raw:
-            paths.append(raw)
-    for item in (sys.prefix, sys.exec_prefix, sys.base_prefix, sys.base_exec_prefix):
-        raw = item.strip() if isinstance(item, str) else ""
-        if raw:
-            paths.append(raw)
-    return paths
 
 
 def _filesystem_rules(

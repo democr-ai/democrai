@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
 from typing import Any
 
 
@@ -9,6 +11,22 @@ class WindowsHelperBackend:
 
     def ensure_ready(self) -> None:
         return
+
+    def default_socket_path(self) -> str:
+        from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
+
+        return str(
+            runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve()
+        )
+
+    def can_autostart_directly(self) -> bool:
+        return True
+
+    def autostart_interactive(self, runtime_mode: str | None) -> bool:
+        return False
+
+    def autostart_stdin(self, *, strategy: str, interactive: bool) -> Any:
+        return subprocess.DEVNULL
 
     def validate_client_and_target_pid(
         self,

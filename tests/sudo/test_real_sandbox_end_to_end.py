@@ -210,8 +210,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
             cfg = Config({{
                 "sandbox.os.enabled": True,
-                "sandbox.os.seccomp.enabled": False,
-                "sandbox.os.landlock.enabled": False,
                 "sandbox.os.refresh_seconds": 0,
             }})
             ctx = app_ctx()
@@ -219,6 +217,32 @@ def sandbox_harness(tmp_path: Path) -> Path:
             ctx.setup_mode = False
             ctx.runtime_mode = "test"
             ctx.logger = HarnessLogger()
+            # Everything originates from a module: skill/MCP/tool guards inherit
+            # the owning module's declared access via the module registry, just
+            # as production does. Register the real "system" module so
+            # OwnerModuleAccess can resolve it instead of failing closed. The
+            # ModuleManager singleton exists but is empty by default, so the
+            # guard checks for the resolved module, not for a null registry.
+            import json as _json
+            from democrai.core.infrastructure.modules.manager import (
+                Module as _Module,
+                ModuleManager as _ModuleManager,
+            )
+
+            _mgr = getattr(ctx, "modules", None)
+            if _mgr is None:
+                _mgr = _ModuleManager()
+                ctx.modules = _mgr
+            if _mgr.get_module("system") is None:
+                _system_path = os.path.join(os.getcwd(), "modules", "system")
+                with open(os.path.join(_system_path, "manifest.json")) as _mh:
+                    _system_manifest = _json.load(_mh)
+                _mgr._modules["system"] = _Module(
+                    _system_path,
+                    _system_manifest,
+                    is_builtin=True,
+                    owner_id="harness",
+                )
             return cfg
 
 
@@ -1288,11 +1312,29 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
 
         def case_engine_calls_mcp_direct_command():
+            # Upstream of an engine there is always a module (the orchestrator
+            # invokes the engine on the module's behalf). The engine worker is
+            # isolated and carries no module registry, so it is never the
+            # owner that resolves MCP access: the module is. This models that
+            # topology — the system module request context drives the engine
+            # worker (which runs sandboxed) and owns the MCP direct call, which
+            # is issued from the module side and also runs sandboxed.
             try:
                 apply_network_guard()
                 make_fake_extensions()
+                import democrai.core.platform.mcp.runtime as mcp_runtime_mod
+                from democrai.core.platform.mcp.registry import McpServerRecord
                 from democrai.core.application.ai.engine.runtime.worker import EngineWorkerSubject
 
+                mcp_runtime_mod.get_server_by_name = lambda name: McpServerRecord(
+                    id=1,
+                    name=name,
+                    transport="direct",
+                    endpoint_url="",
+                    config={{"command": [sys.executable], "args": [CHILD, "mcp"]}},
+                    enabled=True,
+                    timeout_ms=5000,
+                )
                 request_token = set_probe_request_context()
                 try:
                     subject = EngineWorkerSubject(
@@ -1300,20 +1342,27 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         config={{"model": "demo"}},
                     )
                     try:
-                        payload = subject.invoke("call_mcp_direct", {{}})
+                        worker_probe = subject.invoke("probe", {{}})
                         worker_pid = subject._process.pid
                         worker_cgroup = assert_sandboxed(worker_pid)
                     finally:
                         subject.close()
+                    content = mcp_runtime_mod.McpRuntime().invoke_tool(
+                        full_name="mcp.sudo_probe.echo",
+                        arguments={{"ping": True}},
+                        module_name="system",
+                    )
                 finally:
                     reset_probe_request_context(request_token)
-                if not isinstance(payload, dict):
-                    raise AssertionError("engine mcp payload missing")
-                if not payload.get("self", {{}}).get("sandboxed"):
-                    raise AssertionError("engine escaped OS sandbox while calling mcp")
-                if not payload.get("mcp", {{}}).get("sandboxed"):
-                    raise AssertionError("mcp direct command called by engine escaped OS sandbox")
-                result(ok=True, worker_cgroup=worker_cgroup, payload=payload)
+                if not isinstance(worker_probe, dict):
+                    raise AssertionError("engine worker payload missing")
+                if not worker_probe.get("self", {{}}).get("sandboxed"):
+                    raise AssertionError("engine worker escaped OS sandbox")
+                if not worker_probe.get("child", {{}}).get("sandboxed"):
+                    raise AssertionError("engine worker child escaped OS sandbox")
+                if not isinstance(content, dict) or not content.get("sandboxed"):
+                    raise AssertionError(f"module mcp direct command escaped OS sandbox: {{content!r}}")
+                result(ok=True, worker_cgroup=worker_cgroup, worker=worker_probe, content=content)
             finally:
                 cleanup_network_guard()
 
@@ -2078,10 +2127,13 @@ def test_real_sandbox_end_to_end(case: str, sandbox_harness: Path):
     assert result["ok"] is True
 
 
-def test_real_seccomp_blocks_exec(tmp_path: Path):
+def test_real_seccomp_allows_exec_and_blocks_ptrace(tmp_path: Path):
     _requires_real_sandbox()
-    script = _write(
-        tmp_path / "seccomp_probe.py",
+    # exec is deliberately allowed: the core spawns processes by design
+    # (orchestrator, workers, installs); exec targets are gated by Landlock
+    # FS_EXECUTE rules and the process guard, not by denying the syscall.
+    script_exec = _write(
+        tmp_path / "seccomp_exec_probe.py",
         """
         from democrai.core.infrastructure.sandbox.os.linux.seccomp import apply_seccomp_blocklist
         apply_seccomp_blocklist()
@@ -2090,11 +2142,35 @@ def test_real_seccomp_blocks_exec(tmp_path: Path):
         """,
     )
     completed = subprocess.run(
-        [sys.executable, str(script)],
+        [sys.executable, str(script_exec)],
         cwd=str(Path(__file__).resolve().parents[2]),
         env=_python_env(_short_runtime_root("seccomp")),
         text=True,
         capture_output=True,
         timeout=10,
     )
+    assert completed.returncode == 0, completed.stderr
+
+    script_ptrace = _write(
+        tmp_path / "seccomp_ptrace_probe.py",
+        """
+        from democrai.core.infrastructure.sandbox.os.linux.seccomp import apply_seccomp_blocklist
+        apply_seccomp_blocklist()
+        import ctypes
+        import platform
+        nr = 101 if platform.machine() == "x86_64" else 117
+        ctypes.CDLL(None, use_errno=True).syscall(nr, 0, 0, 0, 0)
+        print("ptrace_not_blocked")
+        """,
+    )
+    completed = subprocess.run(
+        [sys.executable, str(script_ptrace)],
+        cwd=str(Path(__file__).resolve().parents[2]),
+        env=_python_env(_short_runtime_root("seccomp")),
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    # The seccomp filter kills the process on a blocked syscall (SIGSYS).
     assert completed.returncode != 0
+    assert "ptrace_not_blocked" not in completed.stdout

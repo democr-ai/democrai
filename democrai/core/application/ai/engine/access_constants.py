@@ -6,6 +6,9 @@ from democrai.core.infrastructure.sandbox.platform_policy import (
     toolchain_execute_paths,
     trusted_read_path_variants,
 )
+from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+    RuntimeAccessBaseline,
+)
 from democrai.core.platform.utils.normalize import os_key
 
 DEFAULT_ENGINE_INSTALL_RECEIVE_URLS = (
@@ -17,31 +20,8 @@ DEFAULT_ENGINE_INSTALL_RECEIVE_URLS = (
     "https://abetlen.github.io",
 )
 
-ENGINE_RUNTIME_DEVICE_READ_PATHS_BY_OS = {
-    "linux": ("/dev/null",),
-    "darwin": ("/dev/null",),
-    "win32": (),
-}
-
-ENGINE_RUNTIME_DEVICE_MODIFY_PATHS_BY_OS = {
-    "linux": ("/dev/null",),
-    "darwin": ("/dev/null",),
-    "win32": (),
-}
-
 ENGINE_RUNTIME_DRIVER_LIBRARY_DIR_NAME = "driver_libs"
 ENGINE_RUNTIME_TOOLCHAIN_BIN_DIR_NAME = "toolchain/bin"
-
-ENGINE_RUNTIME_LIBCUDA_CANDIDATE_PATHS_BY_OS = {
-    "linux": (
-        "/usr/lib/x86_64-linux-gnu/libcuda.so.1",
-        "/usr/lib64/libcuda.so.1",
-        "/usr/lib/wsl/lib/libcuda.so.1",
-        "/usr/local/cuda/compat/libcuda.so.1",
-    ),
-    "darwin": (),
-    "win32": (),
-}
 
 ENGINE_RUNTIME_C_COMPILER_CANDIDATE_PATHS_BY_OS = {
     "linux": (
@@ -93,15 +73,15 @@ ENGINE_RUNTIME_ENGINE_ENV_EXECUTABLE_RELATIVE_PATHS = (
 )
 
 def engine_runtime_device_read_paths() -> tuple[str, ...]:
-    return ENGINE_RUNTIME_DEVICE_READ_PATHS_BY_OS.get(os_key(), ())
+    return RuntimeAccessBaseline.gpu_device_read_paths(os_key())
 
 
 def engine_runtime_device_modify_paths() -> tuple[str, ...]:
-    return ENGINE_RUNTIME_DEVICE_MODIFY_PATHS_BY_OS.get(os_key(), ())
+    return RuntimeAccessBaseline.gpu_device_modify_paths(os_key())
 
 
 def engine_runtime_libcuda_candidate_paths() -> tuple[str, ...]:
-    return ENGINE_RUNTIME_LIBCUDA_CANDIDATE_PATHS_BY_OS.get(os_key(), ())
+    return RuntimeAccessBaseline.libcuda_candidate_paths(os_key())
 
 
 def engine_runtime_dependency_read_paths() -> tuple[str, ...]:

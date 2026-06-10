@@ -18,22 +18,6 @@ from .seccomp import apply_seccomp_blocklist, get_seccomp_status, is_seccomp_sup
 
 # --- Config helpers ---
 
-def is_seccomp_enabled(config: Any = None) -> bool:
-    resolved = _resolve_config(config)
-    getter = getattr(resolved, "get", None)
-    if not callable(getter):
-        return False
-    return bool(getter("sandbox.os.seccomp.enabled", False))
-
-
-def is_landlock_enabled(config: Any = None) -> bool:
-    resolved = _resolve_config(config)
-    getter = getattr(resolved, "get", None)
-    if not callable(getter):
-        return False
-    return bool(getter("sandbox.os.landlock.enabled", False))
-
-
 def _resolve_config(config: Any) -> Any:
     if config is not None:
         return config
@@ -93,13 +77,48 @@ def _collect_system_read_only_paths() -> list[str]:
 
 def _collect_app_read_write_paths(config: Any) -> list[str]:
     """Paths the application needs read-write access to."""
-    candidates: list[str] = []
+    from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+        RuntimeAccessBaseline,
+    )
+
+    # Device nodes opened read-write: /dev/null (subprocess stdin/stdout
+    # redirection) and the GPU nodes used by in-process CUDA detection.
+    candidates: list[str] = list(RuntimeAccessBaseline.gpu_device_modify_paths())
+    # POSIX semaphores / multiprocessing shared memory.
+    candidates.append("/dev/shm")
+    # Native runtimes (CUDA, torch) write to their own /proc tree — notably
+    # /proc/self/task/<tid>/comm to name worker threads. The core's Landlock
+    # layer is the most restrictive ancestor every sandboxed descendant
+    # inherits, and layers can only narrow: if the core grants /proc
+    # read-only, a child engine worker cannot re-grant write, and cuInit fails
+    # with "OS call failed" (error 304). Grant it here so the descendant rule
+    # actually takes effect.
+    candidates.extend(RuntimeAccessBaseline.process_self_write_paths())
+
+    # The launcher hands the core a path to publish its IPC endpoint into
+    # (DEMOCRAI_CORE_ENDPOINT_FILE, see main.py). The launcher unlinks it
+    # before spawning — the file appearing is the readiness signal — so the
+    # core must be able to CREATE it: grant read-write on its parent
+    # directory (the launcher's temp dir, which is not ours once TMPDIR is
+    # redirected).
+    endpoint_file = str(os.environ.get("DEMOCRAI_CORE_ENDPOINT_FILE") or "").strip()
+    if endpoint_file:
+        parent = os.path.dirname(endpoint_file)
+        if parent:
+            candidates.append(parent)
 
     try:
         from democrai.core.runtime.foundation.paths import (
-            cache_dir, config_dir, data_dir, logs_dir, state_dir,
+            cache_dir, config_dir, data_dir, logs_dir, runtime_ipc_dir, state_dir,
         )
-        for factory in (data_dir, config_dir, cache_dir, state_dir, logs_dir):
+        for factory in (
+            data_dir,
+            config_dir,
+            cache_dir,
+            state_dir,
+            logs_dir,
+            runtime_ipc_dir,
+        ):
             try:
                 candidates.append(str(factory().resolve()))
             except Exception:
@@ -190,75 +209,58 @@ def build_landlock_path_allowlist(config: Any = None) -> dict[str, list[str]]:
 # --- Main entry point ---
 
 def apply_process_restrictions(config: Any = None) -> dict[str, Any]:
-    """Apply seccomp and/or Landlock based on the current config.
+    """Apply seccomp and Landlock to the current process.
 
-    Seccomp: applied unconditionally if enabled (no path dependencies).
-    Landlock: applied only when all relevant paths are already on disk —
-              call this after setup storage has been initialised.
+    Both are implied by `sandbox.os.enabled` (the caller gates on it): there
+    is no per-mechanism opt-out. A kernel that cannot enforce them is a hard
+    error — the sandbox must never silently run weaker than configured.
 
-    Returns a status dict with keys 'seccomp' and 'landlock', each containing
-    {'applied': bool, 'skipped': bool, 'error': str | None}.
+    Landlock requires all allowlisted paths to exist on disk — call this
+    after setup storage has been initialised.
+
+    Returns a status dict with keys 'seccomp' and 'landlock'.
     """
     resolved = _resolve_config(config)
 
-    result: dict[str, Any] = {
-        "seccomp":  {"applied": False, "skipped": True, "error": None},
-        "landlock": {"applied": False, "skipped": True, "error": None},
+    debug_os_sandbox_flow("process_restrictions.seccomp_apply_requested")
+    if not is_seccomp_supported():
+        debug_os_sandbox_flow(
+            "process_restrictions.seccomp_not_supported",
+            **get_seccomp_status(),
+        )
+        raise RuntimeError("os_sandbox_seccomp_unsupported")
+
+    debug_os_sandbox_flow("process_restrictions.landlock_apply_requested")
+    if not is_landlock_supported():
+        debug_os_sandbox_flow(
+            "process_restrictions.landlock_not_supported",
+            **get_landlock_status(),
+        )
+        raise RuntimeError("os_sandbox_landlock_unsupported")
+
+    apply_seccomp_blocklist()
+    debug_os_sandbox_flow("process_restrictions.seccomp_applied")
+
+    paths = build_landlock_path_allowlist(resolved)
+    apply_landlock_filesystem_rules(**paths)
+    debug_os_sandbox_flow(
+        "process_restrictions.landlock_applied",
+        ro_count=len(paths["read_only_paths"]),
+        rw_count=len(paths["read_write_paths"]),
+    )
+
+    return {
+        "seccomp": {"applied": True},
+        "landlock": {
+            "applied": True,
+            "ro_count": len(paths["read_only_paths"]),
+            "rw_count": len(paths["read_write_paths"]),
+        },
     }
-
-    # --- seccomp ---
-    if is_seccomp_enabled(resolved):
-        result["seccomp"]["skipped"] = False
-        debug_os_sandbox_flow("process_restrictions.seccomp_apply_requested")
-        if is_seccomp_supported():
-            try:
-                apply_seccomp_blocklist()
-                result["seccomp"]["applied"] = True
-                debug_os_sandbox_flow("process_restrictions.seccomp_applied")
-            except Exception as exc:
-                result["seccomp"]["error"] = str(exc)
-                debug_os_sandbox_flow("process_restrictions.seccomp_failed", error=str(exc))
-        else:
-            debug_os_sandbox_flow(
-                "process_restrictions.seccomp_not_supported",
-                **get_seccomp_status(),
-            )
-
-    # --- landlock ---
-    if is_landlock_enabled(resolved):
-        result["landlock"]["skipped"] = False
-        debug_os_sandbox_flow("process_restrictions.landlock_apply_requested")
-        if is_landlock_supported():
-            try:
-                paths = build_landlock_path_allowlist(resolved)
-                apply_landlock_filesystem_rules(**paths)
-                result["landlock"]["applied"] = True
-                debug_os_sandbox_flow(
-                    "process_restrictions.landlock_applied",
-                    ro_count=len(paths["read_only_paths"]),
-                    rw_count=len(paths["read_write_paths"]),
-                )
-            except Exception as exc:
-                result["landlock"]["error"] = str(exc)
-                debug_os_sandbox_flow("process_restrictions.landlock_failed", error=str(exc))
-        else:
-            debug_os_sandbox_flow(
-                "process_restrictions.landlock_not_supported",
-                **get_landlock_status(),
-            )
-
-    return result
 
 
 def get_process_restrictions_status(config: Any = None) -> dict[str, Any]:
-    resolved = _resolve_config(config)
     return {
-        "seccomp": {
-            "enabled": is_seccomp_enabled(resolved),
-            **get_seccomp_status(),
-        },
-        "landlock": {
-            "enabled": is_landlock_enabled(resolved),
-            **get_landlock_status(),
-        },
+        "seccomp": get_seccomp_status(),
+        "landlock": get_landlock_status(),
     }

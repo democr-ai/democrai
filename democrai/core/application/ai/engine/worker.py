@@ -405,7 +405,20 @@ class _Worker:
             concurrency_limit if concurrency_enabled else 1
         )
         os.environ["DEMOCRAI_ENGINE_WORKER"] = "1"
-        access = _access_rules(_payload_list(payload, "access"))
+        from democrai.core.infrastructure.sandbox.runtime_access_baseline import (
+            RuntimeAccessBaseline,
+        )
+
+        # The guard below runs with inherit_parent_access=False, so the
+        # launch state's runtime access is dropped; the worker recomputes the
+        # python-runtime baseline under its own venv interpreter.
+        access = [
+            *_access_rules(_payload_list(payload, "access")),
+            *RuntimeAccessBaseline.python_runtime_rules(
+                subject_kind="engine",
+                subject_name=self._engine_id,
+            ),
+        ]
         _configure_worker_logging(
             _payload_dict(payload, "logging_config"),
             str(payload.get("log_dir") or ""),

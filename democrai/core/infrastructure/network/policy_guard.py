@@ -1,7 +1,23 @@
+"""In-process network policy guard (Python monkeypatch layer).
+
+Wraps urllib/http.client/socket/asyncio entry points so every in-process
+connection is checked against the caller's network access rules. It is the
+in-process complement of the OS sandbox CONNECT proxy: the proxy enforces
+hostname-based allowlisting for child processes, this guard does the same for
+code running inside the core.
+
+Hostname-first semantics: approval happens on the hostname, before DNS
+resolution. Once a hostname is approved, the nested connect to its resolved
+IP is pre-approved via ``_APPROVED_HOST_CONNECT_DEPTH`` — IP-level re-checks
+are redundant and break CDNs that rotate IPs (HuggingFace via CloudFront).
+This is a structural property of the guard, not an optimization.
+"""
+
 from __future__ import annotations
 
 import asyncio
 import contextvars
+import ipaddress
 import logging
 import os
 import socket
@@ -33,6 +49,26 @@ _STATE: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
     "network_policy_state",
     default=None,
 )
+# Depth counter set while inside a ``create_connection``/``open_connection``
+# whose hostname was already approved. The inner ``socket.connect`` then sees a
+# DNS-resolved IP belonging to that same host; re-checking it against
+# hostname-based rules is both redundant and unreliable for CDNs that rotate
+# IPs (e.g. HuggingFace via CloudFront), so it is skipped while > 0.
+_APPROVED_HOST_CONNECT_DEPTH: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "network_policy_approved_host_connect_depth",
+    default=0,
+)
+
+
+def _is_ip_address(host: str) -> bool:
+    raw = str(host or "").strip()
+    if raw.startswith("[") and raw.endswith("]"):
+        raw = raw[1:-1].strip()
+    try:
+        ipaddress.ip_address(raw)
+        return True
+    except ValueError:
+        return False
 
 
 def _state() -> dict[str, Any]:
@@ -283,7 +319,8 @@ def _wrap_socket_connect(original):
         if isinstance(address, tuple) and address:
             host = address[0]
             port = address[1] if len(address) > 1 else None
-            _check_target(str(host), port, operation="connect")
+            if not _connect_to_resolved_ip_pre_approved(str(host)):
+                _check_target(str(host), port, operation="connect")
         return original(self_conn, address, *args, **kwargs)
 
     return wrapper
@@ -294,10 +331,18 @@ def _wrap_socket_connect_ex(original):
         if isinstance(address, tuple) and address:
             host = address[0]
             port = address[1] if len(address) > 1 else None
-            _check_target(str(host), port, operation="connect")
+            if not _connect_to_resolved_ip_pre_approved(str(host)):
+                _check_target(str(host), port, operation="connect")
         return original(self_conn, address, *args, **kwargs)
 
     return wrapper
+
+
+def _connect_to_resolved_ip_pre_approved(host: str) -> bool:
+    """True when the enclosing host-level connect was already approved and this
+    inner connect targets one of its DNS-resolved IPs (skip the redundant IP
+    re-check)."""
+    return _APPROVED_HOST_CONNECT_DEPTH.get() > 0 and _is_ip_address(host)
 
 
 def _wrap_socket_sendto(original):
@@ -316,20 +361,36 @@ def _wrap_socket_sendto(original):
 
 def _wrap_create_connection(original):
     def wrapper(address, *args, **kwargs):
+        approved_host = False
         if isinstance(address, tuple) and address:
             host = address[0]
             port = address[1] if len(address) > 1 else None
             _check_target(str(host), port, operation="connect")
-        return original(address, *args, **kwargs)
+            approved_host = not _is_ip_address(str(host))
+        if not approved_host:
+            return original(address, *args, **kwargs)
+        token = _APPROVED_HOST_CONNECT_DEPTH.set(_APPROVED_HOST_CONNECT_DEPTH.get() + 1)
+        try:
+            return original(address, *args, **kwargs)
+        finally:
+            _APPROVED_HOST_CONNECT_DEPTH.reset(token)
 
     return wrapper
 
 
 def _wrap_asyncio_open_connection(original):
     async def wrapper(host=None, port=None, *args, **kwargs):
+        approved_host = False
         if host is not None:
             _check_target(str(host), port, operation="connect")
-        return await original(host, port, *args, **kwargs)
+            approved_host = not _is_ip_address(str(host))
+        if not approved_host:
+            return await original(host, port, *args, **kwargs)
+        token = _APPROVED_HOST_CONNECT_DEPTH.set(_APPROVED_HOST_CONNECT_DEPTH.get() + 1)
+        try:
+            return await original(host, port, *args, **kwargs)
+        finally:
+            _APPROVED_HOST_CONNECT_DEPTH.reset(token)
 
     return wrapper
 

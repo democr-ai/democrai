@@ -136,11 +136,6 @@
       {
         "resource_type": "network",
         "operation": "receive",
-        "target": "https://download.pytorch.org/*"
-      },
-      {
-        "resource_type": "network",
-        "operation": "receive",
         "target": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/*"
       },
       {

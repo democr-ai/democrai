@@ -35,7 +35,10 @@ _AUDIT_ARCH_AARCH64 = 0xC00000B7
 
 # Syscalls to block with KILL_PROCESS.
 # Rationale per group:
-#   exec:       prevents subprocess spawning at kernel level (already blocked Python-side)
+#   exec is deliberately NOT blocked: the core spawns processes by design
+#   (orchestrator, workers, installs, helper). What may be executed is
+#   enforced by Landlock FS_EXECUTE path rules and the process guard
+#   subprocess allowlist, not by denying the syscall outright.
 #   ptrace:     prevents process inspection / code injection into other processes
 #   kexec:      prevents kernel replacement
 #   modules:    prevents loading kernel modules
@@ -46,8 +49,6 @@ _AUDIT_ARCH_AARCH64 = 0xC00000B7
 
 _BLOCKED_NROS: dict[str, list[int]] = {
     "x86_64": [
-        59,   # execve
-        322,  # execveat
         101,  # ptrace
         246,  # kexec_load
         320,  # kexec_file_load
@@ -68,8 +69,6 @@ _BLOCKED_NROS: dict[str, list[int]] = {
         323,  # userfaultfd
     ],
     "aarch64": [
-        221,  # execve
-        281,  # execveat
         117,  # ptrace
         104,  # kexec_load
         294,  # kexec_file_load

@@ -462,8 +462,17 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     )
     assert installer_mod.get_target_dir().name == "engine_env"
 
+    # Import the extractor runtime BEFORE patching extractor_env: its
+    # from-imports must bind the real functions, or the stub below leaks
+    # into it permanently (monkeypatch restores the module attribute, not
+    # bindings captured by modules first-imported inside the window).
+    import democrai.core.application.knowledge.extractor.runtime  # noqa: F401
+
     monkeypatch.setattr("democrai.core.runtime.dependencies.extractor_env.has_extractor_env_context", lambda: True)
-    monkeypatch.setattr("democrai.core.runtime.dependencies.extractor_env.get_extractor_local_env_path", lambda: tmp_path / "extractor_env")
+    monkeypatch.setattr(
+        "democrai.core.runtime.dependencies.extractor_env.get_extractor_local_env_path",
+        lambda extractor_id=None, *, create=True: tmp_path / "extractor_env",
+    )
     assert installer_mod.get_target_dir().name == "extractor_env"
     monkeypatch.setattr("democrai.core.runtime.dependencies.extractor_env.has_extractor_env_context", lambda: False)
 

@@ -55,6 +55,7 @@ class SandboxLaunchPolicy:
     organization_id: int | None = None
     session_key: str | None = None
     audit_only: bool = False
+    inherit_os_sandbox_helper_env: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -72,6 +73,7 @@ class SandboxLaunchPolicy:
             "organization_id": self.organization_id,
             "session_key": self.session_key,
             "audit_only": self.audit_only,
+            "inherit_os_sandbox_helper_env": self.inherit_os_sandbox_helper_env,
         }
 
 
@@ -120,6 +122,9 @@ def policy_from_payload(payload: dict[str, Any]) -> SandboxLaunchPolicy:
         organization_id=_optional_int(payload.get("organization_id")),
         session_key=str(payload.get("session_key") or "").strip() or None,
         audit_only=bool(payload.get("audit_only", False)),
+        inherit_os_sandbox_helper_env=bool(
+            payload.get("inherit_os_sandbox_helper_env", False)
+        ),
     )
 
 
@@ -170,6 +175,9 @@ def build_launch_policy(
         organization_id=_optional_int(state.get("organization_id")),
         session_key=str(state.get("session_key") or "").strip() or None,
         audit_only=bool(audit_only),
+        inherit_os_sandbox_helper_env=bool(
+            state.get("inherit_os_sandbox_helper_env", False)
+        ),
     )
 
 
