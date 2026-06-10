@@ -18,7 +18,7 @@ Democr.ai is a complete runtime framework for AI applications. It provides:
 - Server-driven UI for agentic contexts, implementing and extending Google's A2UI protocol
 - Multi-client rendering of the same UI definition (web, desktop, additional clients in development)
 - Native multi-tenancy enforced at write time
-- OS-level sandboxing for engine and extension processes (currently Linux only)
+- OS-level sandboxing for engine and extension processes
 - Triple-layer audit through SQLAlchemy hooks, with sensitive field redaction
 - RBAC with declarative module manifests
 - Pluggable AI engine orchestration (local and remote models)
@@ -114,7 +114,7 @@ Detailed subsystem documentation is available at [democr.ai/docs/](https://democ
 | AI engine orchestration | Implemented | Job-based, gRPC isolated |
 | Knowledge subsystem (vector + KG) | Implemented | Hybrid retrieval |
 | Audit (triple layer) | Implemented | Sensitive field redaction |
-| OS sandbox (Landlock + seccomp + iptables) | Implemented | **Linux only** |
+| OS sandbox (Landlock + seccomp + iptables) | Implemented | |
 | OS sandbox on macOS | Implemented | Seatbelt |
 | OS sandbox on Windows | In development | AppContainer |
 | Local AI inference | Implemented | vLLM, llama.cpp, and others |
@@ -185,7 +185,7 @@ The framework's `config.yaml` is plaintext and is generated locally by the setup
 ## Quick start
 
 ### Requirements
-- Python 3.12+
+- Python >=3.12,<3.14
 - Linux is recommended for full security features
 - Optional: NVIDIA GPU with CUDA for local inference
 
@@ -196,7 +196,7 @@ From the repository root:
 ```bash
 ./setup_venv.sh
 
-# or ./run.sh
+# for install and run in desktop mode ./run.sh
 ```
 
 
@@ -387,7 +387,6 @@ The items below are planned for upcoming releases, in approximate order:
 
 - **Multi-node engine orchestration** — distributed routing of AI inference requests across nodes with capability-aware placement and load awareness
 - **Multi-node tuning** — distributed fine-tuning workflows
-- **OS sandbox on macOS** — port of the Linux sandbox kernel to macOS primitives
 - **OS sandbox on Windows** — port of the Linux sandbox kernel to Windows primitives
 - **Additional clients** — mobile clients and expanded web framework variants, alongside the existing `webclient`, `qtdesktop`, and Tauri-based desktop
 - **Knowledge subsystem improvements** — additional projection backends, refined retrieval, expanded extractor coverage

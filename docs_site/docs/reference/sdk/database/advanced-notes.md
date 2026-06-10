@@ -1,26 +1,5 @@
 # Database: Advanced Notes
 
-## Advanced Attributes Through Delegation
-
-The `Database` facade delegates unknown attributes to the underlying scoped datastore through `__getattr__`.
-
-In practice, the most useful delegated attributes in ordinary module code are:
-
-- `module_sdk.database.user_id`
-- `module_sdk.database.organization_id`
-- `module_sdk.database.access_level`
-
-You can see this pattern in the components ORM examples:
-
-```python
-notes = sdk.database.list(Note, owner=sdk.database.user_id)
-settings = sdk.database.list(OrgSetting, organization_id=sdk.database.organization_id)
-```
-
-Use this sparingly and intentionally. These values are useful when your module's own schema has business fields that need to align with the active datastore actor context.
-
-They are not a reason to manually reimplement the datastore's built-in scope rules.
-
 ## Practical Guidance
 
 If you need to choose quickly:
