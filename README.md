@@ -92,7 +92,7 @@ Democr.ai is composed of distinct subsystems:
 - **Network** — WebSocket, IPC, HTTP under a unified protocol layer
 - **AI engine orchestrator** — job-based scheduling, batching, gRPC process isolation, HITL support
 - **Knowledge** — ingestion queue, projection workers, vector + graph retrieval
-- **Sandbox** — OS-level isolation (Landlock + seccomp + iptables + helper process)
+- **Sandbox** — OS-level isolation (Landlock + seccomp + iptables + helper process | seatbelt | appcontainer)
 - **Multi-tenancy** — write-time enforcement with materialized scope filters
 - **RBAC** — declarative access policies in module manifests
 - **Modules** — framework extension surface, via SDK
@@ -115,8 +115,8 @@ Detailed subsystem documentation is available at [democr.ai/docs/](https://democ
 | Knowledge subsystem (vector + KG) | Implemented | Hybrid retrieval |
 | Audit (triple layer) | Implemented | Sensitive field redaction |
 | OS sandbox (Landlock + seccomp + iptables) | Implemented | **Linux only** |
-| OS sandbox on macOS | Roadmap | |
-| OS sandbox on Windows | Roadmap | |
+| OS sandbox on macOS | Implemented | Seatbelt |
+| OS sandbox on Windows | In development | AppContainer |
 | Local AI inference | Implemented | vLLM, llama.cpp, and others |
 | Cloud AI providers | Implemented | OpenAI, Anthropic, Google, and others |
 | Multi-node engine orchestration | Roadmap | Single-node currently |
@@ -186,7 +186,7 @@ The framework's `config.yaml` is plaintext and is generated locally by the setup
 
 ### Requirements
 - Python 3.12+
-- Linux is recommended for full security features (OS sandbox is Linux-only at present)
+- Linux is recommended for full security features
 - Optional: NVIDIA GPU with CUDA for local inference
 
 ### Install
@@ -195,9 +195,12 @@ From the repository root:
 
 ```bash
 ./setup_venv.sh
+
+# or ./run.sh
 ```
 
-For the React web client and the Tauri desktop client, install their frontend dependencies before running them:
+
+For the React web client and the Tauri desktop client, install cargo and their frontend dependencies before running them:
 
 ```bash
 yarn --cwd clients/webclient install
@@ -338,7 +341,7 @@ The components listed below have been validated through development and integrat
 - ClickHouse
 
 ### Clients
-- `qtdesktop` — PyQt6-based desktop client
+- `qtdesktop` — PySide6-based desktop client
 - `webclient` — React web client
 - `tauri` — Tauri-based desktop client
 

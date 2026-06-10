@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -106,7 +107,7 @@ def test_mime_detection_magic_runtime_paths(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(mime_mod, "_platform_tag", lambda: "linux")
     monkeypatch.setattr(mime_mod, "_candidate_library_names", lambda: ("libmagic.so",))
-    monkeypatch.setattr(mime_mod.ctypes, "CDLL", lambda path, mode=None: calls.append((path, mode)))
+    monkeypatch.setattr(ctypes, "CDLL", lambda path, mode=None: calls.append((path, mode)))
     lib = tmp_path / "libmagic.so"
     lib.write_text("bin", encoding="utf-8")
     mime_mod._preload_libmagic_library(tmp_path)
@@ -219,8 +220,8 @@ def test_mime_detection_low_level_error_and_platform_branches(monkeypatch, tmp_p
             raise RuntimeError("broken")
         return object()
 
-    monkeypatch.setattr(mime_mod.ctypes, "CDLL", _fake_cdll)
-    monkeypatch.delattr(mime_mod.ctypes, "RTLD_GLOBAL", raising=False)
+    monkeypatch.setattr(ctypes, "CDLL", _fake_cdll)
+    monkeypatch.delattr(ctypes, "RTLD_GLOBAL", raising=False)
     mime_mod._preload_libmagic_library(tmp_path)
     assert cdll_calls[-1][0] == "libmagic.so"
 

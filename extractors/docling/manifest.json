@@ -116,12 +116,22 @@
       {
         "resource_type": "network",
         "operation": "receive",
-        "target": "https://cas-bridge.xethub.hf.co/*"
+        "target": "https://*.huggingface.co/*"
       },
       {
         "resource_type": "network",
         "operation": "connect",
-        "target": "https://cas-bridge.xethub.hf.co"
+        "target": "https://*.huggingface.co"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://*.hf.co/*"
+      },
+      {
+        "resource_type": "network",
+        "operation": "connect",
+        "target": "https://*.hf.co"
       },
       {
         "resource_type": "network",

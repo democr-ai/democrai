@@ -208,6 +208,7 @@ def test_linux_process_restrictions_apply_and_status(monkeypatch):
     assert "enabled" not in status["landlock"]
 
 
+@pytest.mark.linux_only
 def test_linux_app_read_write_paths_include_device_nodes():
     paths = linux_restrictions_mod._collect_app_read_write_paths(None)
     # /dev/null must be writable: subprocess stdin/stdout DEVNULL redirection
@@ -216,6 +217,7 @@ def test_linux_app_read_write_paths_include_device_nodes():
     assert "/dev/shm" in paths
 
 
+@pytest.mark.linux_only
 def test_linux_app_read_write_paths_include_process_self_proc():
     # The core's Landlock layer is the most restrictive ancestor every
     # sandboxed descendant inherits, and layers can only narrow. Native
@@ -226,6 +228,7 @@ def test_linux_app_read_write_paths_include_process_self_proc():
     assert "/proc" in paths
 
 
+@pytest.mark.linux_only
 def test_linux_app_read_write_paths_cover_core_endpoint_dir(monkeypatch):
     # The launcher unlinks the endpoint file before spawning (its appearance
     # is the readiness signal), so the core needs create access on the

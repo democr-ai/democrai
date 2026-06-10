@@ -18,6 +18,7 @@ from democrai.core.infrastructure.database.media_uploads import (
 )
 from democrai.core.platform.ui.media_sources import resolve_client_media_source
 from democrai.core.platform.utils.identity import to_optional_int
+from democrai.core.platform.utils.mime_detection import detect_mime_type
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import req_ctx
 from democrai.core.runtime.foundation.paths import get_data_dir
@@ -88,11 +89,12 @@ class Media:
             raise RuntimeError("media_add_missing_user_id")
         organization_id = request_context.organization_id
         access_level = request_context.access_level
+        detected = detect_mime_type(data=resolved_payload, filename=original_name)
         upload = store_uploaded_media(
             module_name=str(self.sdk.module_name or "core"),
             original_filename=original_name,
             payload=resolved_payload,
-            content_type=None,
+            content_type=detected.mime_type,
             user_id=user_id,
             organization_id=organization_id,
             access_level=access_level,

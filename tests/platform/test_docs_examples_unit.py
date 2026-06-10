@@ -187,6 +187,11 @@ def test_docs_example_media_add_uses_sdk_session_scope(monkeypatch):
 
     monkeypatch.setattr(
         media_mod,
+        "detect_mime_type",
+        lambda **kwargs: SimpleNamespace(mime_type="application/pdf", source="filename"),
+    )
+    monkeypatch.setattr(
+        media_mod,
         "store_uploaded_media",
         lambda **kwargs: calls.append(kwargs)
         or media_uploads_mod.MediaUploadResult(
@@ -223,7 +228,7 @@ def test_docs_example_media_add_uses_sdk_session_scope(monkeypatch):
             "module_name": "demo",
             "original_filename": "doc.pdf",
             "payload": b"abc",
-            "content_type": None,
+            "content_type": "application/pdf",
             "user_id": 8,
             "organization_id": 5,
             "access_level": 2,

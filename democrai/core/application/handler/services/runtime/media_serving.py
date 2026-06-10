@@ -19,6 +19,7 @@ from democrai.core.application.handler.services.runtime.media_authorization impo
     authorize_media_target,
 )
 from democrai.core.application.handler.services.runtime.media_targets import MediaTarget
+from democrai.core.platform.utils.mime_detection import detect_mime_type
 from democrai.core.runtime.foundation.app import req_ctx
 from democrai.core.runtime.foundation.paths import (
     get_runtime_engine_dirs,
@@ -414,6 +415,18 @@ async def serve_extractor_media(
     )
 
 
+def _upload_media_type(record, payload: bytes) -> str:
+    content_type = str(record.content_type or "").strip()
+    if content_type and content_type != "application/octet-stream":
+        return content_type
+    detected = detect_mime_type(
+        data=payload,
+        filename=str(record.original_filename or ""),
+        declared_content_type=content_type or None,
+    )
+    return detected.mime_type or "application/octet-stream"
+
+
 async def serve_uploaded_media(
     file_id: str,
     download: bool = False,
@@ -437,7 +450,7 @@ async def serve_uploaded_media(
         raise HTTPException(status_code=404, detail="Uploaded file content not found")
     return Response(
         content=payload,
-        media_type=record.content_type or "application/octet-stream",
+        media_type=_upload_media_type(record, payload),
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{record.original_filename}"'
@@ -476,7 +489,7 @@ async def serve_uploaded_media_by_storage_path(
         raise HTTPException(status_code=404, detail="Uploaded file content not found")
     return Response(
         content=payload,
-        media_type=record.content_type or "application/octet-stream",
+        media_type=_upload_media_type(record, payload),
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{record.original_filename}"'

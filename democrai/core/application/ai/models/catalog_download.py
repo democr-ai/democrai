@@ -965,6 +965,7 @@ def _catalog_artifact_network_access(
         repo = str(source.get("repo") or "").strip()
         if repo:
             targets.append(f"https://huggingface.co/{repo}")
+            targets.append("https://*.hf.co")
             targets.append("https://cas-bridge.xethub.hf.co")
             targets.append("https://transfer.xethub.hf.co")
             targets.append("https://*.cdn.hf.co")

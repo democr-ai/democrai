@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ctypes
 import mimetypes
 import os
 import sys
@@ -213,6 +212,10 @@ def _activate_dynamic_library_path(lib_dir: Path) -> None:
 
 
 def _preload_libmagic_library(lib_dir: Path) -> None:
+    try:
+        import ctypes
+    except Exception:
+        return
     for name in _candidate_library_names():
         candidate = lib_dir / name
         if not candidate.exists():
