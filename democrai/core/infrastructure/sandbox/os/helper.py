@@ -98,7 +98,8 @@ def ensure_os_sandbox_helper_token() -> str:
     token = get_os_sandbox_helper_token()
     if token:
         return token
-    token = secrets.token_urlsafe(32)
+    # Hex only: a base64url token can start with "-" and break argv parsing.
+    token = secrets.token_hex(32)
     setattr(app_ctx(), "os_sandbox_helper_token", token)
     return token
 

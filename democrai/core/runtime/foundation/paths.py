@@ -187,11 +187,13 @@ def runtime_ipc_dir() -> Path:
 
 
 def _short_runtime_ipc_base() -> Path:
+    # Reserve room for "/dc-ipc-<uid>-<12 hex>" plus "/<16 hex>.sock".
+    suffix_budget = 56
     candidates = [Path(tempfile.gettempdir())]
     if sys.platform != "win32":
         candidates.extend(Path(path) for path in ("/tmp", "/var/tmp"))
     for candidate in candidates:
-        if len(str(candidate)) + 32 <= _AF_UNIX_SOCKET_PATH_LIMIT:
+        if len(str(candidate)) + suffix_budget <= _AF_UNIX_SOCKET_PATH_LIMIT:
             return candidate
     return Path("/tmp")
 
@@ -204,7 +206,13 @@ def runtime_unix_socket_path(filename: str) -> Path:
         return candidate
     suffix = Path(name).suffix or ".sock"
     digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:16]
-    return directory / f"{digest}{suffix}"
+    shortened = directory / f"{digest}{suffix}"
+    if len(str(shortened)) > _AF_UNIX_SOCKET_PATH_LIMIT:
+        raise RuntimeError(
+            f"Unix socket path exceeds the AF_UNIX limit "
+            f"({_AF_UNIX_SOCKET_PATH_LIMIT} chars): {shortened}"
+        )
+    return shortened
 
 
 def configure_temp_environment() -> str:
