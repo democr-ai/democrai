@@ -95,7 +95,7 @@ nav:
   - SDK Reference:
       - SDK Overview: reference/sdk/overview.md
       - Public Boundary: reference/sdk/public-boundary.md
-      - Runtime Start and Stop: reference/sdk/runtime.md
+      - Runtime Lifecycle: reference/sdk/runtime.md
       - UI Builder and A2UI:
           - Overview: reference/sdk/ui-builder-and-a2ui.md
           - Builder and Stores: reference/sdk/ui-builder-and-a2ui-builder-and-stores.md

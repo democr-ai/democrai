@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
+
+_SPAWN_BROKER_ATTR = "democrai_spawn_broker"
 
 
 @dataclass
@@ -97,6 +100,97 @@ def start(
 
     endpoint = start_core_runtime(core_runtime_options_from_args(args))
     return RuntimeHandle(args=args, endpoint=endpoint)
+
+
+def spawn_core_worker(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    pass_fds: tuple[int, ...] = (),
+    runtime_mode: str = "",
+) -> Any:
+    config = _load_master_config()
+    sandbox_enabled = _os_sandbox_enabled(config)
+    broker = None
+    worker_env = dict(env)
+    if sandbox_enabled and _spawn_broker_required():
+        from democrai.core.infrastructure.sandbox.spawn_broker import (
+            broker_env,
+            start_spawn_broker,
+        )
+
+        broker = start_spawn_broker()
+        worker_env.update(broker_env(broker))
+    if sandbox_enabled:
+        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+            build_core_worker_launch_policy,
+        )
+        from democrai.core.infrastructure.sandbox.os.factory import (
+            get_core_launch_strategy,
+        )
+
+        policy = build_core_worker_launch_policy(
+            config,
+            command=command,
+            env=worker_env,
+            cwd=os.getcwd(),
+            runtime_mode=str(runtime_mode or ""),
+        )
+        process = get_core_launch_strategy().spawn(policy, pass_fds=pass_fds)
+        _attach_spawn_broker(process, broker)
+        return process
+    process = subprocess.Popen(
+        command,
+        env=worker_env,
+        pass_fds=pass_fds,
+        close_fds=True,
+    )
+    _attach_spawn_broker(process, broker)
+    return process
+
+
+def release_core_worker(process: Any | None) -> None:
+    broker = getattr(process, _SPAWN_BROKER_ATTR, None) if process is not None else None
+    if broker is None:
+        return
+    try:
+        broker.close()
+    except Exception:
+        pass
+    try:
+        setattr(process, _SPAWN_BROKER_ATTR, None)
+    except Exception:
+        pass
+
+
+def _load_master_config() -> Any | None:
+    from democrai.core.platform.config.yaml_config import YamlConfigProvider
+    from democrai.core.runtime.foundation.paths import get_data_dir
+
+    config_path = os.path.join(get_data_dir(), "config.yaml")
+    if not os.path.exists(config_path):
+        return None
+    return YamlConfigProvider(config_path)
+
+
+def _os_sandbox_enabled(config: Any) -> bool:
+    getter = getattr(config, "get", None)
+    if not callable(getter):
+        return False
+    return bool(getter("sandbox.os.enabled", False))
+
+
+def _spawn_broker_required() -> bool:
+    from democrai.core.infrastructure.sandbox.os.factory import (
+        get_core_launch_strategy,
+    )
+
+    return bool(get_core_launch_strategy().uses_spawn_broker)
+
+
+def _attach_spawn_broker(process: Any, broker: Any | None) -> None:
+    if broker is not None:
+        setattr(process, _SPAWN_BROKER_ATTR, broker)
 
 
 def stop(*, reloader: Any | None = None, child_proc: Any | None = None) -> None:

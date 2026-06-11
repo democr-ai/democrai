@@ -1,17 +1,21 @@
-# Runtime Start and Stop
+# Runtime Lifecycle
 
 `democrai.sdk.runtime` exposes the application runtime boundary used by core
-process entrypoints.
+process entrypoints and by supervising launchers.
 
 It is intentionally small:
 
 - `start(...)`
 - `stop(...)`
+- `spawn_core_worker(...)`
+- `release_core_worker(...)`
 - `RuntimeHandle`
 
-Use this boundary when a process needs to start or stop the Democr.ai core
-runtime in that same process. Extension code under `modules/*`, `engines/*`,
-and `extractors/*` normally does not call these methods.
+Use `start(...)` and `stop(...)` when a process needs to start or stop the
+Democr.ai core runtime in that same process. Use `spawn_core_worker(...)` and
+`release_core_worker(...)` when a supervising process needs to run the core as
+a child process. Extension code under `modules/*`, `engines/*`, and
+`extractors/*` normally does not call these methods.
 
 The SDK runtime boundary does not launch UI clients. Client process orchestration
 belongs to the repository or product launcher.
@@ -76,6 +80,63 @@ the core and the client as separate processes, it should call `start(...)` only
 inside the core process and use an explicit parent/child protocol to pass the
 returned endpoint back to the supervising process.
 
+## `spawn_core_worker(...) -> process`
+
+```python
+from democrai.sdk.runtime import spawn_core_worker
+
+process = spawn_core_worker(
+    command,
+    env=worker_env,
+    pass_fds=(listener_fd,),
+    runtime_mode="server",
+)
+```
+
+`spawn_core_worker(...)` starts a core worker child process on behalf of a
+supervising launcher. It is the supervisor-side entry point for the OS sandbox:
+when `sandbox.os.enabled` is set in the master configuration (`config.yaml` in
+the data directory), the worker is launched through the platform launch
+strategy instead of a plain subprocess.
+
+With the sandbox enabled the call:
+
+- starts the sandbox spawn broker and merges its environment into the worker
+  environment, on platforms whose launch strategy uses one
+- builds the core worker launch policy (network proxy session, filesystem
+  access rules, helper environment)
+- spawns the worker through the platform launch strategy
+
+With the sandbox disabled the worker is spawned as a plain subprocess with the
+given command, environment, and inherited descriptors.
+
+### Arguments
+
+- `command`: full worker command line. The supervisor owns the command shape,
+  including its worker re-entry flags.
+- `env`: worker environment. The supervisor owns its launcher protocol
+  variables and sets them before the call.
+- `pass_fds`: file descriptors the worker inherits, for example a shared
+  listener socket in server mode.
+- `runtime_mode`: runtime mode string forwarded to the launch policy.
+
+Returns the worker process handle. When a spawn broker was started, it is
+attached to the returned handle and stays open for the worker lifetime.
+
+## `release_core_worker(...) -> None`
+
+```python
+from democrai.sdk.runtime import release_core_worker
+
+release_core_worker(process)
+```
+
+Releases supervisor-side resources attached to a process handle returned by
+`spawn_core_worker(...)`, currently the sandbox spawn broker. Call it whenever
+the supervisor stops or discards a worker process: shutdown, restart on the
+application restart exit code, or kill. It is safe to call on handles without
+attached resources and on `None`.
+
 ## Core Process Shape
 
 ```python
@@ -100,8 +161,11 @@ def core_main() -> int:
 Desktop launchers should keep the core and client in separate processes:
 
 ```python
+from democrai.sdk.runtime import release_core_worker, spawn_core_worker
+
+
 def launcher_main() -> int:
-    core = start_core_process(endpoint_pipe=True)
+    core = spawn_core_worker(core_command(), env=core_env())
     endpoint = read_endpoint_from_core(core)
     client = start_client_process(endpoint)
 
@@ -109,5 +173,6 @@ def launcher_main() -> int:
         return supervise(core, client)
     finally:
         terminate(client)
+        release_core_worker(core)
         terminate(core)
 ```

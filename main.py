@@ -290,6 +290,8 @@ def _start_desktop_core_process(args):
 
 
 def _start_core_worker(args, *, env: dict[str, str] | None = None, pass_fds: tuple[int, ...] = ()):
+    from democrai.sdk.runtime import spawn_core_worker
+
     command = _core_worker_command(args)
     worker_env = dict(os.environ if env is None else env)
     worker_env[_CORE_CHILD_ENV] = "1"
@@ -297,69 +299,18 @@ def _start_core_worker(args, *, env: dict[str, str] | None = None, pass_fds: tup
     if home:
         worker_env["HOME"] = home
         worker_env[_HOME_DIR_ENV] = home
-    config = _load_master_config()
-    broker = None
-    if _core_worker_sandbox_enabled(config) and _core_worker_spawn_broker_enabled():
-        from democrai.core.infrastructure.sandbox.spawn_broker import (
-            broker_env,
-            start_spawn_broker,
-        )
-
-        broker = start_spawn_broker()
-        worker_env.update(broker_env(broker))
-    if _core_worker_sandbox_enabled(config):
-        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
-            build_core_worker_launch_policy,
-        )
-        from democrai.core.infrastructure.sandbox.os.factory import (
-            get_core_launch_strategy,
-        )
-
-        policy = build_core_worker_launch_policy(
-            config,
-            command=command,
-            env=worker_env,
-            cwd=os.getcwd(),
-            runtime_mode=str(getattr(args, "mode", "") or ""),
-        )
-        process = get_core_launch_strategy().spawn(policy, pass_fds=pass_fds)
-        _attach_spawn_broker(process, broker)
-        return process
-    process = subprocess.Popen(
+    return spawn_core_worker(
         command,
         env=worker_env,
         pass_fds=pass_fds,
-        close_fds=True,
+        runtime_mode=str(getattr(args, "mode", "") or ""),
     )
-    _attach_spawn_broker(process, broker)
-    return process
-
-
-def _core_worker_spawn_broker_enabled() -> bool:
-    from democrai.core.infrastructure.sandbox.os.factory import (
-        get_core_launch_strategy,
-    )
-
-    return bool(get_core_launch_strategy().uses_spawn_broker)
-
-
-def _attach_spawn_broker(proc, broker) -> None:
-    if broker is not None:
-        setattr(proc, "democrai_spawn_broker", broker)
 
 
 def _close_spawn_broker_for_process(proc) -> None:
-    broker = getattr(proc, "democrai_spawn_broker", None) if proc is not None else None
-    if broker is None:
-        return
-    try:
-        broker.close()
-    except Exception:
-        pass
-    try:
-        setattr(proc, "democrai_spawn_broker", None)
-    except Exception:
-        pass
+    from democrai.sdk.runtime import release_core_worker
+
+    release_core_worker(proc)
 
 
 def _resolved_home_for_env() -> str:
@@ -372,23 +323,6 @@ def _resolved_home_for_env() -> str:
         return str(pwd.getpwuid(os.getuid()).pw_dir or "").strip()
     except Exception:
         return ""
-
-
-def _load_master_config():
-    from democrai.core.platform.config.yaml_config import YamlConfigProvider
-    from democrai.core.runtime.foundation.paths import get_data_dir
-
-    config_path = os.path.join(get_data_dir(), "config.yaml")
-    if not os.path.exists(config_path):
-        return None
-    return YamlConfigProvider(config_path)
-
-
-def _core_worker_sandbox_enabled(config) -> bool:
-    getter = getattr(config, "get", None)
-    if not callable(getter):
-        return False
-    return bool(getter("sandbox.os.enabled", False))
 
 
 def _kill_process_tree(proc) -> None:
@@ -788,11 +722,7 @@ def _run_desktop_mode(args) -> int:
                 child_proc = _start_desktop_client(args, client_name, str(ipc_endpoint))
             core_rc = core_proc.poll() if core_proc is not None else 0
             if core_rc is not None:
-                from democrai.core.runtime.lifecycle.restart import (
-                    APPLICATION_RESTART_EXIT_CODE,
-                )
-
-                if int(core_rc) == APPLICATION_RESTART_EXIT_CODE:
+                if int(core_rc) == _APPLICATION_RESTART_EXIT_CODE:
                     _restart_core_for_reload()
                     continue
                 exit_code["value"] = int(core_rc or 0)

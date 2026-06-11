@@ -270,7 +270,7 @@ def test_start_desktop_core_process_uses_endpoint_file(monkeypatch, tmp_path):
     args = _handle(mode="desktop").args
     monkeypatch.setattr(main_mod.tempfile, "mkstemp", lambda **_kwargs: (12, str(endpoint_file)))
     monkeypatch.setattr(main_mod.os, "close", lambda fd: observed.setdefault("closed", fd))
-    monkeypatch.setattr(main_mod, "_load_master_config", lambda: None)
+    monkeypatch.setattr("democrai.sdk.runtime._load_master_config", lambda: None)
     real_unlink = os.unlink
 
     def _unlink(path):
@@ -363,7 +363,7 @@ def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
             observed["spawn"] = (policy, pass_fds)
             return proc
 
-    monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
+    monkeypatch.setattr("democrai.sdk.runtime._load_master_config", lambda: config)
 
     def _build_policy(cfg, command, env, cwd, runtime_mode=None):
         observed["policy_input"] = (cfg, command, env, cwd, runtime_mode)
@@ -377,7 +377,7 @@ def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
         "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
         lambda: _Strategy(),
     )
-    monkeypatch.setattr(main_mod, "_core_worker_spawn_broker_enabled", lambda: False)
+    monkeypatch.setattr("democrai.sdk.runtime._spawn_broker_required", lambda: False)
 
     args = _handle(mode="desktop").args
     assert main_mod._start_core_worker(args, env={"A": "B"}, pass_fds=(9,)) is proc
@@ -407,8 +407,8 @@ def test_start_core_worker_passes_spawn_broker_env(monkeypatch):
         observed["policy_input"] = (cfg, command, env, cwd, runtime_mode)
         return SimpleNamespace(command=command, env=env, cwd=cwd)
 
-    monkeypatch.setattr(main_mod, "_load_master_config", lambda: config)
-    monkeypatch.setattr(main_mod, "_core_worker_spawn_broker_enabled", lambda: True)
+    monkeypatch.setattr("democrai.sdk.runtime._load_master_config", lambda: config)
+    monkeypatch.setattr("democrai.sdk.runtime._spawn_broker_required", lambda: True)
     monkeypatch.setattr(
         "democrai.core.infrastructure.sandbox.spawn_broker.start_spawn_broker",
         lambda: broker,
@@ -465,3 +465,12 @@ def test_configure_runtime_args_ignores_server(monkeypatch):
     main_mod._configure_runtime_args(args)
 
     assert "called" not in observed
+
+
+def test_launcher_does_not_import_democrai_core():
+    import main as main_mod
+
+    with open(main_mod.__file__, "r", encoding="utf-8") as handle:
+        source = handle.read()
+
+    assert "democrai.core" not in source
