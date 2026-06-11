@@ -845,6 +845,8 @@ def _build_runtime_access() -> tuple[AccessManifestRule, ...]:
         pass
     runtime_ipc_path = _runtime_ipc_path()
     if runtime_ipc_path:
+        read_paths.append(runtime_ipc_path)
+        writable_paths.append(runtime_ipc_path)
         delete_paths.append(runtime_ipc_path)
     media_storage_path = _configured_media_storage_path()
     if media_storage_path:
