@@ -111,10 +111,14 @@ async def process_message(network, bus, client_id, msg):
         )
     pending_at_schedule = msg.pop("_network_pending_at_schedule", None)
     if isinstance(pending_at_schedule, int):
-        profiler.add_metric("transport.network.pending_at_schedule", pending_at_schedule)
+        profiler.add_metric(
+            "transport.network.pending_at_schedule", pending_at_schedule
+        )
     with network._pending_network_messages_lock:
         pending_before_start = network._pending_network_messages
-        network._pending_network_messages = max(0, network._pending_network_messages - 1)
+        network._pending_network_messages = max(
+            0, network._pending_network_messages - 1
+        )
         pending_after_start = network._pending_network_messages
     profiler.add_metric("transport.network.pending_before_start", pending_before_start)
     profiler.add_metric("transport.network.pending_after_start", pending_after_start)
@@ -158,8 +162,8 @@ async def _send_token_expired_response(network, bus, client_id, msg, ctx) -> Non
         "eventNotification": {
             "kind": "toast",
             "variant": "warning",
-            "title": "Sessione scaduta",
-            "text": "Accedi di nuovo.",
+            "title": "Session expired",
+            "text": "Login again.",
         },
     }
     current_path = msg.get("current_path")
@@ -167,7 +171,9 @@ async def _send_token_expired_response(network, bus, client_id, msg, ctx) -> Non
         response["current_path"] = guest_path
     bus.send(client_id, response)
     session = network.core.get_session(None, None, session_key=ctx.session_key)
-    session[SessionKey.CURRENT_PATH] = response.get("current_path") or current_path or guest_path
+    session[SessionKey.CURRENT_PATH] = (
+        response.get("current_path") or current_path or guest_path
+    )
     session[SessionKey.USER] = SessionService.build_guest_session_user()
     render_messages = await network.core.render(session, force_shell=True)
     for render_message in render_messages:
