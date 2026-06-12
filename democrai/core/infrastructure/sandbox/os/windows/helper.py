@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import os
+import socket
 import subprocess
+import threading
 from typing import Any
+
+
+_default_endpoint: str | None = None
+_default_endpoint_lock = threading.Lock()
 
 
 class WindowsHelperBackend:
@@ -13,11 +18,19 @@ class WindowsHelperBackend:
         return
 
     def default_socket_path(self) -> str:
-        from democrai.core.runtime.foundation.paths import runtime_unix_socket_path
-
-        return str(
-            runtime_unix_socket_path(f"os_sandbox_helper_{os.getpid()}.sock").resolve()
-        )
+        # CPython on Windows has no AF_UNIX: the helper listens on loopback
+        # TCP. The port is OS-assigned (bind to 0) and cached per process so
+        # every caller in this process sees the same endpoint — the same
+        # stability the per-pid unix socket path provided. Children inherit it
+        # via OS_SANDBOX_HELPER_SOCKET_ENV before the helper starts.
+        global _default_endpoint
+        with _default_endpoint_lock:
+            if _default_endpoint is None:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+                    probe.bind(("127.0.0.1", 0))
+                    port = probe.getsockname()[1]
+                _default_endpoint = f"tcp:127.0.0.1:{port}"
+            return _default_endpoint
 
     def can_autostart_directly(self) -> bool:
         return True

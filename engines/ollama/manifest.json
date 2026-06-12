@@ -3,6 +3,34 @@
   "name": "Ollama",
   "kind": "llm",
   "entrypoint": "engines.ollama.engine:OllamaEngine",
+  "install": {
+    "access": [
+      {
+        "resource_type": "filesystem",
+        "operation": "read",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "create",
+        "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "env": {
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    },
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
   "runtime": {
     "allowed_config_urls": "base_url",
     "access": [
@@ -24,7 +52,13 @@
     ],
     "env": {
       "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
-    }
+    },
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
   },
   "provider": {
     "id": "ollama",

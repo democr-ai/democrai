@@ -28,6 +28,22 @@ def is_core_os_sandbox_relaunched() -> bool:
     return str(os.environ.get(CORE_OS_SANDBOX_REEXEC_ENV) or "").strip() == "1"
 
 
+def sandbox_safe_devnull_stdin() -> Any:
+    """stdin value for child spawns that works inside the OS sandbox.
+
+    Windows AppContainers run with a restricted DOS device map where the ``nul``
+    name does not resolve, so ``subprocess.DEVNULL`` (which does
+    ``os.open('nul')``) raises PermissionError. The infrastructure children that
+    use it (orchestrator, extraction worker) never read stdin, so inheriting the
+    sandboxed core's stdin is equivalent and avoids opening the null device.
+    """
+    import subprocess
+
+    if sys.platform == "win32" and is_core_os_sandbox_relaunched():
+        return None
+    return subprocess.DEVNULL
+
+
 def provider_supports_current_process_os_sandbox() -> bool:
     return not bool(getattr(get_core_launch_strategy(), "requires_relaunch", False))
 

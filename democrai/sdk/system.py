@@ -52,6 +52,29 @@ def has_nvidia() -> bool:
     return bool(resources.get("has_nvidia_gpu"))
 
 
+def cuda_toolkit_available() -> bool:
+    """Whether the CUDA Toolkit (``nvcc``) is installed for building extensions.
+
+    Distinct from :func:`has_nvidia` (GPU presence) and from the CUDA driver
+    version: a GPU/driver can be present without the build toolkit.
+    """
+    from democrai.core.platform.utils.system import cuda_toolkit_available as _impl
+
+    return _impl()
+
+
+def can_build_cuda_extension() -> bool:
+    """Whether a CUDA source build can succeed here: NVIDIA GPU + CUDA Toolkit.
+
+    Engines should gate CUDA build flags (e.g. ``-DGGML_CUDA=on``) on this rather
+    than on GPU presence alone, so a machine with a GPU but no toolkit falls back
+    to a working CPU build instead of failing at CMake configuration.
+    """
+    from democrai.core.platform.utils.system import can_build_cuda_extension as _impl
+
+    return _impl()
+
+
 def gpu_info() -> dict[str, Any]:
     """Return GPU details reported by the current runtime."""
     try:

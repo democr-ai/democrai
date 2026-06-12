@@ -71,9 +71,17 @@ _SENSITIVE_IMPORT_ROOTS = {"ctypes", "_ctypes", "cffi", "_cffi_backend"}
 _PROTECTED_ENV_PREFIX = "DEMOCRAI_"
 _ALLOWED_PROTECTED_ENV_NAMES = {"DEMOCRAI_RUNTIME_ENV_JSON"}
 _EXTERNAL_ACCESS_CACHE_MAX = 512
-_PATH_ACCESS_CACHE_MAX = 512
-_REALPATH_CACHE_MAX = 4096
-_PATH_ACCESS_ALLOW_TTL_SECONDS = 2.0
+# Sized for the working set of a heavy ML engine import/activate (torch +
+# transformers + optimum touch tens of thousands of distinct files). The old
+# 512/4096 bounds thrashed completely under that load — combined with a 2s allow
+# TTL, the same venv files were realpath()'d thousands of times (a Windows
+# syscall each), turning an ~12s import into ~90s. Memoizing decisions for 30s
+# (symmetric with the deny TTL; policy changes are already keyed by the access
+# fingerprint, not the TTL) and holding the working set in cache brings it back
+# to ~17s. Bounds still cap memory — the OrderedDict only grows to actual usage.
+_PATH_ACCESS_CACHE_MAX = 65536
+_REALPATH_CACHE_MAX = 65536
+_PATH_ACCESS_ALLOW_TTL_SECONDS = 30.0
 _PATH_ACCESS_DENY_TTL_SECONDS = 30.0
 _REALPATH_CACHE_TTL_SECONDS = _PATH_ACCESS_ALLOW_TTL_SECONDS
 _RUNTIME_ACCESS_CACHE_LOCK = threading.Lock()
@@ -272,14 +280,30 @@ def _clear_path_resolution_caches() -> None:
         _GLOBAL_REALPATH_CACHE.clear()
 
 
+def _strip_extended_length_prefix(raw: str) -> str:
+    """Drop the Windows ``\\\\?\\`` extended-length prefix before matching.
+
+    Long-path-safe deletion (and any caller addressing a >MAX_PATH tree) prefixes
+    paths with ``\\\\?\\``; that denotes the identical filesystem object, so the
+    guard must compare it against the same allowed roots as the plain form rather
+    than treating ``\\\\?\\C:\\x`` as unrelated to ``C:\\x``. No-op off Windows.
+    """
+    if not raw.startswith("\\\\?\\"):
+        return raw
+    rest = raw[4:]
+    if rest[:4].upper() == "UNC\\":
+        return "\\\\" + rest[4:]
+    return rest
+
+
 def _cheap_normalized_path(path_value: Any) -> str:
-    raw = os.fsdecode(os.fspath(path_value))
+    raw = _strip_extended_length_prefix(os.fsdecode(os.fspath(path_value)))
     expanded = os.path.expanduser(raw)
     return os.path.normpath(os.path.abspath(expanded))
 
 
 def _cached_realpath(path_value: Any) -> str:
-    raw = os.fsdecode(os.fspath(path_value))
+    raw = _strip_extended_length_prefix(os.fsdecode(os.fspath(path_value)))
     expanded = os.path.expanduser(raw)
     cheap = os.path.normpath(os.path.abspath(expanded))
     cwd = os.getcwd()
@@ -638,7 +662,28 @@ def runtime_system_read_paths() -> list[str]:
         raw = str(item or "").strip()
         if raw:
             paths.append(raw)
+    paths.extend(_python_user_base_paths())
     return _normalize_paths(paths)
+
+
+def _python_user_base_paths() -> list[str]:
+    # Windows-only: pip user installs live in %APPDATA%\Python (Python-managed
+    # content only), and native packages probe <userbase>\Library\bin for DLLs
+    # during import. On POSIX the user base is ~/.local, which also holds
+    # unrelated user data — keep it out of the blanket read allowlist there.
+    if os.name != "nt":
+        return []
+    paths: list[str] = []
+    try:
+        import site
+
+        for value in (site.getuserbase(), site.getusersitepackages()):
+            raw = str(value or "").strip()
+            if raw:
+                paths.append(raw)
+    except Exception:
+        pass
+    return paths
 
 
 def _runtime_filesystem_read_paths() -> list[str]:
@@ -1301,6 +1346,8 @@ def _check_path(path_value: Any, *, operation: str) -> None:
     _profile_count("process_guard.check_path.calls")
     if _skip_path_check_for_empty_path(path_value):
         return
+    if _is_windows_null_device(path_value):
+        return
     depth = _PATH_CHECK_DEPTH.get()
     if depth > 0:
         return
@@ -1311,6 +1358,8 @@ def _check_path(path_value: Any, *, operation: str) -> None:
             if _config_access_denied(path_value):
                 _raise_config_access_denied(path_value, operation=resolved_operation)
             if _path_allowed(path_value, operation=resolved_operation):
+                return
+            if _is_windows_missing_read(path_value, resolved_operation):
                 return
             if _external_filesystem_access_allowed(path_value, operation=resolved_operation):
                 return
@@ -1393,6 +1442,58 @@ def _skip_path_check_for_empty_path(path: Any) -> bool:
         return os.fsdecode(os.fspath(path)) == ""
     except TypeError:
         return False
+
+
+def _is_windows_null_device(path: Any) -> bool:
+    """Whether ``path`` is the Windows null device (``nul``).
+
+    The POSIX null device ``/dev/null`` is granted to engines through the device
+    access baseline, but Windows has no ``/dev/null`` — its null sink is the
+    reserved name ``nul``, resolvable from *any* directory (``C:\\x\\nul``), so a
+    fixed path entry can't capture it. Libraries open it directly
+    (``open(os.devnull, "w")``); like ``/dev/null`` it discards writes and reads
+    empty, so it is always safe to allow. POSIX is untouched (returns False off
+    Windows).
+
+    Only the classic Win32 namespace maps reserved names to the device. Under the
+    extended-length namespace (``\\\\?\\``) reserved-name parsing is bypassed, so
+    ``\\\\?\\C:\\x\\nul`` (and ``nul.txt`` anywhere) is a REAL file, not the
+    device, and must fall through to the policy.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        raw = os.fsdecode(os.fspath(path))
+    except TypeError:
+        return False
+    if not raw or raw.startswith("\\\\?\\"):
+        return False
+    tail = raw.replace("/", "\\").rstrip("\\").rsplit("\\", 1)[-1]
+    # Match only the exact reserved device name (trailing dots/spaces are
+    # ignored by Win32). A file like ``nul.txt`` is the device under the classic
+    # Win32 namespace but a REAL file under the ``\\?\`` extended namespace, so
+    # don't blanket-allow ``nul.<ext>`` — let it fall through to the policy.
+    name = tail.rstrip(". ").upper()
+    return name == "NUL"
+
+
+def _is_windows_missing_read(path_value: Any, operation: str) -> bool:
+    """Whether a denied READ targets a path that does not exist on Windows.
+
+    Cross-platform libraries probe POSIX paths (``/etc/os-release``, ``/proc``,
+    ``/sys``, ...) that never exist on Windows and handle the resulting
+    FileNotFoundError, but a sandbox *denial* (PermissionError) aborts their
+    import. When such a read is denied, surfacing it as a normal missing file
+    instead of a denial matches what the program would see without the sandbox
+    and leaks nothing — a file that does not exist has nothing to protect, while
+    existing-but-denied files still raise the denial. Windows-only so POSIX
+    enforcement (where these paths exist and are policy-controlled) is untouched.
+    """
+    if os.name != "nt":
+        return False
+    if operation != "read":
+        return False
+    return not _path_exists_for_operation(path_value)
 
 
 def _path_exists_for_operation(path_value: Any) -> bool:
@@ -1511,6 +1612,30 @@ def _wrap_os_optional_path(original, operation: str, attr: str = ""):
     return wrapper
 
 
+def _wrap_os_path_predicate(original, operation: str, attr: str = ""):
+    """Existence/type predicate (os.path.exists, isdir, ...).
+
+    A denied path must read as a negative result (the sandbox hides it) rather
+    than raising: tons of stdlib/library code probes paths defensively
+    (``inspect.getsourcefile`` -> ``os.path.exists`` while torch inspects the
+    call stack during import), and an exception there breaks the caller.
+    """
+    def wrapper(path=".", *args, **kwargs):
+        if _bypass_enabled():
+            return original(path, *args, **kwargs)
+        if _PATH_CHECK_DEPTH.get() > 0:
+            return original(path, *args, **kwargs)
+        _check_fd_kwargs(kwargs)
+        if not _skip_path_check_for_dir_fd(kwargs) and not _skip_path_check_for_fd_path(path):
+            try:
+                _check_path(path, operation=operation)
+            except PermissionError:
+                return False
+        return original(path, *args, **kwargs)
+
+    return wrapper
+
+
 def _wrap_os_default_path(original, default_path: str, operation: str, attr: str = ""):
     def wrapper(path=default_path, *args, **kwargs):
         if _bypass_enabled():
@@ -1585,6 +1710,26 @@ def _wrap_path_method(original, attr: str):
             return original(self, *args, **kwargs)
         with _profile_span("process_guard.wrapper.path_method.guard"):
             _check_path(self, operation=_path_method_operation(self, attr, args, kwargs))
+        return original(self, *args, **kwargs)
+
+    return wrapper
+
+
+def _wrap_path_predicate_method(original, attr: str):
+    """Path.exists()/is_dir()/is_file()/... — return False on a denied path.
+
+    These return booleans, so a denied path must read as a negative result, not
+    raise (mirrors the os.path.* predicates).
+    """
+    def wrapper(self, *args, **kwargs):
+        if _bypass_enabled():
+            return original(self, *args, **kwargs)
+        if _PATH_CHECK_DEPTH.get() > 0:
+            return original(self, *args, **kwargs)
+        try:
+            _check_path(self, operation=_path_method_operation(self, attr, args, kwargs))
+        except PermissionError:
+            return False
         return original(self, *args, **kwargs)
 
     return wrapper
@@ -2297,14 +2442,17 @@ def enable_process_guard(
         for attr in (
             "exists",
             "lexists",
-            "getatime",
-            "getctime",
-            "getmtime",
-            "getsize",
             "isdir",
             "isfile",
             "islink",
             "ismount",
+        ):
+            _patch_attr(os.path, attr, lambda original, op="read", name=attr: _wrap_os_path_predicate(original, op, name))
+        for attr in (
+            "getatime",
+            "getctime",
+            "getmtime",
+            "getsize",
         ):
             _patch_attr(os.path, attr, lambda original, op="read", name=attr: _wrap_os_optional_path(original, op, name))
         _patch_attr(os.path, "samefile", lambda original: _wrap_path_pair(original, "read", "read"))
@@ -2323,14 +2471,19 @@ def enable_process_guard(
             "rmdir",
             "stat",
             "lstat",
-            "exists",
-            "resolve",
             "readlink",
             "owner",
             "group",
             "chmod",
             "lchmod",
             "touch",
+            "walk",
+        ):
+            _patch_attr(pathlib.Path, attr, lambda original, name=attr: _wrap_path_method(original, name))
+        # Boolean predicates: a denied path reads as a negative result, never an
+        # exception (libraries probe paths at import time, e.g. transformers).
+        for attr in (
+            "exists",
             "is_dir",
             "is_file",
             "is_symlink",
@@ -2339,9 +2492,12 @@ def enable_process_guard(
             "is_char_device",
             "is_fifo",
             "is_socket",
-            "walk",
         ):
-            _patch_attr(pathlib.Path, attr, lambda original, name=attr: _wrap_path_method(original, name))
+            _patch_attr(pathlib.Path, attr, lambda original, name=attr: _wrap_path_predicate_method(original, name))
+        # Path.resolve()/absolute() are normalization (like os.path.realpath,
+        # which is intentionally not guarded): the path is computed, the later
+        # open/read is what gets enforced. Leaving them guarded breaks imports
+        # that resolve constant paths (transformers' Path("src").resolve()).
         for attr in ("rename", "replace"):
             _patch_attr(pathlib.Path, attr, lambda original: _wrap_path_pair_method(original, "delete", "create_or_modify"))
         _patch_attr(pathlib.Path, "samefile", lambda original: _wrap_path_pair_method(original, "read", "read"))

@@ -106,6 +106,8 @@ def _request_context_from_runtime() -> tuple[int | None, int | None, str | None]
 def _network_access_allowed(target: str, *, operation: str) -> bool:
     if operation == "connect" and _configured_loopback_proxy_target_allowed(target):
         return True
+    if operation == "connect" and _configured_internal_ipc_target_allowed(target):
+        return True
     if _configured_remote_service_target_allowed(target):
         return True
     state_access = tuple(_state().get("access") or ())
@@ -126,6 +128,47 @@ def _network_access_allowed(target: str, *, operation: str) -> bool:
         if is_network_target_allowed(target, [resource.normalized_target]):
             return True
     return False
+
+
+def _configured_internal_ipc_target_allowed(target: str) -> bool:
+    """Allow connections to the internal control-plane IPC endpoints.
+
+    The spawn broker and OS sandbox helper use AF_UNIX sockets on POSIX (whose
+    connects pass a string address and never reach this tuple-based guard), but
+    loopback TCP on Windows (no AF_UNIX). Those Windows endpoints are internal
+    infrastructure, not external network, so allow them by matching the
+    ``tcp:host:port`` values published in their env vars.
+    """
+    patterns: list[str] = []
+    for key in (
+        "DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET",
+        "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET",
+    ):
+        value = str(os.environ.get(key, "") or "").strip()
+        if not value.startswith("tcp:"):
+            continue
+        host, _, port = value[len("tcp:"):].rpartition(":")
+        host = host.strip() or "127.0.0.1"
+        port = port.strip()
+        # These endpoints are loopback TCP by construction. Validate the host is
+        # loopback and the port is a real port number before allowlisting, so a
+        # tampered/garbage env var cannot self-grant a non-loopback target or an
+        # out-of-range port pattern.
+        if not _is_loopback_host(host) or not _is_valid_port(port):
+            continue
+        for candidate in _loopback_proxy_host_patterns(host):
+            patterns.append(f"{candidate}:{port}")
+    if not patterns:
+        return False
+    return is_network_target_allowed(target, tuple(dict.fromkeys(patterns)))
+
+
+def _is_valid_port(value: str) -> bool:
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        return False
+    return 1 <= port <= 65535
 
 
 def _configured_loopback_proxy_target_allowed(target: str) -> bool:
@@ -243,10 +286,32 @@ def _check_url(url: str, *, operation: str = "receive") -> None:
         raise PermissionError(access.message)
 
 
+def _is_loopback_host(host: str) -> bool:
+    normalized = str(host or "").strip().lower()
+    if normalized in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+        return True
+    if normalized.startswith("127."):
+        return True
+    return False
+
+
 def _check_target(
     host: str, port: int | None = None, *, operation: str = "connect"
 ) -> None:
     normalized = str(host or "").strip()
+    # Infrastructure connections that run outside any sandboxed subject context
+    # (e.g. asyncio's internal self-pipe socketpair, which on Windows is a real
+    # 127.0.0.1 TCP connect rather than an AF_UNIX pair) have no subject to
+    # confine. Allow loopback in that case so the guard never blocks the
+    # framework's own event-loop machinery. Subject code always carries a
+    # subject, so its loopback access is still enforced.
+    #
+    # Gated to Windows: on POSIX the self-pipe uses an AF_UNIX socketpair (no
+    # connect, never reaches this tuple-based guard), so this branch only ever
+    # fired on Windows. Keeping it Windows-only avoids a needless no-subject
+    # loopback hole on POSIX.
+    if os.name == "nt" and not _subject_name() and _is_loopback_host(normalized):
+        return
     target = f"{normalized}:{int(port)}" if port is not None else normalized
     if _network_access_allowed(target, operation=operation):
         return

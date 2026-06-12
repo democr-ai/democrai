@@ -53,10 +53,32 @@ def _allow_os_sandbox_policy_write():
 def _process_scoped_config_path(value: str) -> str:
     pid = str(os.getpid())
     configured = value.strip()
+    if parse_tcp_helper_endpoint(configured) is not None:
+        return configured
     if "{pid}" in configured:
         return configured.replace("{pid}", pid)
     path = Path(configured).expanduser()
     return str(path.with_name(f"{path.stem}_{pid}{path.suffix}"))
+
+
+def parse_tcp_helper_endpoint(socket_path: str) -> tuple[str, int] | None:
+    """Parse a ``tcp:host:port`` helper endpoint (Windows transport).
+
+    Returns ``(host, port)`` or None when the value is a unix socket path.
+    """
+    resolved = str(socket_path or "").strip()
+    if not resolved.startswith("tcp:"):
+        return None
+    host, _, port = resolved[len("tcp:") :].rpartition(":")
+    try:
+        port_number = int(port)
+    except (TypeError, ValueError):
+        # Malformed endpoint (e.g. ``tcp:`` or no port): not a usable tcp target.
+        # Return None rather than raising an opaque ValueError into every caller.
+        return None
+    if not 1 <= port_number <= 65535:
+        return None
+    return (host or "127.0.0.1", port_number)
 
 
 def get_os_sandbox_helper_socket_path(config: Any | None = None) -> str:
@@ -123,13 +145,12 @@ def get_os_sandbox_refresh_seconds(config: Any | None = None) -> int:
 
 
 def _pid_is_alive(pid: int) -> bool:
+    from democrai.core.platform.utils.process import pid_exists
+
     try:
-        os.kill(int(pid), 0)
-    except ProcessLookupError:
+        return pid_exists(int(pid))
+    except Exception:
         return False
-    except PermissionError:
-        return True
-    return True
 
 
 def _cleanup_stale_helper_sockets() -> None:
@@ -214,7 +235,11 @@ async def _request_helper(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     request_payload = {"token": _require_os_sandbox_helper_token(), **dict(payload)}
-    reader, writer = await asyncio.open_unix_connection(socket_path)
+    tcp_endpoint = parse_tcp_helper_endpoint(socket_path)
+    if tcp_endpoint is not None:
+        reader, writer = await asyncio.open_connection(*tcp_endpoint)
+    else:
+        reader, writer = await asyncio.open_unix_connection(socket_path)
     try:
         debug_os_sandbox_flow(
             "helper.client_request",
@@ -465,6 +490,8 @@ def _helper_autostart_strategy(*, runtime_mode: str | None = None) -> str | None
 
 
 def _cleanup_helper_socket(socket_path: str) -> None:
+    if parse_tcp_helper_endpoint(socket_path) is not None:
+        return
     try:
         path = Path(str(socket_path or "").strip()).expanduser().resolve()
     except Exception:

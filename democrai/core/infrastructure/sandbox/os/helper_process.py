@@ -23,6 +23,11 @@ from .linux import ensure_linux_network_enforcement_ready as _linux_ensure_ready
 from .proxy import OsSandboxConnectProxy
 
 
+# Upper bound on how long the helper waits for a client to send its request line
+# before dropping the connection (a silent/partial peer must not pin it).
+_HELPER_CLIENT_READ_TIMEOUT_SECONDS = 30.0
+
+
 def _socket_owner_ids() -> tuple[int, int] | None:
     elevated_uid = str(
         os.environ.get("SUDO_UID") or os.environ.get("PKEXEC_UID") or ""
@@ -190,13 +195,12 @@ def _validate_helper_token(payload: dict[str, Any], expected_token: str) -> None
 
 
 def _parent_pid_is_alive(parent_pid: int) -> bool:
+    from democrai.core.platform.utils.process import pid_exists
+
     try:
-        os.kill(int(parent_pid), 0)
-    except ProcessLookupError:
+        return pid_exists(int(parent_pid))
+    except Exception:
         return False
-    except PermissionError:
-        return True
-    return True
 
 
 def _open_parent_pidfd(parent_pid: int | None) -> int | None:
@@ -308,8 +312,17 @@ async def _handle_helper_client(
 ) -> None:
     try:
         resolved_backend = backend or _CompatHelperBackend()
-        raw = await reader.readline()
+        try:
+            raw = await asyncio.wait_for(
+                reader.readline(), timeout=_HELPER_CLIENT_READ_TIMEOUT_SECONDS
+            )
+        except (asyncio.TimeoutError, ConnectionError):
+            # A client that connects and never (or partially) sends must not pin
+            # this connection forever; drop it without a response.
+            writer.close()
+            return
         if not raw:
+            writer.close()
             return
         payload = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, dict):
@@ -383,10 +396,17 @@ async def run_os_sandbox_helper_server(
     parent_pid: int | None = None,
     token: str = "",
 ) -> int:
-    resolved_socket_path = Path(str(socket_path or "").strip()).expanduser().resolve()
-    resolved_socket_path.parent.mkdir(parents=True, exist_ok=True)
-    if resolved_socket_path.exists():
-        resolved_socket_path.unlink()
+    from democrai.core.infrastructure.sandbox.os.helper import (
+        parse_tcp_helper_endpoint,
+    )
+
+    tcp_endpoint = parse_tcp_helper_endpoint(socket_path)
+    resolved_socket_path: Path | None = None
+    if tcp_endpoint is None:
+        resolved_socket_path = Path(str(socket_path or "").strip()).expanduser().resolve()
+        resolved_socket_path.parent.mkdir(parents=True, exist_ok=True)
+        if resolved_socket_path.exists():
+            resolved_socket_path.unlink()
     _start_parent_watchdog(parent_pid)
     applied_pids: set[int] = set()
     applied_pids_lock = threading.Lock()
@@ -401,12 +421,13 @@ async def run_os_sandbox_helper_server(
     )
     debug_os_sandbox_flow(
         "helper.server_start",
-        socket_path=str(resolved_socket_path),
+        socket_path=str(socket_path),
         policy_file=str(Path(policy_file).expanduser().resolve()),
         refresh_seconds=int(refresh_seconds),
     )
-    server = await asyncio.start_unix_server(
-        lambda reader, writer: _handle_helper_client(
+
+    def _client_connected(reader, writer):
+        return _handle_helper_client(
             reader,
             writer,
             policy_file=policy_file,
@@ -416,15 +437,25 @@ async def run_os_sandbox_helper_server(
             proxy=proxy,
             token=token,
             backend=backend,
-        ),
-        path=str(resolved_socket_path),
-    )
-    owner_ids = _socket_owner_ids()
-    if owner_ids is not None:
-        os.chown(resolved_socket_path, owner_ids[0], owner_ids[1])
-        os.chmod(resolved_socket_path, 0o660)
+        )
+
+    if tcp_endpoint is not None:
+        server = await asyncio.start_server(
+            _client_connected,
+            host=tcp_endpoint[0],
+            port=tcp_endpoint[1],
+        )
     else:
-        os.chmod(resolved_socket_path, 0o600)
+        server = await asyncio.start_unix_server(
+            _client_connected,
+            path=str(resolved_socket_path),
+        )
+        owner_ids = _socket_owner_ids()
+        if owner_ids is not None:
+            os.chown(resolved_socket_path, owner_ids[0], owner_ids[1])
+            os.chmod(resolved_socket_path, 0o660)
+        else:
+            os.chmod(resolved_socket_path, 0o600)
     try:
         async with server:
             try:
@@ -434,6 +465,6 @@ async def run_os_sandbox_helper_server(
                 return 0
     finally:
         await proxy.close()
-        if resolved_socket_path.exists():
+        if resolved_socket_path is not None and resolved_socket_path.exists():
             resolved_socket_path.unlink()
     return 0

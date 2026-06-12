@@ -9,6 +9,14 @@
       "path": "models/catalog.json"
     }
   },
+  "install": {
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
   "runtime": {
     "access": [
       {
@@ -26,6 +34,12 @@
         "operation": "receive",
         "target": "https://api.anthropic.com/*"
       }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
     ]
   },
   "provider": {

@@ -2,6 +2,7 @@ import asyncio
 import base64
 import importlib.util
 import json
+import logging
 from typing import Any, AsyncGenerator, List
 
 from democrai.sdk.engines import (
@@ -24,10 +25,19 @@ from engines.llamacpp.chat_handler import (
 )
 
 
+logger = logging.getLogger("llamacpp")
+
+
 def has_nvidia() -> bool:
     from democrai.sdk.system import has_nvidia as system_has_nvidia
 
     return system_has_nvidia()
+
+
+def can_build_cuda() -> bool:
+    from democrai.sdk.system import can_build_cuda_extension
+
+    return can_build_cuda_extension()
 
 
 class LlamaCppEngine(BaseEngine, LLMProvider):
@@ -41,7 +51,11 @@ class LlamaCppEngine(BaseEngine, LLMProvider):
         node_id: str | None = None,
         source_node_id: str | None = None,
     ) -> None:
-        if has_nvidia():
+        # Build the CUDA backend only when the system can actually compile it
+        # (NVIDIA GPU *and* CUDA Toolkit/nvcc present). A GPU without the toolkit
+        # would fail at CMake configuration ("CUDA Toolkit not found"), so fall
+        # back to a working CPU build instead.
+        if can_build_cuda():
             install_python_packages(
                 ["llama-cpp-python"],
                 modules=["llama_cpp"],
@@ -54,6 +68,11 @@ class LlamaCppEngine(BaseEngine, LLMProvider):
                 },
             )
             return
+        if has_nvidia():
+            logger.warning(
+                "[llamacpp] NVIDIA GPU detected but CUDA Toolkit (nvcc) not found; "
+                "building CPU-only. Install the CUDA Toolkit to enable GPU acceleration."
+            )
         install_python_packages(
             ["llama-cpp-python"],
             modules=["llama_cpp"],
