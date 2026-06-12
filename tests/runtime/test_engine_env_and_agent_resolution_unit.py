@@ -363,6 +363,7 @@ def test_extractor_env_context_restore_does_not_trigger_lazy_module_getattr(
     assert "lazypkg" not in sys.modules
 
 
+@pytest.mark.posix_only
 def test_isolate_extractor_imports_removes_global_local_modules(
     tmp_path: Path,
     monkeypatch,

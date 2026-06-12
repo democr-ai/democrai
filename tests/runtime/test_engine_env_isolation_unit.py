@@ -4,8 +4,10 @@ import sys
 from types import ModuleType
 
 import democrai.core.runtime.dependencies.engine_env as engine_env_mod
+import pytest
 
 
+@pytest.mark.posix_only
 def test_isolate_engine_imports_removes_global_module_present_in_local_env(monkeypatch, tmp_path):
     monkeypatch.setattr(engine_env_mod, "_ENGINE_LOCAL_PATH_OVERRIDES", {})
 

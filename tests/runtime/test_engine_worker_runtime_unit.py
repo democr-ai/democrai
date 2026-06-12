@@ -16,6 +16,7 @@ from democrai.core.application.ai.engine import worker as worker_mod
 from democrai.core.application.ai.engine.runtime import worker as subject_mod
 from democrai.core.infrastructure.sandbox import launcher as launcher_mod
 from democrai.core.runtime.dependencies import engine_env as engine_env_mod
+import pytest
 
 
 class _Config:
@@ -234,6 +235,7 @@ def test_engine_worker_spawn_uses_os_sandbox_launcher_when_enabled(monkeypatch):
     assert calls[0][1]["env"] == {"A": "B"}
 
 
+@pytest.mark.linux_only
 def test_engine_worker_launch_state_adds_framework_ipc_on_posix(monkeypatch, tmp_path: Path):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",
@@ -687,6 +689,7 @@ def test_engine_install_and_runtime_access_include_log_dir(monkeypatch, tmp_path
         assert {"read", "create", "modify", "delete"}.issubset(operations)
 
 
+@pytest.mark.posix_only
 def test_engine_install_access_reads_resolved_venv_python(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
 
@@ -725,6 +728,7 @@ def test_engine_install_access_reads_resolved_venv_python(monkeypatch, tmp_path:
     assert ("execute", resolved_python) in resources
 
 
+@pytest.mark.posix_only
 def test_engine_install_access_includes_writable_device_paths(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
 
@@ -755,6 +759,7 @@ def test_engine_install_access_includes_writable_device_paths(monkeypatch, tmp_p
     assert ("modify", "/dev/null") in resources
 
 
+@pytest.mark.linux_only
 def test_engine_runtime_access_includes_nvidia_device_paths(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
 
@@ -787,6 +792,7 @@ def test_engine_runtime_access_includes_nvidia_device_paths(monkeypatch, tmp_pat
     assert ("modify", "/dev/nvidia0") in resources
 
 
+@pytest.mark.macos_only
 def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
 
@@ -825,6 +831,7 @@ def test_engine_runtime_access_uses_platform_dependency_matrix(monkeypatch, tmp_
     assert ("filesystem", "delete", "/opt/homebrew") not in resources
 
 
+@pytest.mark.linux_only
 def test_engine_runtime_access_preserves_trusted_read_alias_and_realpath(monkeypatch, tmp_path: Path):
     from democrai.core.application.ai.engine.runtime import access as access_mod
     from democrai.core.application.ai.engine import access_constants as constants_mod
@@ -866,6 +873,7 @@ def test_engine_runtime_access_preserves_trusted_read_alias_and_realpath(monkeyp
     assert ("filesystem", "create", "/etc/os-release") not in resources
 
 
+@pytest.mark.linux_only
 def test_worker_runtime_access_preserves_system_read_alias_and_realpath(monkeypatch, tmp_path: Path):
     from democrai.core.infrastructure.sandbox import platform_policy
 

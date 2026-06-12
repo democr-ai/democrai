@@ -10,6 +10,7 @@ import democrai.core.infrastructure.observability.logger.manager as logger_manag
 import democrai.core.infrastructure.observability.logger.providers.cloud as cloud_log_mod
 import democrai.core.infrastructure.observability.logger.providers.local as local_log_mod
 import democrai.core.infrastructure.observability.logging as logging_adapter_mod
+import pytest
 
 
 class _Logger:
@@ -50,6 +51,7 @@ class _Handler(logging.Handler):
         super().close()
 
 
+@pytest.mark.posix_only
 def test_database_helpers_cover_config_lazy_and_proxy_paths(monkeypatch):
     ctx = SimpleNamespace(
         config=SimpleNamespace(
@@ -130,6 +132,7 @@ def test_database_helpers_cover_config_lazy_and_proxy_paths(monkeypatch):
     assert db_mod.SessionLocal() is proxied
 
 
+@pytest.mark.posix_only
 def test_database_migrations_handler_logs_success_and_errors(monkeypatch):
     logger = _Logger()
     monkeypatch.setattr(

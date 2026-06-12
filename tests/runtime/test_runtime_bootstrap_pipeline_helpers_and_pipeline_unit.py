@@ -690,6 +690,7 @@ def test_core_launch_policy_initializes_helper_before_env(monkeypatch):
     assert policy.env[core_relaunch_mod.CORE_OS_SANDBOX_PROXY_SESSION_ENV] == "session-1"
 
 
+@pytest.mark.posix_only
 def test_core_media_storage_access_uses_launch_config():
     media_path = "/tmp/democrai-media"
 

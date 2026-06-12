@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from democrai.core.application.ai.engine.runtime.environment import application_root
 
 
@@ -9,6 +11,7 @@ def test_engine_worker_application_root_contains_democrai_package():
     assert (root / "democrai").is_dir()
 
 
+@pytest.mark.posix_only
 def test_engine_worker_application_root_uses_base_dir_parent_in_dev(monkeypatch):
     import democrai.core.application.ai.engine.runtime.environment as environment_mod
 
@@ -22,6 +25,7 @@ def test_engine_worker_application_root_uses_base_dir_parent_in_dev(monkeypatch)
     assert environment_mod.application_root() == "/opt/democrai-app"
 
 
+@pytest.mark.posix_only
 def test_engine_worker_application_root_uses_base_dir_when_frozen(monkeypatch):
     import democrai.core.application.ai.engine.runtime.environment as environment_mod
 

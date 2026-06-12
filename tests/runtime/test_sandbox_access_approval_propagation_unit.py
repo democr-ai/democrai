@@ -202,7 +202,11 @@ def test_process_guard_filesystem_denial_does_not_register_implicit_request(
 ):
     allowed = tmp_path / "allowed"
     allowed.mkdir()
-    denied = Path("/var/lib/democrai_guard_probe_denied")
+    # An existing file outside the allowed set: a denial must fire on every
+    # platform. (A non-existent path would surface as a natural FileNotFoundError
+    # on Windows rather than a sandbox denial.)
+    denied = tmp_path / "denied_outside_allowed.txt"
+    denied.write_text("secret", encoding="utf-8")
 
     with process_guard_context(
         subject="system",

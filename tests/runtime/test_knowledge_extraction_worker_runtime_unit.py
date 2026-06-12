@@ -586,6 +586,7 @@ def test_extractor_worker_subject_os_sandbox_skips_pid_network_allowlist(monkeyp
         subject.close()
 
 
+@pytest.mark.linux_only
 def test_extractor_worker_launch_state_adds_framework_ipc_on_linux(monkeypatch, tmp_path: Path):
     worker_launch_mod = __import__(
         "democrai.core.infrastructure.sandbox.worker_launch",

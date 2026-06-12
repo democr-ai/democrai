@@ -79,6 +79,7 @@ def _import_helper_module(monkeypatch, tmp_path: Path):
     return importlib.import_module("democrai.core.infrastructure.sandbox.os.helper")
 
 
+@pytest.mark.posix_only
 def test_helper_paths_and_payload(monkeypatch, tmp_path: Path):
     mod = _import_helper_module(monkeypatch, tmp_path)
     ctx = SimpleNamespace(config=None)
@@ -251,6 +252,7 @@ print(json.dumps({{
     assert child["policy"] == first["policy"]
 
 
+@pytest.mark.posix_only
 @pytest.mark.asyncio
 async def test_request_helper_and_wait(monkeypatch):
     mod = _import_helper_module(monkeypatch, Path("/tmp"))
@@ -700,6 +702,7 @@ def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Pat
     assert out is ctx.os_sandbox_helper_process
 
 
+@pytest.mark.macos_only
 def test_helper_backend_factory_and_platform_validation(monkeypatch):
     from democrai.core.infrastructure.sandbox.os import factory
     from democrai.core.infrastructure.sandbox.os.linux.helper import (
@@ -764,6 +767,7 @@ def test_helper_backend_factory_and_platform_validation(monkeypatch):
         portable.apply([], pid=None)
 
 
+@pytest.mark.posix_only
 @pytest.mark.asyncio
 async def test_helper_process_dispatch_uses_non_linux_backend(monkeypatch, tmp_path: Path):
     import democrai.core.infrastructure.sandbox.os.helper_process as helper_process

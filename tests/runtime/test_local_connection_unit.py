@@ -39,6 +39,7 @@ def test_local_connection_roundtrip_and_unix_socket_cleanup(monkeypatch):
         assert not endpoint.socket_path.exists()
 
 
+@pytest.mark.posix_only
 def test_connect_from_env_requires_authkey(monkeypatch):
     calls = []
     monkeypatch.setenv("DEMOCRAI_TEST_ADDRESS", "/tmp/democrai.sock")
