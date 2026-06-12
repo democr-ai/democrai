@@ -574,8 +574,16 @@ def _start_os_sandbox_helper_process(
         process_guard_bypass_context,
     )
 
+    backend = get_helper_backend()
+    spawn_helper_process = getattr(backend, "spawn_helper_process", None)
     with process_guard_bypass_context():
-        proc = subprocess.Popen(command, **popen_kwargs)
+        if spawn_helper_process is not None:
+            # Platform backends that need a different launch mechanism than a
+            # plain child (e.g. Windows elevates the helper via ShellExecuteEx
+            # "runas" → UAC) take over here. Returns a Popen-like object.
+            proc = spawn_helper_process(command, popen_kwargs)
+        else:
+            proc = subprocess.Popen(command, **popen_kwargs)
     app_ctx().os_sandbox_helper_process = proc
     process_supervisor.register(proc, name="os-sandbox-helper")
     return proc

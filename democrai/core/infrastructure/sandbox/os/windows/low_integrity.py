@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import os
 import subprocess
 from ctypes import wintypes
 from dataclasses import dataclass
 
-from democrai.core.infrastructure.sandbox.os.launch_policy import SandboxLaunchPolicy
+from democrai.core.infrastructure.sandbox.os.launch_policy import (
+    NETWORK_DENY,
+    NETWORK_PROXY,
+    SandboxLaunchPolicy,
+)
+from democrai.core.infrastructure.sandbox.os.windows.sandbox_host import (
+    SANDBOX_HOST_ENV,
+    ensure_sandbox_host_executable,
+    existing_sandbox_host,
+    real_interpreter,
+)
 from democrai.core.infrastructure.sandbox.os.windows.winapi import (
     CREATE_UNICODE_ENVIRONMENT,
     EXTENDED_STARTUPINFO_PRESENT,
@@ -59,7 +70,6 @@ class WindowsPreparedSandbox:
     package_sid: str
     proxy_url: str
     acl_targets: tuple[str, ...] = ()
-    firewall_rule_prefix: str = ""
 
 
 def _require_windows() -> None:
@@ -179,12 +189,24 @@ def _create_low_integrity_token():
 
 
 class WindowsLowIntegrityProcess:
-    def __init__(self, *, prepared, token_handle, process_handle, thread_handle, pid: int) -> None:
+    def __init__(
+        self,
+        *,
+        prepared,
+        token_handle,
+        process_handle,
+        thread_handle,
+        pid: int,
+        network_pid: int | None = None,
+    ) -> None:
         self._prepared = prepared
         self._token_handle = token_handle
         self._process_handle = process_handle
         self._thread_handle = thread_handle
         self.pid = int(pid)
+        # When set, this child has WFP egress filters applied for ``network_pid``
+        # that must be removed when it exits.
+        self._network_pid = int(network_pid) if network_pid is not None else None
         self.returncode: int | None = None
         self._closed = False
 
@@ -226,6 +248,9 @@ class WindowsLowIntegrityProcess:
         if self._closed:
             return
         self._closed = True
+        if self._network_pid is not None:
+            _clear_network_enforcement(self._network_pid)
+            self._network_pid = None
         kernel32 = ctypes.windll.kernel32
         try:
             if self._thread_handle:
@@ -235,6 +260,106 @@ class WindowsLowIntegrityProcess:
                 kernel32.CloseHandle(self._token_handle)
         finally:
             cleanup_windows_low_integrity(self._prepared)
+
+
+_ENFORCED_NETWORK_MODES = {NETWORK_DENY, NETWORK_PROXY}
+
+
+def _effective_command(policy: SandboxLaunchPolicy, child_env: dict[str, str]) -> tuple[list[str], bool]:
+    """Resolve the launch command's interpreter identity for WFP enforcement.
+
+    For ``deny``/``proxy`` children the interpreter (command[0]) is rewritten to a
+    distinct same-directory "sandbox-host" executable so WFP can key egress
+    filters on its app-id; the host path is published in the child env so its own
+    (Low-integrity) descendants reuse it. ``allow_all`` children are mapped back
+    to the real interpreter so they are NOT matched by the confined identity.
+    Returns ``(command, enforce)``.
+    """
+    command = [str(part) for part in (policy.command or [])]
+    if not command:
+        return command, False
+    if policy.network_mode in _ENFORCED_NETWORK_MODES:
+        host = ensure_sandbox_host_executable(command[0])
+        child_env[SANDBOX_HOST_ENV] = host
+        return [host, *command[1:]], True
+    command[0] = real_interpreter(command[0])
+    existing = existing_sandbox_host()
+    if existing:
+        child_env[SANDBOX_HOST_ENV] = existing
+    return command, False
+
+
+def _enforcement_endpoints(policy: SandboxLaunchPolicy) -> list:
+    from democrai.core.infrastructure.sandbox.os.base import proxy_endpoint_payload
+    from democrai.core.infrastructure.sandbox.os.models import NetworkEndpoint
+
+    if policy.network_mode != NETWORK_PROXY:
+        return []
+    proxy_url = ""
+    if policy.env is not None:
+        proxy_url = str(policy.env.get("ALL_PROXY") or policy.env.get("all_proxy") or "")
+    payload = proxy_endpoint_payload(proxy_url)
+    return [
+        NetworkEndpoint(
+            host=str(payload["host"]),
+            port=int(payload["port"]),
+            protocol=str(payload["protocol"]),
+            source=str(payload["source"]),
+            purpose=str(payload["purpose"]),
+        )
+    ]
+
+
+def _apply_network_enforcement(policy: SandboxLaunchPolicy, pid: int) -> None:
+    """Apply WFP egress filters to the real low-integrity child pid (fail-closed).
+
+    Done here (not via the generic launcher hook) because on Windows the launcher
+    spawns a *separate* low child rather than exec-replacing, so this is the only
+    site that knows the confined child's real pid.
+    """
+    from democrai.core.infrastructure.sandbox.os.helper import (
+        apply_application_network_allowlist_with_helper,
+    )
+    from democrai.core.infrastructure.sandbox.os.models import (
+        ApplicationNetworkAllowlist,
+    )
+    from democrai.core.infrastructure.sandbox.process_guard import (
+        process_guard_bypass_context,
+    )
+
+    config = _app_config()
+    with process_guard_bypass_context():
+        apply_application_network_allowlist_with_helper(
+            ApplicationNetworkAllowlist(endpoints=_enforcement_endpoints(policy)),
+            pid=int(pid),
+            config=config,
+        )
+
+
+def _clear_network_enforcement(pid: int) -> None:
+    try:
+        from democrai.core.infrastructure.sandbox.os.helper import (
+            clear_application_network_allowlist_with_helper,
+        )
+        from democrai.core.infrastructure.sandbox.process_guard import (
+            process_guard_bypass_context,
+        )
+
+        with process_guard_bypass_context():
+            clear_application_network_allowlist_with_helper(pid=int(pid), config=_app_config())
+    except Exception:
+        # Teardown best-effort: the dynamic WFP session also drops the filters
+        # when the elevated helper exits, so a failed explicit clear is not fatal.
+        pass
+
+
+def _app_config():
+    try:
+        from democrai.core.runtime.foundation.app import app_ctx
+
+        return getattr(app_ctx(), "config", None)
+    except Exception:
+        return None
 
 
 def spawn_low_integrity_process(
@@ -268,19 +393,36 @@ def spawn_low_integrity_process(
             startup.lpAttributeList = attribute_list.pointer
             child_env = dict(env)
             child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+            effective_command, enforce = _effective_command(policy, child_env)
             process_info = PROCESS_INFORMATION()
-            command_line = ctypes.create_unicode_buffer(_windows_command_line(policy.command))
+            command_line = ctypes.create_unicode_buffer(_windows_command_line(effective_command))
             environment = ctypes.create_unicode_buffer(_environment_block(child_env))
             cwd = str(policy.cwd) if policy.cwd is not None else None
             if not _create_process_as_user(token, command_line, environment, cwd, startup, process_info):
                 raise ctypes.WinError(ctypes.get_last_error())
-            return WindowsLowIntegrityProcess(
+            pid = int(process_info.dwProcessId)
+            proc = WindowsLowIntegrityProcess(
                 prepared=prepared,
                 token_handle=token,
                 process_handle=process_info.hProcess,
                 thread_handle=process_info.hThread,
-                pid=int(process_info.dwProcessId),
+                pid=pid,
+                network_pid=pid if enforce else None,
             )
+            if enforce:
+                # Fail closed: if OS-level egress enforcement cannot be applied
+                # (e.g. the elevated helper is unavailable), the child must not
+                # run unconfined — terminate it and propagate.
+                try:
+                    _apply_network_enforcement(policy, pid)
+                except BaseException:
+                    with contextlib.suppress(Exception):
+                        ctypes.windll.kernel32.TerminateProcess(process_info.hProcess, 1)
+                    proc._network_pid = None
+                    proc._close()
+                    token = None
+                    raise
+            return proc
         finally:
             if attribute_list is not None:
                 attribute_list.close()

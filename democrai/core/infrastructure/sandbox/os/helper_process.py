@@ -49,13 +49,20 @@ def _load_endpoints_from_policy_file(policy_file: str) -> list[dict[str, Any]]:
         stat_result = path.stat()
     except Exception as exc:
         raise RuntimeError(f"os_sandbox_policy_stat_failed:{path}") from exc
-    expected_uid = _expected_client_uid()
-    if int(stat_result.st_uid) != int(expected_uid):
-        raise RuntimeError(
-            f"os_sandbox_policy_invalid_owner:{int(stat_result.st_uid)}:{int(expected_uid)}:{path}"
-        )
-    if int(stat_result.st_mode) & 0o022:
-        raise RuntimeError(f"os_sandbox_policy_insecure_mode:{oct(int(stat_result.st_mode) & 0o777)}:{path}")
+    # The owner/mode check is POSIX-specific (st_uid + permission bits, and
+    # ``expected_client_uid`` calls os.getuid). On Windows there is no uid model:
+    # the policy file lives in a per-user runtime dir protected by NTFS ACLs and
+    # the request is authenticated by the HMAC token, so skip the POSIX check.
+    if os.name == "posix":
+        expected_uid = _expected_client_uid()
+        if int(stat_result.st_uid) != int(expected_uid):
+            raise RuntimeError(
+                f"os_sandbox_policy_invalid_owner:{int(stat_result.st_uid)}:{int(expected_uid)}:{path}"
+            )
+        if int(stat_result.st_mode) & 0o022:
+            raise RuntimeError(
+                f"os_sandbox_policy_insecure_mode:{oct(int(stat_result.st_mode) & 0o777)}:{path}"
+            )
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise RuntimeError("os_sandbox_policy_invalid_payload")
