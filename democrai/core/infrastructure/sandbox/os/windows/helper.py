@@ -7,7 +7,8 @@ import subprocess
 import threading
 from typing import Any
 
-from democrai.core.infrastructure.sandbox.os.windows import winfwp
+from democrai.core.infrastructure.sandbox.os.windows import sandbox_host, winfwp
+from democrai.core.platform.utils.debug import debug_os_sandbox_flow
 
 
 _default_endpoint: str | None = None
@@ -112,8 +113,21 @@ class WindowsHelperBackend:
         # `python -m <pkg>` resolution and the elevated helper logs to its own
         # file; close the prepared log handle to avoid leaking it.
         from democrai.core.infrastructure.sandbox.os.windows import elevation
+        from democrai.core.infrastructure.sandbox.os.windows.sandbox_host import (
+            real_interpreter,
+        )
 
-        proc = elevation.spawn_elevated_process(list(command), cwd=popen_kwargs.get("cwd"))
+        command = list(command)
+        if command:
+            # The helper is privileged infrastructure: it hosts the egress CONNECT
+            # proxy and must reach allowlisted upstreams. It must run from the REAL
+            # interpreter, never the sandbox-host exe — otherwise its app-id matches
+            # the WFP block-except-loopback filter and the proxy's own upstream
+            # connect is denied (WinError 5 → media-proxy 502). In the relaunched
+            # Low core sys.executable IS the sandbox-host exe, so de-host command[0].
+            command[0] = real_interpreter(command[0])
+
+        proc = elevation.spawn_elevated_process(command, cwd=popen_kwargs.get("cwd"))
         proc.args = list(command)
         log_handle = popen_kwargs.get("stdout")
         if hasattr(log_handle, "close"):
@@ -159,6 +173,18 @@ class WindowsHelperBackend:
         self.ensure_ready()
         assert self._engine is not None
         image_path = winfwp.process_image_path(int(pid))
+        # WFP keys filters on the process image (app-id). A real sandboxed child
+        # is launched from a per-child sandbox-host exe, so its image ends in
+        # *-democrai-sandbox.exe. Any OTHER image is a SHARED interpreter
+        # (base/venv) also used by trusted infrastructure — the elevated helper
+        # that hosts the egress CONNECT proxy, the desktop UI. Keying a block on
+        # it would confine them too (the cause of the media-proxy WinError 5 /
+        # 502). Only ever enforce genuine sandbox-host identities.
+        if not sandbox_host.is_sandbox_host(image_path):
+            debug_os_sandbox_flow(
+                "windows.apply_skipped_non_host_image", pid=int(pid), image=image_path
+            )
+            return
         identity = winfwp.WfpIdentity(kind="app_id", value=image_path)
         identity_key = f"{identity.kind}:{identity.value}".lower()
         allowed = _resolve_v4_allowed(endpoints)

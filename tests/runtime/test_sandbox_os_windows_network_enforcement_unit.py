@@ -32,7 +32,11 @@ def patched(monkeypatch):
     monkeypatch.setattr(winfwp, "WfpEngine", lambda: engine)
     monkeypatch.setattr(winfwp, "is_descendant_pid", lambda pid, ancestor, **k: True)
     # Default: every pid maps to the same sandbox-host image (shared identity).
-    monkeypatch.setattr(winfwp, "process_image_path", lambda pid: r"C:\democrai\sandbox-host.exe")
+    monkeypatch.setattr(
+        winfwp,
+        "process_image_path",
+        lambda pid: r"C:\democrai\.venv\Scripts\python-democrai-sandbox.exe",
+    )
     return engine
 
 
@@ -53,7 +57,7 @@ def test_apply_installs_block_except_loopback(patched):
     assert patched.opened is True
     assert len(patched.applied) == 1
     image, allowed, loopback = patched.applied[0]
-    assert image.endswith("sandbox-host.exe")
+    assert image.endswith("python-democrai-sandbox.exe")
     assert allowed == ()
     assert loopback is True
 
@@ -71,13 +75,29 @@ def test_shared_identity_is_installed_once_and_refcounted(patched):
 
 
 def test_distinct_identities_each_get_filters(patched, monkeypatch):
-    monkeypatch.setattr(winfwp, "process_image_path", lambda pid: rf"C:\host-{pid}.exe")
+    monkeypatch.setattr(
+        winfwp, "process_image_path", lambda pid: rf"C:\v{pid}\python-democrai-sandbox.exe"
+    )
     backend = helper_mod.WindowsHelperBackend()
     backend.apply([], pid=1000)
     backend.apply([], pid=2000)
     assert len(patched.applied) == 2
     backend.clear(pid=1000)
     assert len(patched.cleared) == 1
+
+
+def test_apply_skips_non_host_interpreter_image(patched, monkeypatch):
+    # A pid whose image is a plain shared interpreter (not a sandbox-host exe)
+    # must NOT get a WFP block — that would confine the helper/desktop too.
+    monkeypatch.setattr(
+        winfwp, "process_image_path", lambda pid: r"C:\Users\fabio\Python312\python.exe"
+    )
+    backend = helper_mod.WindowsHelperBackend()
+    backend.apply([], pid=4321)
+    assert patched.applied == []  # no filters installed for a shared interpreter
+    # And nothing tracked, so a later clear is a no-op.
+    backend.clear(pid=4321)
+    assert patched.cleared == []
 
 
 def test_resolve_v4_allowed_drops_loopback_and_resolves(monkeypatch):
@@ -110,3 +130,40 @@ def test_validate_target_pid_rejects_non_descendant(patched, monkeypatch):
         backend.validate_client_and_target_pid(
             writer=SimpleNamespace(), requested_pid=1234, parent_pid=1
         )
+
+
+def _capture_spawn(monkeypatch):
+    from democrai.core.infrastructure.sandbox.os.windows import elevation
+
+    captured: dict = {}
+
+    def _fake(command, *, cwd=None):
+        captured["command"] = list(command)
+        captured["cwd"] = cwd
+        return SimpleNamespace()
+
+    monkeypatch.setattr(elevation, "spawn_elevated_process", _fake)
+    return captured
+
+
+def test_spawn_helper_process_dehosts_sandbox_host_interpreter(monkeypatch):
+    # The elevated helper hosts the egress proxy; it must run from the real
+    # interpreter, not the sandbox-host exe (whose app-id is WFP-blocked).
+    captured = _capture_spawn(monkeypatch)
+    backend = helper_mod.WindowsHelperBackend()
+    host_exe = r"C:\v\python-democrai-sandbox.exe"
+    backend.spawn_helper_process(
+        [host_exe, "-m", "pkg", "--token", "x"], {"cwd": r"C:\app", "stdout": None}
+    )
+    assert "-democrai-sandbox" not in captured["command"][0]  # de-hosted
+    assert captured["command"][0] == r"C:\v\python.exe"
+    assert captured["command"][1:] == ["-m", "pkg", "--token", "x"]
+    assert captured["cwd"] == r"C:\app"
+
+
+def test_spawn_helper_process_keeps_normal_interpreter(monkeypatch):
+    captured = _capture_spawn(monkeypatch)
+    backend = helper_mod.WindowsHelperBackend()
+    normal = r"C:\v\python.exe"
+    backend.spawn_helper_process([normal, "-m", "pkg"], {"cwd": None, "stdout": None})
+    assert captured["command"][0] == normal  # unchanged (no-op for a real interpreter)

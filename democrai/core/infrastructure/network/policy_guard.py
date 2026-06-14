@@ -58,6 +58,16 @@ _APPROVED_HOST_CONNECT_DEPTH: contextvars.ContextVar[int] = contextvars.ContextV
     "network_policy_approved_host_connect_depth",
     default=0,
 )
+# Depth counter set while inside ``socket.socketpair()``. On Windows that has no
+# AF_UNIX, so the stdlib emulates it with a real loopback TCP connect to its own
+# ephemeral listener (asyncio's event-loop self-pipe uses this). That connect is
+# pure event-loop infrastructure — it can never reach an external host — so it is
+# exempted from the guard while > 0, even for subject code (which otherwise has
+# its loopback access enforced).
+_SOCKETPAIR_DEPTH: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "network_policy_socketpair_depth",
+    default=0,
+)
 
 
 def _is_ip_address(host: str) -> bool:
@@ -312,6 +322,12 @@ def _check_target(
     # loopback hole on POSIX.
     if os.name == "nt" and not _subject_name() and _is_loopback_host(normalized):
         return
+    # asyncio's event-loop self-pipe (and any other socketpair) emulates a pair
+    # via a loopback connect on Windows. It is the loop's own machinery, not a
+    # subject-initiated connection, and cannot reach an external host — so allow
+    # the loopback connect while inside ``socket.socketpair()`` even for a subject.
+    if _SOCKETPAIR_DEPTH.get() > 0 and _is_loopback_host(normalized):
+        return
     target = f"{normalized}:{int(port)}" if port is not None else normalized
     if _network_access_allowed(target, operation=operation):
         return
@@ -420,6 +436,17 @@ def _wrap_socket_sendto(original):
             port = address[1] if len(address) > 1 else None
             _check_target(str(host), port, operation="send")
         return original(self_conn, data, address_or_flags, *args, **kwargs)
+
+    return wrapper
+
+
+def _wrap_socketpair(original):
+    def wrapper(*args, **kwargs):
+        token = _SOCKETPAIR_DEPTH.set(_SOCKETPAIR_DEPTH.get() + 1)
+        try:
+            return original(*args, **kwargs)
+        finally:
+            _SOCKETPAIR_DEPTH.reset(token)
 
     return wrapper
 
@@ -583,6 +610,9 @@ def enable_network_policy(
         socket.socket.sendto = _wrap_socket_sendto(socket.socket.sendto)
         _ORIGINALS["socket.create_connection"] = socket.create_connection
         socket.create_connection = _wrap_create_connection(socket.create_connection)
+        if hasattr(socket, "socketpair"):
+            _ORIGINALS["socket.socketpair"] = socket.socketpair
+            socket.socketpair = _wrap_socketpair(socket.socketpair)
         _ORIGINALS["asyncio.open_connection"] = asyncio.open_connection
         asyncio.open_connection = _wrap_asyncio_open_connection(asyncio.open_connection)
         _ORIGINALS[
@@ -673,6 +703,8 @@ def disable_network_policy(token: contextvars.Token | None = None) -> None:
         socket.socket.sendto = _ORIGINALS["socket.socket.sendto"]
     if "socket.create_connection" in _ORIGINALS:
         socket.create_connection = _ORIGINALS["socket.create_connection"]
+    if "socket.socketpair" in _ORIGINALS:
+        socket.socketpair = _ORIGINALS["socket.socketpair"]
     if "asyncio.open_connection" in _ORIGINALS:
         asyncio.open_connection = _ORIGINALS["asyncio.open_connection"]
     if "http.client.HTTPConnection.__init__" in _ORIGINALS:
