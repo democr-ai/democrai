@@ -7,10 +7,12 @@
       id: monitor_tasks_title
       text: "@t/monitor.task.title"
       level: 2
+      style: "padding-left: 12px;"
     - kind: Text
       id: monitor_tasks_description
       text: "@t/monitor.task.description"
       muted: true
+      style: "padding-left: 12px;"
     - kind: DataTable
       id: monitor_tasks_table
       model: [

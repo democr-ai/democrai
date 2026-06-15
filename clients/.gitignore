@@ -6,6 +6,12 @@
 !tauri/**
 !webclient
 !webclient/**
+!reactbootstrap
+!reactbootstrap/**
+!reactfluent
+!reactfluent/**
+!electron
+!electron/**
 !__init__.py
 !LICENSE
 

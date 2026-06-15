@@ -8,8 +8,8 @@
     id: hsplit
     stretch: true
     sizes:
-    - 150
-    - 850
+    - 250
+    - 750
     max_sizes:
     - 340
     - 0

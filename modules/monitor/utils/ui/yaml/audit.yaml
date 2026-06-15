@@ -7,10 +7,12 @@
       id: monitor_audit_title
       text: "@t/monitor.audit.title"
       level: 2
+      style: "padding-left: 12px;"
     - kind: Text
       id: monitor_audit_description
       text: "@t/monitor.audit.description"
       muted: true
+      style: "padding-left: 12px;"
     - kind: DataTable
       id: monitor_audit_table
       model: [
