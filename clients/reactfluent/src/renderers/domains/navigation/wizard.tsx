@@ -44,16 +44,16 @@ export const Wizard: React.FC<any> = ({
 
   if (!allSteps.length) {
     return (
-      <section style={parseStyle(style)} className="a2ui-wizard">
-        <div className="a2ui-wizard-empty">No steps configured.</div>
+      <section style={parseStyle(style)} className="ds-wizard">
+        <div className="ds-wizard-empty">No steps configured.</div>
       </section>
     );
   }
 
   return (
-    <section style={parseStyle(style)} className="a2ui-wizard">
-      <header className="a2ui-wizard-header">
-        <div className="a2ui-wizard-steps">
+    <section style={parseStyle(style)} className="ds-wizard">
+      <header className="ds-wizard-header">
+        <div className="ds-wizard-steps">
           {allSteps.map((step: any, idx: number) => {
             const stepId = String(step?.id || `step_${idx + 1}`);
             const isActive = stepId === activeId;
@@ -63,7 +63,7 @@ export const Wizard: React.FC<any> = ({
               <button
                 key={stepId}
                 type="button"
-                className={`a2ui-wizard-step ${isActive ? 'a2ui-wizard-step-active' : ''} ${isValidated ? 'a2ui-wizard-step-done' : ''}`}
+                className={`ds-wizard-step ${isActive ? 'ds-wizard-step-active' : ''} ${isValidated ? 'ds-wizard-step-done' : ''}`}
                 disabled={!canClickStep}
                 onClick={() =>
                   emitActionSpec(action, onAction, {
@@ -74,25 +74,25 @@ export const Wizard: React.FC<any> = ({
                   })
                 }
               >
-                <span className="a2ui-wizard-step-index">{isValidated && !isActive ? <i className="ri-check-line" /> : idx + 1}</span>
-                <span className="a2ui-wizard-step-label">{getLiteral(step?.title || stepId)}</span>
+                <span className="ds-wizard-step-index">{isValidated && !isActive ? <i className="ri-check-line" /> : idx + 1}</span>
+                <span className="ds-wizard-step-label">{getLiteral(step?.title || stepId)}</span>
               </button>
             );
           })}
         </div>
       </header>
-      <div className="a2ui-wizard-body">
-        <div className="a2ui-wizard-heading">
-          <h3 className="a2ui-wizard-title">{getLiteral(active?.title || activeId)}</h3>
-          <span className="a2ui-wizard-badge">Step {activeIndex + 1}/{allSteps.length}</span>
+      <div className="ds-wizard-body">
+        <div className="ds-wizard-heading">
+          <h3 className="ds-wizard-title">{getLiteral(active?.title || activeId)}</h3>
+          <span className="ds-wizard-badge">Step {activeIndex + 1}/{allSteps.length}</span>
         </div>
-        {active?.description ? <p className="a2ui-wizard-description">{getLiteral(active.description)}</p> : null}
-        {active?.content ? <p className="a2ui-wizard-content">{getLiteral(active.content)}</p> : null}
+        {active?.description ? <p className="ds-wizard-description">{getLiteral(active.description)}</p> : null}
+        {active?.content ? <p className="ds-wizard-content">{getLiteral(active.content)}</p> : null}
         {show_controls ? (
-          <div className="a2ui-wizard-controls">
+          <div className="ds-wizard-controls">
             <DefaultButton
               type="button"
-              className="a2ui-button a2ui-button-small a2ui-wizard-back"
+              className="ds-button ds-button-small ds-wizard-back"
               disabled={activeIndex <= 0}
               onClick={() =>
                 emitActionSpec(action, onAction, {
@@ -103,12 +103,12 @@ export const Wizard: React.FC<any> = ({
                 })
               }
             >
-              <span className="a2ui-wizard-nav-icon a2ui-wizard-nav-icon-left" aria-hidden="true" />
+              <span className="ds-wizard-nav-icon ds-wizard-nav-icon-left" aria-hidden="true" />
               <span>{getLiteral(prev_label)}</span>
             </DefaultButton>
             <PrimaryButton
               type="button"
-              className="a2ui-button a2ui-button-small a2ui-wizard-next"
+              className="ds-button ds-button-small ds-wizard-next"
               disabled={!canGoNext}
               onClick={() =>
                 emitActionSpec(action, onAction, {
@@ -120,7 +120,7 @@ export const Wizard: React.FC<any> = ({
               }
             >
               <span>{getLiteral(next_label)}</span>
-              <span className="a2ui-wizard-nav-icon a2ui-wizard-nav-icon-right" aria-hidden="true" />
+              <span className="ds-wizard-nav-icon ds-wizard-nav-icon-right" aria-hidden="true" />
             </PrimaryButton>
           </div>
         ) : null}

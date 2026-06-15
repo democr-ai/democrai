@@ -1,6 +1,6 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
-import { Button } from 'design-react-kit';
+import { Button } from '@/design/system';
 import { useResolvedMediaUrl } from '@/hooks/useResolvedMediaUrl';
 import { getLiteral } from '@/renderers/shared';
 import { resolveBindings } from '@/renderers/rules';

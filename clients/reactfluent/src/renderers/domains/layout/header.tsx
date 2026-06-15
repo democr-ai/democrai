@@ -26,7 +26,7 @@ export const Header: React.FC<any> = ({
   return (
     <header
       id={id}
-      className={`a2ui-header d-flex align-items-center border-bottom px-3 py-2 ${stretch ? 'w-100' : ''}`}
+      className={`ds-header d-flex align-items-center border-bottom px-3 py-2 ${stretch ? 'w-100' : ''}`}
       style={{ ...parseStyle(style), ...computePadding(padding), minHeight: '40px' }}
     >
       <div className="d-flex flex-shrink-0 align-items-center" style={{ gap: slotGap }}>

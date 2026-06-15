@@ -69,7 +69,7 @@ export const Row: React.FC<any> = ({ ExplicitList, stretch, align = 'top', justi
   return (
     <div
       data-ui-role={normalizedUiRole || undefined}
-      className={`a2ui-row d-flex w-100 flex-row ${isStretch ? 'flex-grow-1 h-100' : ''} ${alignmentClasses}`}
+      className={`ds-row d-flex w-100 flex-row ${isStretch ? 'flex-grow-1 h-100' : ''} ${alignmentClasses}`}
       style={{ 
         ...parseStyle(style), 
         ...computePadding(padding), 

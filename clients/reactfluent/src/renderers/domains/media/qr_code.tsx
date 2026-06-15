@@ -2,7 +2,7 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { parseStyle } from '@/utils/style';
 import { getLiteral } from '@/renderers/shared';
-import { Card, CardBody } from 'design-react-kit';
+import { Card, CardBody } from '@/design/system';
 
 export const QRCode: React.FC<any> = ({ content, value, size = 220, style, fill_color = 'var(--qr-fill)', back_color = 'var(--qr-bg)' }) => {
   const text = getLiteral(content || value);

@@ -58,11 +58,11 @@ export const TextArea: React.FC<any> = ({
   return (
     <div
       ref={rootRef}
-      className={`a2ui-field a2ui-textarea-field${auto_resize ? ' a2ui-textarea-field-autoresize' : ''}`}
+      className={`ds-field ds-textarea-field${auto_resize ? ' ds-textarea-field-autoresize' : ''}`}
       style={parseStyle(style)}
     >
       <FluentTextField
-        className="a2ui-textarea"
+        className="ds-textarea"
         id={id}
         value={localVal}
         label={labelText || undefined}

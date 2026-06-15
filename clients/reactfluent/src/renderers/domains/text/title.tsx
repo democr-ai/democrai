@@ -18,7 +18,7 @@ export const Title: React.FC<any> = ({ text, level = 3, style, align = 'left' })
 
   return (
     <Component
-      className={`a2ui-title a2ui-title-level-${safeLevel} m-0 ${classesByLevel[safeLevel]} ${alignClass}`}
+      className={`ds-title ds-title-level-${safeLevel} m-0 ${classesByLevel[safeLevel]} ${alignClass}`}
       style={parseStyle(style)}
     >
       {getLiteral(text)}

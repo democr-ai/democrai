@@ -1,21 +1,32 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral } from '@/renderers/shared';
-import { UncontrolledDropdown, DropdownItem, DropdownToggle, DropdownMenu as UIDropdownMenu } from 'reactstrap';
+import { Button, DropdownItem } from '@/design/system';
 
-export const DropdownMenu: React.FC<any> = ({ label, items = [], onAction, style }) => (
-  <div style={parseStyle(style)}>
-    <UncontrolledDropdown>
-      <DropdownToggle caret color="primary" outline size="sm">
+export const DropdownMenu: React.FC<any> = ({ label, items = [], onAction, style }) => {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className="ds-dropdown" style={parseStyle(style)}>
+      <Button color="primary" outline size="sm" onClick={() => setOpen((value) => !value)}>
         {getLiteral(label)}
-      </DropdownToggle>
-      <UIDropdownMenu right>
+        <i className="ri-arrow-down-s-line" aria-hidden="true" />
+      </Button>
+      {open ? (
+      <div className="ds-dropdown-menu">
         {items.map((item: any, index: number) => (
-          <DropdownItem key={`menu_item_${index}`} onClick={() => emitActionSpec(item?.action, onAction, {})}>
+          <DropdownItem
+            key={`menu_item_${index}`}
+            onClick={() => {
+              setOpen(false);
+              emitActionSpec(item?.action, onAction, {});
+            }}
+          >
             {getLiteral(item?.label)}
           </DropdownItem>
         ))}
-      </UIDropdownMenu>
-    </UncontrolledDropdown>
-  </div>
-);
+      </div>
+      ) : null}
+    </div>
+  );
+};

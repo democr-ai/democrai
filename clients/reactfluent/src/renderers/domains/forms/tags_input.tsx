@@ -131,7 +131,7 @@ export const TagsInput: React.FC<any> = ({
       ];
       return (
         <Dropdown
-          className="a2ui-tags-control"
+          className="ds-tags-control"
           selectedKey={draft}
           options={options}
           onChange={(_event, option) => setDraft(String(option?.key ?? 'true'))}
@@ -146,7 +146,7 @@ export const TagsInput: React.FC<any> = ({
       }));
       return (
         <Dropdown
-          className="a2ui-tags-control"
+          className="ds-tags-control"
           selectedKey={draft}
           options={options}
           onChange={(_event, option) => setDraft(String(option?.key ?? '0'))}
@@ -155,7 +155,7 @@ export const TagsInput: React.FC<any> = ({
     }
     return (
       <TextField
-        className="a2ui-tags-control"
+        className="ds-tags-control"
         type={schema.type === 'number' ? 'number' : 'text'}
         value={draft}
         placeholder={getLiteral(placeholder)}
@@ -170,17 +170,17 @@ export const TagsInput: React.FC<any> = ({
   };
 
   return (
-    <div className={`a2ui-field a2ui-tags-field ${error ? 'is-invalid' : ''}`} style={parseStyle(style)}>
-      {getLiteral(label) ? <label className="a2ui-tags-label">{getLiteral(label)}</label> : null}
-      <div className={`a2ui-tags-shell ${error ? 'is-invalid' : ''}`}>
+    <div className={`ds-field ds-tags-field ${error ? 'is-invalid' : ''}`} style={parseStyle(style)}>
+      {getLiteral(label) ? <label className="ds-tags-label">{getLiteral(label)}</label> : null}
+      <div className={`ds-tags-shell ${error ? 'is-invalid' : ''}`}>
         {items.length > 0 ? (
-          <div className="a2ui-tags-list">
+          <div className="ds-tags-list">
             {items.map((item, index) => (
-              <span key={`${id}_tag_${index}`} className="a2ui-tags-chip">
-                <span className="a2ui-tags-chip-text">{itemText(schema, item)}</span>
+              <span key={`${id}_tag_${index}`} className="ds-tags-chip">
+                <span className="ds-tags-chip-text">{itemText(schema, item)}</span>
                 <button
                   type="button"
-                  className="a2ui-tags-chip-remove"
+                  className="ds-tags-chip-remove"
                   aria-label="Remove"
                   onClick={() => removeItem(index)}
                 >
@@ -190,20 +190,20 @@ export const TagsInput: React.FC<any> = ({
             ))}
           </div>
         ) : (
-          <div className="a2ui-tags-empty">
+          <div className="ds-tags-empty">
             <i className="ri-price-tag-3-line" aria-hidden="true" />
             <span>{getLiteral(placeholder) || 'No tags yet'}</span>
           </div>
         )}
       </div>
-      <div className="a2ui-tags-editor">
-        <div className="a2ui-tags-editor-control">{control()}</div>
-        <DefaultButton className="a2ui-tags-add" type="button" onClick={addItem}>
+      <div className="ds-tags-editor">
+        <div className="ds-tags-editor-control">{control()}</div>
+        <DefaultButton className="ds-tags-add" type="button" onClick={addItem}>
           <i className="ri-add-line" aria-hidden="true" />
           <span>{getLiteral(add_label || 'Add')}</span>
         </DefaultButton>
       </div>
-      {error ? <div className="a2ui-tags-error">{error}</div> : null}
+      {error ? <div className="ds-tags-error">{error}</div> : null}
     </div>
   );
 };

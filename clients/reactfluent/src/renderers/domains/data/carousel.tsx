@@ -3,7 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { IconButton } from '@fluentui/react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec } from '@/renderers/shared';
-import { InternalRenderer } from '@/components/a2ui/Renderer';
+import { InternalClientRenderer } from '@/components/renderer/Renderer';
 import { readClientStateValue } from '@/state/clientState';
 import { cn } from '@/lib/utils';
 
@@ -85,20 +85,20 @@ export const Carousel: React.FC<any> = ({
 
   if (!itemTemplate) {
     return (
-      <div style={parseStyle(style)} className="a2ui-carousel a2ui-carousel-empty">
+      <div style={parseStyle(style)} className="ds-carousel ds-carousel-empty">
         No carousel template configured.
       </div>
     );
   }
 
   return (
-    <div style={parseStyle(style)} className="a2ui-carousel">
-      <div className="a2ui-carousel-viewport" ref={emblaRef}>
-        <div className="a2ui-carousel-track">
+    <div style={parseStyle(style)} className="ds-carousel">
+      <div className="ds-carousel-viewport" ref={emblaRef}>
+        <div className="ds-carousel-track">
           {items.map((item: any, index: number) => (
-            <div key={item?.id || `${id}_slide_${index}`} className="a2ui-carousel-slide">
+            <div key={item?.id || `${id}_slide_${index}`} className="ds-carousel-slide">
               <div
-                className="a2ui-carousel-slide-hitbox"
+                className="ds-carousel-slide-hitbox"
                 role={onItemClick ? 'button' : undefined}
                 tabIndex={onItemClick ? 0 : undefined}
                 onClick={() => emitActionSpec(onItemClick, onAction || sendAction, { item, index, itemId: item?.id })}
@@ -110,7 +110,7 @@ export const Carousel: React.FC<any> = ({
                   }
                 }}
               >
-                <InternalRenderer
+                <InternalClientRenderer
                   componentData={itemTemplate}
                   surfaceId={surfaceId}
                   surfaces={surfaces}
@@ -130,10 +130,10 @@ export const Carousel: React.FC<any> = ({
       </div>
 
       {(showArrows || showDots) && (
-        <div className="a2ui-carousel-nav">
+        <div className="ds-carousel-nav">
           {showArrows ? (
             <IconButton
-              className="a2ui-carousel-arrow"
+              className="ds-carousel-arrow"
               iconProps={{ iconName: 'ChevronLeft' }}
               ariaLabel="Previous slide"
               disabled={items.length <= 1}
@@ -142,7 +142,7 @@ export const Carousel: React.FC<any> = ({
           ) : null}
 
           {showDots ? (
-            <div className="a2ui-carousel-dots" role="tablist" aria-label="Carousel slides">
+            <div className="ds-carousel-dots" role="tablist" aria-label="Carousel slides">
               {items.map((_: any, idx: number) => (
                 <button
                   key={`dot_${idx}`}
@@ -150,8 +150,8 @@ export const Carousel: React.FC<any> = ({
                   role="tab"
                   aria-selected={idx === selected}
                   className={cn(
-                    'a2ui-carousel-dot',
-                    idx === selected && 'a2ui-carousel-dot-active',
+                    'ds-carousel-dot',
+                    idx === selected && 'ds-carousel-dot-active',
                   )}
                   onClick={() => emblaApi?.scrollTo(idx)}
                   title={`Go to slide ${idx + 1}`}
@@ -162,7 +162,7 @@ export const Carousel: React.FC<any> = ({
 
           {showArrows ? (
             <IconButton
-              className="a2ui-carousel-arrow"
+              className="ds-carousel-arrow"
               iconProps={{ iconName: 'ChevronRight' }}
               ariaLabel="Next slide"
               disabled={items.length <= 1}

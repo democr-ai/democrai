@@ -1,7 +1,7 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { toBoolean, getLiteral } from '@/renderers/shared';
-import { Button, Collapse } from 'design-react-kit';
+import { Button, Collapse } from '@/design/system';
 
 export const Collapsible: React.FC<any> = ({ title, content, ExplicitList, open = false, style }) => {
   const [isOpen, setIsOpen] = React.useState(toBoolean(open));

@@ -175,7 +175,7 @@ const hasAccess = (requiredPerms: string[] | string | undefined, role: string, p
   return required.some((perm) => permissions.includes(perm));
 };
 
-export const InternalRenderer: React.FC<{
+export const InternalClientRenderer: React.FC<{
   componentData: any;
   surfaceId: string;
   surfaces: any;
@@ -256,7 +256,7 @@ export const InternalRenderer: React.FC<{
         style={parseStyle(props.style)}
       >
         {hostedSurfaceId && hostedRootId ? (
-          <A2UIRenderer
+          <ClientRenderer
             surfaceId={hostedSurfaceId}
             componentId={hostedRootId}
             surfaces={surfaces}
@@ -274,7 +274,7 @@ export const InternalRenderer: React.FC<{
     );
   }
   if (!ComponentImpl) {
-    return <div className="a2ui-unknown">Unknown Component: {type}</div>;
+    return <div className="ds-unknown">Unknown Component: {type}</div>;
   }
 
   const childrenNode = componentData.children || props.children;
@@ -285,7 +285,7 @@ export const InternalRenderer: React.FC<{
     keyPrefix: string,
   ): React.ReactNode => {
     const node = isObject(child) && child.component ? (
-      <InternalRenderer
+      <InternalClientRenderer
         key={child.id || `${keyPrefix}_inline_${index}`}
         componentData={child}
         surfaceId={surfaceId}
@@ -301,7 +301,7 @@ export const InternalRenderer: React.FC<{
         item={item}
       />
     ) : (
-      <A2UIRenderer
+      <ClientRenderer
         key={`${keyPrefix}_${String(child)}`}
         surfaceId={surfaceId}
         componentId={String(child)}
@@ -398,7 +398,7 @@ export const InternalRenderer: React.FC<{
   );
 };
 
-export const A2UIRenderer: React.FC<RendererProps> = ({
+export const ClientRenderer: React.FC<RendererProps> = ({
   surfaceId,
   componentId,
   surfaces,
@@ -423,7 +423,7 @@ export const A2UIRenderer: React.FC<RendererProps> = ({
   if (!componentData) return null;
 
   return (
-    <InternalRenderer
+    <InternalClientRenderer
       componentData={componentData}
       surfaceId={surfaceId}
       surfaces={surfaces}

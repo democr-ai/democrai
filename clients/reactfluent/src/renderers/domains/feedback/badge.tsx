@@ -33,7 +33,7 @@ export const Badge: React.FC<any> = ({
 
   return (
     <span
-      className={`a2ui-badge a2ui-badge-${color}`}
+      className={`ds-badge ds-badge-${color}`}
       style={parseStyle(style)}
     >
       {getLiteral(resolvedText)}

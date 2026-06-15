@@ -25,7 +25,7 @@ export const Switch: React.FC<any> = ({ id, label, checked, action, onAction, se
 
   return (
     <div
-      className="a2ui-field m-0"
+      className="ds-field m-0"
       style={parseStyle(style)}
     >
       <Toggle

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useA2UI } from '@/hooks/useA2UI';
+import { useClientRuntime } from '@/hooks/useClientRuntime';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import { evaluateRule, hasRequiredPermissions, isNestedActionVisible, isSuperRole } from '../../rules';
 import { applyTransform } from './cell_formatters';
@@ -172,7 +172,7 @@ function FilterCell({ col, value, onChange, serverSide }: { col: any; value: any
   if (col.filter_type === 'select' && Array.isArray(col.options)) {
     return (
       <Dropdown
-        className="a2ui-datatable-filter-control"
+        className="ds-datatable-filter-control"
         selectedKey={value ?? ''}
         options={[
           { key: '', text: 'All' },
@@ -185,7 +185,7 @@ function FilterCell({ col, value, onChange, serverSide }: { col: any; value: any
   if (col.filter_type === 'boolean') {
     return (
       <Dropdown
-        className="a2ui-datatable-filter-control"
+        className="ds-datatable-filter-control"
         selectedKey={value === true ? 'true' : value === false ? 'false' : ''}
         options={[
           { key: '', text: 'All' },
@@ -202,7 +202,7 @@ function FilterCell({ col, value, onChange, serverSide }: { col: any; value: any
   
   return (
     <TextField
-      className="a2ui-datatable-filter-control"
+      className="ds-datatable-filter-control"
       placeholder="Filter..."
       value={serverSide ? localText : (value ?? '')}
       onChange={(_, nextValue) => {
@@ -272,7 +272,7 @@ function CellDisplay({
       : (col.type === 'enum' ? currentEnumLabel : formattedValue);
     return (
       <span
-        className="a2ui-datatable-cell-text a2ui-datatable-cell-editable"
+        className="ds-datatable-cell-text ds-datatable-cell-editable"
         onDoubleClick={startEditing}
         title="Double click to edit"
       >
@@ -284,7 +284,7 @@ function CellDisplay({
   if (isEditable && col.type === 'bool') {
     return (
       <Checkbox
-        className="a2ui-datatable-checkbox"
+        className="ds-datatable-checkbox"
         checked={localBool}
         onBlur={finishEditing}
         onKeyDown={handleEditorKeyDown}
@@ -300,7 +300,7 @@ function CellDisplay({
   if (isEditable && col.type === 'enum' && Array.isArray(enumOptions)) {
     return (
       <Dropdown
-        className="a2ui-datatable-cell-dropdown"
+        className="ds-datatable-cell-dropdown"
         selectedKey={localEnum}
         options={enumOptions.map((option: any) => ({
           key: optionValue(option),
@@ -320,7 +320,7 @@ function CellDisplay({
   if (isEditable) {
     return (
       <TextField
-        className="a2ui-datatable-cell-input"
+        className="ds-datatable-cell-input"
         value={localStr}
         autoFocus
         onBlur={finishEditing}
@@ -336,12 +336,12 @@ function CellDisplay({
 
   if (col.type === 'bool') {
     return (
-      <Checkbox className="a2ui-datatable-checkbox" checked={Boolean(raw)} disabled />
+      <Checkbox className="ds-datatable-checkbox" checked={Boolean(raw)} disabled />
     );
   }
 
   return (
-    <span className="a2ui-datatable-cell-text">{applyTransform(raw, col.transform, { stateModel, row })}</span>
+    <span className="ds-datatable-cell-text">{applyTransform(raw, col.transform, { stateModel, row })}</span>
   );
 }
 
@@ -402,8 +402,8 @@ export const DataTable: React.FC<any> = ({
   );
   const visibleColumnCount = visibleColumns.length;
   const remoteAction = remote_service || on_page_change || on_filter_change;
-  const bootstrapFilters = incomingFilters || {};
-  const bootstrapSort = incomingSort || {};
+  const initialFilters = incomingFilters || {};
+  const initialSort = incomingSort || {};
   const tableRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
   const currentPath = String(currentPathFromState(stateModel) || '/');
   const queryState = useMemo(
@@ -411,10 +411,10 @@ export const DataTable: React.FC<any> = ({
       parseTableQueryState(currentPath, String(id || ''), {
         page,
         pageSize: page_size,
-        filters: bootstrapFilters,
-        sort: bootstrapSort,
+        filters: initialFilters,
+        sort: initialSort,
       }),
-    [currentPath, id, page, page_size, bootstrapFilters, bootstrapSort],
+    [currentPath, id, page, page_size, initialFilters, initialSort],
   );
 
   React.useEffect(() => {
@@ -617,11 +617,11 @@ export const DataTable: React.FC<any> = ({
     const up = () => {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
-      document.body.classList.remove('a2ui-datatable-resizing');
+      document.body.classList.remove('ds-datatable-resizing');
       resizeRef.current = null;
     };
     resizeRef.current = { key, startX, startWidth, move, up };
-    document.body.classList.add('a2ui-datatable-resizing');
+    document.body.classList.add('ds-datatable-resizing');
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   }, []);
@@ -644,7 +644,7 @@ export const DataTable: React.FC<any> = ({
         key: String(i),
         text: String(ra.label || 'Action'),
         iconProps: ra.icon ? { className: resolveIconClass(ra.icon) || undefined } : undefined,
-        className: ra.variant === 'danger' ? 'a2ui-datatable-menu-danger' : undefined,
+        className: ra.variant === 'danger' ? 'ds-datatable-menu-danger' : undefined,
         onClick: () => callAction(ra.action, {
           item: row,
           item_index: rowIndex,
@@ -677,15 +677,15 @@ export const DataTable: React.FC<any> = ({
       width: 36,
       render: (item: any) => (
         <IconButton
-          className="a2ui-datatable-row-action"
+          className="ds-datatable-row-action"
           iconProps={{ iconName: 'MoreVertical' }}
-          menuIconProps={{ className: 'a2ui-datatable-menu-icon' }}
+          menuIconProps={{ className: 'ds-datatable-menu-icon' }}
           ariaLabel="Row actions"
           title="Row actions"
           menuProps={{
             items: buildRowActionItems(item, item.__rowIndex),
             directionalHint: DirectionalHint.bottomLeftEdge,
-            calloutProps: { className: 'a2ui-datatable-menu', isBeakVisible: false },
+            calloutProps: { className: 'ds-datatable-menu', isBeakVisible: false },
           }}
         />
       ),
@@ -699,7 +699,7 @@ export const DataTable: React.FC<any> = ({
         const isSelected = selectedIds.has(item.__rowId);
         return (
           <Checkbox
-            className="a2ui-datatable-checkbox"
+            className="ds-datatable-checkbox"
             checked={isSelected}
             disabled={!rowSelectable}
             onChange={() => toggleSelectRow(item.__rowId, rowSelectable)}
@@ -712,7 +712,7 @@ export const DataTable: React.FC<any> = ({
       name: '#',
       width: 48,
       render: (item: any) => (
-        <span className="a2ui-datatable-row-number">{pageForUi * pageSizeForUi + item.__rowIndex + 1}</span>
+        <span className="ds-datatable-row-number">{pageForUi * pageSizeForUi + item.__rowIndex + 1}</span>
       ),
     }] : []),
     ...visibleColumns.map((col: any) => {
@@ -763,17 +763,17 @@ export const DataTable: React.FC<any> = ({
   };
 
   return (
-    <div ref={refreshRef as any} className="a2ui-datatable">
+    <div ref={refreshRef as any} className="ds-datatable">
       {someSelected && hasSelectionActions && (
-        <div className="a2ui-datatable-selection">
-          <span className="a2ui-datatable-selection-count">{selectedIds.size} selected</span>
+        <div className="ds-datatable-selection">
+          <span className="ds-datatable-selection-count">{selectedIds.size} selected</span>
           {(selection_actions as any[]).filter((sa: any) => isVisible(sa, null, access.role, access.permissions)).map((sa: any, i: number) => {
             const iconCls = resolveIconClass(sa.icon);
             const ActionButton = sa.variant === 'primary' ? PrimaryButton : DefaultButton;
             return (
               <ActionButton
                 key={i}
-                className={`a2ui-datatable-command ${sa.variant === 'danger' ? 'a2ui-datatable-command-danger' : ''}`}
+                className={`ds-datatable-command ${sa.variant === 'danger' ? 'ds-datatable-command-danger' : ''}`}
                 onRenderIcon={iconCls ? () => <i className={iconCls} aria-hidden="true" /> : undefined}
                 onClick={() => callAction(sa.action, { selected_ids: [...selectedIds], selected_rows: getSelectedRows() })}
               >
@@ -781,15 +781,15 @@ export const DataTable: React.FC<any> = ({
               </ActionButton>
             );
           })}
-          <DefaultButton className="a2ui-datatable-clear" onClick={() => setSelectedIds(new Set())}>Clear</DefaultButton>
+          <DefaultButton className="ds-datatable-clear" onClick={() => setSelectedIds(new Set())}>Clear</DefaultButton>
         </div>
       )}
 
-      <div className="a2ui-datatable-toolbar">
-        <div className="a2ui-datatable-count">
+      <div className="ds-datatable-toolbar">
+        <div className="ds-datatable-count">
           {selectable && (
             <Checkbox
-              className="a2ui-datatable-select-all"
+              className="ds-datatable-select-all"
               checked={allSelected}
               disabled={selectableRows.length === 0}
               onChange={toggleSelectAll}
@@ -797,30 +797,30 @@ export const DataTable: React.FC<any> = ({
           )}
           <span>{totalRows} rows</span>
         </div>
-        <div className="a2ui-datatable-actions">
+        <div className="ds-datatable-actions">
           {tableModel.length > 0 && (
             <DefaultButton
-              className="a2ui-datatable-toolbar-button"
+              className="ds-datatable-toolbar-button"
               menuProps={{
                 items: columnsMenuItems,
                 directionalHint: DirectionalHint.bottomRightEdge,
-                calloutProps: { className: 'a2ui-datatable-menu', isBeakVisible: false },
+                calloutProps: { className: 'ds-datatable-menu', isBeakVisible: false },
               }}
             >
               Columns
             </DefaultButton>
           )}
           {on_row_add && (
-            <PrimaryButton className="a2ui-datatable-toolbar-button" onClick={() => callAction(on_row_add)}>
+            <PrimaryButton className="ds-datatable-toolbar-button" onClick={() => callAction(on_row_add)}>
               Add row
             </PrimaryButton>
           )}
         </div>
       </div>
 
-      <div className="a2ui-datatable-surface">
+      <div className="ds-datatable-surface">
         {hasFilterableColumns && (
-          <table className="a2ui-datatable-filter-table" style={{ minWidth: totalColumnWidth }}>
+          <table className="ds-datatable-filter-table" style={{ minWidth: totalColumnWidth }}>
             <colgroup>
               {nativeColumns.map((col) => (
                 <col key={`filter_col_${col.key}`} style={{ width: col.width || MIN_COLUMN_WIDTH }} />
@@ -831,7 +831,7 @@ export const DataTable: React.FC<any> = ({
                 {nativeColumns.map((col) => {
                   const modelCol = visibleColumns.find((entry: any) => columnKey(entry) === col.key);
                   return (
-                    <td className="a2ui-datatable-filter-cell" key={`filter_${col.key}`}>
+                    <td className="ds-datatable-filter-cell" key={`filter_${col.key}`}>
                       {modelCol?.filterable ? (
                         <FilterCell
                           col={modelCol}
@@ -847,7 +847,7 @@ export const DataTable: React.FC<any> = ({
             </tbody>
           </table>
         )}
-        <table className="a2ui-datatable-table" style={{ minWidth: totalColumnWidth }}>
+        <table className="ds-datatable-table" style={{ minWidth: totalColumnWidth }}>
           <colgroup>
             {nativeColumns.map((col) => (
               <col key={`col_${col.key}`} style={{ width: col.width || MIN_COLUMN_WIDTH }} />
@@ -864,17 +864,17 @@ export const DataTable: React.FC<any> = ({
                     {sortable ? (
                       <button
                         type="button"
-                        className="a2ui-datatable-header-button"
+                        className="ds-datatable-header-button"
                         onClick={() => handleSortChange(modelCol.field)}
                       >
                         <span>{col.name}</span>
                         {sorted ? <i className={String(sort?.direction || '').toLowerCase() === 'asc' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} aria-hidden="true" /> : null}
                       </button>
                     ) : (
-                      <span className="a2ui-datatable-header-label">{col.name}</span>
+                      <span className="ds-datatable-header-label">{col.name}</span>
                     )}
                     <span
-                      className="a2ui-datatable-column-resizer"
+                      className="ds-datatable-column-resizer"
                       role="separator"
                       aria-orientation="vertical"
                       aria-label={`Resize ${col.name || 'column'}`}
@@ -887,7 +887,7 @@ export const DataTable: React.FC<any> = ({
           </thead>
           <tbody>
             {tableItems.map((item: any) => (
-              <tr key={item.__rowId} className={selectedIds.has(item.__rowId) ? 'a2ui-datatable-row-selected' : ''}>
+              <tr key={item.__rowId} className={selectedIds.has(item.__rowId) ? 'ds-datatable-row-selected' : ''}>
                 {nativeColumns.map((col) => (
                   <td key={`${item.__rowId}_${col.key}`}>
                     {col.render ? col.render(item) : null}
@@ -900,18 +900,18 @@ export const DataTable: React.FC<any> = ({
       </div>
 
       {showPagination && (
-        <div className="a2ui-datatable-pagination">
-          <span className="a2ui-datatable-page-label">Page {pageForUi + 1} of {pageCount}</span>
-          <div className="a2ui-datatable-page-actions">
+        <div className="ds-datatable-pagination">
+          <span className="ds-datatable-page-label">Page {pageForUi + 1} of {pageCount}</span>
+          <div className="ds-datatable-page-actions">
             <DefaultButton
-              className="a2ui-datatable-toolbar-button"
+              className="ds-datatable-toolbar-button"
               disabled={pageForUi <= 0}
               onClick={() => goToPage(Math.max(0, pageForUi - 1))}
             >
               Prev
             </DefaultButton>
             <DefaultButton
-              className="a2ui-datatable-toolbar-button"
+              className="ds-datatable-toolbar-button"
               disabled={pageForUi >= pageCount - 1}
               onClick={() => goToPage(pageForUi + 1)}
             >

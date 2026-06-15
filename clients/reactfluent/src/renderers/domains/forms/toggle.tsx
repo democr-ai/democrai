@@ -41,7 +41,7 @@ export const Toggle: React.FC<any> = ({
   return (
     <div
       style={parseStyle(style)}
-      className="a2ui-field m-0"
+      className="ds-field m-0"
     >
       <FluentToggle
         id={id}

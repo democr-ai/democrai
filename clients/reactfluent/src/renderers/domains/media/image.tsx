@@ -114,7 +114,7 @@ export const Image: React.FC<any> = ({ id, alt, url, width, height, fit, style, 
         <img
           key={`${src}-${retryKey}`}
           src={src}
-          className={`a2ui-image-img h-100 w-100 ${shouldTintLogo ? 'webclient-logo-img' : ''}`}
+          className={`ds-image-img h-100 w-100 ${shouldTintLogo ? 'webclient-logo-img' : ''}`}
           style={{ objectFit }}
           alt={altText}
           onError={handleError}

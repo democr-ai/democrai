@@ -26,16 +26,16 @@ export const Breadcrumb: React.FC<any> = ({ segments = [], separator = '/', onAc
   });
 
   const dividerAs = React.useCallback((props?: IDividerAsProps) => (
-    <span aria-hidden="true" className="a2ui-breadcrumb-separator">
+    <span aria-hidden="true" className="ds-breadcrumb-separator">
       {separatorText}
     </span>
   ), [separatorText]);
 
   return (
-    <nav className="a2ui-breadcrumb" aria-label="Breadcrumb" style={parseStyle(style)}>
+    <nav className="ds-breadcrumb" aria-label="Breadcrumb" style={parseStyle(style)}>
       <FluentBreadcrumb
         items={fluentItems}
-        className="a2ui-breadcrumb-list"
+        className="ds-breadcrumb-list"
         dividerAs={dividerAs}
         maxDisplayedItems={items.length || 1}
         onReduceData={() => undefined}

@@ -128,19 +128,19 @@ export const GitGraph: React.FC<any> = ({
   const viewportHeight = Math.max(260, Number(height) || 360);
 
   return (
-    <section style={parseStyle(style)} className="a2ui-git-graph">
+    <section style={parseStyle(style)} className="ds-git-graph">
       {title && (
-        <header className="a2ui-git-graph-titlebar">
-          <h3 className="a2ui-git-graph-title">{getLiteral(title)}</h3>
+        <header className="ds-git-graph-titlebar">
+          <h3 className="ds-git-graph-title">{getLiteral(title)}</h3>
         </header>
       )}
-      <div className="a2ui-git-graph-body">
+      <div className="ds-git-graph-body">
         {!parsedCommits.length ? (
-          <div className="a2ui-git-graph-empty">No git graph data available.</div>
+          <div className="ds-git-graph-empty">No git graph data available.</div>
         ) : (
-          <div className="a2ui-git-graph-scroll" style={{ height: viewportHeight }}>
+          <div className="ds-git-graph-scroll" style={{ height: viewportHeight }}>
             <svg
-              className="a2ui-git-graph-svg"
+              className="ds-git-graph-svg"
               width={layout.width}
               height={layout.contentHeight}
               viewBox={`0 0 ${layout.width} ${layout.contentHeight}`}
@@ -152,11 +152,11 @@ export const GitGraph: React.FC<any> = ({
                 const name = branchNames.get(lane) || `lane ${lane + 1}`;
                 return (
                   <g key={`lane-${lane}`}>
-                    <line className="a2ui-git-lane-line" x1={x} y1={layout.topPad - 22} x2={x} y2={layout.contentHeight - layout.bottomPad + 12} />
+                    <line className="ds-git-lane-line" x1={x} y1={layout.topPad - 22} x2={x} y2={layout.contentHeight - layout.bottomPad + 12} />
                     {showBranches && (
                       <g transform={`translate(${x}, ${layout.topPad - 34})`}>
-                        <rect className="a2ui-git-branch-pill" x="-36" y="-12" width="72" height="22" rx="0" />
-                        <text className="a2ui-git-branch-text" x="0" y="3" textAnchor="middle">{name}</text>
+                        <rect className="ds-git-branch-pill" x="-36" y="-12" width="72" height="22" rx="0" />
+                        <text className="ds-git-branch-text" x="0" y="3" textAnchor="middle">{name}</text>
                       </g>
                     )}
                   </g>
@@ -175,7 +175,7 @@ export const GitGraph: React.FC<any> = ({
                 return (
                   <path
                     key={`${edge.source}-${edge.target}-${index}`}
-                    className="a2ui-git-edge"
+                    className="ds-git-edge"
                     d={edgePath(sx, sy + 13, tx, ty - 13)}
                     fill="none"
                     stroke={color}
@@ -191,7 +191,7 @@ export const GitGraph: React.FC<any> = ({
                 return (
                   <g
                     key={commit.id}
-                    className="a2ui-git-commit"
+                    className="ds-git-commit"
                     tabIndex={0}
                     role="button"
                     aria-label={getLiteral(commit.label)}
@@ -203,14 +203,14 @@ export const GitGraph: React.FC<any> = ({
                       }
                     }}
                   >
-                    <circle className="a2ui-git-commit-ring" cx={x} cy={y} r="12" style={{ stroke: commit.color }} />
-                    <circle className="a2ui-git-commit-dot" cx={x} cy={y} r="6" style={{ fill: commit.color }} />
+                    <circle className="ds-git-commit-ring" cx={x} cy={y} r="12" style={{ stroke: commit.color }} />
+                    <circle className="ds-git-commit-dot" cx={x} cy={y} r="6" style={{ fill: commit.color }} />
                     {showLabels && (
                       <g transform={`translate(${labelX}, ${y - 18})`}>
-                        <rect className="a2ui-git-label-card" x="0" y="0" width={Math.max(220, layout.labelWidth - 34)} height="36" rx="0" />
-                        {hash && <text className="a2ui-git-hash" x="10" y="14">{hash}</text>}
-                        <text className="a2ui-git-message" x={hash ? 70 : 10} y="14">{message}</text>
-                        {commit.branch && <text className="a2ui-git-branch-label" x="10" y="29">{commit.branch}</text>}
+                        <rect className="ds-git-label-card" x="0" y="0" width={Math.max(220, layout.labelWidth - 34)} height="36" rx="0" />
+                        {hash && <text className="ds-git-hash" x="10" y="14">{hash}</text>}
+                        <text className="ds-git-message" x={hash ? 70 : 10} y="14">{message}</text>
+                        {commit.branch && <text className="ds-git-branch-label" x="10" y="29">{commit.branch}</text>}
                       </g>
                     )}
                   </g>

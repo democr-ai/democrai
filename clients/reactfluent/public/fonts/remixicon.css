@@ -362,8 +362,6 @@
 .ri-bookmark-3-line::before { content: "\eae3"; }
 .ri-bookmark-fill::before { content: "\eae4"; }
 .ri-bookmark-line::before { content: "\eae5"; }
-.ri-bootstrap-fill::before { content: "\f2ee"; }
-.ri-bootstrap-line::before { content: "\f2ef"; }
 .ri-bowl-fill::before { content: "\f428"; }
 .ri-bowl-line::before { content: "\f429"; }
 .ri-box-1-fill::before { content: "\f2f0"; }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral } from '@/renderers/shared';
-import { Button } from 'design-react-kit';
+import { Button } from '@/design/system';
 
 export const ScrollToBottomButton: React.FC<any> = ({ label, action, onAction, style }) => (
   <div style={parseStyle(style)}>

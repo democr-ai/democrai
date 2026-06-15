@@ -255,23 +255,23 @@ export const Gantt: React.FC<any> = ({ title, items = [], mermaid = '', start, e
   }, [range, scaleSpec, totalUnits]);
 
   return (
-    <section style={parseStyle(style)} className="a2ui-gantt">
+    <section style={parseStyle(style)} className="ds-gantt">
       {title && (
-        <header className="a2ui-gantt-titlebar">
-          <h3 className="a2ui-gantt-title">{getLiteral(title)}</h3>
+        <header className="ds-gantt-titlebar">
+          <h3 className="ds-gantt-title">{getLiteral(title)}</h3>
         </header>
       )}
-      <div className="a2ui-gantt-body">
+      <div className="ds-gantt-body">
         {!range || rows.length === 0 ? (
-          <div className="a2ui-gantt-empty">No scheduled tasks available.</div>
+          <div className="ds-gantt-empty">No scheduled tasks available.</div>
         ) : (
-          <div className="a2ui-gantt-scroll" style={{ maxHeight: Math.max(260, Number(height) || 420) }}>
+          <div className="ds-gantt-scroll" style={{ maxHeight: Math.max(260, Number(height) || 420) }}>
             <div style={{ minWidth: labelColWidth + timelineWidth }}>
-              <div className="a2ui-gantt-head">
-                <div className="a2ui-gantt-head-label" style={{ width: labelColWidth }}>Activities</div>
-                <div className="a2ui-gantt-head-timeline" style={{ width: timelineWidth }}>
+              <div className="ds-gantt-head">
+                <div className="ds-gantt-head-label" style={{ width: labelColWidth }}>Activities</div>
+                <div className="ds-gantt-head-timeline" style={{ width: timelineWidth }}>
                   {ticks.map(tick => (
-                    <div key={tick.key} className="a2ui-gantt-tick" style={{ left: tick.left, width: tick.width }}>{tick.label}</div>
+                    <div key={tick.key} className="ds-gantt-tick" style={{ left: tick.left, width: tick.width }}>{tick.label}</div>
                   ))}
                 </div>
               </div>
@@ -287,25 +287,25 @@ export const Gantt: React.FC<any> = ({ title, items = [], mermaid = '', start, e
                 const barText = barWidth >= 64 ? row.statusLabel || row.status.toUpperCase() || row.label : '';
                 const statusText = row.statusLabel || row.status || 'planned';
                 return (
-                  <div key={row.id} className="a2ui-gantt-row" style={{ minHeight: rowHeight }}>
-                    <div className="a2ui-gantt-label" style={{ width: labelColWidth }}>
-                      <div className="a2ui-gantt-label-main" style={{ paddingLeft: row.depth * 16 }}>
+                  <div key={row.id} className="ds-gantt-row" style={{ minHeight: rowHeight }}>
+                    <div className="ds-gantt-label" style={{ width: labelColWidth }}>
+                      <div className="ds-gantt-label-main" style={{ paddingLeft: row.depth * 16 }}>
                         {row.hasChildren && (
-                          <button type="button" className="a2ui-gantt-expand" onClick={() => setExpandedRows(p => ({ ...p, [row.id]: !isExpanded }))} aria-label={isExpanded ? 'Collapse row' : 'Expand row'}>
+                          <button type="button" className="ds-gantt-expand" onClick={() => setExpandedRows(p => ({ ...p, [row.id]: !isExpanded }))} aria-label={isExpanded ? 'Collapse row' : 'Expand row'}>
                             <i className={isExpanded ? "ri-arrow-down-s-fill" : "ri-arrow-right-s-fill"} />
                           </button>
                         )}
-                        <span className="a2ui-gantt-row-title">{row.label}</span>
-                        <span className="a2ui-gantt-status" style={{ borderColor: color, color }}>{statusText}</span>
+                        <span className="ds-gantt-row-title">{row.label}</span>
+                        <span className="ds-gantt-status" style={{ borderColor: color, color }}>{statusText}</span>
                       </div>
-                      <div className="a2ui-gantt-row-meta" style={{ paddingLeft: row.depth * 16 + (row.hasChildren ? 28 : 0) }}>
+                      <div className="ds-gantt-row-meta" style={{ paddingLeft: row.depth * 16 + (row.hasChildren ? 28 : 0) }}>
                         {row.group ? `${row.group} · ` : ''}{shortInstant(row.start, scaleSpec)} - {shortInstant(row.end, scaleSpec)} · {row.progress}%
                       </div>
                     </div>
-                    <div className="a2ui-gantt-timeline" style={{ width: timelineWidth, '--gantt-unit': `${scaleSpec.unitWidth}px` } as React.CSSProperties}>
-                      <div className="a2ui-gantt-bar" style={{ left: barLeft, width: barWidth, borderColor: color, '--gantt-color': color } as React.CSSProperties}>
-                        <div className="a2ui-gantt-progress" style={{ width: `${row.progress}%`, backgroundColor: color }} />
-                        {barText && <span className="a2ui-gantt-bar-text">{barText}</span>}
+                    <div className="ds-gantt-timeline" style={{ width: timelineWidth, '--gantt-unit': `${scaleSpec.unitWidth}px` } as React.CSSProperties}>
+                      <div className="ds-gantt-bar" style={{ left: barLeft, width: barWidth, borderColor: color, '--gantt-color': color } as React.CSSProperties}>
+                        <div className="ds-gantt-progress" style={{ width: `${row.progress}%`, backgroundColor: color }} />
+                        {barText && <span className="ds-gantt-bar-text">{barText}</span>}
                       </div>
                     </div>
                   </div>

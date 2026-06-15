@@ -108,13 +108,13 @@ export const Button: React.FC<any> = ({
   const ButtonComponent = sourceVariant === 'default' || sourceVariant === 'secondary' || isOutline || isGhost ? DefaultButton : PrimaryButton;
   const sizeClass = mapSizeClass();
   const className = [
-    'a2ui-button',
-    `a2ui-button-${buttonTone}`,
-    `a2ui-button-${sizeClass}`,
-    isLink ? 'a2ui-button-link' : '',
-    isGhost ? 'a2ui-button-ghost' : '',
-    isOutline ? 'a2ui-button-outline' : '',
-    effectiveShape === 'round' ? 'a2ui-button-round' : '',
+    'ds-button',
+    `ds-button-${buttonTone}`,
+    `ds-button-${sizeClass}`,
+    isLink ? 'ds-button-link' : '',
+    isGhost ? 'ds-button-ghost' : '',
+    isOutline ? 'ds-button-outline' : '',
+    effectiveShape === 'round' ? 'ds-button-round' : '',
     isActive ? 'active' : '',
     'd-inline-flex align-items-center justify-content-center',
   ].filter(Boolean).join(' ');

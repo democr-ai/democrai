@@ -81,25 +81,25 @@ export const SequenceDiagram: React.FC<any> = ({ title, participants = [], messa
   }, [model]);
 
   return (
-    <section style={parseStyle(style)} className="a2ui-sequence-diagram">
+    <section style={parseStyle(style)} className="ds-sequence-diagram">
       {title && (
-        <header className="a2ui-sequence-diagram-header">
-          <h3 className="a2ui-sequence-diagram-title">{getLiteral(title)}</h3>
+        <header className="ds-sequence-diagram-header">
+          <h3 className="ds-sequence-diagram-title">{getLiteral(title)}</h3>
         </header>
       )}
-      <div className="a2ui-sequence-diagram-body">
+      <div className="ds-sequence-diagram-body">
         {!model.participants.length ? (
-          <div className="a2ui-sequence-diagram-empty">No sequence diagram data available.</div>
+          <div className="ds-sequence-diagram-empty">No sequence diagram data available.</div>
         ) : (
-          <div className="a2ui-sequence-diagram-viewport" style={{ maxHeight: Math.max(220, Number(height) || 360) }}>
-            <svg width={layout.width} height={layout.contentHeight} className="a2ui-sequence-diagram-svg" role="img" aria-label="sequence diagram">
+          <div className="ds-sequence-diagram-viewport" style={{ maxHeight: Math.max(220, Number(height) || 360) }}>
+            <svg width={layout.width} height={layout.contentHeight} className="ds-sequence-diagram-svg" role="img" aria-label="sequence diagram">
               {model.participants.map(p => {
                 const centerX = layout.laneX.get(p.id) || 0;
                 return (
                   <g key={p.id}>
-                    <rect className="a2ui-sequence-participant-box" x={centerX - layout.headerWidth / 2} y={layout.topPad} width={layout.headerWidth} height={layout.headerHeight} rx={4} strokeWidth={1.5} />
-                    <text className="a2ui-sequence-participant-label" x={centerX} y={layout.topPad + 22} textAnchor="middle" fontSize={11} fontWeight={700} style={{ fontFamily: 'monospace' }}>{p.label}</text>
-                    <line className="a2ui-sequence-lifeline" x1={centerX} y1={layout.lineTop} x2={centerX} y2={layout.contentHeight - 20} strokeDasharray="4 4" strokeWidth={1} />
+                    <rect className="ds-sequence-participant-box" x={centerX - layout.headerWidth / 2} y={layout.topPad} width={layout.headerWidth} height={layout.headerHeight} rx={4} strokeWidth={1.5} />
+                    <text className="ds-sequence-participant-label" x={centerX} y={layout.topPad + 22} textAnchor="middle" fontSize={11} fontWeight={700} style={{ fontFamily: 'monospace' }}>{p.label}</text>
+                    <line className="ds-sequence-lifeline" x1={centerX} y1={layout.lineTop} x2={centerX} y2={layout.contentHeight - 20} strokeDasharray="4 4" strokeWidth={1} />
                   </g>
                 );
               })}
@@ -110,17 +110,17 @@ export const SequenceDiagram: React.FC<any> = ({ title, participants = [], messa
                 if (sx === tx) {
                   return (
                     <g key={idx}>
-                      <path className="a2ui-sequence-message-line" d={`M ${sx} ${y} L ${sx + SELF_LOOP_WIDTH} ${y} L ${sx + SELF_LOOP_WIDTH} ${y + SELF_LOOP_HEIGHT} L ${sx} ${y + SELF_LOOP_HEIGHT}`} fill="none" strokeWidth={1.5} strokeDasharray={dashed ? '4 3' : undefined} />
-                      <polygon className="a2ui-sequence-message-arrow" points={arrowHead(sx, y + SELF_LOOP_HEIGHT, false)} />
-                      {m.text && <text className="a2ui-sequence-message-label" x={sx + SELF_LOOP_WIDTH + 8} y={y + 14} fontSize={10} style={{ fontFamily: 'monospace' }}>{m.text}</text>}
+                      <path className="ds-sequence-message-line" d={`M ${sx} ${y} L ${sx + SELF_LOOP_WIDTH} ${y} L ${sx + SELF_LOOP_WIDTH} ${y + SELF_LOOP_HEIGHT} L ${sx} ${y + SELF_LOOP_HEIGHT}`} fill="none" strokeWidth={1.5} strokeDasharray={dashed ? '4 3' : undefined} />
+                      <polygon className="ds-sequence-message-arrow" points={arrowHead(sx, y + SELF_LOOP_HEIGHT, false)} />
+                      {m.text && <text className="ds-sequence-message-label" x={sx + SELF_LOOP_WIDTH + 8} y={y + 14} fontSize={10} style={{ fontFamily: 'monospace' }}>{m.text}</text>}
                     </g>
                   );
                 }
                 return (
                   <g key={idx}>
-                    <line className="a2ui-sequence-message-line" x1={sx} y1={y} x2={tx} y2={y} strokeWidth={1.5} strokeDasharray={dashed ? '4 3' : undefined} />
-                    <polygon className="a2ui-sequence-message-arrow" points={arrowHead(tx, y, tx > sx)} />
-                    {m.text && <text className="a2ui-sequence-message-label" x={Math.min(sx, tx) + Math.abs(tx - sx) / 2} y={y - 8} textAnchor="middle" fontSize={10} style={{ fontFamily: 'monospace' }}>{m.text}</text>}
+                    <line className="ds-sequence-message-line" x1={sx} y1={y} x2={tx} y2={y} strokeWidth={1.5} strokeDasharray={dashed ? '4 3' : undefined} />
+                    <polygon className="ds-sequence-message-arrow" points={arrowHead(tx, y, tx > sx)} />
+                    {m.text && <text className="ds-sequence-message-label" x={Math.min(sx, tx) + Math.abs(tx - sx) / 2} y={y - 8} textAnchor="middle" fontSize={10} style={{ fontFamily: 'monospace' }}>{m.text}</text>}
                   </g>
                 );
               })}

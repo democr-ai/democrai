@@ -1,5 +1,5 @@
 import React from 'react';
-import { Combobox as FluentCombobox, Field, Option } from '@fluentui/react-components';
+import { Combobox as ClientCombobox, Field, Option } from '@/design/system';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, normalizeOptions, requestActionConfirm } from '@/renderers/shared';
 
@@ -34,9 +34,9 @@ export const Combobox: React.FC<any> = ({
 
   return (
     <Field label={label ? getLiteral(label) : undefined} style={parseStyle(style)}>
-      <FluentCombobox
+      <ClientCombobox
         id={id}
-        className="a2ui-combobox"
+        className="ds-combobox"
         placeholder={getLiteral(placeholder || 'Search...')}
         value={query || selectedLabel}
         selectedOptions={selected ? [selected] : []}
@@ -75,7 +75,7 @@ export const Combobox: React.FC<any> = ({
             No results
           </Option>
         )}
-      </FluentCombobox>
+      </ClientCombobox>
     </Field>
   );
 };

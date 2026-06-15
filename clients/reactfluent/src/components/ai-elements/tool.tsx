@@ -2,13 +2,13 @@
 
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import React, { type ComponentProps, type ReactNode } from "react";
-import { 
-  Badge, 
-  Collapse, 
-  Card, 
-  CardBody, 
-  Button 
-} from 'design-react-kit';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  Collapse,
+} from '@/design/system';
 import { cn } from "@/lib/utils";
 import { isValidElement } from "react";
 import { CodeBlock } from "./code-block";

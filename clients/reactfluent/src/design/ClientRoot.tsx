@@ -1,11 +1,5 @@
 import React from 'react';
 import {
-  FluentProvider,
-  webDarkTheme,
-  webLightTheme,
-  type Theme,
-} from '@fluentui/react-components';
-import {
   createTheme,
   initializeIcons,
   ThemeProvider,
@@ -15,10 +9,10 @@ import { readStoredClientTheme, type ClientTheme } from '@/utils/theme';
 
 initializeIcons(undefined, { disableWarnings: true });
 
-const fluentFontFamilyBase =
+const clientFontFamilyBase =
   "'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', 'Source Sans 3 Variable', sans-serif";
 
-const fluentFontFamilyNumeric =
+const clientFontFamilyNumeric =
   "Bahnschrift, 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', 'Source Sans 3 Variable', sans-serif";
 
 const readCurrentTheme = (): ClientTheme => {
@@ -28,7 +22,7 @@ const readCurrentTheme = (): ClientTheme => {
   return readStoredClientTheme();
 };
 
-export const FluentRoot: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ClientRoot: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [clientTheme, setClientTheme] = React.useState<ClientTheme>(() => readCurrentTheme());
 
   React.useEffect(() => {
@@ -45,16 +39,7 @@ export const FluentRoot: React.FC<{ children: React.ReactNode }> = ({ children }
     return () => observer.disconnect();
   }, []);
 
-  const fluentTheme = React.useMemo<Theme>(() => {
-    const baseTheme = clientTheme === 'light' ? webLightTheme : webDarkTheme;
-    return {
-      ...baseTheme,
-      fontFamilyBase: fluentFontFamilyBase,
-      fontFamilyNumeric: fluentFontFamilyNumeric,
-    };
-  }, [clientTheme]);
-
-  const fluent8Theme = React.useMemo(() => {
+  const clientThemeObject = React.useMemo(() => {
     const isLight = clientTheme === 'light';
     const partialTheme: IPartialTheme = {
       palette: {
@@ -82,10 +67,10 @@ export const FluentRoot: React.FC<{ children: React.ReactNode }> = ({ children }
         black: isLight ? '#000000' : '#ffffff',
       },
       fonts: {
-        small: { fontFamily: fluentFontFamilyBase },
-        medium: { fontFamily: fluentFontFamilyBase },
-        large: { fontFamily: fluentFontFamilyBase },
-        xLarge: { fontFamily: fluentFontFamilyBase },
+        small: { fontFamily: clientFontFamilyBase },
+        medium: { fontFamily: clientFontFamilyBase },
+        large: { fontFamily: clientFontFamilyBase },
+        xLarge: { fontFamily: clientFontFamilyBase },
       },
       semanticColors: {
         bodyBackground: isLight ? '#f5f5f5' : '#1b1a19',
@@ -103,12 +88,10 @@ export const FluentRoot: React.FC<{ children: React.ReactNode }> = ({ children }
   }, [clientTheme]);
 
   return (
-    <FluentProvider theme={fluentTheme}>
-      <ThemeProvider theme={fluent8Theme} applyTo="none">
-        <div className="fluent-root">
-          {children}
-        </div>
-      </ThemeProvider>
-    </FluentProvider>
+    <ThemeProvider theme={clientThemeObject} applyTo="none">
+      <div className="client-root">
+        {children}
+      </div>
+    </ThemeProvider>
   );
 };

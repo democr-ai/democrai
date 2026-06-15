@@ -1,14 +1,10 @@
 import { useMemo } from 'react';
-import { useA2UI } from './hooks/useA2UI';
-import { A2UIRenderer } from './components/a2ui/Renderer';
+import { useClientRuntime } from './hooks/useClientRuntime';
+import { ClientRenderer } from './components/renderer/Renderer';
 import { 
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogSurface,
+  Modal,
   Spinner,
-} from '@fluentui/react-components';
-import { DrawerBody, OverlayDrawer } from '@fluentui/react-components/unstable';
+} from '@fluentui/react';
 import { Toaster } from 'sonner';
 import { ClientStateProvider } from './state/clientState';
 
@@ -31,14 +27,6 @@ const positiveNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-const drawerSize = (dim: number | null): 'small' | 'medium' | 'large' | 'full' => {
-  if (!dim) return 'medium';
-  if (dim <= 360) return 'small';
-  if (dim <= 680) return 'medium';
-  if (dim <= 980) return 'large';
-  return 'full';
-};
-
 function App() {
   const {
     surfaces,
@@ -52,7 +40,7 @@ function App() {
     userPermissions,
     pendingActions,
     connectionState,
-  } = useA2UI({
+  } = useClientRuntime({
     codec: import.meta.env.VITE_WS_CODEC as string | undefined,
   });
 
@@ -118,9 +106,7 @@ function App() {
   const drawerDim = positiveNumber(drawerSurface?.options?.dim);
   const isVerticalDrawer = drawerPosition === 'top' || drawerPosition === 'bottom';
   
-  const drawerClassName = `a2ui-drawer-surface a2ui-drawer-${drawerPosition}`;
-  const fluentDrawerPosition = drawerPosition === 'left' ? 'start' : isVerticalDrawer ? 'bottom' : 'end';
-
+  const drawerClassName = `ds-drawer-surface ds-drawer-${drawerPosition}`;
   const drawerStyle =
     !isVerticalDrawer
       ? {
@@ -169,10 +155,10 @@ function App() {
 
   return (
     <ClientStateProvider value={stateModel}>
-      <div className="a2ui-app vh-100 w-100 overflow-hidden d-flex flex-column">
+      <div className="ds-app vh-100 w-100 overflow-hidden d-flex flex-column">
         <main className="flex-grow-1 min-vh-0 min-vw-0 w-100 overflow-y-auto overflow-x-hidden">
           {mainComponentId ? (
-            <A2UIRenderer
+            <ClientRenderer
               surfaceId={mainSurfaceId}
               componentId={mainComponentId}
               {...rendererProps}
@@ -184,74 +170,55 @@ function App() {
           )}
         </main>
 
-        {drawerPosition === 'top' ? (
-          <Dialog open={!!drawerSurface?.rootId} onOpenChange={(_, data) => { if (!data.open) closeSurface('drawer'); }}>
-            <DialogSurface className={drawerClassName} style={drawerStyle}>
-              <DialogBody>
-                <DialogContent className="a2ui-dialog-content">
-                  {drawerSurface?.rootId ? (
-                    <A2UIRenderer
-                      surfaceId="drawer"
-                      componentId={drawerSurface.rootId}
-                      {...rendererProps}
-                    />
-                  ) : null}
-                </DialogContent>
-              </DialogBody>
-            </DialogSurface>
-          </Dialog>
-        ) : (
-          <OverlayDrawer
-            open={!!drawerSurface?.rootId}
-            position={fluentDrawerPosition}
-            size={isVerticalDrawer ? undefined : drawerSize(drawerDim || defaultDrawerDim)}
-            modalType="modal"
-            onOpenChange={(_, data) => { if (!data.open) closeSurface('drawer'); }}
-            className={drawerClassName}
-            style={drawerStyle}
-          >
-            <DrawerBody className="a2ui-dialog-content">
-              {drawerSurface?.rootId ? (
-                <A2UIRenderer
-                  surfaceId="drawer"
-                  componentId={drawerSurface.rootId}
-                  {...rendererProps}
-                />
-              ) : null}
-            </DrawerBody>
-          </OverlayDrawer>
-        )}
+        <Modal
+          isOpen={!!drawerSurface?.rootId}
+          onDismiss={() => closeSurface('drawer')}
+          containerClassName={drawerClassName}
+          styles={{ main: drawerStyle as any }}
+        >
+          <div className="ds-dialog-content">
+            {drawerSurface?.rootId ? (
+              <ClientRenderer
+                surfaceId="drawer"
+                componentId={drawerSurface.rootId}
+                {...rendererProps}
+              />
+            ) : null}
+          </div>
+        </Modal>
 
-        <Dialog open={!!modalSurface?.rootId} onOpenChange={(_, data) => { if (!data.open) closeSurface('modal'); }}>
-          <DialogSurface className="a2ui-modal-surface" style={modalStyle}>
-            <DialogBody>
-              <DialogContent className="a2ui-dialog-content">
-                {modalSurface?.rootId ? (
-                  <A2UIRenderer
-                    surfaceId="modal"
-                    componentId={modalSurface.rootId}
-                    {...rendererProps}
-                  />
-                ) : null}
-              </DialogContent>
-            </DialogBody>
-          </DialogSurface>
-        </Dialog>
+        <Modal
+          isOpen={!!modalSurface?.rootId}
+          onDismiss={() => closeSurface('modal')}
+          containerClassName="ds-modal-surface"
+          styles={{ main: modalStyle as any }}
+        >
+          <div className="ds-dialog-content">
+            {modalSurface?.rootId ? (
+              <ClientRenderer
+                surfaceId="modal"
+                componentId={modalSurface.rootId}
+                {...rendererProps}
+              />
+            ) : null}
+          </div>
+        </Modal>
 
         {overlaySurfaces.map(([surfaceId, surface]) => (
-          <Dialog key={surfaceId} open onOpenChange={(_, data) => { if (!data.open) closeSurface(surfaceId); }}>
-            <DialogSurface className="a2ui-modal-surface">
-              <DialogBody>
-                <DialogContent className="a2ui-dialog-content">
-                  <A2UIRenderer
-                    surfaceId={surfaceId}
-                    componentId={surface.rootId as string}
-                    {...rendererProps}
-                  />
-                </DialogContent>
-              </DialogBody>
-            </DialogSurface>
-          </Dialog>
+          <Modal
+            key={surfaceId}
+            isOpen
+            onDismiss={() => closeSurface(surfaceId)}
+            containerClassName="ds-modal-surface"
+          >
+            <div className="ds-dialog-content">
+              <ClientRenderer
+                surfaceId={surfaceId}
+                componentId={surface.rootId as string}
+                {...rendererProps}
+              />
+            </div>
+          </Modal>
         ))}
 
       </div>

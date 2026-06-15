@@ -15,7 +15,7 @@ export const Markdown: React.FC<any> = ({ text, style }) => {
 
   return (
     <div
-      className="a2ui-markdown markdown-content w-100 overflow-auto"
+      className="ds-markdown markdown-content w-100 overflow-auto"
       style={parsedStyle}
     >
       <Streamdown plugins={streamdownPlugins}>{getLiteral(text)}</Streamdown>

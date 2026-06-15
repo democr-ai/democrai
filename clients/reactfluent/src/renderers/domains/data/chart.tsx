@@ -3,7 +3,7 @@ import React from 'react';
 export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = [], title }) => {
   if (!data?.length) {
     return (
-      <div className="a2ui-chart-empty">No data available</div>
+      <div className="ds-chart-empty">No data available</div>
     );
   }
 
@@ -39,7 +39,7 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
             y={baselineY - h}
             width={barWidth}
             height={h}
-            className="a2ui-chart-bar"
+            className="ds-chart-bar"
             rx="1"
           />
         );
@@ -58,15 +58,15 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
           {chartType === 'area' ? (
             <polygon
               points={`${padding.left},${baselineY} ${points} ${width - padding.right},${baselineY}`}
-              className="a2ui-chart-area"
+              className="ds-chart-area"
               stroke="none"
             />
           ) : null}
-          <polyline points={points} fill="none" className="a2ui-chart-line" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={points} fill="none" className="ds-chart-line" strokeLinejoin="round" strokeLinecap="round" />
           {numericData.map((val: number, i: number) => {
             const x = padding.left + (i * stepX);
             const y = yForValue(val);
-            return <circle key={i} cx={x} cy={y} r="3.5" className="a2ui-chart-point" />;
+            return <circle key={i} cx={x} cy={y} r="3.5" className="ds-chart-point" />;
           })}
         </>
       );
@@ -76,12 +76,12 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
   };
 
   return (
-    <div className="a2ui-chart">
+    <div className="ds-chart">
       {title ? (
-        <div className="a2ui-chart-title">{title}</div>
+        <div className="ds-chart-title">{title}</div>
       ) : null}
-      <div className="a2ui-chart-frame">
-        <svg viewBox={`0 0 ${width} ${height}`} className="a2ui-chart-svg" role="img" aria-label={title || `${chartType} chart`}>
+      <div className="ds-chart-frame">
+        <svg viewBox={`0 0 ${width} ${height}`} className="ds-chart-svg" role="img" aria-label={title || `${chartType} chart`}>
           {yTicks.map((p) => {
             const y = baselineY - (p * chartHeight);
             const tickValue = Math.round(maxVal * p);
@@ -92,13 +92,13 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
                   y1={y}
                   x2={width - padding.right}
                   y2={y}
-                  className="a2ui-chart-grid-line"
+                  className="ds-chart-grid-line"
                 />
                 <text
                   x={padding.left - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="a2ui-chart-axis-label"
+                  className="ds-chart-axis-label"
                 >
                   {tickValue}
                 </text>
@@ -124,7 +124,7 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
                 textAnchor="end"
                 dominantBaseline="middle"
                 transform={`rotate(-45 ${textX} ${height - 8})`}
-                className="a2ui-chart-axis-label a2ui-chart-x-label"
+                className="ds-chart-axis-label ds-chart-x-label"
               >
                 {label}
               </text>

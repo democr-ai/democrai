@@ -1,7 +1,7 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { getLiteral } from '@/renderers/shared';
-import { Card, CardBody, CardHeader, CardTitle } from 'design-react-kit';
+import { Card, CardBody, CardHeader, CardTitle } from '@/design/system';
 import { Background, Controls, MiniMap, ReactFlow, type Edge, type Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 

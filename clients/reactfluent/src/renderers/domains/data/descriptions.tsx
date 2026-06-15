@@ -97,15 +97,15 @@ export const Descriptions: React.FC<any> = ({
   return (
     <div
       className={cn(
-        'a2ui-descriptions w-100 overflow-hidden',
+        'ds-descriptions w-100 overflow-hidden',
         showBorders ? 'border' : 'border-0',
       )}
       style={parseStyle(style)}
     >
-      <table className="a2ui-descriptions-table">
+      <table className="ds-descriptions-table">
         <thead>
           <tr>
-            <th className="a2ui-descriptions-key-header">{getLiteral(key_header, 'Property')}</th>
+            <th className="ds-descriptions-key-header">{getLiteral(key_header, 'Property')}</th>
             <th>{getLiteral(value_header, 'Value')}</th>
           </tr>
         </thead>

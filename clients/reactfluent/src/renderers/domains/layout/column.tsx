@@ -46,7 +46,7 @@ export const Column: React.FC<any> = ({ ExplicitList, stretch, align = 'top', st
   return (
     <div
       data-ui-role={normalizedUiRole || undefined}
-      className={`a2ui-column d-flex w-100 flex-column gap-2 ${normalizedUiRole} ${isStretch ? 'flex-grow-1 h-100' : ''} ${getAlignmentClasses('col', align)}`}
+      className={`ds-column d-flex w-100 flex-column gap-2 ${normalizedUiRole} ${isStretch ? 'flex-grow-1 h-100' : ''} ${getAlignmentClasses('col', align)}`}
       style={{
         ...parseStyle(style),
         ...computePadding(padding),

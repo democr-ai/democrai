@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Badge,
-  Button,
-  Menu,
-  MenuItem,
-  MenuList,
-  MenuPopover,
-  MenuTrigger,
-} from '@fluentui/react-components';
+import { Badge, Button } from '@/design/system';
 import { parseStyle } from '@/utils/style';
 import { getLiteral } from '@/renderers/shared';
 import { resolveActiveValue } from '@/renderers/rules';
@@ -112,9 +104,12 @@ export const ClientTag: React.FC<any> = ({ tag, stateModel, onAction, style }) =
     return raw || 'en';
   }, [resolvedState]);
   const showLanguageMenu = (tag === APP_BOTTOM_MAIN_LIST_TAG || tag === APP_LANGUAGE_TAG) && languageOptions.length > 0;
+  const tagClassName = `client-tag client-tag-${String(tag || 'default').replace(/[^a-z0-9_-]/gi, '_').toLowerCase()}`;
   const [clientTheme, setClientThemeState] = React.useState<ClientTheme>(() => readStoredClientTheme());
   const mainListRef = React.useRef<HTMLDivElement | null>(null);
   const [visibleCount, setVisibleCount] = React.useState<number>(normalizedItems.length);
+  const [overflowOpen, setOverflowOpen] = React.useState(false);
+  const [languageOpen, setLanguageOpen] = React.useState(false);
 
   React.useEffect(() => {
     const syncTheme = () => setClientThemeState(readStoredClientTheme());
@@ -262,7 +257,7 @@ export const ClientTag: React.FC<any> = ({ tag, stateModel, onAction, style }) =
   return (
     <div
       ref={tag === APP_MAIN_LIST_TAG ? mainListRef : undefined}
-      className={`d-flex w-100 flex-column align-items-center gap-2 ${tag === APP_MAIN_LIST_TAG ? 'h-100 min-vh-0 justify-content-start' : ''}`}
+      className={`${tagClassName} d-flex w-100 flex-column align-items-center gap-2 ${tag === APP_MAIN_LIST_TAG ? 'h-100 min-vh-0 justify-content-start' : ''}`}
       style={parseStyle(style)}
     >
       {visibleItems.map((entry: any, index: number) => {
@@ -289,37 +284,40 @@ export const ClientTag: React.FC<any> = ({ tag, stateModel, onAction, style }) =
       })}
 
       {tag === APP_MAIN_LIST_TAG && overflowItems.length > 0 ? (
-        <Menu positioning={{ position: 'after', align: 'start' }}>
-          <MenuTrigger disableButtonEnhancement>
+        <div className="main-sidebar-menu">
             <Button
               type="button"
               className="main-sidebar-nav-btn"
               id="sidebar-more-btn"
-              appearance="subtle"
               aria-label="More"
               title="More"
-              icon={<i className="ri-more-fill main-sidebar-nav-icon" />}
-            />
-          </MenuTrigger>
-          <MenuPopover className="main-sidebar-dropdown-menu">
-            <MenuList>
-            {overflowItems.map((entry: any, index: number) => {
-              const label = getLiteral(entry?.label, String(entry?.id || `Item ${index + 1}`));
-              const active = resolveActiveValue(entry?.active_condition, { stateModel: resolvedState, item: entry });
-              return (
-                <MenuItem
-                  key={entry?.id || `overflow_${index}`}
-                  className={active ? 'active' : ''}
-                  icon={<SidebarIcon icon={entry?.icon} />}
-                  onClick={() => invokeEntry(entry)}
-                >
-                  {label}
-                </MenuItem>
-              );
-            })}
-            </MenuList>
-          </MenuPopover>
-        </Menu>
+              onClick={() => setOverflowOpen((open) => !open)}
+            >
+              <i className="ri-more-fill main-sidebar-nav-icon" />
+            </Button>
+          {overflowOpen ? (
+            <div className="main-sidebar-dropdown-menu">
+              {overflowItems.map((entry: any, index: number) => {
+                const label = getLiteral(entry?.label, String(entry?.id || `Item ${index + 1}`));
+                const active = resolveActiveValue(entry?.active_condition, { stateModel: resolvedState, item: entry });
+                return (
+                  <button
+                    type="button"
+                    key={entry?.id || `overflow_${index}`}
+                    className={`main-sidebar-dropdown-item ${active ? 'active' : ''}`}
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      invokeEntry(entry);
+                    }}
+                  >
+                    <SidebarIcon icon={entry?.icon} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {showLanguageMenu && (
@@ -328,45 +326,48 @@ export const ClientTag: React.FC<any> = ({ tag, stateModel, onAction, style }) =
           type="button"
           className="main-sidebar-nav-btn"
           onClick={() => setClientThemeState(toggleClientTheme(clientTheme))}
-          appearance="subtle"
           aria-label="Toggle theme"
           title={clientTheme === 'dark' ? 'Dark theme' : 'Light theme'}
-          icon={<i className={clientTheme === 'dark' ? 'ri-moon-clear-fill' : 'ri-sun-line'} />}
-        />
+        >
+          <i className={clientTheme === 'dark' ? 'ri-moon-clear-fill' : 'ri-sun-line'} />
+        </Button>
       )}
 
       {showLanguageMenu && (
-        <Menu positioning={{ position: 'after', align: 'end' }}>
-          <MenuTrigger disableButtonEnhancement>
+        <div className="main-sidebar-menu">
             <Button
               id="lang-toggle-btn"
               type="button"
               className="main-sidebar-nav-btn main-sidebar-language-button"
-              appearance="subtle"
               aria-label="Language"
               title="Language"
+              onClick={() => setLanguageOpen((open) => !open)}
             >
               {currentLanguage.toUpperCase()}
             </Button>
-          </MenuTrigger>
-          <MenuPopover>
-            <MenuList>
+          {languageOpen ? (
+            <div className="main-sidebar-dropdown-menu main-sidebar-language-menu">
               {languageOptions.map((entry: any) => {
                 const value = String(entry.value || '').trim().toLowerCase();
                 const selected = value === currentLanguage;
                 return (
-                  <MenuItem
+                  <button
+                    type="button"
                     key={entry.value}
-                    icon={selected ? <i className="ri-check-line" aria-hidden="true" /> : undefined}
-                    onClick={() => onAction?.('set_user_language', { value: entry.value })}
+                    className={`main-sidebar-dropdown-item ${selected ? 'active' : ''}`}
+                    onClick={() => {
+                      setLanguageOpen(false);
+                      onAction?.('set_user_language', { value: entry.value });
+                    }}
                   >
+                    {selected ? <i className="ri-check-line" aria-hidden="true" /> : <span className="main-sidebar-dropdown-spacer" />}
                     {String(entry.label || entry.value)}
-                  </MenuItem>
+                  </button>
                 );
               })}
-            </MenuList>
-          </MenuPopover>
-        </Menu>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

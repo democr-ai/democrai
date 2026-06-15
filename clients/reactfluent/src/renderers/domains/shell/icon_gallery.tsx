@@ -68,9 +68,9 @@ export const IconGallery: React.FC = () => {
   }
 
   return (
-    <div className="a2ui-icon-gallery">
-      <div className="a2ui-icon-gallery-toolbar">
-        <div className="a2ui-icon-gallery-search">
+    <div className="ds-icon-gallery">
+      <div className="ds-icon-gallery-toolbar">
+        <div className="ds-icon-gallery-search">
           <SearchBox
             placeholder="Search icons"
             value={search}
@@ -79,14 +79,14 @@ export const IconGallery: React.FC = () => {
         </div>
         
         {totalPages > 1 && (
-          <div className="a2ui-icon-gallery-pager">
+          <div className="ds-icon-gallery-pager">
              <IconButton
               disabled={page === 0}
               onClick={() => setPage(p => Math.max(0, p - 1))}
               iconProps={{ iconName: 'ChevronLeft' }}
               ariaLabel="Previous page"
             />
-            <span className="a2ui-icon-gallery-page">
+            <span className="ds-icon-gallery-page">
               {page + 1} / {totalPages}
             </span>
             <IconButton
@@ -99,31 +99,31 @@ export const IconGallery: React.FC = () => {
         )}
       </div>
 
-      <Text variant="small" className="a2ui-icon-gallery-count">
+      <Text variant="small" className="ds-icon-gallery-count">
         Found {filteredIcons.length} icons
       </Text>
       
-      <div className="a2ui-icon-gallery-scroll">
-        <div className="a2ui-icon-gallery-grid">
+      <div className="ds-icon-gallery-scroll">
+        <div className="ds-icon-gallery-grid">
           {paginatedIcons.map((name) => (
             <button
               key={name}
               type="button"
               onClick={() => copyToClipboard(name)}
-              className={`a2ui-icon-gallery-tile ${copiedId === name ? 'is-copied' : ''}`}
+              className={`ds-icon-gallery-tile ${copiedId === name ? 'is-copied' : ''}`}
               title={name}
             >
-              <span className="a2ui-icon-gallery-copy" aria-hidden="true">
+              <span className="ds-icon-gallery-copy" aria-hidden="true">
                 {copiedId === name ? <i className="ri-check-line" /> : <i className="ri-file-copy-line" />}
               </span>
-              <i className={`ri-${name} a2ui-icon-gallery-icon`} aria-hidden="true" />
-              <span className="a2ui-icon-gallery-name">{name}</span>
+              <i className={`ri-${name} ds-icon-gallery-icon`} aria-hidden="true" />
+              <span className="ds-icon-gallery-name">{name}</span>
             </button>
           ))}
         </div>
         
         {filteredIcons.length === 0 && (
-          <div className="a2ui-icon-gallery-empty">
+          <div className="ds-icon-gallery-empty">
             No icons found matching "{search}"
           </div>
         )}

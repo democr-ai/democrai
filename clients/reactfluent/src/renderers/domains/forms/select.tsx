@@ -98,7 +98,7 @@ export const Select: React.FC<any> = ({
 
   return (
     <div
-      className="a2ui-field"
+      className="ds-field"
       style={parseStyle(style)}
     >
       {isMultiple ? (
@@ -111,18 +111,18 @@ export const Select: React.FC<any> = ({
             selectedKeys={localValues}
             options={dropdownOptions}
             errorMessage={error || undefined}
-            className="a2ui-select a2ui-select-multiple"
+            className="ds-select ds-select-multiple"
             onChange={(_, option) => {
               if (!option) return;
               void handleMultiToggle(String(option.key));
             }}
           />
-          <div className="a2ui-multi-select-summary" aria-live="polite">
+          <div className="ds-multi-select-summary" aria-live="polite">
             {selectedLabels.length > 0 ? (
               <>
-                <span className="a2ui-multi-select-count">{selectedLabels.length} selected</span>
+                <span className="ds-multi-select-count">{selectedLabels.length} selected</span>
                 {selectedLabels.map((selectedLabel) => (
-                  <span key={String(selectedLabel)} className="a2ui-multi-select-chip">{selectedLabel}</span>
+                  <span key={String(selectedLabel)} className="ds-multi-select-chip">{selectedLabel}</span>
                 ))}
               </>
             ) : (
@@ -134,7 +134,7 @@ export const Select: React.FC<any> = ({
         <Dropdown
           id={id}
           label={labelText || undefined}
-          className="a2ui-select a2ui-select-single"
+          className="ds-select ds-select-single"
           selectedKey={localValue || undefined}
           placeholder={getLiteral(placeholder || 'Select an option')}
           options={dropdownOptions}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from 'design-react-kit';
+import { Button } from '@/design/system';
 
 type SecurityFeedProps = {
   count: number;

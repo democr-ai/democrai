@@ -109,23 +109,23 @@ export const BackgroundTaskCard: React.FC<{
   const colorClass = STATUS_COLORS[status] ?? 'text-muted';
 
   return (
-    <div className="a2ui-background-task-card">
-      <div className="a2ui-background-task-header">
-        <span className={cn('a2ui-background-task-icon', colorClass, (status === 'running' || status === 'started') && 'is-spinning')} aria-hidden="true">
+    <div className="ds-background-task-card">
+      <div className="ds-background-task-header">
+        <span className={cn('ds-background-task-icon', colorClass, (status === 'running' || status === 'started') && 'is-spinning')} aria-hidden="true">
           <i className={iconClass} />
         </span>
-        <span className="a2ui-background-task-label">{label}</span>
-        <span className={cn('a2ui-background-task-status', colorClass)}>{status.replace(/_/g, ' ')}</span>
+        <span className="ds-background-task-label">{label}</span>
+        <span className={cn('ds-background-task-status', colorClass)}>{status.replace(/_/g, ' ')}</span>
       </div>
       {showProgress && (
-        <div className="a2ui-background-task-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+        <div className="ds-background-task-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
           <div
-            className={cn('a2ui-background-task-progress-bar', (status === 'running' || status === 'started') && 'is-animated')}
+            className={cn('ds-background-task-progress-bar', (status === 'running' || status === 'started') && 'is-animated')}
             style={{ width: `${progress}%` }}
           />
         </div>
       )}
-      {showProgress && <div className="a2ui-background-task-percent">{progress}%</div>}
+      {showProgress && <div className="ds-background-task-percent">{progress}%</div>}
     </div>
   );
 };

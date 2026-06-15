@@ -1,7 +1,7 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, requestActionConfirm } from '@/renderers/shared';
-import { Field, Input } from '@fluentui/react-components';
+import { Field, Input } from '@/design/system';
 
 const TOKEN_CHARS = new Set(['y', 'M', 'd', 'H', 'm']);
 
@@ -126,19 +126,19 @@ export const DatePicker: React.FC<any> = ({
 
   return (
     <Field
-      className="a2ui-field a2ui-date-picker"
+      className="ds-field ds-date-picker"
       label={labelText || undefined}
       validationState={shownError ? 'error' : undefined}
       validationMessage={shownError || undefined}
       style={parseStyle(style)}
     >
-      <div className={`a2ui-date-picker-control${hasTime ? ' a2ui-date-picker-control-time' : ''}`}>
+      <div className={`ds-date-picker-control${hasTime ? ' ds-date-picker-control-time' : ''}`}>
         <Input
           id={id}
           value={localValue}
           placeholder={maskFormat}
           inputMode="numeric"
-          className="a2ui-date-picker-input"
+          className="ds-date-picker-input"
           contentBefore={<i className={hasTime ? 'ri-time-line' : 'ri-calendar-line'} aria-hidden="true" />}
           onChange={(e) => { void commit(e.target.value); }}
         />

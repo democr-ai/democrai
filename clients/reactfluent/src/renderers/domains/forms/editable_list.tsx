@@ -2,7 +2,7 @@ import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, isAnyTrackedActionPending } from '@/renderers/shared';
 import { DefaultButton, IconButton, PrimaryButton, Spinner, SpinnerSize } from '@fluentui/react';
-import { Field, Input, Select } from '@fluentui/react-components';
+import { Field, Input, Select } from '@/design/system';
 
 const toStringList = (value: any): string[] => {
   if (!Array.isArray(value)) {
@@ -111,16 +111,16 @@ export const EditableList: React.FC<any> = ({
   };
 
   return (
-    <Field className="a2ui-field a2ui-editable-list" label={fieldLabel || undefined} style={parseStyle(style)}>
-      <div className="a2ui-editable-list-rows">
+    <Field className="ds-field ds-editable-list" label={fieldLabel || undefined} style={parseStyle(style)}>
+      <div className="ds-editable-list-rows">
         {items.map((item, index) => (
-          <div key={`${id}_${index}`} className="a2ui-editable-list-row">
-            <span className="a2ui-editable-list-index" aria-hidden="true">{index + 1}</span>
+          <div key={`${id}_${index}`} className="ds-editable-list-row">
+            <span className="ds-editable-list-index" aria-hidden="true">{index + 1}</span>
             {schema.type === 'select' ? (
               <Select
                 value={item}
                 aria-label={`${fieldLabel || 'Item'} ${index + 1}`}
-                className="a2ui-editable-list-control a2ui-select a2ui-select-single"
+                className="ds-editable-list-control ds-select ds-select-single"
                 onChange={(event: React.ChangeEvent<HTMLSelectElement>) => updateItem(index, event.target.value)}
               >
                 {schema.options.map((option) => (
@@ -132,7 +132,7 @@ export const EditableList: React.FC<any> = ({
                 value={item}
                 placeholder={getLiteral(placeholder)}
                 aria-label={`${fieldLabel || 'Item'} ${index + 1}`}
-                className="a2ui-editable-list-control"
+                className="ds-editable-list-control"
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => updateItem(index, event.target.value)}
               />
             )}
@@ -141,19 +141,19 @@ export const EditableList: React.FC<any> = ({
               onClick={() => removeItem(index)}
               title={removeText}
               aria-label={removeText}
-              className="a2ui-editable-list-remove"
+              className="ds-editable-list-remove"
               iconProps={{ iconName: 'Delete' }}
             />
           </div>
         ))}
       </div>
-      <div className="a2ui-editable-list-actions">
-        <DefaultButton type="button" className="a2ui-button a2ui-button-small" onClick={() => publishItems([...items, newItemValue()])}>
+      <div className="ds-editable-list-actions">
+        <DefaultButton type="button" className="ds-button ds-button-small" onClick={() => publishItems([...items, newItemValue()])}>
           {addText}
         </DefaultButton>
         <PrimaryButton
           type="button"
-          className="a2ui-button a2ui-button-small"
+          className="ds-button ds-button-small"
           onClick={submit}
           disabled={isLoading}
           onRenderIcon={isLoading ? () => <Spinner size={SpinnerSize.xSmall} /> : undefined}

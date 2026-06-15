@@ -16,12 +16,11 @@ import React, {
 } from "react";
 
 import {
+  Button,
+  DropdownItem,
   Input,
-  FormGroup,
-  Label,
-  UncontrolledTooltip
-} from 'design-react-kit';
-import { UncontrolledDropdown, DropdownItem, DropdownToggle, DropdownMenu } from 'reactstrap';
+  UncontrolledTooltip,
+} from '@/design/system';
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import {

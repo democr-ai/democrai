@@ -1,6 +1,6 @@
 import React from 'react';
 import { DefaultButton, IconButton } from '@fluentui/react';
-import { Field } from '@fluentui/react-components';
+import { Field } from '@/design/system';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, requestActionConfirm } from '@/renderers/shared';
 import {
@@ -104,7 +104,7 @@ export const Attachment: React.FC<any> = ({
       validationMessage={error || undefined}
       style={parseStyle(style)}
     >
-      <div className="a2ui-attachment-list">
+      <div className="ds-attachment-list">
         {files.map((file, i) => {
           if (!file) return null;
           const fileName = file.name || 'Unknown';
@@ -115,18 +115,18 @@ export const Attachment: React.FC<any> = ({
           const isPdf = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
           
           return (
-            <div key={`${id}_file_${i}`} className={`a2ui-attachment-tile ${error ? 'is-invalid' : ''}`}>
+            <div key={`${id}_file_${i}`} className={`ds-attachment-tile ${error ? 'is-invalid' : ''}`}>
               {isImage && fileUrl ? (
-                <img src={fileUrl} alt={fileName} className="a2ui-attachment-preview-image" />
+                <img src={fileUrl} alt={fileName} className="ds-attachment-preview-image" />
               ) : (isPdf && fileUrl) ? (
                 <iframe 
                   src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0`} 
-                  className="a2ui-attachment-preview-frame"
+                  className="ds-attachment-preview-frame"
                   style={{ pointerEvents: 'none' }}
                   title={fileName}
                 />
               ) : (
-                <div className="a2ui-attachment-file">
+                <div className="ds-attachment-file">
                   <i className="ri-file-text-line" />
                   <span>{fileName}</span>
                 </div>
@@ -134,7 +134,7 @@ export const Attachment: React.FC<any> = ({
               <IconButton
                 type="button"
                 onClick={() => removeFile(i)}
-                className="a2ui-attachment-remove-btn"
+                className="ds-attachment-remove-btn"
                 title="Remove"
                 aria-label="Remove"
                 iconProps={{ iconName: 'Cancel' }}
@@ -147,14 +147,14 @@ export const Attachment: React.FC<any> = ({
           <DefaultButton
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className={`a2ui-attachment-upload-btn ${error ? 'is-invalid' : ''}`}
+            className={`ds-attachment-upload-btn ${error ? 'is-invalid' : ''}`}
           >
-            <span className="a2ui-attachment-upload-icon" aria-hidden="true">
+            <span className="ds-attachment-upload-icon" aria-hidden="true">
               <i className="ri-upload-2-line" />
             </span>
-            <span className="a2ui-attachment-upload-copy">
-              <span className="a2ui-attachment-upload-label">Upload</span>
-              {accept ? <span className="a2ui-attachment-upload-hint">{accept}</span> : null}
+            <span className="ds-attachment-upload-copy">
+              <span className="ds-attachment-upload-label">Upload</span>
+              {accept ? <span className="ds-attachment-upload-hint">{accept}</span> : null}
             </span>
           </DefaultButton>
         )}

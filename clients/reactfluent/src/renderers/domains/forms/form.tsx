@@ -608,7 +608,7 @@ export const Form: React.FC<any> = ({
 
     const key = resolveFieldKey(node, `field_${path}`);
     if (!isFieldVisible(node, values)) return null;
-    return <div className="a2ui-form-field">{renderField(node, key)}</div>;
+    return <div className="ds-form-field">{renderField(node, key)}</div>;
   };
 
   const renderedRootNodes = modelNodes
@@ -619,17 +619,17 @@ export const Form: React.FC<any> = ({
     .filter((entry) => entry.node !== null);
 
   return (
-    <form className="a2ui-form" onSubmit={submit}>
-      <div className="a2ui-form-body d-grid gap-3">
+    <form className="ds-form" onSubmit={submit}>
+      <div className="ds-form-body d-grid gap-3">
         {renderedRootNodes.map(({ index, node }) => (
           <div key={`form_node_${index}`}>{node}</div>
         ))}
       </div>
-      <div className="a2ui-form-actions mt-4 d-flex justify-content-end">
+      <div className="ds-form-actions mt-4 d-flex justify-content-end">
         <PrimaryButton
           type="submit"
           disabled={submitDisabled}
-          className="a2ui-button a2ui-button-primary a2ui-button-medium"
+          className="ds-button ds-button-primary ds-button-medium"
           onRenderIcon={isSubmitLoading ? () => <Spinner size={SpinnerSize.xSmall} /> : undefined}
         >
           {getLiteral(submit_label)}

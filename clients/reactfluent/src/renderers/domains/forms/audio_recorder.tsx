@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton } from '@fluentui/react';
-import { Field } from '@fluentui/react-components';
+import { Field } from '@/design/system';
 import { parseStyle } from '@/utils/style';
 import { getLiteral } from '@/renderers/shared';
 import { AudioRecordingController, startBrowserAudioRecording } from '@/utils/audioRecording';
@@ -99,37 +99,37 @@ export const AudioRecorder: React.FC<any> = ({
 
   return (
     <Field
-      className="a2ui-field a2ui-audio-recorder"
+      className="ds-field ds-audio-recorder"
       label={labelText || undefined}
       validationState={message ? 'error' : undefined}
       validationMessage={message || undefined}
       style={parseStyle(style)}
     >
-      <div className="a2ui-audio-recorder-row">
+      <div className="ds-audio-recorder-row">
         <IconButton
           type="button"
           onClick={recording ? stopRecording : startRecording}
           id={id}
           aria-label={recording ? 'Stop recording' : 'Start recording'}
           title={recording ? 'Stop recording' : 'Start recording'}
-          className={`a2ui-audio-record-btn ${recording ? 'is-recording' : ''}`}
+          className={`ds-audio-record-btn ${recording ? 'is-recording' : ''}`}
           onRenderIcon={() => <i className={recording ? 'ri-stop-fill' : 'ri-mic-line'} aria-hidden="true" />}
         />
-        <div className="a2ui-audio-recorder-body">
-          <div className="a2ui-audio-recorder-status">
+        <div className="ds-audio-recorder-body">
+          <div className="ds-audio-recorder-status">
             {recording ? 'Recording...' : source ? 'Recording ready' : 'Ready to record'}
           </div>
-          {file?.duration_seconds != null && <div className="a2ui-field-hint">{file.duration_seconds}s</div>}
+          {file?.duration_seconds != null && <div className="ds-field-hint">{file.duration_seconds}s</div>}
         </div>
         {source && (
-          <div className="a2ui-audio-recorder-playback">
-            <audio controls src={source} className="a2ui-audio-recorder-audio" />
+          <div className="ds-audio-recorder-playback">
+            <audio controls src={source} className="ds-audio-recorder-audio" />
             <IconButton
               type="button"
               onClick={removeRecording}
               aria-label="Remove recording"
               title="Remove recording"
-              className="a2ui-audio-remove-btn"
+              className="ds-audio-remove-btn"
               onRenderIcon={() => <i className="ri-close-line" aria-hidden="true" />}
             />
           </div>

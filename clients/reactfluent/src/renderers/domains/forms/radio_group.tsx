@@ -45,11 +45,11 @@ export const RadioGroup: React.FC<any> = ({
 
   return (
     <div
-      className="a2ui-field a2ui-radio-group"
+      className="ds-field ds-radio-group"
       style={parseStyle(style)}
     >
       <ChoiceGroup
-        className="a2ui-radio-options"
+        className="ds-radio-options"
         label={labelText || undefined}
         selectedKey={selected}
         options={choiceOptions}

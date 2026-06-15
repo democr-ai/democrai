@@ -1,7 +1,7 @@
 import React from 'react';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, requestActionConfirm } from '@/renderers/shared';
-import { Button, Field, Input } from '@fluentui/react-components';
+import { Button, Field, Input } from '@/design/system';
 
 export const FolderSelector: React.FC<any> = ({
   id,
@@ -40,7 +40,7 @@ export const FolderSelector: React.FC<any> = ({
   };
 
   return (
-    <Field className="a2ui-field" style={parseStyle(style)} label={getLiteral(label || 'Folder')}>
+    <Field className="ds-field" style={parseStyle(style)} label={getLiteral(label || 'Folder')}>
       <div className="d-flex gap-2">
         <Input
           id={id}

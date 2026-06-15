@@ -1,8 +1,8 @@
 import { decodeWsMessage, encodeWsMessage, type WsCodec } from '../../utils/wsCodec';
 
-export type A2UITransportKind = 'auto' | 'websocket' | 'native-ipc';
+export type ClientTransportKind = 'auto' | 'websocket' | 'native-ipc';
 
-export type A2UITransportCallbacks = {
+export type ClientTransportCallbacks = {
   onOpen: () => void;
   onMessage: (message: any) => void;
   onError: (error?: any) => void;
@@ -10,13 +10,13 @@ export type A2UITransportCallbacks = {
   debugLog?: (scope: string, ...args: any[]) => void;
 };
 
-export type A2UITransportOptions = A2UITransportCallbacks & {
-  kind: A2UITransportKind;
+export type ClientTransportOptions = ClientTransportCallbacks & {
+  kind: ClientTransportKind;
   url: string;
   codec: WsCodec;
 };
 
-export type A2UITransport = {
+export type ClientTransport = {
   connect: () => void;
   send: (payload: any) => boolean;
   close: () => void;
@@ -101,20 +101,20 @@ function getNativeIpcProvider(): NativeIpcProvider | null {
   return getTauriIpcProvider() || getElectronIpcProvider();
 }
 
-function resolveTransportKind(kind: A2UITransportKind): Exclude<A2UITransportKind, 'auto'> {
+function resolveTransportKind(kind: ClientTransportKind): Exclude<ClientTransportKind, 'auto'> {
   if (kind === 'native-ipc') return 'native-ipc';
   if (kind === 'websocket') return 'websocket';
   return isNativeIpcTransportAvailable() ? 'native-ipc' : 'websocket';
 }
 
-export function createA2UITransport(options: A2UITransportOptions): A2UITransport {
+export function createClientTransport(options: ClientTransportOptions): ClientTransport {
   const kind = resolveTransportKind(options.kind);
   return kind === 'native-ipc'
     ? createNativeIpcTransport(options)
     : createWebSocketTransport(options);
 }
 
-function createWebSocketTransport(options: A2UITransportOptions): A2UITransport {
+function createWebSocketTransport(options: ClientTransportOptions): ClientTransport {
   let ws: WebSocket | null = null;
   let sendChain: Promise<void> = Promise.resolve();
 
@@ -134,7 +134,7 @@ function createWebSocketTransport(options: A2UITransportOptions): A2UITransport 
           const message = await decodeWsMessage(event.data, options.codec);
           options.onMessage(message);
         } catch (error) {
-          console.error('[a2uiTransport] Unable to decode websocket message', error);
+          console.error('[clientTransport] Unable to decode websocket message', error);
         }
       };
 
@@ -157,7 +157,7 @@ function createWebSocketTransport(options: A2UITransportOptions): A2UITransport 
           ws.send(encoded.payload);
         })
         .catch((error) => {
-          console.error('[a2uiTransport] Unable to encode websocket message', error);
+          console.error('[clientTransport] Unable to encode websocket message', error);
         });
       return true;
     },
@@ -174,7 +174,7 @@ function createWebSocketTransport(options: A2UITransportOptions): A2UITransport 
   };
 }
 
-function createNativeIpcTransport(options: A2UITransportOptions): A2UITransport {
+function createNativeIpcTransport(options: ClientTransportOptions): ClientTransport {
   let open = false;
   let connecting = false;
   let closed = false;

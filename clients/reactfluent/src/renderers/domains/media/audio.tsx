@@ -76,14 +76,14 @@ export const Audio: React.FC<any> = ({
   if (blocked) {
     return (
       <div style={{ ...parseStyle(style), width: safeWidth }}>
-        <div className="a2ui-audio-player a2ui-audio-blocked">
-          <div className="a2ui-audio-art" aria-hidden="true">
+        <div className="ds-audio-player ds-audio-blocked">
+          <div className="ds-audio-art" aria-hidden="true">
             <i className="ri-music-2-line" />
           </div>
-          <div className="a2ui-audio-main">
-            <span className="a2ui-audio-meta">{messages.blockedUrl}</span>
+          <div className="ds-audio-main">
+            <span className="ds-audio-meta">{messages.blockedUrl}</span>
             <DefaultButton
-              className="a2ui-button a2ui-button-small"
+              className="ds-button ds-button-small"
               onClick={handleReload}
             >
               {messages.reload}
@@ -95,7 +95,7 @@ export const Audio: React.FC<any> = ({
   }
 
   return (
-    <div style={{ ...parseStyle(style), width: safeWidth }} className="a2ui-audio-player">
+    <div style={{ ...parseStyle(style), width: safeWidth }} className="ds-audio-player">
       <audio
         key={`${resolvedSource}-${retryKey}`}
         ref={audioRef}
@@ -111,8 +111,8 @@ export const Audio: React.FC<any> = ({
         onError={handleAudioError}
       />
 
-      <div className="a2ui-audio-layout">
-        <div className="a2ui-audio-art">
+      <div className="ds-audio-layout">
+        <div className="ds-audio-art">
           {resolvedPoster ? (
             <img src={resolvedPoster} alt={getLiteral(title || 'Audio artwork')} />
           ) : (
@@ -120,33 +120,33 @@ export const Audio: React.FC<any> = ({
           )}
         </div>
 
-        <div className="a2ui-audio-main">
-          <div className="a2ui-audio-title">{getLiteral(title || 'Audio track')}</div>
+        <div className="ds-audio-main">
+          <div className="ds-audio-title">{getLiteral(title || 'Audio track')}</div>
 
           {toBoolean(controls) ? (
-            <div className="a2ui-audio-controls">
+            <div className="ds-audio-controls">
               <IconButton
-                className="a2ui-audio-play"
+                className="ds-audio-play"
                 ariaLabel={playing ? 'Pause' : 'Play'}
                 onClick={() => { void togglePlayback(); }}
                 onRenderIcon={() => <i className={playing ? 'ri-pause-fill' : 'ri-play-fill'} aria-hidden="true" />}
               />
-              <div className="a2ui-audio-timeline">
+              <div className="ds-audio-timeline">
                 <input
                   type="range"
-                  className="a2ui-audio-range"
+                  className="ds-audio-range"
                   min={0}
                   max={duration || 0}
                   step="any"
                   value={currentTime}
-                  style={{ '--a2ui-audio-progress': `${duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0}%` } as React.CSSProperties}
+                  style={{ '--ds-audio-progress': `${duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0}%` } as React.CSSProperties}
                   onChange={(e) => {
                     const next = Number(e.target.value);
                     setCurrentTime(next);
                     if (audioRef.current) audioRef.current.currentTime = next;
                   }}
                 />
-                <div className="a2ui-audio-times">
+                <div className="ds-audio-times">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>

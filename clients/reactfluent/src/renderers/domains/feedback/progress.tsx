@@ -10,7 +10,7 @@ export const Progress: React.FC<any> = ({ value = 0, maximum = 100, label, show_
 
   return (
     <ProgressIndicator
-      className="a2ui-progress"
+      className="ds-progress"
       style={parseStyle(style)}
       label={toBoolean(show_label) ? getLiteral(label) : undefined}
       description={toBoolean(show_label) ? `${pct}%` : undefined}

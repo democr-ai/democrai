@@ -53,10 +53,10 @@ const optionEntriesForFields = (
 const filePreview = (file: { name: string; url: string; type: string }) => {
   const lower = String(file.name || '').toLowerCase();
   if (String(file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/.test(lower)) {
-    return <img src={file.url} alt={file.name} className="a2ui-composer-attachment-image" />;
+    return <img src={file.url} alt={file.name} className="ds-composer-attachment-image" />;
   }
   if (file.type === 'application/pdf' || lower.endsWith('.pdf')) {
-    return <span className="a2ui-composer-attachment-ext">PDF</span>;
+    return <span className="ds-composer-attachment-ext">PDF</span>;
   }
   return <i className="ri-file-text-line" />;
 };
@@ -460,7 +460,7 @@ export const Composer: React.FC<any> = ({
         }),
       });
     } catch (voiceError) {
-      console.error('[reactbootstrap:conversation:composer:voice:error]', voiceError);
+      console.error('[client:conversation:composer:voice:error]', voiceError);
     } finally {
       setVoiceTranscribing(false);
     }
@@ -471,7 +471,7 @@ export const Composer: React.FC<any> = ({
       audioRecordingRef.current = await startBrowserAudioRecording('composer-recording');
       setVoiceActive(true);
     } catch (voiceError) {
-      console.error('[reactbootstrap:conversation:composer:voice:error]', voiceError);
+      console.error('[client:conversation:composer:voice:error]', voiceError);
     }
   };
 
@@ -487,7 +487,7 @@ export const Composer: React.FC<any> = ({
       })
       .catch((voiceError) => {
         setVoiceActive(false);
-        console.error('[reactbootstrap:conversation:composer:voice:error]', voiceError);
+        console.error('[client:conversation:composer:voice:error]', voiceError);
       });
   };
 
@@ -601,13 +601,13 @@ export const Composer: React.FC<any> = ({
 
   const settingsMenu = settingsOpen && typeof document !== 'undefined'
     ? createPortal(
-      <div ref={settingsMenuRef} className="a2ui-composer-menu" role="menu" style={settingsMenuStyle}>
+      <div ref={settingsMenuRef} className="ds-composer-menu" role="menu" style={settingsMenuStyle}>
         {isModelEditable && modelOptions.length > 0 && (
-          <section className="a2ui-composer-menu-section">
-            <label className="a2ui-composer-menu-label" htmlFor={`${id}_composer_model`}>AI model</label>
+          <section className="ds-composer-menu-section">
+            <label className="ds-composer-menu-label" htmlFor={`${id}_composer_model`}>AI model</label>
             <select
               id={`${id}_composer_model`}
-              className="a2ui-composer-menu-control"
+              className="ds-composer-menu-control"
               value={currentModel}
               onChange={onPickModel}
             >
@@ -619,8 +619,8 @@ export const Composer: React.FC<any> = ({
         )}
 
         {areOptionsEditable && optionFields.length > 0 && (
-          <section className="a2ui-composer-menu-section">
-            <div className="a2ui-composer-menu-title">Options</div>
+          <section className="ds-composer-menu-section">
+            <div className="ds-composer-menu-title">Options</div>
             {optionFields.map((field: any) => {
               const name = String(field.name || '').trim();
               const label = String(field.label || name);
@@ -628,11 +628,11 @@ export const Composer: React.FC<any> = ({
               const choices = Array.isArray(field.options) ? field.options : [];
               const isBoolean = ['boolean', 'bool', 'checkbox'].includes(String(field.type || '').toLowerCase()) || typeof value === 'boolean';
               return (
-                <label key={`${id}_option_${name}`} className="a2ui-composer-menu-row">
-                  <span className="a2ui-composer-menu-row-label" title={label}>{label}</span>
+                <label key={`${id}_option_${name}`} className="ds-composer-menu-row">
+                  <span className="ds-composer-menu-row-label" title={label}>{label}</span>
                   {(isBoolean || choices.length > 0) ? (
                     <select
-                      className="a2ui-composer-menu-control"
+                      className="ds-composer-menu-control"
                       value={value === undefined || value === null ? '' : String(value)}
                       onChange={(event) => updateOption(name, event.target.value, field)}
                     >
@@ -650,7 +650,7 @@ export const Composer: React.FC<any> = ({
                     </select>
                   ) : (
                     <input
-                      className="a2ui-composer-menu-control"
+                      className="ds-composer-menu-control"
                       type={optionInputType(field)}
                       min={field.min}
                       max={field.max}
@@ -666,13 +666,13 @@ export const Composer: React.FC<any> = ({
         )}
 
         {areToolsEditable && toolOptions.length > 0 && (
-          <section className="a2ui-composer-menu-section">
-            <div className="a2ui-composer-menu-title">Tools</div>
+          <section className="ds-composer-menu-section">
+            <div className="ds-composer-menu-title">Tools</div>
             {toolOptions.map(tool => (
               <button
                 type="button"
                 key={tool.id}
-                className={cn("a2ui-composer-menu-item", selectedToolsState.includes(tool.id) && "is-selected")}
+                className={cn("ds-composer-menu-item", selectedToolsState.includes(tool.id) && "is-selected")}
                 onClick={() => toggleSelection(tool.id, selectedToolsState, setSelectedToolsState, 'tools_change')}
               >
                 <span>{tool.name}</span>
@@ -683,13 +683,13 @@ export const Composer: React.FC<any> = ({
         )}
 
         {areSkillsEditable && skillOptions.length > 0 && (
-          <section className="a2ui-composer-menu-section">
-            <div className="a2ui-composer-menu-title">Skills</div>
+          <section className="ds-composer-menu-section">
+            <div className="ds-composer-menu-title">Skills</div>
             {skillOptions.map(skill => (
               <button
                 type="button"
                 key={skill.id}
-                className={cn("a2ui-composer-menu-item", selectedSkillsState.includes(skill.id) && "is-selected")}
+                className={cn("ds-composer-menu-item", selectedSkillsState.includes(skill.id) && "is-selected")}
                 onClick={() => toggleSelection(skill.id, selectedSkillsState, setSelectedSkillsState, 'skills_change')}
               >
                 <span>{skill.name}</span>
@@ -700,13 +700,13 @@ export const Composer: React.FC<any> = ({
         )}
 
         {areMcpEditable && mcpOptions.length > 0 && (
-          <section className="a2ui-composer-menu-section">
-            <div className="a2ui-composer-menu-title">MCP</div>
+          <section className="ds-composer-menu-section">
+            <div className="ds-composer-menu-title">MCP</div>
             {mcpOptions.map(mcpItem => (
               <button
                 type="button"
                 key={mcpItem.id}
-                className={cn("a2ui-composer-menu-item", selectedMcpState.includes(mcpItem.id) && "is-selected")}
+                className={cn("ds-composer-menu-item", selectedMcpState.includes(mcpItem.id) && "is-selected")}
                 onClick={() => toggleSelection(mcpItem.id, selectedMcpState, setSelectedMcpState, 'mcp_change')}
               >
                 <span>{mcpItem.name}</span>
@@ -722,13 +722,13 @@ export const Composer: React.FC<any> = ({
 
   return (
     <div
-      className="composer-container a2ui-composer"
+      className="composer-container ds-composer"
       style={parseStyle(style)}
     >
       {shouldShowCapabilities && !!capabilityBadges.length && (
-        <div className="a2ui-composer-capabilities">
+        <div className="ds-composer-capabilities">
           {capabilityBadges.map((cap) => (
-            <span key={`${id}_cap_${cap}`} className="a2ui-composer-chip">
+            <span key={`${id}_cap_${cap}`} className="ds-composer-chip">
               {cap}
             </span>
           ))}
@@ -736,19 +736,19 @@ export const Composer: React.FC<any> = ({
       )}
 
       {!!attachments.length && (
-        <div className="a2ui-composer-attachments">
+        <div className="ds-composer-attachments">
           {attachments.map((file) => (
-            <div key={file.id} className="a2ui-composer-attachment">
-              <div className="a2ui-composer-attachment-preview">
+            <div key={file.id} className="ds-composer-attachment">
+              <div className="ds-composer-attachment-preview">
                 {filePreview(file)}
               </div>
-              <div className="a2ui-composer-attachment-copy">
-                <span className="a2ui-composer-attachment-name">{file.name}</span>
-                <span className="a2ui-composer-attachment-size">{formatFileSize(file.size)}</span>
+              <div className="ds-composer-attachment-copy">
+                <span className="ds-composer-attachment-name">{file.name}</span>
+                <span className="ds-composer-attachment-size">{formatFileSize(file.size)}</span>
               </div>
               <button
                 type="button"
-                className="a2ui-composer-attachment-remove"
+                className="ds-composer-attachment-remove"
                 onClick={() => removeAttachment(file.id)}
                 aria-label={`Remove ${file.name}`}
               >
@@ -759,10 +759,10 @@ export const Composer: React.FC<any> = ({
         </div>
       )}
 
-      <div className="a2ui-composer-input-shell">
-        <div className="a2ui-composer-input-wrap">
+      <div className="ds-composer-input-shell">
+        <div className="ds-composer-input-wrap">
           <textarea
-            className="a2ui-composer-textarea"
+            className="ds-composer-textarea"
             placeholder={getLiteral(placeholder) || 'Write a message...'}
             value={text}
             disabled={isSubmitDisabled}
@@ -788,8 +788,8 @@ export const Composer: React.FC<any> = ({
           />
         </div>
 
-        <div className="a2ui-composer-footer">
-          <div className="a2ui-composer-tools">
+        <div className="ds-composer-footer">
+          <div className="ds-composer-tools">
             {isAttachmentEnabled && (
               <>
                 <input
@@ -797,11 +797,11 @@ export const Composer: React.FC<any> = ({
                   type="file"
                   multiple={toBoolean(attachment_multiple ?? true)}
                   accept={String(attachment_accept || '') || undefined}
-                  className="a2ui-composer-file-input"
+                  className="ds-composer-file-input"
                   onChange={onPickFiles}
                 />
                 <IconButton
-                  className="a2ui-composer-tool-btn"
+                  className="ds-composer-tool-btn"
                   ariaLabel="Attach files"
                   onClick={openFilePicker}
                   disabled={isSubmitDisabled}
@@ -812,7 +812,7 @@ export const Composer: React.FC<any> = ({
 
             {isVoiceEnabled && (
               <IconButton
-                className={cn("a2ui-composer-tool-btn", voiceActive && "is-danger")}
+                className={cn("ds-composer-tool-btn", voiceActive && "is-danger")}
                 ariaLabel={voiceActive ? "Stop recording" : "Record voice"}
                 onClick={toggleVoice}
                 disabled={isVoiceDisabled}
@@ -820,9 +820,9 @@ export const Composer: React.FC<any> = ({
               />
             )}
 
-            <div className="a2ui-composer-settings" ref={settingsRef}>
+            <div className="ds-composer-settings" ref={settingsRef}>
               <IconButton
-                className={cn("a2ui-composer-tool-btn", settingsOpen && "is-active")}
+                className={cn("ds-composer-tool-btn", settingsOpen && "is-active")}
                 ariaLabel="Composer settings"
                 disabled={isSubmitDisabled}
                 onClick={() => setSettingsOpen((open) => !open)}
@@ -833,7 +833,7 @@ export const Composer: React.FC<any> = ({
 
             {isStopEnabled && stopAction && (
               <IconButton
-                className="a2ui-composer-tool-btn is-danger"
+                className="ds-composer-tool-btn is-danger"
                 onClick={onStop}
                 ariaLabel="Stop generation"
                 disabled={!currentRequest}
@@ -843,14 +843,14 @@ export const Composer: React.FC<any> = ({
           </div>
 
           {currentModelLabel && (
-            <div className="a2ui-composer-model-chip" title={currentModelLabel}>
+            <div className="ds-composer-model-chip" title={currentModelLabel}>
               <i className="ri-cpu-line" />
               <span>{currentModelLabel}</span>
             </div>
           )}
 
           <PrimaryButton
-            className="a2ui-composer-send"
+            className="ds-composer-send"
             disabled={!text.trim() || isSubmitDisabled}
             onClick={onSend}
             title="Send"

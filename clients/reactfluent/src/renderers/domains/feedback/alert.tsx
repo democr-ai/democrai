@@ -39,11 +39,11 @@ export const Alert: React.FC<any> = ({
       messageBarType={intent}
       isMultiline={Boolean(descriptionText)}
       style={parseStyle(style)}
-      className={`a2ui-alert a2ui-alert-${normalized} w-100`}
+      className={`ds-alert ds-alert-${normalized} w-100`}
     >
-      <span className="a2ui-alert-content">
-        {titleText && <strong className="a2ui-alert-title">{titleText}</strong>}
-        {descriptionText && <span className="a2ui-alert-description">{descriptionText}</span>}
+      <span className="ds-alert-content">
+        {titleText && <strong className="ds-alert-title">{titleText}</strong>}
+        {descriptionText && <span className="ds-alert-description">{descriptionText}</span>}
       </span>
     </MessageBar>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { Collapse } from "design-react-kit";
+import { Collapse } from "@/design/system";
 import { cn } from "@/lib/utils";
 import React from "react";
 

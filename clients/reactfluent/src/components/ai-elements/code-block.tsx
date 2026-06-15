@@ -8,7 +8,7 @@ import type {
   ThemedToken,
 } from "shiki";
 
-import { Button, Input } from "design-react-kit";
+import { Button, Input } from "@/design/system";
 import { cn } from "@/lib/utils";
 import {
   createContext,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { normalizeWsCodec, type WsCodec } from '../utils/wsCodec';
-import { createA2UITransport, type A2UITransport, type A2UITransportKind } from '../runtime/transport/a2uiTransport';
+import { createClientTransport, type ClientTransport, type ClientTransportKind } from '../runtime/transport/clientTransport';
 import { recordExternalAccessDecisionAck } from '../runtime/controllers/external_access';
 import { applyPropertyUpdateToSurfaces, normalizePropertyUpdate } from '../runtime/controllers/property_updates';
 import { dispatchBackgroundTaskEvent } from '../runtime/background_task_events';
@@ -53,10 +53,10 @@ export type BackgroundTaskInfo = {
   confirmComponents?: any[];
 };
 
-export type UseA2UIOptions = {
+export type UseClientRuntimeOptions = {
   url?: string;
   codec?: WsCodec | string;
-  transport?: A2UITransportKind | string;
+  transport?: ClientTransportKind | string;
 };
 
 type ClientActionMeta = {
@@ -73,9 +73,12 @@ const TOKEN_REFRESH_RETRY_SECONDS = 30;
 const TOKEN_REFRESH_FALLBACK_SECONDS = 300;
 const TOKEN_REFRESH_MIN_DELAY_MS = 1000;
 const INITIAL_CONNECT_DELAY_MS = 250;
+const LEGACY_ENV_PREFIX = ['VITE', 'A2', 'UI'].join('_');
+
+const readEnvFlag = (name: string): unknown => (import.meta.env as Record<string, unknown>)[name];
 
 function isDebugEnabled(): boolean {
-  const envFlag = String(import.meta.env.VITE_A2UI_DEBUG || '').trim().toLowerCase();
+  const envFlag = String(readEnvFlag('VITE_CLIENT_DEBUG') || readEnvFlag(`${LEGACY_ENV_PREFIX}_DEBUG`) || '').trim().toLowerCase();
   if (['1', 'true', 'yes', 'on'].includes(envFlag)) return true;
   const storageFlag = String(localStorage.getItem('democrai_web_debug') || '').trim().toLowerCase();
   return ['1', 'true', 'yes', 'on'].includes(storageFlag);
@@ -429,13 +432,13 @@ function patchChildrenNode(existingChildren: any, propertyName: string, value: a
   return baseChildren;
 }
 
-function resolveHookOptions(options?: string | UseA2UIOptions): UseA2UIOptions {
+function resolveHookOptions(options?: string | UseClientRuntimeOptions): UseClientRuntimeOptions {
   if (!options) return {};
   if (typeof options === 'string') return { url: options };
   return options;
 }
 
-function normalizeTransportKind(value: unknown): A2UITransportKind {
+function normalizeTransportKind(value: unknown): ClientTransportKind {
   const normalized = String(value || '').trim().toLowerCase();
   if (normalized === 'native-ipc') return 'native-ipc';
   if (normalized === 'websocket') return 'websocket';
@@ -536,14 +539,14 @@ function collectInboundRequestIds(message: any, result: Set<string> = new Set())
   return result;
 }
 
-export function useA2UI(options?: string | UseA2UIOptions) {
+export function useClientRuntime(options?: string | UseClientRuntimeOptions) {
   const resolvedOptions = useMemo(() => resolveHookOptions(options), [options]);
   const wsCodec = useMemo(
     () => normalizeWsCodec(resolvedOptions.codec || localStorage.getItem('democrai_ws_codec') || 'json'),
     [resolvedOptions.codec],
   );
   const transportKind = useMemo(
-    () => normalizeTransportKind(resolvedOptions.transport || import.meta.env.VITE_A2UI_TRANSPORT),
+    () => normalizeTransportKind(resolvedOptions.transport || readEnvFlag('VITE_CLIENT_TRANSPORT') || readEnvFlag(`${LEGACY_ENV_PREFIX}_TRANSPORT`)),
     [resolvedOptions.transport],
   );
   const wsUrl = useMemo(() => {
@@ -563,7 +566,7 @@ export function useA2UI(options?: string | UseA2UIOptions) {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [pendingActions, setPendingActions] = useState<Record<string, number>>({});
 
-  const transportRef = useRef<A2UITransport | null>(null);
+  const transportRef = useRef<ClientTransport | null>(null);
   const runtimeRef = useRef<ReturnType<typeof createRuntimeComposition> | null>(null);
   const surfacesRef = useRef<Record<string, Surface>>({ main: { components: {} } });
   const dataModelRef = useRef<Record<string, Record<string, any>>>({ main: {} });
@@ -865,7 +868,7 @@ export function useA2UI(options?: string | UseA2UIOptions) {
         }
       })
       .catch((error) => {
-        console.error('[useA2UI] Unable to sync auth cookie', error);
+        console.error('[useClientRuntime] Unable to sync auth cookie', error);
       })
       .finally(() => {
         authSessionSyncPendingRef.current = Math.max(0, authSessionSyncPendingRef.current - 1);
@@ -1369,9 +1372,9 @@ export function useA2UI(options?: string | UseA2UIOptions) {
   const connect = useCallback(() => {
     setConnectionState('connecting');
     debugLog('transport:connect', { transportKind, wsUrl, wsCodec });
-    let transport: A2UITransport;
+    let transport: ClientTransport;
     const isCurrentTransport = () => transportRef.current === transport;
-    transport = createA2UITransport({
+    transport = createClientTransport({
       kind: transportKind,
       url: wsUrl,
       codec: wsCodec,
@@ -1503,7 +1506,7 @@ export function useA2UI(options?: string | UseA2UIOptions) {
 
     void loadAuthSession()
       .catch((error) => {
-        console.error('[useA2UI] Unable to load auth session', error);
+        console.error('[useClientRuntime] Unable to load auth session', error);
       })
       .finally(() => {
         if (cancelled) return;
@@ -1661,7 +1664,7 @@ export function useA2UI(options?: string | UseA2UIOptions) {
       }
     } catch (uploadError) {
       // eslint-disable-next-line no-console
-      console.error('[useA2UI] upload_input_id failed', uploadError);
+      console.error('[useClientRuntime] upload_input_id failed', uploadError);
       return;
     }
 

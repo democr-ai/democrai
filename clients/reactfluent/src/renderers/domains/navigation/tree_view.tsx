@@ -124,15 +124,15 @@ const Row: React.FC<{
 
   return (
     <div
-      className="a2ui-tree-node"
+      className="ds-tree-node"
       role="treeitem"
       aria-expanded={hasChildren ? expanded : undefined}
       aria-disabled={isDisabled || undefined}
       aria-selected={isSelected}
     >
       <div
-        className={`a2ui-tree-item-layout ${isActive ? 'a2ui-tree-item-active' : ''} ${isActiveBranch ? 'a2ui-tree-item-active-branch' : ''} ${isSelected ? 'a2ui-tree-item-selected' : ''} ${isDisabled ? 'a2ui-tree-item-disabled' : ''}`}
-        style={{ '--a2ui-tree-depth': depth } as React.CSSProperties}
+        className={`ds-tree-item-layout ${isActive ? 'ds-tree-item-active' : ''} ${isActiveBranch ? 'ds-tree-item-active-branch' : ''} ${isSelected ? 'ds-tree-item-selected' : ''} ${isDisabled ? 'ds-tree-item-disabled' : ''}`}
+        style={{ '--ds-tree-depth': depth } as React.CSSProperties}
         aria-current={isActive ? 'page' : undefined}
         onClick={() => handleInteraction('single')}
         onDoubleClick={() => handleInteraction('double')}
@@ -147,7 +147,7 @@ const Row: React.FC<{
       >
         <button
           type="button"
-          className="a2ui-tree-expander"
+          className="ds-tree-expander"
           disabled={!hasChildren || isDisabled}
           aria-label={expanded ? 'Collapse' : 'Expand'}
           onClick={(event) => {
@@ -158,7 +158,7 @@ const Row: React.FC<{
           {hasChildren ? <i className={expanded ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'} aria-hidden="true" /> : null}
         </button>
         {selectionMode === 'multiple' ? (
-          <span className="a2ui-tree-checkbox" onClick={(event) => event.stopPropagation()}>
+          <span className="ds-tree-checkbox" onClick={(event) => event.stopPropagation()}>
             <Checkbox
               checked={isSelected}
               disabled={!isSelectable || isDisabled}
@@ -167,11 +167,11 @@ const Row: React.FC<{
             />
           </span>
         ) : null}
-        {node.icon ? <i className={`a2ui-tree-icon ${resolveIconClass(node.icon) || ''}`} aria-hidden="true" /> : null}
-        <span className="a2ui-tree-label">{label}</span>
+        {node.icon ? <i className={`ds-tree-icon ${resolveIconClass(node.icon) || ''}`} aria-hidden="true" /> : null}
+        <span className="ds-tree-label">{label}</span>
       </div>
       {hasChildren && expanded ? (
-        <div className="a2ui-tree-group" role="group">
+        <div className="ds-tree-group" role="group">
           {children.map((child: any, idx: number) => (
             <Row
               key={`${nodeId || 'root'}::${idx}::${String(child?.id || '')}`}
@@ -417,7 +417,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   return (
     selection_mode === 'multiple' ? (
-      <div className="a2ui-tree" role="tree" style={parseStyle(style)} aria-multiselectable>
+      <div className="ds-tree" role="tree" style={parseStyle(style)} aria-multiselectable>
         {safeNodes.map((node: any, idx: number) => (
           <Row
             key={`root::${idx}::${String(node?.id || '')}`}
@@ -438,7 +438,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
       </div>
     ) : (
       <Nav
-        className="a2ui-tree-nav"
+        className="ds-tree-nav"
         styles={{ root: parseStyle(style) }}
         groups={navGroups}
         selectedKey={navSelectedKey}
@@ -455,9 +455,9 @@ export const TreeView: React.FC<TreeViewProps> = ({
           const iconClass = link?.data?.iconClass;
           const activeBranch = link?.data?.activeBranch;
           return (
-            <span className={`a2ui-tree-nav-link-content ${activeBranch ? 'a2ui-tree-nav-link-branch' : ''}`}>
-              {iconClass ? <i className={`a2ui-tree-nav-icon ${iconClass}`} aria-hidden="true" /> : null}
-              <span className="a2ui-tree-nav-label">{link?.name}</span>
+            <span className={`ds-tree-nav-link-content ${activeBranch ? 'ds-tree-nav-link-branch' : ''}`}>
+              {iconClass ? <i className={`ds-tree-nav-icon ${iconClass}`} aria-hidden="true" /> : null}
+              <span className="ds-tree-nav-label">{link?.name}</span>
             </span>
           );
         }}

@@ -1,8 +1,8 @@
-# Democrai React Fluent Client
+# Democrai React Client
 
-React/Vite client that shares the Democrai A2UI runtime, transport, state, routing, auth, and renderer contracts with `webclient` and `reactbootstrap`.
+React/Vite client that shares the Democrai client runtime, transport, state, routing, auth, and renderer contracts with the other web clients.
 
-This client is a progressive Fluent UI React port. Keep protocol-level code aligned with the other web clients; replace only visual renderers and local UI composition with Fluent UI.
+This client is a progressive desktop UI React client. Keep protocol-level code aligned with the other web clients; replace only visual renderers and local UI composition with the desktop design system.
 
 ## Development
 
@@ -23,6 +23,6 @@ window.__CFG__ = {
 
 ## Porting Notes
 
-- Common runtime files should stay structurally aligned with `reactbootstrap` and `webclient`.
-- Fluent UI is provided globally by `src/fluent/FluentRoot.tsx`.
-- Initial Fluent renderer coverage starts with `Button`; migrate forms, tables, panels, dialogs, tabs, and navigation in focused passes.
+- Common runtime files should stay structurally aligned with the other web clients.
+- The desktop theme is provided globally by `src/design/ClientRoot.tsx`.
+- Renderer coverage should stay component-scoped; migrate forms, tables, panels, dialogs, tabs, and navigation in focused passes.

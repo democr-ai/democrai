@@ -36,7 +36,7 @@ export const Accordion: React.FC<any> = ({ items = [], ExplicitList, multiple = 
   };
 
   return (
-    <div style={parseStyle(style)} className="a2ui-accordion w-100">
+    <div style={parseStyle(style)} className="ds-accordion w-100">
       {safeItems.map((item: any, index: number) => {
         const id = String(index);
         const isOpen = openItems.includes(id);
@@ -45,27 +45,27 @@ export const Accordion: React.FC<any> = ({ items = [], ExplicitList, multiple = 
         const title = getLiteral(item?.title || item?.label || `Item ${index + 1}`);
         
         return (
-          <section className={`a2ui-accordion-item ${isOpen ? 'a2ui-accordion-item-open' : ''}`} key={id}>
+          <section className={`ds-accordion-item ${isOpen ? 'ds-accordion-item-open' : ''}`} key={id}>
             <button
               type="button"
-              className="a2ui-accordion-header"
+              className="ds-accordion-header"
               aria-expanded={isOpen}
-              aria-controls={`a2ui-accordion-panel-${id}`}
-              id={`a2ui-accordion-header-${id}`}
+              aria-controls={`ds-accordion-panel-${id}`}
+              id={`ds-accordion-header-${id}`}
               onClick={() => toggle(id)}
             >
-              <span className="a2ui-accordion-title">{title}</span>
-              <Icon className="a2ui-accordion-caret" iconName="ChevronDown" aria-hidden="true" />
+              <span className="ds-accordion-title">{title}</span>
+              <Icon className="ds-accordion-caret" iconName="ChevronDown" aria-hidden="true" />
             </button>
             {isOpen ? (
               <div
-                id={`a2ui-accordion-panel-${id}`}
-                className="a2ui-accordion-panel"
+                id={`ds-accordion-panel-${id}`}
+                className="ds-accordion-panel"
                 role="region"
-                aria-labelledby={`a2ui-accordion-header-${id}`}
+                aria-labelledby={`ds-accordion-header-${id}`}
               >
                 {bodyNode}
-                {contentText ? <div className="a2ui-accordion-text">{contentText}</div> : null}
+                {contentText ? <div className="ds-accordion-text">{contentText}</div> : null}
               </div>
             ) : null}
           </section>

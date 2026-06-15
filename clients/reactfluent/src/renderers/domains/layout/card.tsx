@@ -36,7 +36,7 @@ export const Card: React.FC<any> = ({
       : {}),
     ...(resolvedBackgroundImage
       ? {
-          backgroundImage: `linear-gradient(var(--a2ui-card-media-overlay, rgba(0, 0, 0, 0.66)), var(--a2ui-card-media-overlay, rgba(0, 0, 0, 0.66))), url("${resolvedBackgroundImage}")`,
+          backgroundImage: `linear-gradient(var(--ds-card-media-overlay, rgba(0, 0, 0, 0.66)), var(--ds-card-media-overlay, rgba(0, 0, 0, 0.66))), url("${resolvedBackgroundImage}")`,
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'cover',
@@ -64,15 +64,15 @@ export const Card: React.FC<any> = ({
 
   return (
     <section
-      className={`a2ui-card w-100 ${resolvedBackgroundImage ? 'a2ui-card-media' : ''}`}
+      className={`ds-card w-100 ${resolvedBackgroundImage ? 'ds-card-media' : ''}`}
       style={cardStyle}
     >
-      <div className="a2ui-card-body" style={bodyStyle}>
+      <div className="ds-card-body" style={bodyStyle}>
         {ExplicitList}
       </div>
       {hasActions && visibleActions.length > 0 && (
         <div
-          className="a2ui-card-footer d-flex w-100 gap-2"
+          className="ds-card-footer d-flex w-100 gap-2"
         >
           {visibleActions.map((actionDef: any, i: number) => {
             const label = getLiteral(actionDef.label, '');
@@ -83,7 +83,7 @@ export const Card: React.FC<any> = ({
             return (
               <ActionButton
                 key={i}
-                className={`a2ui-button a2ui-button-small a2ui-card-action flex-grow-1 text-truncate ${isDanger ? 'a2ui-button-danger' : ''}`}
+                className={`ds-button ds-button-small ds-card-action flex-grow-1 text-truncate ${isDanger ? 'ds-button-danger' : ''}`}
                 onRenderIcon={iconClass ? () => <i className={`${iconClass} me-2`} aria-hidden="true" /> : undefined}
                 onClick={() => emitActionSpec(actionDef.action, onAction, itemData)}
                 style={isDanger ? { color: 'var(--ui-tone-danger)' } : undefined}

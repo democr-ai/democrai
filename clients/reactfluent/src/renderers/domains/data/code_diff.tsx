@@ -42,28 +42,28 @@ export const CodeDiff: React.FC<any> = ({ title, hunks = [], filePath, oldRevisi
   const removed = rows.filter((r) => r.kind === 'line' && r.type === 'remove').length;
 
   return (
-    <article style={parseStyle(style)} className="a2ui-code-diff">
-      <header className="a2ui-code-diff-header">
-        <div className="a2ui-code-diff-header-main">
-          <h3 className="a2ui-code-diff-title">
+    <article style={parseStyle(style)} className="ds-code-diff">
+      <header className="ds-code-diff-header">
+        <div className="ds-code-diff-header-main">
+          <h3 className="ds-code-diff-title">
             {getLiteral(title || 'Code diff')}
           </h3>
-          <div className="a2ui-code-diff-stats" aria-label={`${added} additions, ${removed} deletions`}>
-            <span className="a2ui-code-diff-stat a2ui-code-diff-stat-add">+{added}</span>
-            <span className="a2ui-code-diff-stat a2ui-code-diff-stat-remove">-{removed}</span>
+          <div className="ds-code-diff-stats" aria-label={`${added} additions, ${removed} deletions`}>
+            <span className="ds-code-diff-stat ds-code-diff-stat-add">+{added}</span>
+            <span className="ds-code-diff-stat ds-code-diff-stat-remove">-{removed}</span>
           </div>
         </div>
-        <div className="a2ui-code-diff-file">
+        <div className="ds-code-diff-file">
           {getLiteral(filePath || 'modified file')} {oldRevision || newRevision ? `(${getLiteral(oldRevision)} → ${getLiteral(newRevision)})` : ''}
         </div>
       </header>
-      <div className="a2ui-code-diff-body">
-        <table className="a2ui-code-diff-table">
+      <div className="ds-code-diff-body">
+        <table className="ds-code-diff-table">
           <thead>
             <tr>
-              {showLineNumbers && <th className="a2ui-code-diff-number-head">OLD</th>}
-              {showLineNumbers && <th className="a2ui-code-diff-number-head">NEW</th>}
-              <th className="a2ui-code-diff-code-head">CODE</th>
+              {showLineNumbers && <th className="ds-code-diff-number-head">OLD</th>}
+              {showLineNumbers && <th className="ds-code-diff-number-head">NEW</th>}
+              <th className="ds-code-diff-code-head">CODE</th>
             </tr>
           </thead>
           <tbody>

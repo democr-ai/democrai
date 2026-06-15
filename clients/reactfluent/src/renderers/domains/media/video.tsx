@@ -50,26 +50,26 @@ export const Video: React.FC<any> = ({
     : '16 / 9';
 
   return (
-    <div className="a2ui-video" style={{ ...parseStyle(style), width: safeWidth }}>
+    <div className="ds-video" style={{ ...parseStyle(style), width: safeWidth }}>
       {title ? (
-        <div className="a2ui-video-title">{getLiteral(title)}</div>
+        <div className="ds-video-title">{getLiteral(title)}</div>
       ) : null}
 
       {blocked ? (
         <div
-          className="a2ui-video-frame a2ui-video-blocked"
+          className="ds-video-frame ds-video-blocked"
           style={{ aspectRatio }}
         >
           <span>{messages.blockedUrl}</span>
           <DefaultButton
-            className="a2ui-button a2ui-button-small"
+            className="ds-button ds-button-small"
             onClick={handleReload}
           >
             {messages.reload}
           </DefaultButton>
         </div>
       ) : resolvedSource ? (
-        <div className="a2ui-video-frame" style={{ aspectRatio }}>
+        <div className="ds-video-frame" style={{ aspectRatio }}>
           <video
             key={`${resolvedSource}-${retryKey}`}
             src={resolvedSource}
@@ -78,12 +78,12 @@ export const Video: React.FC<any> = ({
             muted={toBoolean(muted)}
             loop={toBoolean(loop)}
             controls={toBoolean(controls)}
-            className="a2ui-video-player"
+            className="ds-video-player"
             onError={handleError}
           />
         </div>
       ) : (
-        <div className="a2ui-video-missing">{messages.missingVideoSource}</div>
+        <div className="ds-video-missing">{messages.missingVideoSource}</div>
       )}
     </div>
   );

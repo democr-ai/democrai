@@ -26,7 +26,7 @@ export const Checkbox: React.FC<any> = ({ id, label, checked, action, onAction, 
   };
 
   return (
-    <div className="a2ui-checkbox-field" style={parseStyle(style)}>
+    <div className="ds-checkbox-field" style={parseStyle(style)}>
       <FluentCheckbox
         id={id}
         checked={local}

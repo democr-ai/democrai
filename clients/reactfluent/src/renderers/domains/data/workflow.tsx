@@ -21,25 +21,25 @@ import '@xyflow/react/dist/style.css';
 
 import { parseStyle } from '@/utils/style';
 import { getLiteral, toBoolean } from '@/renderers/shared';
-import { 
-  Button, 
-  Card, 
-  CardBody, 
-  CardHeader, 
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
   CardTitle,
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
   Input,
-  Select,
+  Modal,
+  ModalBody,
+  ModalHeader,
   Nav,
   NavItem,
   NavLink,
+  Offcanvas,
+  OffcanvasBody,
+  OffcanvasHeader,
   TabContent,
-  TabPane
-} from 'design-react-kit';
-import { Offcanvas, OffcanvasHeader, OffcanvasBody } from 'reactstrap';
+  TabPane,
+} from '@/design/system';
 import { cn } from '@/lib/utils';
 import { DATA_THEME, WORKFLOW_THEME, dataStatusColor } from '@/utils/dataTheme';
 

@@ -9,8 +9,8 @@ export const Suggestions = ({
   children,
   ...props
 }: ComponentProps<"div">) => (
-  <div className={cn("a2ui-chat-suggestions", className)} {...props}>
-    <div className="a2ui-chat-suggestions-inner">
+  <div className={cn("ds-chat-suggestions", className)} {...props}>
+    <div className="ds-chat-suggestions-inner">
       {children}
     </div>
   </div>
@@ -34,7 +34,7 @@ export const Suggestion = ({
 
   return (
     <button
-      className={cn("a2ui-chat-suggestion", className)}
+      className={cn("ds-chat-suggestion", className)}
       onClick={handleClick}
       type="button"
       {...props}

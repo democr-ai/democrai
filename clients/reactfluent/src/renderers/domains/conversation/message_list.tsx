@@ -1,5 +1,5 @@
 import React from 'react';
-import { InternalRenderer } from '@/components/a2ui/Renderer';
+import { InternalClientRenderer } from '@/components/renderer/Renderer';
 import { cn } from '@/lib/utils';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral } from '@/renderers/shared';
@@ -365,13 +365,13 @@ const MessageCard: React.FC<any> = ({
 
   if (isTask) {
     return (
-      <div className="a2ui-chat-message-row" style={parseStyle(style)}>
-        <div className="a2ui-chat-message-card a2ui-chat-message-task">
+      <div className="ds-chat-message-row" style={parseStyle(style)}>
+        <div className="ds-chat-message-card ds-chat-message-task">
           {taskId ? (
             <BackgroundTaskCard task_id={taskId} sendAction={sendAction} />
           ) : (
-            <div className="a2ui-chat-tool-card">
-              <div className="a2ui-chat-tool-title">{String(messageContent(message).title || message?.title || 'Task')}</div>
+            <div className="ds-chat-tool-card">
+              <div className="ds-chat-tool-title">{String(messageContent(message).title || message?.title || 'Task')}</div>
               <div className={statusClass(message?.status)}>{String(message?.status || 'pending')}</div>
             </div>
           )}
@@ -382,10 +382,10 @@ const MessageCard: React.FC<any> = ({
 
   if (isComponent) {
     return (
-      <div className="a2ui-chat-message-row" style={parseStyle(style)}>
-        <div className="a2ui-chat-message-card a2ui-chat-message-component">
+      <div className="ds-chat-message-row" style={parseStyle(style)}>
+        <div className="ds-chat-message-card ds-chat-message-component">
           {surfaceComponents.map((entry: any, index: number) => (
-            <InternalRenderer
+            <InternalClientRenderer
               key={`${messageId || 'message'}_component_${index}`}
               componentData={entry}
               surfaceId={surfaceId}
@@ -406,42 +406,42 @@ const MessageCard: React.FC<any> = ({
   }
 
   return (
-    <div className={cn("a2ui-chat-message-row", isUser && "is-user")} style={parseStyle(style)}>
+    <div className={cn("ds-chat-message-row", isUser && "is-user")} style={parseStyle(style)}>
       <div className={cn(
-        "a2ui-chat-message-card",
+        "ds-chat-message-card",
         isUser ? "is-user" : "is-assistant",
         isTool && "is-tool"
       )}>
         {!isTool && (
-          <div className="a2ui-chat-message-meta">
+          <div className="ds-chat-message-meta">
             <i className={isUser ? "ri-user-line" : "ri-robot-line"} />
             <span>{isUser ? 'User' : 'Assistant'}</span>
-            <button type="button" className="a2ui-chat-icon-button" onClick={onCopy} title="Copy" aria-label="Copy message">
+            <button type="button" className="ds-chat-icon-button" onClick={onCopy} title="Copy" aria-label="Copy message">
               <i className={copied ? "ri-check-line text-success" : "ri-file-copy-line"} />
             </button>
-            {copied && <span className="a2ui-chat-copy-state">Copied</span>}
+            {copied && <span className="ds-chat-copy-state">Copied</span>}
           </div>
         )}
 
         {isTool || kind === 'tool_call' || kind === 'tool_result' ? (
-          <div className="a2ui-chat-tool-card">
-            <div className="a2ui-chat-tool-header">
+          <div className="ds-chat-tool-card">
+            <div className="ds-chat-tool-header">
               <i className="ri-tools-line" />
               <span>{String(messageContent(message).tool_name || messageContent(message).name || message?.name || 'Tool')}</span>
-              {message?.status ? <span className={cn('a2ui-chat-tool-status', statusClass(message.status))}>{String(message.status)}</span> : null}
+              {message?.status ? <span className={cn('ds-chat-tool-status', statusClass(message.status))}>{String(message.status)}</span> : null}
             </div>
             <CompactToolMessage rawText={textValue} />
           </div>
         ) : isUser ? (
-          <div className="a2ui-chat-message-text">{getLiteral(textValue)}</div>
+          <div className="ds-chat-message-text">{getLiteral(textValue)}</div>
         ) : (
-          <div className="markdown-content a2ui-chat-markdown">
+          <div className="markdown-content ds-chat-markdown">
             <ReactMarkdown>{String(getLiteral(textValue) || '')}</ReactMarkdown>
           </div>
         )}
 
         {!!attachments.length && (
-          <div className="a2ui-chat-attachments">
+          <div className="ds-chat-attachments">
             {attachments.map((entry, index) => {
               const label = String(entry.name || entry.path || entry.source_path || `allegato_${index + 1}`);
               const previewable = isPreviewable(entry);
@@ -449,7 +449,7 @@ const MessageCard: React.FC<any> = ({
                 <button
                   key={`${messageId || 'message'}_att_${index}`}
                   type="button"
-                  className={cn("a2ui-chat-attachment", previewable && "is-previewable")}
+                  className={cn("ds-chat-attachment", previewable && "is-previewable")}
                   onClick={() => {
                     if (!previewable) return;
                     const payload = {
@@ -476,17 +476,17 @@ const MessageCard: React.FC<any> = ({
         )}
 
         {!isUser && String(reasoningValue || '').trim() ? (
-          <div className="a2ui-chat-reasoning">
+          <div className="ds-chat-reasoning">
             <button
               type="button"
-              className="a2ui-chat-reasoning-trigger"
+              className="ds-chat-reasoning-trigger"
               onClick={() => setReasoningOpen((v) => !v)}
             >
               <i className={cn("ri-arrow-right-s-line transition-transform", reasoningOpen && "rotate-90")} />
               <span>Assistant Reasoning</span>
             </button>
             {reasoningOpen && (
-              <div className="a2ui-chat-reasoning-content">
+              <div className="ds-chat-reasoning-content">
                 {String(reasoningValue)}
               </div>
             )}
@@ -496,10 +496,10 @@ const MessageCard: React.FC<any> = ({
         {surfaceComponents.length > 0 && (
           <div
             id={messageId ? `${messageId}_surface` : undefined}
-            className="a2ui-chat-surface"
+            className="ds-chat-surface"
           >
             {surfaceComponents.map((entry: any, index: number) => (
-              <InternalRenderer
+              <InternalClientRenderer
                 key={`${messageId || 'message'}_surface_component_${index}`}
                 componentData={entry}
                 surfaceId={surfaceId}
@@ -518,14 +518,14 @@ const MessageCard: React.FC<any> = ({
         )}
 
         {!isTool && (
-          <div className="a2ui-chat-message-footer">
+          <div className="ds-chat-message-footer">
             {meta ? <span>{formatMessageMeta(meta)}</span> : <div />}
-            <div className="a2ui-chat-message-actions">
+            <div className="ds-chat-message-actions">
               {Array.isArray(actions) && actions.map((entry: any, index: number) => (
                 <button
                   type="button"
                   key={`${messageId || 'message'}_action_${index}`}
-                  className="a2ui-chat-action"
+                  className="ds-chat-action"
                   onClick={() => emitActionSpec(entry?.action, onAction, {})}
                 >
                   {getLiteral(entry?.label || 'Action')}
@@ -788,10 +788,10 @@ export const MessageList: React.FC<any> = ({
     : 0;
 
   return (
-    <div ref={rootRef} id={id} className={cn("a2ui-message-list", id)} style={parseStyle(style)}>
+    <div ref={rootRef} id={id} className={cn("ds-message-list", id)} style={parseStyle(style)}>
       {downloadEnabled && (
-        <div className="a2ui-message-list-toolbar">
-          <button type="button" className="a2ui-chat-action a2ui-chat-download" onClick={onDownload}>
+        <div className="ds-message-list-toolbar">
+          <button type="button" className="ds-chat-action ds-chat-download" onClick={onDownload}>
             <i className="ri-download-2-line" />
             Download History
           </button>
@@ -838,7 +838,7 @@ export const MessageList: React.FC<any> = ({
       {showScrollBottom ? (
         <button
           type="button"
-          className="a2ui-message-scroll-bottom position-sticky bottom-0 z-3 mx-auto shadow-sm"
+          className="ds-message-scroll-bottom position-sticky bottom-0 z-3 mx-auto shadow-sm"
           onClick={scrollToBottom}
           title="Go to latest message"
           aria-label="Go to latest message"

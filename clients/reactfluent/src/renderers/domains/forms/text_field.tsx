@@ -59,7 +59,7 @@ export const TextField: React.FC<any> = ({
 
   return (
     <div
-      className="a2ui-field m-0"
+      className="ds-field m-0"
       style={parseStyle(style)}
     >
       <FluentTextField

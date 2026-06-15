@@ -6,7 +6,7 @@ import {
 import { enUS } from 'date-fns/locale';
 import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, parseActionSpec, requestActionConfirm } from '@/renderers/shared';
-import { Button, Badge } from 'design-react-kit';
+import { Badge, Button } from '@/design/system';
 import { Pivot, PivotItem } from '@fluentui/react';
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
@@ -93,7 +93,7 @@ function MonthView({ curDate, evByDate, selDates, onPrev, onNext, onDayClick, on
     <div className="d-flex flex-column gap-2">
       <NavRow title={`${monthLabel} ${year}`} sub="Click a day to select it" onPrev={onPrev} onNext={onNext} />
 
-      <div className="a2ui-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-2 flex-wrap">
+      <div className="ds-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-2 flex-wrap">
         {selDay ? (
           <>
             <span className="small fw-bold me-2">Selected: {fmtDate(selDay)}</span>
@@ -109,9 +109,9 @@ function MonthView({ curDate, evByDate, selDates, onPrev, onNext, onDayClick, on
         )}
       </div>
 
-      <div className="a2ui-calendar-month-grid d-grid" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+      <div className="ds-calendar-month-grid d-grid" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
         {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
-          <div key={d} className="a2ui-calendar-month-head text-center py-2 xsmall fw-bold text-uppercase text-muted">{d}</div>
+          <div key={d} className="ds-calendar-month-head text-center py-2 xsmall fw-bold text-uppercase text-muted">{d}</div>
         ))}
         {weeks.flat().map((date, i) => {
           const ds    = format(date, 'yyyy-MM-dd');
@@ -122,7 +122,7 @@ function MonthView({ curDate, evByDate, selDates, onPrev, onNext, onDayClick, on
 
           return (
             <div key={i} onClick={() => onDayClick(ds)}
-              className={`a2ui-calendar-month-cell p-1 d-flex flex-column gap-1 position-relative ${!inMon ? 'a2ui-calendar-outside-month' : ''} ${isSel ? 'a2ui-calendar-selected-cell' : ''}`}
+              className={`ds-calendar-month-cell p-1 d-flex flex-column gap-1 position-relative ${!inMon ? 'ds-calendar-outside-month' : ''} ${isSel ? 'ds-calendar-selected-cell' : ''}`}
               style={{ cursor: 'pointer' }}>
               <div className={`d-inline-flex align-items-center justify-content-center rounded-circle xsmall fw-bold ${isSel ? 'bg-primary text-white' : isToday ? 'border border-primary text-primary' : ''}`}
                 style={{ width: '24px', height: '24px' }}>
@@ -132,13 +132,13 @@ function MonthView({ curDate, evByDate, selDates, onPrev, onNext, onDayClick, on
                 {evs.slice(0, 3).map((ev: any, ei: number) => (
                   <div key={ei}
                     onClick={onEventClick ? (e) => { e.stopPropagation(); onEventClick(ev); } : undefined}
-                    className="a2ui-calendar-event text-truncate p-1 mb-1 bg-light border-start border-3"
+                    className="ds-calendar-event text-truncate p-1 mb-1 bg-light border-start border-3"
                     style={{ borderLeftColor: ev.color || '#0066cc' }}>
                     {ev.time && <span className="fw-bold me-1">{ev.time}</span>}
                     {ev.title}
                   </div>
                 ))}
-                {evs.length > 3 && <div className="a2ui-calendar-more text-muted text-center">+{evs.length - 3} more</div>}
+                {evs.length > 3 && <div className="ds-calendar-more text-muted text-center">+{evs.length - 3} more</div>}
               </div>
             </div>
           );
@@ -168,7 +168,7 @@ function WeekView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, on
     <div className="d-flex flex-column">
       <NavRow title={wkLbl} sub="Click a slot to select it (same-day multi-selection)" onPrev={onPrev} onNext={onNext} />
 
-      <div className="a2ui-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-3 flex-wrap">
+      <div className="ds-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-3 flex-wrap">
         {count > 0 ? (
           <>
             <span className="small fw-bold">{count} slots on {fmtDate(selDate)}: {selTimes}</span>
@@ -183,8 +183,8 @@ function WeekView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, on
         )}
       </div>
 
-      <div className="a2ui-calendar-week-wrap table-responsive border">
-        <table className="a2ui-calendar-week-table table table-bordered table-sm m-0 xsmall">
+      <div className="ds-calendar-week-wrap table-responsive border">
+        <table className="ds-calendar-week-table table table-bordered table-sm m-0 xsmall">
           <thead>
             <tr>
               <th style={{ width: '60px' }}></th>
@@ -215,13 +215,13 @@ function WeekView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, on
                     <td
                       key={ds}
                       onClick={() => onSlotClick(ds, slot)}
-                      className={`a2ui-calendar-week-cell ${isSel ? 'table-primary' : ''}`}
+                      className={`ds-calendar-week-cell ${isSel ? 'table-primary' : ''}`}
                       style={{ cursor: 'pointer' }}
                     >
                       {ev0 && (
                         <div
                           onClick={onEventClick ? (e) => { e.stopPropagation(); onEventClick(ev0); } : undefined}
-                          className="a2ui-calendar-event p-1 bg-light border-start border-2 h-100 overflow-hidden"
+                          className="ds-calendar-event p-1 bg-light border-start border-2 h-100 overflow-hidden"
                           style={{ borderLeftColor: ev0.color || '#0066cc' }}>
                           <span className="text-truncate d-block">{ev0.title}</span>
                           {slEvs.length > 1 && <Badge color="secondary" className="ms-1">+{slEvs.length - 1}</Badge>}
@@ -291,7 +291,7 @@ function DayView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, onC
     <div className="d-flex flex-column gap-2">
       <NavRow title={dayLbl} sub="Click a slot to select it (multi-selection)" onPrev={onPrev} onNext={onNext} />
 
-      <div className="a2ui-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-3 flex-wrap">
+      <div className="ds-calendar-selection d-flex align-items-center gap-2 p-2 bg-light border mb-3 flex-wrap">
         {count > 0 ? (
           <>
             <span className="small fw-bold">{count} selected slots: {selSlots.join(', ')}</span>
@@ -306,7 +306,7 @@ function DayView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, onC
         )}
       </div>
 
-      <div className="a2ui-calendar-day-wrap position-relative border bg-white overflow-auto" style={{ height: '600px' }}>
+      <div className="ds-calendar-day-wrap position-relative border bg-white overflow-auto" style={{ height: '600px' }}>
         <div className="position-relative" style={{ height: slotMetrics.totalHeight }}>
           {slots.map((slot, i) => {
             const isSel = selSet.has(slot);
@@ -331,7 +331,7 @@ function DayView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, onC
               <div
                 key={idx}
                 onClick={onEventClick ? (e: React.MouseEvent) => { e.stopPropagation(); onEventClick(ev); } : undefined}
-                className="a2ui-calendar-day-event position-absolute p-2 overflow-hidden border-start border-4"
+                className="ds-calendar-day-event position-absolute p-2 overflow-hidden border-start border-4"
                 style={{
                   left: `calc(60px + ${col} * (100% - 60px) / ${nCols} + 4px)`,
                   top: slotMetrics.offsets[si] + 4,
@@ -343,9 +343,9 @@ function DayView({ curDate, evByDate, selSlots, onPrev, onNext, onSlotClick, onC
                   zIndex: 1,
                 }}
               >
-                <div className="a2ui-calendar-day-event-time fw-bold mb-1" style={{ color }}>{ev.time}</div>
-                <div className="a2ui-calendar-day-event-title fw-bold mb-1" style={{ color }}>{ev.title}</div>
-                {ev.description && <div className="a2ui-calendar-day-event-description opacity-75" style={{ color }}>{ev.description}</div>}
+                <div className="ds-calendar-day-event-time fw-bold mb-1" style={{ color }}>{ev.time}</div>
+                <div className="ds-calendar-day-event-title fw-bold mb-1" style={{ color }}>{ev.title}</div>
+                {ev.description && <div className="ds-calendar-day-event-description opacity-75" style={{ color }}>{ev.description}</div>}
               </div>
             );
           })}
@@ -523,9 +523,9 @@ export const Calendar: React.FC<any> = ({
   };
 
   return (
-    <div style={parseStyle(style)} className="a2ui-calendar calendar-container">
+    <div style={parseStyle(style)} className="ds-calendar calendar-container">
       <Pivot
-        className="a2ui-tabs-nav a2ui-calendar-view-tabs"
+        className="ds-tabs-nav ds-calendar-view-tabs"
         selectedKey={activeView}
         onLinkClick={(item) => {
           const key = item?.props.itemKey;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { InternalRenderer, normalizeActive } from '@/components/a2ui/Renderer';
+import { InternalClientRenderer, normalizeActive } from '@/components/renderer/Renderer';
 import {
   Checkbox,
   DefaultButton,
@@ -91,11 +91,11 @@ const defaultItemPreview = (template: string, item: any) => {
 
   if (template === 'title_text') {
     return (
-      <div className="a2ui-list-preview">
-        {hasIcon ? <i className={`a2ui-list-preview-icon ${iconClass}`} style={iconStyle} /> : null}
-        <div className="a2ui-list-preview-body">
-          <div className="a2ui-list-preview-title">{String(item?.title || '')}</div>
-          <div className="a2ui-list-preview-text">{String(item?.text || '')}</div>
+      <div className="ds-list-preview">
+        {hasIcon ? <i className={`ds-list-preview-icon ${iconClass}`} style={iconStyle} /> : null}
+        <div className="ds-list-preview-body">
+          <div className="ds-list-preview-title">{String(item?.title || '')}</div>
+          <div className="ds-list-preview-text">{String(item?.text || '')}</div>
         </div>
       </div>
     );
@@ -103,9 +103,9 @@ const defaultItemPreview = (template: string, item: any) => {
 
   if (template === 'text') {
     return (
-      <div className="a2ui-list-preview">
-        {hasIcon ? <i className={`a2ui-list-preview-icon ${iconClass}`} style={iconStyle} /> : null}
-        <div className="a2ui-list-preview-text">{String(item?.text || '')}</div>
+      <div className="ds-list-preview">
+        {hasIcon ? <i className={`ds-list-preview-icon ${iconClass}`} style={iconStyle} /> : null}
+        <div className="ds-list-preview-text">{String(item?.text || '')}</div>
       </div>
     );
   }
@@ -278,16 +278,16 @@ export const List: React.FC<any> = ({
 
     return (
       <IconButton
-        className={`a2ui-list-action-button ${className}`}
+        className={`ds-list-action-button ${className}`}
         iconProps={{ iconName: 'MoreVertical' }}
-        menuIconProps={{ className: 'a2ui-list-action-menu-icon' }}
+        menuIconProps={{ className: 'ds-list-action-menu-icon' }}
         ariaLabel="Item actions"
         title="Item actions"
         menuProps={{
           items: menuItems,
           directionalHint: DirectionalHint.bottomLeftEdge,
           calloutProps: {
-            className: 'a2ui-list-action-menu',
+            className: 'ds-list-action-menu',
             isBeakVisible: false,
           },
         }}
@@ -299,13 +299,13 @@ export const List: React.FC<any> = ({
     );
   };
 
-  if (loading) return <div className="a2ui-list-state">Loading...</div>;
-  if (error) return <div className="a2ui-list-state a2ui-list-state-error">Error: {error}</div>;
+  if (loading) return <div className="ds-list-state">Loading...</div>;
+  if (error) return <div className="ds-list-state ds-list-state-error">Error: {error}</div>;
 
   return (
-    <div className="a2ui-list-shell">
-      <div className="a2ui-list-stack">
-        <div className={orientation === 'horizontal' ? 'a2ui-list a2ui-list-horizontal' : 'a2ui-list'}>
+    <div className="ds-list-shell">
+      <div className="ds-list-stack">
+        <div className={orientation === 'horizontal' ? 'ds-list ds-list-horizontal' : 'ds-list'}>
           {items.map((item, index) => {
             const key = item?.id || `${id}_item_${index}`;
             const logicalKey = itemKey(item, index);
@@ -326,7 +326,7 @@ export const List: React.FC<any> = ({
             const hasCustomTemplate = Boolean(resolvedItemTemplate);
 
             const renderedItem = resolvedItemTemplate ? (
-              <InternalRenderer
+              <InternalClientRenderer
                 componentData={resolvedItemTemplate}
                 surfaceId={surfaceId}
                 surfaces={surfaces}
@@ -354,11 +354,11 @@ export const List: React.FC<any> = ({
                   if (!resolvedOnItemClick) return;
                   emit(resolvedOnItemClick, item || {}, { item, item_index: index });
                 }}
-                className={`a2ui-list-row ${isActive ? 'a2ui-list-row-active' : ''} ${isSelected ? 'a2ui-list-row-selected' : ''} ${(resolvedOnItemClick || (listSelectable && itemSelectable)) ? 'a2ui-list-row-interactive' : ''}`}
+                className={`ds-list-row ${isActive ? 'ds-list-row-active' : ''} ${isSelected ? 'ds-list-row-selected' : ''} ${(resolvedOnItemClick || (listSelectable && itemSelectable)) ? 'ds-list-row-interactive' : ''}`}
               >
-                <div className="a2ui-list-row-inner">
+                <div className="ds-list-row-inner">
                   {listSelectable && (
-                    <div className="a2ui-list-checkbox" onClick={e => e.stopPropagation()}>
+                    <div className="ds-list-checkbox" onClick={e => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         disabled={!itemSelectable}
@@ -373,9 +373,9 @@ export const List: React.FC<any> = ({
                     renderActionsMenu(item, index, visibleItemActions)
                   )}
 
-                  <div className={`a2ui-list-row-content ${hasCustomTemplate && hasItemActions ? 'a2ui-list-row-content-card-actions' : ''}`}>
+                  <div className={`ds-list-row-content ${hasCustomTemplate && hasItemActions ? 'ds-list-row-content-card-actions' : ''}`}>
                     {hasItemActions && hasCustomTemplate && (
-                      renderActionsMenu(item, index, visibleItemActions, 'a2ui-list-action-button-card')
+                      renderActionsMenu(item, index, visibleItemActions, 'ds-list-action-button-card')
                     )}
                     {renderedItem}
                   </div>
@@ -391,9 +391,9 @@ export const List: React.FC<any> = ({
           String(userRole || 'Guest'),
           Array.isArray(userPermissions) ? userPermissions.map(String) : [],
         ) ? (
-          <div className="a2ui-list-selected-action">
+          <div className="ds-list-selected-action">
             <DefaultButton
-              className="a2ui-list-selected-action-button"
+              className="ds-list-selected-action-button"
               disabled={selectedItems.length === 0}
               onClick={() => {
                 emit(resolvedSelectedItemsAction, {

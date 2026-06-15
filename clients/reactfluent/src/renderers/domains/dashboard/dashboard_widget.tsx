@@ -38,19 +38,19 @@ export const DashboardWidget: React.FC<any> = ({
       draggable={Boolean(edit_mode)}
       onDragStart={handleDragStart}
       onDragEnd={() => onGridDragEnd?.()}
-      className={cn('a2ui-dashboard-widget', edit_mode && 'a2ui-dashboard-widget-editing')}
+      className={cn('ds-dashboard-widget', edit_mode && 'ds-dashboard-widget-editing')}
       style={parseStyle(style)}
       data-widget-id={id}
       data-grid-w={span.w}
       data-grid-h={span.h}
     >
       {title ? (
-        <header className="a2ui-dashboard-widget-header">
-          <h3 className="a2ui-dashboard-widget-title">{title}</h3>
-          {edit_mode ? <span className="a2ui-dashboard-widget-drag-label">Move</span> : null}
+        <header className="ds-dashboard-widget-header">
+          <h3 className="ds-dashboard-widget-title">{title}</h3>
+          {edit_mode ? <span className="ds-dashboard-widget-drag-label">Move</span> : null}
         </header>
       ) : null}
-      <div className="a2ui-dashboard-widget-body">{ExplicitList}</div>
+      <div className="ds-dashboard-widget-body">{ExplicitList}</div>
     </section>
   );
 };

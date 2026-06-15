@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pivot, PivotItem } from '@fluentui/react';
 import { parseStyle } from '@/utils/style';
-import { A2UIRenderer } from '@/components/a2ui/Renderer';
+import { ClientRenderer } from '@/components/renderer/Renderer';
 import { readClientStateValue } from '@/state/clientState';
 
 const routeSurfaceId = (componentId: string, tabId: string, idx: number) => {
@@ -196,11 +196,11 @@ export const Tabs: React.FC<any> = ({
   return (
     <div
       data-component-id={resolvedComponentId}
-      className={`a2ui-tabs a2ui-tabs-${resolvedComponentId} d-flex flex-column w-100 ${stretch ? 'flex-grow-1 min-vh-0' : ''}`}
+      className={`ds-tabs ds-tabs-${resolvedComponentId} d-flex flex-column w-100 ${stretch ? 'flex-grow-1 min-vh-0' : ''}`}
       style={parseStyle(style)}
     >
       <Pivot
-        className="a2ui-tabs-nav"
+        className="ds-tabs-nav"
         selectedKey={selectedTabId}
         onLinkClick={(item) => selectTab(item?.props.itemKey)}
       >
@@ -226,7 +226,7 @@ export const Tabs: React.FC<any> = ({
               {shouldRenderContent ? (
                 tab.route && tab.surfaceId ? (
                   hostedRootId ? (
-                    <A2UIRenderer
+                    <ClientRenderer
                       surfaceId={tab.surfaceId}
                       componentId={hostedRootId}
                       surfaces={surfaces}

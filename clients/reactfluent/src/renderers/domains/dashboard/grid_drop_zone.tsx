@@ -201,23 +201,23 @@ export const GridDropZone: React.FC<any> = ({
         const isHover = hoverCell?.row === row && hoverCell?.col === col;
         const isMenuOpen = addMenuCell?.row === row && addMenuCell?.col === col;
         cells.push(
-          <div key={`cell_${row}_${col}`} className={cn("a2ui-grid-cell", isHover && "a2ui-grid-cell-hover", isOccupied && "a2ui-grid-cell-occupied")}>
+          <div key={`cell_${row}_${col}`} className={cn("ds-grid-cell", isHover && "ds-grid-cell-hover", isOccupied && "ds-grid-cell-occupied")}>
             {edit_mode && !isOccupied && (
-              <div className="a2ui-grid-cell-action">
+              <div className="ds-grid-cell-action">
                 <button
                   type="button"
                   aria-label={`Add widget at row ${row + 1}, column ${col + 1}`}
                   onClick={() => setAddMenuCell(isMenuOpen ? null : { row, col })}
-                  className="a2ui-grid-add-button"
+                  className="ds-grid-add-button"
                 >
                   <span aria-hidden="true">+</span>
                 </button>
               </div>
             )}
             {edit_mode && !isOccupied && isMenuOpen && (
-              <div className="a2ui-grid-add-menu">
+              <div className="ds-grid-add-menu">
                 {addOptions.map(opt => (
-                  <button key={opt.size} type="button" className="a2ui-grid-add-menu-item" onClick={() => {
+                  <button key={opt.size} type="button" className="ds-grid-add-menu-item" onClick={() => {
                     onAction?.(add_action, { component: 'DashboardWidget', size: opt.size, row, col, grid_id: id, session_key });
                     setAddMenuCell(null);
                   }}>{opt.label}</button>
@@ -244,16 +244,16 @@ export const GridDropZone: React.FC<any> = ({
   });
 
   return (
-    <div id={id} ref={gridRef} className={cn("a2ui-grid-dropzone", edit_mode && "a2ui-grid-dropzone-editing")} style={{ ...parseStyle(style), minHeight: gridHeight }} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={() => edit_mode && setHoverCell(null)} onClick={ev => !ev.target?.closest('button') && setAddMenuCell(null)}>
-      <div className="a2ui-grid-surface" style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`, gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`, gap: cellGap, height: gridHeight }}>
+    <div id={id} ref={gridRef} className={cn("ds-grid-dropzone", edit_mode && "ds-grid-dropzone-editing")} style={{ ...parseStyle(style), minHeight: gridHeight }} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={() => edit_mode && setHoverCell(null)} onClick={ev => !ev.target?.closest('button') && setAddMenuCell(null)}>
+      <div className="ds-grid-surface" style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`, gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`, gap: cellGap, height: gridHeight }}>
         {edit_mode && renderCellOverlay()}
       </div>
-      <div className="a2ui-grid-widget-layer" style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`, gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`, gap: cellGap, height: gridHeight }}>
+      <div className="ds-grid-widget-layer" style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`, gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)`, gap: cellGap, height: gridHeight }}>
         {widgets.map(meta => {
           const child = childById.get(meta.id);
           if (!child) return null;
           return (
-            <div key={meta.id} className="a2ui-grid-widget-slot" style={{ ...placeStyleFor(meta), pointerEvents: 'auto' }}>
+            <div key={meta.id} className="ds-grid-widget-slot" style={{ ...placeStyleFor(meta), pointerEvents: 'auto' }}>
               {React.cloneElement(child as any, {
                 edit_mode,
                 onGridDragStart: (widgetId: string, span: { w: number; h: number }) => {

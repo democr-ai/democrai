@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { Button } from "design-react-kit";
+import { Button } from "@/design/system";
 import { cn } from "@/lib/utils";
 import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
