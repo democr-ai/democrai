@@ -7,10 +7,12 @@
       id: monitor_models_usage_title
       text: "@t/monitor.models_usage.title"
       level: 2
+      style: "padding-left: 12px;"
     - kind: Text
       id: monitor_models_usage_description
       text: "@t/monitor.models_usage.description"
       muted: true
+      style: "padding-left: 12px;"
     - kind: DataTable
       id: monitor_llm_table
       model: [

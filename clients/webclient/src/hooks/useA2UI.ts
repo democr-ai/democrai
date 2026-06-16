@@ -444,7 +444,7 @@ function resolveHookOptions(options?: string | UseA2UIOptions): UseA2UIOptions {
 
 function normalizeTransportKind(value: unknown): A2UITransportKind {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === 'tauri-ipc') return 'tauri-ipc';
+  if (normalized === 'native-ipc') return 'native-ipc';
   if (normalized === 'websocket') return 'websocket';
   return 'auto';
 }
@@ -838,7 +838,7 @@ export function useA2UI(options?: string | UseA2UIOptions) {
       }
       applyAuthState(payload);
       scheduleTokenRefresh(token);
-      if (transportKind !== 'tauri-ipc' && !authSessionCookieReconnectDoneRef.current) {
+      if (transportKind !== 'native-ipc' && !authSessionCookieReconnectDoneRef.current) {
         authSessionCookieReconnectDoneRef.current = true;
         reconnect();
       }

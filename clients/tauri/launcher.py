@@ -171,7 +171,7 @@ def start(*, args: Any, ipc_endpoint: str, app_dir: str, client_root: str):
 
     yarn = _yarn_command()
     web_env = os.environ.copy()
-    web_env["VITE_A2UI_TRANSPORT"] = "tauri-ipc"
+    web_env["VITE_A2UI_TRANSPORT"] = "native-ipc"
     web_env["VITE_A2UI_HTTP_BASE_URL"] = _runtime_http_base_url(args)
     web_env["VITE_A2UI_WS_URL"] = _runtime_ws_url(args)
     web_proc = subprocess.Popen(

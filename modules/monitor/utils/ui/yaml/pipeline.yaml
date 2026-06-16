@@ -7,10 +7,12 @@
       id: monitor_pipeline_title
       text: "@t/monitor.pipeline.title"
       level: 2
+      style: "padding-left: 12px;"
     - kind: Text
       id: monitor_pipeline_description
       text: "@t/monitor.pipeline.description"
       muted: true
+      style: "padding-left: 12px;"
     - kind: DataTable
       id: monitor_pipeline_table
       model:

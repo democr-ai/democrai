@@ -92,8 +92,35 @@ def update_core_os_sandbox_proxy_session(
         ProxySessionManager,
     )
 
-    ProxySessionManager(config).update(session_id, allowlist)
+    manager = ProxySessionManager(config)
+    try:
+        manager.update(session_id, allowlist)
+    except RuntimeError as exc:
+        if not str(exc).startswith("os_sandbox_proxy_session_not_found:"):
+            raise
+        if not _core_proxy_session_recovery_allowed():
+            raise
+        session = _start_core_proxy_session(
+            allowlist,
+            config=config or _current_config(),
+        )
+        proxy_url = str(session.get("proxy_url") or "").strip()
+        recovered_session_id = str(session.get("session_id") or "").strip()
+        if not proxy_url or not recovered_session_id:
+            raise RuntimeError("os_sandbox_core_proxy_session_invalid") from exc
+        manager.apply_env(os.environ, proxy_url)
+        os.environ[CORE_OS_SANDBOX_PROXY_SESSION_ENV] = recovered_session_id
     return True
+
+
+def _core_proxy_session_recovery_allowed() -> bool:
+    # A relaunched macOS/Windows core may have a platform policy that permits
+    # only the original loopback proxy port. In-process providers can safely
+    # swap the proxy env to a newly created helper session.
+    return (
+        provider_supports_current_process_os_sandbox()
+        and not is_core_os_sandbox_relaunched()
+    )
 
 
 def ensure_in_process_core_proxy_session(config: Any | None = None) -> bool:

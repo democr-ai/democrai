@@ -59,7 +59,6 @@ class _ProxySession:
     session_id: str
     token: str
     endpoints: _ProxyEndpointPolicy
-    expires_at: float
 
 
 class OsSandboxConnectProxy:
@@ -102,9 +101,7 @@ class OsSandboxConnectProxy:
         self,
         *,
         endpoints: list[dict[str, Any]],
-        ttl_seconds: int = 7200,
     ) -> dict[str, str]:
-        self._cleanup_expired_sessions()
         if self._server is None or self._port <= 0:
             raise RuntimeError("os_sandbox_proxy_not_started")
         session_id = secrets.token_urlsafe(24)
@@ -113,7 +110,6 @@ class OsSandboxConnectProxy:
             session_id=session_id,
             token=token,
             endpoints=_endpoint_policy(endpoints),
-            expires_at=time.time() + max(60, int(ttl_seconds)),
         )
         self._sessions[session_id] = session
         debug_os_sandbox_flow(
@@ -144,9 +140,7 @@ class OsSandboxConnectProxy:
         session_id: str,
         *,
         endpoints: list[dict[str, Any]],
-        ttl_seconds: int | None = None,
     ) -> dict[str, str]:
-        self._cleanup_expired_sessions()
         resolved = str(session_id or "").strip()
         if not resolved:
             raise RuntimeError("os_sandbox_proxy_session_id_required")
@@ -157,11 +151,6 @@ class OsSandboxConnectProxy:
             session_id=current.session_id,
             token=current.token,
             endpoints=_endpoint_policy(endpoints),
-            expires_at=(
-                time.time() + max(60, int(ttl_seconds))
-                if ttl_seconds is not None
-                else current.expires_at
-            ),
         )
         self._sessions[resolved] = updated
         debug_os_sandbox_flow(
@@ -328,7 +317,6 @@ class OsSandboxConnectProxy:
         return data
 
     def _session_from_headers(self, headers: dict[str, str]) -> _ProxySession:
-        self._cleanup_expired_sessions()
         token = _proxy_token(headers.get("proxy-authorization", ""))
         if not token:
             raise RuntimeError("os_sandbox_proxy_missing_token")
@@ -336,17 +324,6 @@ class OsSandboxConnectProxy:
             if secrets.compare_digest(session.token, token):
                 return session
         raise RuntimeError("os_sandbox_proxy_invalid_token")
-
-    def _cleanup_expired_sessions(self) -> None:
-        now = time.time()
-        expired = [
-            session_id
-            for session_id, session in self._sessions.items()
-            if session.expires_at <= now
-        ]
-        for session_id in expired:
-            self._sessions.pop(session_id, None)
-
 
 def _endpoint_policy(endpoints: list[dict[str, Any]]) -> _ProxyEndpointPolicy:
     exact: set[tuple[str, int]] = set()

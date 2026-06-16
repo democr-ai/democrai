@@ -1,6 +1,5 @@
 - kind: Column
   stretch: True
-  padding: [12,12,12,12]
   children:
     - kind: Tabs
       id: nav_tabs
