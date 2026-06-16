@@ -1,6 +1,8 @@
 @echo off
 setlocal
 set "SCRIPT_DIR=%~dp0"
+rem "Run as administrator" starts in System32; the app resolves paths from cwd.
+cd /d "%SCRIPT_DIR%"
 set "PYTHON_CMD="
 
 call :find_python

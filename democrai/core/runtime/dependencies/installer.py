@@ -250,19 +250,36 @@ def _emit_install_output(
         pass
 
 
+def _safe_console_print(text: str) -> None:
+    """Print pip output without crashing on a narrow console encoding.
+
+    pip emits UTF-8 (progress bars, package names with non-ASCII chars), but the
+    relaunched core's stdout is often cp1252 on Windows — a raw print() then dies
+    with UnicodeEncodeError mid-install. Drop unencodable chars instead.
+    """
+    try:
+        print(text, flush=True)
+    except UnicodeEncodeError:
+        encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+        safe = text.encode(encoding, errors="replace").decode(encoding, errors="replace")
+        print(safe, flush=True)
+
+
 def _run_install_subprocess(
     cmd: list[str],
     *,
     label: str,
     env: dict[str, str] | None = None,
 ) -> None:
-    print(label, flush=True)
+    _safe_console_print(label)
     _emit_install_output(label, phase="install", stream="stdout")
     process = subprocess.Popen(  # nosec B603
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         bufsize=1,
         env=env,
     )
@@ -273,7 +290,7 @@ def _run_install_subprocess(
             text = str(line or "").rstrip()
             if not text:
                 continue
-            print(text, flush=True)
+            _safe_console_print(text)
             output_tail.append(text)
             _emit_install_output(text, phase="install", stream="stdout")
     finally:

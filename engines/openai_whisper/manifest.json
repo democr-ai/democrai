@@ -20,6 +20,14 @@
       "enabled": false
     }
   },
+  "install": {
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
   "runtime": {
     "allowed_config_urls": "base_url",
     "access": [
@@ -38,6 +46,12 @@
         "operation": "receive",
         "target": "https://api.openai.com/*"
       }
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
     ]
   },
   "provider": {

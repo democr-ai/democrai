@@ -27,14 +27,33 @@ SPAWN_BROKER_TOKEN_ENV = "DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN"
 
 _MAX_MESSAGE_BYTES = 8 * 1024 * 1024
 _CMSG_FD_BYTES = 64 * array.array("i").itemsize
+# Upper bound on how long a broker handler waits for a client to send its
+# request before giving up (a silent/partial peer must not pin the thread).
+_CLIENT_READ_TIMEOUT_SECONDS = 30.0
 
 
 class SpawnBroker:
     def __init__(self) -> None:
         self.token = secrets.token_urlsafe(32)
-        self.socket_path = _new_socket_path()
-        self._server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._server.bind(str(self.socket_path))
+        if sys.platform == "win32":
+            # CPython on Windows does not expose AF_UNIX; loopback TCP with the
+            # mandatory request token mirrors the orchestrator transport choice.
+            self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # Windows SO_REUSEADDR lets a second socket steal a bound port;
+            # SO_EXCLUSIVEADDRUSE forbids it, so no other local process can
+            # hijack or share this control-plane loopback port.
+            try:
+                self._server.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1
+                )
+            except (OSError, AttributeError):
+                pass
+            self._server.bind(("127.0.0.1", 0))
+            self.socket_path = f"tcp:127.0.0.1:{self._server.getsockname()[1]}"
+        else:
+            self.socket_path = _new_socket_path()
+            self._server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self._server.bind(str(self.socket_path))
         self._server.listen(64)
         self._stop = threading.Event()
         self._lock = threading.Lock()
@@ -65,9 +84,7 @@ class SpawnBroker:
         except OSError:
             pass
         try:
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client.settimeout(0.1)
-            client.connect(str(self.socket_path))
+            client = _connect_broker_endpoint(str(self.socket_path), timeout=0.1)
             client.close()
         except OSError:
             pass
@@ -85,10 +102,11 @@ class SpawnBroker:
                     pass
         for session_id in proxy_sessions:
             _stop_broker_proxy_session(session_id)
-        try:
-            self.socket_path.unlink()
-        except OSError:
-            pass
+        if not str(self.socket_path).startswith("tcp:"):
+            try:
+                Path(str(self.socket_path)).unlink()
+            except OSError:
+                pass
 
     def _serve(self) -> None:
         while not self._stop.is_set():
@@ -104,9 +122,17 @@ class SpawnBroker:
             ).start()
 
     def _handle_connection(self, conn: socket.socket) -> None:
+        fds: list[int] = []
         with conn:
             try:
+                # Bound only the request read: a client that connects and never
+                # (or partially) sends must not pin this handler thread forever.
+                # The dispatch/spawn and response are left unbounded.
+                conn.settimeout(_CLIENT_READ_TIMEOUT_SECONDS)
                 request, fds = _recv_message(conn)
+                conn.settimeout(None)
+                if not fds:
+                    fds = self._materialize_windows_handles(request)
                 response = self._dispatch(request, fds, conn)
             except Exception as exc:
                 response = {"ok": False, "error": str(exc)}
@@ -115,8 +141,27 @@ class SpawnBroker:
             except OSError:
                 pass
             finally:
-                for fd in fds if "fds" in locals() else ():
+                for fd in fds:
                     _close_fd(fd)
+
+    def _materialize_windows_handles(self, request: Any) -> list[int]:
+        """Windows replacement for SCM_RIGHTS: duplicate client pipe handles.
+
+        The client embeds its pid and raw handle values in the request; after
+        the token pre-check we duplicate them into this process so the rest of
+        the dispatch path keeps working on local fds.
+        """
+        if sys.platform != "win32" or not isinstance(request, dict):
+            return []
+        handles = [int(item) for item in (request.get("handles") or [])]
+        if not handles:
+            return []
+        if str(request.get("token") or "") not in self._token_policies:
+            raise RuntimeError("spawn_broker_token_invalid")
+        client_pid = int(request.get("client_pid") or 0)
+        if client_pid <= 0:
+            raise RuntimeError("spawn_broker_client_pid_required")
+        return _duplicate_client_handles(client_pid, handles)
 
     def _dispatch(
         self,
@@ -463,9 +508,15 @@ def _broker_request(payload: dict[str, Any], *, fds: list[int] | None = None) ->
     socket_path = str(os.environ.get(SPAWN_BROKER_SOCKET_ENV) or "").strip()
     if not socket_path:
         raise RuntimeError("spawn_broker_socket_missing")
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.connect(socket_path)
-        _send_message(client, request, fds=tuple(fds or ()))
+    send_fds = tuple(fds or ())
+    if send_fds and sys.platform == "win32":
+        import msvcrt
+
+        request["handles"] = [int(msvcrt.get_osfhandle(int(fd))) for fd in send_fds]
+        request["client_pid"] = int(os.getpid())
+        send_fds = ()
+    with _connect_broker_endpoint(socket_path) as client:
+        _send_message(client, request, fds=send_fds)
         response, _response_fds = _recv_message(client)
     if not response.get("ok"):
         raise RuntimeError(str(response.get("error") or "spawn_broker_request_failed"))
@@ -480,13 +531,18 @@ def _send_message(
 ) -> None:
     body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     frame = struct.pack("!I", len(body)) + body
-    ancdata = []
-    if fds:
-        ancdata.append((socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", fds)))
+    if not fds:
+        sock.sendall(frame)
+        return
+    if sys.platform == "win32":
+        raise RuntimeError("spawn_broker_fd_passing_unsupported_on_windows")
+    ancdata = [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", fds))]
     sock.sendmsg([frame], ancdata)
 
 
 def _recv_message(sock: socket.socket) -> tuple[dict[str, Any], list[int]]:
+    if sys.platform == "win32":
+        return _recv_message_plain(sock), []
     chunks: list[bytes] = []
     fds: list[int] = []
     expected: int | None = None
@@ -687,6 +743,77 @@ def _optional_timeout(value: Any) -> float | None:
     if value is None:
         return None
     return float(value)
+
+
+def _recv_message_plain(sock: socket.socket) -> dict[str, Any]:
+    buffer = b""
+    while len(buffer) < 4:
+        data = sock.recv(65536)
+        if not data:
+            raise RuntimeError("spawn_broker_message_truncated")
+        buffer += data
+    size = struct.unpack("!I", buffer[:4])[0]
+    if size > _MAX_MESSAGE_BYTES:
+        raise RuntimeError("spawn_broker_message_too_large")
+    while len(buffer) < 4 + size:
+        data = sock.recv(65536)
+        if not data:
+            raise RuntimeError("spawn_broker_message_truncated")
+        buffer += data
+    return json.loads(buffer[4 : 4 + size].decode("utf-8"))
+
+
+def _connect_broker_endpoint(endpoint: str, *, timeout: float | None = None) -> socket.socket:
+    resolved = str(endpoint or "").strip()
+    if resolved.startswith("tcp:"):
+        host, _, port = resolved[len("tcp:") :].rpartition(":")
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if timeout is not None:
+            client.settimeout(timeout)
+        client.connect((host or "127.0.0.1", int(port)))
+        return client
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    if timeout is not None:
+        client.settimeout(timeout)
+    client.connect(resolved)
+    return client
+
+
+def _duplicate_client_handles(client_pid: int, handles: list[int]) -> list[int]:
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    PROCESS_DUP_HANDLE = 0x0040
+    DUPLICATE_SAME_ACCESS = 0x0002
+    kernel32 = ctypes.windll.kernel32
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    source = kernel32.OpenProcess(PROCESS_DUP_HANDLE, False, int(client_pid))
+    if not source:
+        raise RuntimeError(f"spawn_broker_client_process_unavailable:{client_pid}")
+    current_process = wintypes.HANDLE(-1)  # GetCurrentProcess() pseudo-handle
+    fds: list[int] = []
+    try:
+        for handle in handles:
+            target = wintypes.HANDLE()
+            if not kernel32.DuplicateHandle(
+                wintypes.HANDLE(source),
+                wintypes.HANDLE(int(handle)),
+                current_process,
+                ctypes.byref(target),
+                0,
+                False,
+                DUPLICATE_SAME_ACCESS,
+            ):
+                raise ctypes.WinError()
+            fds.append(msvcrt.open_osfhandle(int(target.value), 0))
+    except Exception:
+        for fd in fds:
+            _close_fd(fd)
+        raise
+    finally:
+        kernel32.CloseHandle(wintypes.HANDLE(source))
+    return fds
 
 
 def _new_socket_path() -> Path:

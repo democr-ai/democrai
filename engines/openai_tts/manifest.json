@@ -9,8 +9,22 @@
       "path": "models/catalog.json"
     }
   },
+  "install": {
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
+  },
   "runtime": {
-    "allowed_config_urls": "base_url"
+    "allowed_config_urls": "base_url",
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes",
+      "cffi",
+      "_cffi_backend"
+    ]
   },
   "provider": {
     "id": "openai_tts",

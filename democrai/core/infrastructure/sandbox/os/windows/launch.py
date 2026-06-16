@@ -20,4 +20,9 @@ class WindowsCoreLaunchStrategy:
         stdout=None,
         stderr=None,
     ):
-        return WindowsOsSandboxProvider().spawn(policy)
+        return WindowsOsSandboxProvider().spawn(
+            policy,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+        )

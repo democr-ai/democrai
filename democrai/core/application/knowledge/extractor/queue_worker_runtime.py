@@ -38,9 +38,13 @@ def start_extraction_queue_worker_process(ctx: Any) -> subprocess.Popen[str] | N
         "-m",
         "democrai.core.application.knowledge.extractor.queue_worker_process",
     ]
+    from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+        sandbox_safe_devnull_stdin,
+    )
+
     process = subprocess.Popen(  # nosec B603
         command,
-        stdin=subprocess.DEVNULL,
+        stdin=sandbox_safe_devnull_stdin(),
         env=env,
         text=True,
     )

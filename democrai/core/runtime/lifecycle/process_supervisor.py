@@ -127,10 +127,9 @@ class ProcessSupervisor:
                 pass
 
         try:
-            import os
+            from democrai.core.platform.utils.process import pid_exists
 
-            os.kill(pid, 0)
-            return True
+            return pid_exists(pid)
         except Exception:
             return False
 

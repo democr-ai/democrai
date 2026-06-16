@@ -108,6 +108,7 @@ def test_extractor_access_by_os_filters_linux_only_paths(monkeypatch, tmp_path):
     ]
 
 
+@pytest.mark.posix_only
 def test_extractor_access_includes_runtime_system_and_dependency_reads(monkeypatch, tmp_path):
     import democrai.core.application.knowledge.extractor.runtime as mod
 
@@ -141,6 +142,7 @@ def test_extractor_access_includes_runtime_system_and_dependency_reads(monkeypat
     assert ("create", "/usr") not in resources
 
 
+@pytest.mark.posix_only
 def test_extractor_access_reads_resolved_venv_python(monkeypatch, tmp_path):
     import democrai.core.application.knowledge.extractor.runtime as mod
 
@@ -187,6 +189,7 @@ def test_extractor_access_reads_resolved_venv_python(monkeypatch, tmp_path):
     assert ("execute", resolved_python) in resources
 
 
+@pytest.mark.posix_only
 def test_extractor_access_reads_python_executable_symlink_chain(monkeypatch, tmp_path):
     import democrai.core.application.knowledge.extractor.runtime as mod
 
@@ -231,6 +234,7 @@ def test_extractor_access_reads_python_executable_symlink_chain(monkeypatch, tmp
         assert ("execute", str(path.resolve(strict=False))) in resources
 
 
+@pytest.mark.posix_only
 def test_model_registry_extractor_runtime_can_resolve_orchestrator_socket():
     import democrai.core.application.knowledge.extractor.runtime as mod
     from democrai.core.application.ai.engine.orchestrator.config import (

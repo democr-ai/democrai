@@ -2,10 +2,53 @@ import logging
 import os
 import re
 import sys
+import time
 from pathlib import Path
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler as _BaseTimedRotatingFileHandler
 from typing import List, Union
 from .base import LogProvider
+
+
+class _WindowsSafeTimedRotatingFileHandler(_BaseTimedRotatingFileHandler):
+    """TimedRotatingFileHandler that tolerates concurrent rollover on Windows.
+
+    democrai runs several processes (desktop, core, orchestrator, workers) that
+    each open the same per-name log file. At the daily boundary they all try to
+    rename ``main.log`` → ``main.log.<date>``; on Windows you cannot rename a file
+    another process holds open, so the losers raise ``WinError 32`` (or hit an
+    already-rotated destination) and the stock handler would spam a traceback on
+    every subsequent record. Here the winning process rotates and the losers
+    simply reopen the base file and advance the timer — logging continues, no
+    spam. POSIX renames open files fine, so the recovery path never triggers
+    there.
+    """
+
+    def doRollover(self) -> None:
+        try:
+            super().doRollover()
+            return
+        except (PermissionError, FileExistsError, OSError):
+            pass
+        # Another process won (or holds) the rollover. Reopen the base file and
+        # advance rolloverAt so we don't re-attempt — and re-fail — every record.
+        try:
+            if self.stream:
+                self.stream.close()
+        except Exception:
+            pass
+        self.stream = None
+        if not self.delay:
+            self.stream = self._open()
+        current_time = int(time.time())
+        next_rollover = self.computeRollover(current_time)
+        while next_rollover <= current_time:
+            next_rollover += self.interval
+        self.rolloverAt = next_rollover
+
+
+# Public name kept so ``get_handlers`` uses the safe handler by default while
+# tests can still monkeypatch ``TimedRotatingFileHandler`` on this module.
+TimedRotatingFileHandler = _WindowsSafeTimedRotatingFileHandler
 
 
 def normalize_logger_name(name: str) -> str:

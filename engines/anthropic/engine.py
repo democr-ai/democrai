@@ -51,7 +51,11 @@ class AnthropicEngine(BaseEngine, LLMProvider):
         if not _anthropic_version_matches():
             missing_local.append(_ANTHROPIC_PACKAGE)
         if not _anthropic_runtime_symbols_available():
-            missing_local.append("anthropic.AsyncAnthropic")
+            # Embed the cause in the label so it propagates into the install
+            # error the user sees (logger output is not surfaced there).
+            missing_local.append(
+                f"anthropic.AsyncAnthropic [{_anthropic_runtime_status()[1]}]"
+            )
         return cls._build_ready_payload(
             missing_shared=cls._default_missing_shared(),
             missing_local=missing_local,
@@ -435,22 +439,33 @@ def _anthropic_version_matches() -> bool:
     return version.split("+", 1)[0] == _ANTHROPIC_VERSION
 
 
-def _anthropic_runtime_symbols_available() -> bool:
+def _anthropic_runtime_status() -> tuple[bool, str]:
+    """Return (ready, diagnostic). The diagnostic is embedded in the readiness
+    error so the real cause is visible without log access."""
     try:
         anthropic_mod = importlib.import_module("anthropic")
-        AsyncAnthropic = getattr(anthropic_mod, "AsyncAnthropic", None)
-        if not callable(AsyncAnthropic):
-            return False
-        client = AsyncAnthropic(
-            api_key="sk-ant-dummy",
-            base_url="https://example.test",
-        )
-        messages = getattr(client, "messages", None)
-        models = getattr(client, "models", None)
-        return (
-            callable(getattr(messages, "create", None))
-            and callable(getattr(messages, "stream", None))
-            and callable(getattr(models, "list", None))
-        )
-    except Exception:
-        return False
+    except Exception as exc:
+        return False, f"import anthropic failed: {exc!r}"
+    origin = getattr(anthropic_mod, "__file__", "?")
+    if not callable(getattr(anthropic_mod, "AsyncAnthropic", None)):
+        return False, f"no AsyncAnthropic; anthropic resolved to {origin}"
+    # Verify the API surface on the resource classes. Instantiating AsyncAnthropic
+    # builds a live httpx client (SSL context + CA cert loading) which is
+    # unnecessary for a readiness probe and fragile under the OS sandbox.
+    try:
+        resources = importlib.import_module("anthropic.resources")
+    except Exception as exc:
+        return False, f"import anthropic.resources failed: {exc!r}"
+    checks = {
+        "AsyncMessages.create": getattr(getattr(resources, "AsyncMessages", None), "create", None),
+        "AsyncMessages.stream": getattr(getattr(resources, "AsyncMessages", None), "stream", None),
+        "AsyncModels.list": getattr(getattr(resources, "AsyncModels", None), "list", None),
+    }
+    missing = [name for name, fn in checks.items() if not callable(fn)]
+    if missing:
+        return False, f"resource methods missing {missing} (from {origin})"
+    return True, f"ok ({origin})"
+
+
+def _anthropic_runtime_symbols_available() -> bool:
+    return _anthropic_runtime_status()[0]

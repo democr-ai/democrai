@@ -21,8 +21,9 @@ from democrai.core.infrastructure.sandbox.os.macos.provider import (
     MacOSOsSandboxProvider,
     seatbelt_profile,
 )
-from democrai.core.infrastructure.sandbox.os.windows import appcontainer as windows_appcontainer
+from democrai.core.infrastructure.sandbox.os.windows import low_integrity as windows_low
 from democrai.core.infrastructure.sandbox.os.windows import provider as windows_provider
+from democrai.core.infrastructure.sandbox.os.windows import winapi as windows_winapi
 from democrai.core.infrastructure.sandbox.os.windows.provider import WindowsOsSandboxProvider
 from democrai.core.infrastructure.sandbox import spawn_broker
 
@@ -83,6 +84,7 @@ def test_launch_policy_network_modes_from_access_rules(tmp_path):
     assert trusted.network_mode == launch_policy.NETWORK_ALLOW_ALL
 
 
+@pytest.mark.posix_only
 def test_launch_policy_payload_roundtrip_uses_v2_access(tmp_path):
     subject = AccessSubject.create("engine", "onnx")
     policy = launch_policy.build_launch_policy(
@@ -310,6 +312,7 @@ def test_linux_provider_maps_dev_null_modify_to_read_write_only(monkeypatch):
     ]
 
 
+@pytest.mark.macos_only
 def test_macos_proxy_profile_allows_only_loopback_proxy(monkeypatch, tmp_path):
     real_home = os.path.expanduser("~")
     home = tmp_path / "home"
@@ -356,6 +359,7 @@ def test_macos_proxy_profile_allows_only_loopback_proxy(monkeypatch, tmp_path):
     assert real_home not in profile
 
 
+@pytest.mark.macos_only
 def test_macos_profile_skips_protected_home_deny_when_policy_allows(monkeypatch, tmp_path):
     home = tmp_path / "home"
     protected = home / ".ssh"
@@ -380,6 +384,7 @@ def test_macos_profile_skips_protected_home_deny_when_policy_allows(monkeypatch,
     )
 
 
+@pytest.mark.macos_only
 def test_macos_profile_denies_unapproved_siblings_under_policy_parent(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
@@ -415,6 +420,7 @@ def test_macos_profile_denies_unapproved_siblings_under_policy_parent(monkeypatc
     )
 
 
+@pytest.mark.macos_only
 def test_macos_execute_allows_literal_and_subpath(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     policy = launch_policy.SandboxLaunchPolicy(
@@ -433,6 +439,7 @@ def test_macos_execute_allows_literal_and_subpath(monkeypatch, tmp_path):
     assert '(allow file-read* (subpath "/opt/runtime/bin"))' in profile
 
 
+@pytest.mark.macos_only
 def test_macos_profile_emits_realpath_variants(monkeypatch, tmp_path):
     home = tmp_path / "home"
     protected = home / ".ssh"
@@ -646,7 +653,7 @@ def test_macos_proxy_policy_requires_sandbox_exec(monkeypatch):
         MacOSOsSandboxProvider().prepare(policy)
 
 
-def test_windows_provider_fails_closed_when_appcontainer_unavailable(monkeypatch):
+def test_windows_provider_fails_closed_when_low_integrity_unavailable(monkeypatch):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["cmd", "/c", "echo ok"],
         cwd=None,
@@ -654,14 +661,13 @@ def test_windows_provider_fails_closed_when_appcontainer_unavailable(monkeypatch
         filesystem_access=(),
         network_mode=launch_policy.NETWORK_DENY,
     )
-    monkeypatch.setattr(windows_appcontainer, "is_windows", lambda: False)
     monkeypatch.setattr(windows_provider, "is_windows", lambda: False)
 
-    with pytest.raises(RuntimeError, match="windows_sandbox_appcontainer_unavailable"):
+    with pytest.raises(RuntimeError, match="windows_sandbox_low_integrity_unavailable"):
         WindowsOsSandboxProvider().run(policy)
 
 
-def test_windows_provider_prepares_appcontainer_before_launch(monkeypatch):
+def test_windows_provider_prepares_low_integrity_before_launch(monkeypatch):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["cmd", "/c", "echo ok"],
         cwd=None,
@@ -670,20 +676,20 @@ def test_windows_provider_prepares_appcontainer_before_launch(monkeypatch):
         network_mode=launch_policy.NETWORK_DENY,
     )
     calls = []
-    prepared = windows_appcontainer.WindowsPreparedSandbox(
-        appcontainer_name="democrai.test",
-        package_sid="S-1-15-2-1",
+    prepared = windows_low.WindowsPreparedSandbox(
+        appcontainer_name="low",
+        package_sid=windows_low.LOW_INTEGRITY_SID,
         proxy_url="",
     )
     monkeypatch.setattr(windows_provider, "is_windows", lambda: True)
     monkeypatch.setattr(
         windows_provider,
-        "prepare_windows_appcontainer",
+        "prepare_windows_low_integrity",
         lambda prepared_policy, proxy_url="": calls.append(("prepare", prepared_policy, proxy_url)) or prepared,
     )
     monkeypatch.setattr(
         windows_provider,
-        "launch_appcontainer_process",
+        "launch_low_integrity_process",
         lambda launch_policy_value, prepared_value, env: calls.append(("launch", launch_policy_value, prepared_value, env)) or 7,
     )
 
@@ -697,7 +703,10 @@ def test_windows_provider_prepares_appcontainer_before_launch(monkeypatch):
     assert calls[1][3] == {"A": "B"}
 
 
-def test_windows_shared_memory_package_sid_derives_appcontainer_sid(monkeypatch):
+def test_windows_prepare_launch_env_returns_no_sid(monkeypatch):
+    # Under Low integrity the IPC shared memory needs no special package SID
+    # (creator-writes + read-up), so prepare_launch_env returns "" and sets
+    # nothing in the child env.
     policy = launch_policy.SandboxLaunchPolicy(
         command=["cmd", "/c", "echo ok"],
         cwd=None,
@@ -707,29 +716,11 @@ def test_windows_shared_memory_package_sid_derives_appcontainer_sid(monkeypatch)
         subject="docling",
         subject_kind="extractor",
     )
-    calls = []
-    monkeypatch.setattr(
-        windows_appcontainer,
-        "_require_windows_appcontainer",
-        lambda: calls.append(("require",)),
-    )
-    monkeypatch.setattr(
-        windows_appcontainer,
-        "_derive_appcontainer_sid",
-        lambda package_name: calls.append(("derive", package_name)) or object(),
-    )
-    monkeypatch.setattr(
-        windows_appcontainer,
-        "_sid_to_string",
-        lambda _sid: "S-1-15-2-1",
-    )
+    env: dict[str, str] = {}
+    sid = WindowsOsSandboxProvider().prepare_launch_env(policy, env)
 
-    package_sid = windows_appcontainer.shared_memory_package_sid(policy)
-
-    assert package_sid == "S-1-15-2-1"
-    assert calls[0] == ("require",)
-    assert calls[1][0] == "derive"
-    assert calls[1][1].startswith("democrai.extractor.docling.")
+    assert sid == ""
+    assert "DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID" not in env
 
 
 def test_launcher_popen_attaches_windows_shared_memory_sid(monkeypatch, tmp_path):
@@ -748,10 +739,6 @@ def test_launcher_popen_attaches_windows_shared_memory_sid(monkeypatch, tmp_path
         lambda policy: written_policies.append(policy) or tmp_path / "policy.json",
     )
     monkeypatch.setattr(
-        "democrai.core.infrastructure.sandbox.os.windows.appcontainer.shared_memory_package_sid",
-        lambda _policy: "S-1-15-2-1",
-    )
-    monkeypatch.setattr(
         sandbox_launcher.subprocess,
         "Popen",
         lambda command, **kwargs: popen_calls.append((command, kwargs)) or process,
@@ -767,11 +754,13 @@ def test_launcher_popen_attaches_windows_shared_memory_sid(monkeypatch, tmp_path
         },
     )
 
+    # Under Low integrity prepare_launch_env returns "" so no shared-memory SID
+    # is attached and the env var is never injected.
     assert result is process
     assert applied[0][1] == 1234
-    assert getattr(result, "democrai_os_sandbox_appcontainer_sid") == "S-1-15-2-1"
+    assert not getattr(result, "democrai_os_sandbox_appcontainer_sid", "")
     assert "DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID" not in popen_calls[0][1]["env"]
-    assert written_policies[0].env["DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID"] == "S-1-15-2-1"
+    assert "DEMOCRAI_OS_SANDBOX_APPCONTAINER_SID" not in (written_policies[0].env or {})
 
 
 def test_launcher_keeps_helper_env_out_of_runtime_policy(monkeypatch, tmp_path):
@@ -925,7 +914,7 @@ def test_apply_launch_network_policy_skips_without_pid_enforcement(monkeypatch):
     assert calls == []
 
 
-def test_windows_appcontainer_maps_acl_and_loopback(monkeypatch, tmp_path):
+def test_windows_low_integrity_labels_only_writable_paths(monkeypatch, tmp_path):
     policy = launch_policy.SandboxLaunchPolicy(
         command=["cmd", "/c", "echo ok"],
         cwd=None,
@@ -940,32 +929,55 @@ def test_windows_appcontainer_maps_acl_and_loopback(monkeypatch, tmp_path):
     (tmp_path / "ro").mkdir()
     (tmp_path / "rw").mkdir()
     calls = []
-    monkeypatch.setattr(windows_appcontainer, "is_windows", lambda: True)
+    monkeypatch.setattr(windows_low, "is_windows", lambda: True)
+    # Force the not-yet-labeled path so the idempotency skip does not apply
+    # (pytest's tmp may itself sit under a Low-labeled temp).
+    monkeypatch.setattr(windows_low, "current_integrity_label_sid", lambda _p: None)
     monkeypatch.setattr(
-        windows_appcontainer.subprocess,
+        windows_low.subprocess,
         "run",
         lambda cmd, **kwargs: calls.append((cmd, kwargs)) or type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})(),
     )
 
-    windows_appcontainer.apply_filesystem_acls(policy, "S-1-15-2-1")
-    windows_appcontainer.configure_network(
-        policy,
-        "S-1-15-2-1",
-        proxy_url="http://127.0.0.1:4123",
+    applied = windows_low.label_writable_paths_low(policy)
+
+    cmds = [item[0] for item in calls]
+    # writable path gets a Low integrity label; read path gets nothing.
+    assert ["icacls", str(tmp_path / "rw"), "/setintegritylevel", "(OI)(CI)L"] in cmds
+    assert all(str(tmp_path / "ro") not in cmd for cmd in cmds)
+    assert applied == (str(tmp_path / "rw"),)
+
+
+def test_windows_low_integrity_skips_already_labeled_paths(monkeypatch, tmp_path):
+    (tmp_path / "rw").mkdir()
+    policy = launch_policy.SandboxLaunchPolicy(
+        command=["cmd", "/c", "echo ok"],
+        cwd=None,
+        env={},
+        filesystem_access=(
+            launch_policy.FilesystemLaunchAccess("modify", str(tmp_path / "rw")),
+        ),
+        network_mode=launch_policy.NETWORK_DENY,
+    )
+    calls = []
+    monkeypatch.setattr(windows_low, "is_windows", lambda: True)
+    # Already at Low -> no icacls re-propagation (avoids the per-launch slowdown).
+    monkeypatch.setattr(
+        windows_low, "current_integrity_label_sid", lambda _p: windows_low.LOW_INTEGRITY_SID
+    )
+    monkeypatch.setattr(
+        windows_low.subprocess,
+        "run",
+        lambda cmd, **kwargs: calls.append(cmd) or type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})(),
     )
 
-    assert ["icacls", str(tmp_path / "ro"), "/grant", "*S-1-15-2-1:(OI)(CI)RX"] not in [item[0] for item in calls]
-    assert ["icacls", str(tmp_path / "rw"), "/grant", "*S-1-15-2-1:(OI)(CI)M"] in [item[0] for item in calls]
-    assert ["CheckNetIsolation", "LoopbackExempt", "-a", "-p=S-1-15-2-1"] in [item[0] for item in calls]
-    assert any(
-        item[0][:4] == ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass"]
-        and "New-NetFirewallRule" in item[0][-1]
-        and "-Package 'S-1-15-2-1'" in item[0][-1]
-        for item in calls
-    )
+    applied = windows_low.label_writable_paths_low(policy)
+
+    assert calls == []
+    assert applied == (str(tmp_path / "rw"),)
 
 
-def test_windows_acl_create_missing_path_uses_existing_parent(monkeypatch, tmp_path):
+def test_windows_low_integrity_create_missing_path_uses_existing_parent(monkeypatch, tmp_path):
     parent = tmp_path / "venv-parent"
     parent.mkdir()
     missing_target = parent / "engine-env"
@@ -979,14 +991,15 @@ def test_windows_acl_create_missing_path_uses_existing_parent(monkeypatch, tmp_p
         network_mode=launch_policy.NETWORK_DENY,
     )
     calls = []
-    monkeypatch.setattr(windows_appcontainer, "is_windows", lambda: True)
+    monkeypatch.setattr(windows_low, "is_windows", lambda: True)
+    monkeypatch.setattr(windows_low, "current_integrity_label_sid", lambda _p: None)
     monkeypatch.setattr(
-        windows_appcontainer.subprocess,
+        windows_low.subprocess,
         "run",
         lambda cmd, **kwargs: calls.append((cmd, kwargs)) or type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})(),
     )
 
-    windows_appcontainer.apply_filesystem_acls(policy, "S-1-15-2-1")
+    windows_low.label_writable_paths_low(policy)
 
     assert missing_target.exists()
     assert calls[0][0][1] == str(missing_target)
@@ -994,49 +1007,28 @@ def test_windows_acl_create_missing_path_uses_existing_parent(monkeypatch, tmp_p
 
 def test_windows_acl_missing_non_create_fails(tmp_path):
     with pytest.raises(RuntimeError, match="windows_sandbox_acl_apply_failed:missing_path"):
-        windows_appcontainer._acl_target_for_access(str(tmp_path / "missing"), "modify")
+        windows_winapi._acl_target_for_access(str(tmp_path / "missing"), "modify")
 
 
-def test_windows_proxy_gets_internet_client_capability(monkeypatch):
-    policy = launch_policy.SandboxLaunchPolicy(
-        command=["cmd", "/c", "echo ok"],
-        cwd=None,
-        env={},
-        filesystem_access=(),
-        network_mode=launch_policy.NETWORK_PROXY,
-        network_endpoints=(launch_policy.NetworkLaunchEndpoint("connect", "https://api.local"),),
-    )
-    monkeypatch.setattr(windows_appcontainer, "_derive_capability_sid", lambda name: ctypes.c_void_p(1))
-
-    capabilities, capability_count = windows_appcontainer._capabilities_for_policy(policy)
-
-    assert capabilities is not None
-    assert capability_count == 1
-
-
-def test_windows_cleanup_removes_firewall_and_acl(monkeypatch, tmp_path):
-    target = tmp_path / "allowed"
-    target.mkdir()
-    prepared = windows_appcontainer.WindowsPreparedSandbox(
-        appcontainer_name="democrai.test",
-        package_sid="S-1-15-2-1",
+def test_windows_low_integrity_cleanup_is_noop(monkeypatch, tmp_path):
+    prepared = windows_low.WindowsPreparedSandbox(
+        appcontainer_name="low",
+        package_sid=windows_low.LOW_INTEGRITY_SID,
         proxy_url="",
-        acl_targets=(str(target),),
-        firewall_rule_prefix="Democrai Sandbox abc",
+        acl_targets=(str(tmp_path / "allowed"),),
     )
     calls = []
-    monkeypatch.setattr(windows_appcontainer.os.path, "exists", lambda _p: True)
     monkeypatch.setattr(
-        windows_appcontainer.subprocess,
+        windows_low.subprocess,
         "run",
-        lambda cmd, **kwargs: calls.append((cmd, kwargs)) or type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})(),
+        lambda cmd, **kwargs: calls.append(cmd) or type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})(),
     )
 
-    windows_appcontainer.cleanup_windows_appcontainer(prepared)
+    # Low labels persist across runs (cheap idempotent re-label); per-run cleanup
+    # touches nothing.
+    windows_low.cleanup_windows_low_integrity(prepared)
 
-    assert any("Remove-NetFirewallRule" in item[0][-1] for item in calls)
-    assert ["CheckNetIsolation", "LoopbackExempt", "-d", "-p=S-1-15-2-1"] in [item[0] for item in calls]
-    assert ["icacls", str(target), "/remove:g", "*S-1-15-2-1"] in [item[0] for item in calls]
+    assert calls == []
 
 
 def test_windows_stdio_handles_are_made_inheritable(monkeypatch):
@@ -1053,12 +1045,12 @@ def test_windows_stdio_handles_are_made_inheritable(monkeypatch):
     class _Windll:
         kernel32 = _Kernel32()
 
-    startup = windows_appcontainer.STARTUPINFOEXW()
-    monkeypatch.setattr(windows_appcontainer.ctypes, "windll", _Windll(), raising=False)
+    startup = windows_winapi.STARTUPINFOW()
+    monkeypatch.setattr(windows_winapi.ctypes, "windll", _Windll(), raising=False)
 
-    windows_appcontainer._set_startup_stdio(startup)
+    windows_winapi._set_startup_stdio(startup)
 
-    assert startup.StartupInfo.dwFlags & windows_appcontainer.STARTF_USESTDHANDLES
-    assert startup.StartupInfo.hStdOutput
-    assert startup.StartupInfo.hStdError
+    assert startup.dwFlags & windows_winapi.STARTF_USESTDHANDLES
+    assert startup.hStdOutput
+    assert startup.hStdError
     assert calls

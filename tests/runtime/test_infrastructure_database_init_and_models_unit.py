@@ -59,6 +59,7 @@ def test_database_session_scope_covers_context_and_wrapper_paths(monkeypatch):
     assert mod.SessionLocalProxy()() is lazy_session
 
 
+@pytest.mark.posix_only
 def test_database_get_url_and_lazy_session_additional_branches(monkeypatch):
     mod = __import__("democrai.core.infrastructure.database", fromlist=["dummy"])
 

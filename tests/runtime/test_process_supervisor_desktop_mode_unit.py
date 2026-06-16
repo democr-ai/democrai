@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from democrai.core.runtime.lifecycle import process_supervisor as supervisor_mod
 from democrai.core.runtime.foundation.app import app_ctx
+import pytest
 
 
 class _LoggerCapture:
@@ -97,6 +98,7 @@ def test_process_supervisor_terminate_and_terminate_all(monkeypatch):
     assert supervisor._processes == {}
 
 
+@pytest.mark.posix_only
 def test_process_supervisor_tree_and_wait_helpers(monkeypatch):
     supervisor = supervisor_mod.ProcessSupervisor()
 

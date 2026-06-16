@@ -82,7 +82,7 @@ class SessionController:
                 self.window._startup_trace(
                     "connect_to_core_skipped",
                     reason="socket_not_disconnected",
-                    socket_state=int(client.state()),
+                    socket_state=int(getattr(client.state(), "value", client.state())),
                 )
         except RuntimeError:
             # Ignore late callbacks during shutdown.

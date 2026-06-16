@@ -27,6 +27,10 @@ def pytest_collection_modifyitems(config, items):
             sys.platform == "win32",
             "test platform-dependent Windows-only behavior",
         ),
+        "posix_only": (
+            sys.platform != "win32",
+            "test POSIX-only behavior (Unix sockets, os.getuid, POSIX paths)",
+        ),
     }
     for item in items:
         for marker_name, (enabled, reason) in platform_markers.items():

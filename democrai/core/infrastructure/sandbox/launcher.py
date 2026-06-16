@@ -552,7 +552,16 @@ def _apply_launch_network_policy(policy: SandboxLaunchPolicy, pid: int) -> None:
         raise RuntimeError(f"os_sandbox_invalid_network_mode:{policy.network_mode}")
     from democrai.core.infrastructure.sandbox.os.factory import get_helper_backend
 
-    if not getattr(get_helper_backend(), "supports_pid_enforcement", False):
+    backend = get_helper_backend()
+    if not getattr(backend, "supports_pid_enforcement", False):
+        return
+    # Some backends (Windows WFP) enforce inside their own spawn path, keyed on
+    # the real sandboxed-child pid. Here ``process.pid`` is the intermediate
+    # ``-m launcher`` wrapper (it runs from the normal interpreter and, on
+    # Windows, CreateProcessAsUserW spawns a *separate* low-integrity child
+    # rather than exec-replacing), so applying enforcement here would target the
+    # wrong process. Those backends apply at spawn instead.
+    if getattr(backend, "applies_enforcement_at_spawn", False):
         return
     config = getattr(app_ctx(), "config", None)
     with process_guard_bypass_context():

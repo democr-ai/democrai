@@ -11,12 +11,16 @@
   },
   "install": {
     "allowed_imports": [
+      "ctypes",
+      "_ctypes",
       "cffi",
       "_cffi_backend"
     ]
   },
   "runtime": {
     "allowed_imports": [
+      "ctypes",
+      "_ctypes",
       "cffi",
       "_cffi_backend"
     ],

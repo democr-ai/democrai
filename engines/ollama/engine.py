@@ -4,6 +4,7 @@ import importlib
 import importlib.metadata
 import json
 import logging
+import sys
 import time
 from typing import Any, AsyncGenerator, List
 
@@ -60,7 +61,9 @@ class OllamaEngine(BaseEngine, LLMProvider):
         if not _ollama_version_matches():
             missing.append(_OLLAMA_PACKAGE)
         if not _ollama_runtime_symbols_available():
-            missing.append("Ollama runtime")
+            # Embed the cause in the label so it propagates into the install
+            # error the user sees (logger output is not surfaced there).
+            missing.append(f"Ollama runtime [{_ollama_runtime_status()[1]}]")
         return missing
 
     def __init__(self, config: dict):
@@ -467,19 +470,31 @@ def _ollama_version_matches() -> bool:
         return False
 
 
-def _ollama_runtime_symbols_available() -> bool:
+def _ollama_runtime_status() -> tuple[bool, str]:
+    """Return (ready, diagnostic). The diagnostic is embedded in the readiness
+    error so the real cause is visible without log access."""
     try:
         ollama_mod = importlib.import_module("ollama")
-    except Exception:
-        return False
+    except Exception as exc:
+        return False, f"import ollama failed: {exc!r}"
+    origin = getattr(ollama_mod, "__file__", "?")
     AsyncClient = getattr(ollama_mod, "AsyncClient", None)
     if not callable(AsyncClient):
-        return False
-    try:
-        client = AsyncClient(host="http://localhost:11434")
-    except Exception:
-        return False
-    return all(
-        callable(getattr(client, name, None))
+        # Most likely: `import ollama` resolved to the democrai engine package
+        # (engines/ollama) instead of the pip package — a sys.path name collision.
+        return False, f"no AsyncClient; ollama resolved to {origin}"
+    # Verify the API surface on the class itself. Instantiating AsyncClient builds
+    # a live httpx client (SSL context + CA cert loading) which is unnecessary for
+    # a readiness probe and fragile under the OS sandbox.
+    missing = [
+        name
         for name in ("list", "show", "chat", "embed")
-    )
+        if not callable(getattr(AsyncClient, name, None))
+    ]
+    if missing:
+        return False, f"AsyncClient from {origin} missing methods {missing}"
+    return True, f"ok ({origin})"
+
+
+def _ollama_runtime_symbols_available() -> bool:
+    return _ollama_runtime_status()[0]

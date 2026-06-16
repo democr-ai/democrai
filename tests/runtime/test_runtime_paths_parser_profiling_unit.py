@@ -13,6 +13,7 @@ import democrai.core.runtime.foundation.paths as paths_mod
 import democrai.core.runtime.observability.profiling as profiling_mod
 
 
+@pytest.mark.posix_only
 def test_paths_helpers_and_resolution(monkeypatch, tmp_path: Path):
     # _mkdir failure branch
     class _BadPath:

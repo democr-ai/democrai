@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+import os
+import shutil
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 import re
@@ -26,6 +28,29 @@ from democrai.sdk.engines import (
     KGRelation,
     current_ai_call_context,
 )
+
+
+def _link_or_copy(target: Path, source: Path) -> None:
+    """Mirror ``source`` at ``target`` via a symlink, falling back when symlinks
+    are not permitted.
+
+    Creating symlinks on Windows requires the SeCreateSymbolicLink privilege,
+    which an unprivileged / sandboxed (Low-integrity) process does not hold, so
+    ``os.symlink`` raises WinError 1314. Fall back to a hardlink for files (no
+    privilege, no data copy when on the same volume) and a copy otherwise.
+    """
+    try:
+        target.symlink_to(source, target_is_directory=source.is_dir())
+        return
+    except OSError:
+        pass
+    if source.is_dir():
+        shutil.copytree(source, target, symlinks=False, dirs_exist_ok=True)
+        return
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
 
 
 _TORCH_MIN_VERSION = (2, 6)
@@ -269,10 +294,10 @@ class GLiNERGLiRELEngine(BaseEngine, KGProvider):
             target = prepared_path / child.name
             if child.name == config_filename:
                 continue
-            target.symlink_to(child, target_is_directory=child.is_dir())
+            _link_or_copy(target, child)
         backbone_config = backbone_path / "config.json"
         if backbone_config.exists() and not (prepared_path / "config.json").exists():
-            (prepared_path / "config.json").symlink_to(backbone_config)
+            _link_or_copy(prepared_path / "config.json", backbone_config)
         config["model_name"] = str(backbone_path)
         (prepared_path / config_filename).write_text(
             json.dumps(config, ensure_ascii=False, indent=2),

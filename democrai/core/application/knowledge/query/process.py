@@ -66,13 +66,10 @@ async def _stop_when_parent_exits(stop_event: asyncio.Event) -> None:
 
 
 def _pid_exists(pid: int) -> bool:
+    from democrai.core.platform.utils.process import pid_exists
+
     try:
-        os.kill(int(pid), 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
+        return pid_exists(int(pid))
     except Exception:
         return False
 

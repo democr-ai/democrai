@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .appcontainer import WindowsPreparedSandbox
 from .helper import WindowsHelperBackend
+from .low_integrity import WindowsPreparedSandbox
 from .launch import WindowsCoreLaunchStrategy
 from .provider import WindowsOsSandboxProvider
 

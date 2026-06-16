@@ -58,9 +58,13 @@ def start_engine_orchestrator_process(ctx: Any) -> subprocess.Popen[str] | None:
         "-m",
         "democrai.core.application.ai.engine.orchestrator.process",
     ]
+    from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+        sandbox_safe_devnull_stdin,
+    )
+
     process = subprocess.Popen(  # nosec B603
         command,
-        stdin=subprocess.DEVNULL,
+        stdin=sandbox_safe_devnull_stdin(),
         env=env,
         text=True,
     )

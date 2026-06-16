@@ -4,6 +4,8 @@ import json
 import os
 from types import SimpleNamespace
 
+import pytest
+
 
 def _handle(**overrides):
     exit_code = overrides.pop("exit_code", None)
@@ -232,6 +234,7 @@ def test_run_desktop_mode_starts_main_reloader_in_dev_mode(monkeypatch):
     assert observed["core_terminate_second"] is True
 
 
+@pytest.mark.posix_only
 def test_start_yarn_client_runs_in_selected_client_root(monkeypatch):
     import main as main_mod
 
@@ -299,6 +302,7 @@ def test_start_desktop_core_process_uses_endpoint_file(monkeypatch, tmp_path):
     assert main_mod._CORE_WORKER_ARG in observed["popen"][0]
 
 
+@pytest.mark.posix_only
 def test_run_server_master_launches_core_workers_with_listener_fd(monkeypatch):
     import main as main_mod
 

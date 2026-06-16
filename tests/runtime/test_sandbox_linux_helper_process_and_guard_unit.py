@@ -199,6 +199,7 @@ def test_process_guard_popen_launcher_releases_ready_file_under_bypass(monkeypat
     assert ready_file.read_text(encoding="ascii") == "ready\n"
 
 
+@pytest.mark.linux_only
 def test_linux_helpers_and_apply_clear(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
@@ -537,6 +538,7 @@ def test_linux_apply_network_allowlist_runs_under_apply_lock(monkeypatch):
     mod.apply_application_network_allowlist(SimpleNamespace(endpoints=[]), pid=1)
 
 
+@pytest.mark.linux_only
 @pytest.mark.asyncio
 async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.helper_process")
@@ -839,6 +841,7 @@ async def test_helper_process_all_paths(monkeypatch, tmp_path: Path):
     assert rc == 0
 
 
+@pytest.mark.linux_only
 def test_process_guard_all_paths(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
 
@@ -1156,6 +1159,7 @@ def test_process_guard_import_wrapper_profiles_only_sensitive_roots():
     assert profiler.metrics["process_guard.wrapper.import.calls"] == 1.0
 
 
+@pytest.mark.macos_only
 def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
     policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
@@ -1173,6 +1177,7 @@ def test_darwin_system_read_paths_include_zoneinfo_and_realpath(monkeypatch):
     assert "/var/db/timezone/zoneinfo" in paths
 
 
+@pytest.mark.macos_only
 def test_platform_policy_covers_darwin_runtime_paths(monkeypatch):
     policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
@@ -1193,6 +1198,7 @@ def test_platform_policy_covers_darwin_runtime_paths(monkeypatch):
     assert "/opt/homebrew/bin/clang" in policy.toolchain_execute_paths()
 
 
+@pytest.mark.windows_only
 def test_platform_policy_covers_windows_env_paths(monkeypatch):
     policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
@@ -1207,8 +1213,11 @@ def test_platform_policy_covers_windows_env_paths(monkeypatch):
     monkeypatch.setattr(policy.os.path, "realpath", lambda path: str(path))
 
     system_paths = access_constants.system_read_paths()
-    assert r"D:\Windows/System32" in system_paths
-    assert r"D:\Windows/SysWOW64" in system_paths
+    # Production joins with os.path.join; assert with the same so the expected
+    # separator matches the host (backslash on real Windows, slash on a POSIX
+    # host simulating win32 via monkeypatch).
+    assert os.path.join(r"D:\Windows", "System32") in system_paths
+    assert os.path.join(r"D:\Windows", "SysWOW64") in system_paths
     assert r"D:\ProgramData" in system_paths
     assert r"D:\Program Files" in system_paths
     assert r"D:\Program Files (x86)" in system_paths
@@ -1217,6 +1226,7 @@ def test_platform_policy_covers_windows_env_paths(monkeypatch):
     assert not any(str(path).startswith(r"\\.\pipe") for path in system_paths)
 
 
+@pytest.mark.linux_only
 def test_system_probe_read_paths_keep_optional_mime_type_probes(monkeypatch):
     policy = importlib.import_module("democrai.core.infrastructure.sandbox.platform_policy")
     access_constants = importlib.import_module("democrai.core.infrastructure.sandbox.access_constants")
@@ -1453,6 +1463,7 @@ def test_path_allowed_obvious_deny_skips_realpath(monkeypatch, tmp_path: Path):
         mod._STATE.reset(st)
 
 
+@pytest.mark.posix_only
 def test_path_allowed_accepts_symlinked_system_alias_after_cheap_miss(monkeypatch):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
     calls = []
@@ -1905,6 +1916,7 @@ def test_linux_remaining_branches(monkeypatch, tmp_path: Path):
         mod.ensure_linux_network_enforcement_ready()
 
 
+@pytest.mark.linux_only
 @pytest.mark.asyncio
 async def test_helper_process_remaining_branches(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.helper_process")
@@ -2111,6 +2123,7 @@ def test_process_guard_remaining_branches(monkeypatch, tmp_path: Path):
         mod.process_guard_context_from_env()
 
 
+@pytest.mark.linux_only
 def test_linux_branch_arcs_remaining(monkeypatch):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.linux.network")
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
@@ -2259,6 +2272,7 @@ def test_process_guard_process_calls_can_use_filesystem_execute_approval(monkeyp
         mod._STATE.reset(token)
 
 
+@pytest.mark.linux_only
 @pytest.mark.asyncio
 async def test_helper_process_branch_arcs_remaining(monkeypatch, tmp_path: Path):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.os.helper_process")

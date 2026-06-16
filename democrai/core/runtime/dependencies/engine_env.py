@@ -5,6 +5,7 @@ import contextvars
 import importlib
 import os
 import shutil
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -398,10 +399,52 @@ def _module_from_path(module: object, root: str) -> bool:
         return False
 
 
+def _extended_length_path(path: str) -> str:
+    """Return the Windows extended-length form (``\\\\?\\``) of an absolute path.
+
+    Deep dependency trees (e.g. llama-cpp-python vendors llama.cpp, whose web-UI
+    Svelte components nest well past Windows' 260-char MAX_PATH) cannot be
+    addressed by the classic Win32 API when long-path support is disabled, so a
+    plain ``shutil.rmtree`` dies with WinError 3. Prefixing the root lifts the
+    limit for every path rmtree derives from it. No-op off Windows / when already
+    prefixed (``os.path.abspath`` makes every other input absolute first).
+    """
+    if os.name != "nt":
+        return path
+    if path.startswith("\\\\?\\"):
+        return path
+    absolute = os.path.abspath(path)
+    if absolute.startswith("\\\\"):  # UNC share: \\server\share -> \\?\UNC\server\share
+        return "\\\\?\\UNC" + absolute[1:]
+    return "\\\\?\\" + absolute
+
+
+def _rmtree_long_path(target: Path) -> None:
+    def _on_error(func, path, exc):
+        # Already gone (race / earlier partial delete) — nothing to do.
+        if isinstance(exc, FileNotFoundError):
+            return
+        # Windows: read-only files (e.g. git objects in vendored trees) raise
+        # PermissionError / WinError 5 on unlink; clear the read-only bit and
+        # retry once. On POSIX deletion depends on the parent dir's permissions,
+        # not the file's, so this chmod wouldn't help — leave POSIX behaviour as
+        # a plain rmtree (re-raise).
+        if isinstance(exc, PermissionError) and os.name == "nt":
+            try:
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+                return
+            except OSError:
+                pass
+        raise exc
+
+    shutil.rmtree(_extended_length_path(str(target)), onexc=_on_error)
+
+
 def clear_local_engine_env(engine_id: str | None = None) -> None:
     target = get_engine_local_env_path(engine_id)
     if target.exists():
-        shutil.rmtree(target)
+        _rmtree_long_path(target)
 
 
 def has_engine_env_context() -> bool:
