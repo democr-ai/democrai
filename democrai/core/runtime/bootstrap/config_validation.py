@@ -354,6 +354,71 @@ def validate_config_provider(provider, *, config_path: str = "<memory>") -> Conf
             )
         )
 
+    from democrai.core.infrastructure.ai.engine.invocation.config import (
+        EngineInvocationRuntimeConfig,
+    )
+
+    engine_invocation_config = None
+    try:
+        engine_invocation_config = EngineInvocationRuntimeConfig.load(provider)
+        engine_invocation_config.validate_node_coordination(provider)
+    except RuntimeError as exc:
+        errors.append(_as_issue("error", str(exc)))
+
+    if (
+        engine_invocation_config is not None
+        and engine_invocation_config.node_coordination_enabled
+    ):
+        if media_type == "local":
+            warnings.append(
+                _as_issue(
+                    "warning",
+                    "ai.engine_orchestrator.node_coordination.enabled=true with "
+                    "storage.media.type=local: the media directory must be a "
+                    "shared mount reachable by every node (binary payloads are "
+                    "passed as storage paths)",
+                )
+            )
+    try:
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
+        from democrai.core.infrastructure.ai.engine.response.config import (
+            EngineResponseStreamConfig,
+        )
+        from democrai.core.infrastructure.ai.engine.response.factory import (
+            EngineResponseStreamFactory,
+        )
+
+        EngineOrchestratorProviderResolver.provider_name_from_config(provider)
+        if EngineOrchestratorProviderResolver.requires_shared_response_stream_from_config(
+            provider
+        ):
+            response_stream_config = EngineResponseStreamConfig.load(provider)
+            if not EngineResponseStreamFactory.has_provider(
+                response_stream_config.provider_type
+            ):
+                errors.append(
+                    _as_issue(
+                        "error",
+                        "ai.engine_orchestrator.response_stream.type is not a "
+                        "registered engine response stream provider",
+                    )
+                )
+            elif not EngineResponseStreamFactory.is_cross_process_provider(
+                response_stream_config.provider_type
+            ):
+                errors.append(
+                    _as_issue(
+                        "error",
+                        "ai.engine_orchestrator.response_stream.type must be a "
+                        "cross-process provider when the engine orchestrator "
+                        "provider requires queue responses",
+                    )
+                )
+    except RuntimeError as exc:
+        errors.append(_as_issue("error", str(exc)))
+
     return ConfigValidationResult(config_path=config_path, errors=errors, warnings=warnings)
 
 

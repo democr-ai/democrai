@@ -6,15 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from democrai.core.application.ai.engine.orchestrator.client import (
-    EngineOrchestratorClient,
-)
 from democrai.core.application.ai.engine.orchestrator.config import (
-    cleanup_orchestrator_socket,
-    orchestrator_enabled,
-    orchestrator_process_env,
-    orchestrator_startup_timeout_seconds,
-    orchestrator_target,
+    EngineOrchestratorConfig,
 )
 from democrai.core.infrastructure.sandbox.os.helper import (
     OS_SANDBOX_HELPER_SOCKET_ENV,
@@ -37,14 +30,15 @@ def _application_root() -> str:
 def start_engine_orchestrator_process(ctx: Any) -> subprocess.Popen[str] | None:
     if getattr(ctx, "setup_mode", False):
         return None
-    if not orchestrator_enabled(getattr(ctx, "config", None)):
+    orchestrator_config = EngineOrchestratorConfig.load(getattr(ctx, "config", None))
+    if not orchestrator_config.enabled:
         return None
     existing = getattr(ctx, "engine_orchestrator_process", None)
     if existing is not None and existing.poll() is None:
         return existing
 
-    cleanup_orchestrator_socket(getattr(ctx, "config", None))
-    env = orchestrator_process_env(parent_pid=os.getpid())
+    orchestrator_config.cleanup_socket()
+    env = EngineOrchestratorConfig.process_env(parent_pid=os.getpid())
     if bool(getattr(ctx, "dev", False)):
         env["DEMOCRAI_DEV"] = "1"
     config = getattr(ctx, "config", None)
@@ -73,15 +67,32 @@ def start_engine_orchestrator_process(ctx: Any) -> subprocess.Popen[str] | None:
     process_supervisor.register(process, name="engine-orchestrator")
     ctx.engine_orchestrator_process = process
 
-    timeout = orchestrator_startup_timeout_seconds(getattr(ctx, "config", None))
-    target = orchestrator_target(getattr(ctx, "config", None))
-    status = EngineOrchestratorClient(target=target).wait_ready(timeout=timeout)
+    timeout = orchestrator_config.startup_timeout_seconds
+    from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+        EngineOrchestratorProviderResolver,
+    )
+
+    provider = EngineOrchestratorProviderResolver(
+        config=getattr(ctx, "config", None)
+    ).provider()
+    try:
+        status = provider.wait_ready(timeout=timeout)
+    except Exception as exc:
+        exit_code = process.poll()
+        if exit_code is not None:
+            raise RuntimeError(
+                f"engine_orchestrator_process_exited:code={exit_code}"
+            ) from exc
+        raise
+    exit_code = process.poll()
+    if exit_code is not None:
+        raise RuntimeError(f"engine_orchestrator_process_exited:code={exit_code}")
     _apply_os_network_allowlist_to_process(ctx, process.pid)
     logger = getattr(ctx, "logger", None)
     if logger is not None:
         logger.info(
             f"[Bootstrap] Engine orchestrator started pid={process.pid} "
-            f"status_pid={status.pid} target={target}"
+            f"status_pid={status.pid}"
         )
     return process
 

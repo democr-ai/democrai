@@ -8,39 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import grpc
-from grpc_health.v1 import health
-from grpc_health.v1 import health_pb2
-from grpc_health.v1 import health_pb2_grpc
-
-from democrai.core.application.auth.internal_grpc import require_internal_service_auth
 from democrai.core.application.ai.engine.orchestrator.config import (
+    EngineOrchestratorConfig,
     ENGINE_ORCHESTRATOR_AUTH_AUDIENCE,
     ENGINE_ORCHESTRATOR_AUTH_SCOPE,
-    cleanup_orchestrator_socket,
-    orchestrator_batch_queue_size,
-    orchestrator_batch_wait_seconds,
-    orchestrator_invocation_worker_count,
-    orchestrator_job_output_queue_size,
-    orchestrator_job_terminal_ttl_seconds,
-    orchestrator_grpc_options,
-    orchestrator_scheduler_graceful_shutdown_seconds,
-    orchestrator_scheduler_max_queue_depth,
-    orchestrator_scheduler_submit_timeout_seconds,
-    orchestrator_scheduler_worker_count,
-    orchestrator_runtime_transition_worker_count,
-    orchestrator_target,
-    orchestrator_tls_cert_file,
-    orchestrator_tls_enabled,
-    orchestrator_tls_key_file,
-    orchestrator_transport,
 )
 from democrai.core.application.ai.engine.orchestrator.batching import (
     EngineBatchingCoordinator,
-)
-from democrai.core.application.ai.engine.orchestrator.proto import (
-    engine_orchestrator_pb2,
-    engine_orchestrator_pb2_grpc,
 )
 from democrai.core.application.ai.engine.orchestrator.resolver import (
     optional_bool,
@@ -58,6 +32,36 @@ from democrai.core.application.ai.pipeline_context import create_ai_pipeline_con
 from democrai.core.platform.utils.identity import to_int_or_zero
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import request_context_scope
+
+
+def _grpc():
+    import grpc
+
+    return grpc
+
+
+def _engine_orchestrator_pb2():
+    from democrai.core.infrastructure.ai.engine.invocation.proto import (
+        engine_orchestrator_pb2,
+    )
+
+    return engine_orchestrator_pb2
+
+
+def _engine_orchestrator_pb2_grpc():
+    from democrai.core.infrastructure.ai.engine.invocation.proto import (
+        engine_orchestrator_pb2_grpc,
+    )
+
+    return engine_orchestrator_pb2_grpc
+
+
+async def require_internal_service_auth(context: Any, *, audience: str, scopes=None):
+    from democrai.core.application.auth.internal_grpc import (
+        require_internal_service_auth as impl,
+    )
+
+    return await impl(context, audience=audience, scopes=scopes)
 
 
 def _utc_now() -> str:
@@ -153,6 +157,7 @@ def _drain_job_event(job: Any) -> Any | None:
 
 
 def _job_event_chunk(job: Any, event: Any):
+    engine_orchestrator_pb2 = _engine_orchestrator_pb2()
     kind = getattr(event, "kind", "")
     payload = getattr(event, "payload", {})
     if kind == "engine.chunk":
@@ -198,11 +203,15 @@ def _json_loads(value: str, default: Any) -> Any:
     return json.loads(raw)
 
 
-def _server_tls_credentials(config: Any | None):
-    if orchestrator_transport(config) != "tcp" or not orchestrator_tls_enabled(config):
+def _server_tls_credentials(orchestrator_config: EngineOrchestratorConfig):
+    grpc = _grpc()
+    if (
+        orchestrator_config.transport != "tcp"
+        or not orchestrator_config.tls_enabled
+    ):
         return None
-    cert_file = orchestrator_tls_cert_file(config)
-    key_file = orchestrator_tls_key_file(config)
+    cert_file = orchestrator_config.tls_cert_file
+    key_file = orchestrator_config.tls_key_file
     if not cert_file or not key_file:
         raise RuntimeError("engine_orchestrator_tls_cert_and_key_required")
     private_key = Path(key_file).read_bytes()
@@ -210,34 +219,32 @@ def _server_tls_credentials(config: Any | None):
     return grpc.ssl_server_credentials(((private_key, certificate_chain),))
 
 
-class EngineOrchestratorService(
-    engine_orchestrator_pb2_grpc.EngineOrchestratorServicer
-):
+class EngineOrchestratorService:
     def __init__(self) -> None:
         self._started_at = _utc_now()
-        config = getattr(app_ctx(), "config", None)
-        self._job_output_queue_size = orchestrator_job_output_queue_size(config)
+        config = EngineOrchestratorConfig.load(getattr(app_ctx(), "config", None))
+        self._job_output_queue_size = config.job_output_queue_size
         self._job_registry = EngineJobRegistry(
-            terminal_ttl_seconds=orchestrator_job_terminal_ttl_seconds(config)
+            terminal_ttl_seconds=config.job_terminal_ttl_seconds
         )
         self._job_executor = EngineJobExecutor(
             batching=EngineBatchingCoordinator(
-                wait_time=orchestrator_batch_wait_seconds(config),
-                queue_size=orchestrator_batch_queue_size(config),
-                invocation_worker_count=orchestrator_invocation_worker_count(config),
+                wait_time=config.batch_wait_seconds,
+                queue_size=config.batch_queue_size,
+                invocation_worker_count=config.invocation_worker_count,
             )
         )
         self._runtime_transition_worker_count = (
-            orchestrator_runtime_transition_worker_count(config)
+            config.runtime_transition_worker_count
         )
         self._scheduler = EngineScheduler(
             registry=self._job_registry,
             executor=self._job_executor.execute,
             config=EngineSchedulerConfig(
-                max_queue_depth=orchestrator_scheduler_max_queue_depth(config),
-                submit_timeout_seconds=orchestrator_scheduler_submit_timeout_seconds(config),
-                worker_count=orchestrator_scheduler_worker_count(config),
-                graceful_shutdown_seconds=orchestrator_scheduler_graceful_shutdown_seconds(config),
+                max_queue_depth=config.scheduler_max_queue_depth,
+                submit_timeout_seconds=config.scheduler_submit_timeout_seconds,
+                worker_count=config.scheduler_worker_count,
+                graceful_shutdown_seconds=config.scheduler_graceful_shutdown_seconds,
             ),
         )
         self._scheduler_started = False
@@ -253,6 +260,27 @@ class EngineOrchestratorService(
             await self._scheduler.stop()
         await self._job_executor.shutdown()
 
+    def active_job(self, request_id: str) -> Any | None:
+        return self._job_registry.get(request_id)
+
+    def has_running_job(self, request_id: str) -> bool:
+        job = self.active_job(request_id)
+        return job is not None and not getattr(job, "done", False)
+
+    def evict_terminal_job(self, request_id: str) -> None:
+        job = self.active_job(request_id)
+        if job is not None and getattr(job, "done", False):
+            self._job_registry.remove(request_id)
+
+    def cancel_job(self, request_id: str, reason: str) -> bool:
+        return bool(self._job_registry.cancel(request_id, reason))
+
+    async def invoke_request(self, request: Any, context: Any) -> Any:
+        return await self._invoke_unary_job(request, context)
+
+    def invoke_stream_request(self, request: Any, context: Any):
+        return self._invoke_stream_job(request, context)
+
     async def _authorize(self, context: Any) -> None:
         await require_internal_service_auth(
             context,
@@ -261,6 +289,7 @@ class EngineOrchestratorService(
         )
 
     async def Status(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         runtime = getattr(app_ctx(), "engine_runtime", None)
         active_instances = []
@@ -277,6 +306,7 @@ class EngineOrchestratorService(
         )
 
     async def Invoke(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         request_id = request.request_id
         try:
@@ -290,6 +320,7 @@ class EngineOrchestratorService(
         except asyncio.CancelledError:
             raise
         except TimeoutError as exc:
+            grpc = _grpc()
             await context.abort(grpc.StatusCode.DEADLINE_EXCEEDED, str(exc))
         except Exception as exc:
             return engine_orchestrator_pb2.EngineInvokeResponse(
@@ -300,6 +331,7 @@ class EngineOrchestratorService(
             )
 
     async def InvokeStream(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         request_id = request.request_id
         try:
@@ -313,6 +345,7 @@ class EngineOrchestratorService(
         except asyncio.CancelledError:
             return
         except TimeoutError as exc:
+            grpc = _grpc()
             await context.abort(grpc.StatusCode.DEADLINE_EXCEEDED, str(exc))
         except Exception as exc:
             yield engine_orchestrator_pb2.EngineStreamChunk(
@@ -323,6 +356,7 @@ class EngineOrchestratorService(
             )
 
     async def Cancel(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         request_id = request.request_id
         try:
@@ -344,6 +378,7 @@ class EngineOrchestratorService(
             )
 
     async def RefreshRegistries(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         try:
             from democrai.core.application.ai.engine.manifests import (
@@ -359,6 +394,7 @@ class EngineOrchestratorService(
             )
 
     async def SyncActiveEngines(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         try:
             from democrai.core.application.ai.engine.runtime import get_engine_runtime
@@ -372,6 +408,7 @@ class EngineOrchestratorService(
             )
 
     async def UnloadModel(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         try:
             from democrai.core.application.ai.engine.runtime import get_engine_runtime
@@ -394,6 +431,7 @@ class EngineOrchestratorService(
             )
 
     async def StopEngine(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         try:
             from democrai.core.application.ai.engine.runtime import get_engine_runtime
@@ -413,6 +451,7 @@ class EngineOrchestratorService(
             )
 
     async def InvokeEngineAction(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         request_id = request.request_id
         try:
@@ -462,6 +501,7 @@ class EngineOrchestratorService(
             )
 
     async def InvokeEngineRuntime(self, request, context):
+        engine_orchestrator_pb2 = _engine_orchestrator_pb2()
         await self._authorize(context)
         request_id = request.request_id
         try:
@@ -493,6 +533,7 @@ class EngineOrchestratorService(
         except asyncio.CancelledError:
             raise
         except TimeoutError as exc:
+            grpc = _grpc()
             await context.abort(grpc.StatusCode.DEADLINE_EXCEEDED, str(exc))
         except Exception as exc:
             return engine_orchestrator_pb2.EngineInvokeResponse(
@@ -589,6 +630,7 @@ class EngineOrchestratorService(
             ],
             prefer_local=optional_bool(request, "prefer_local"),
             confirm_swap=request.confirm_swap,
+            allow_swap_prompt=True,
             method=request.method,
             response_mode=response_mode,
             payload=payload,
@@ -682,12 +724,23 @@ def _value_summary(value: Any) -> dict[str, Any]:
     return {"type": type(value).__name__}
 
 
-async def serve_until_stopped(*, stop_event: asyncio.Event | None = None) -> None:
-    config = app_ctx().config
-    cleanup_orchestrator_socket(config)
-    server = grpc.aio.server(options=orchestrator_grpc_options(config))
+async def serve_until_stopped(
+    *,
+    stop_event: asyncio.Event | None = None,
+    service: EngineOrchestratorService | None = None,
+) -> None:
+    grpc = _grpc()
+    from grpc_health.v1 import health
+    from grpc_health.v1 import health_pb2
+    from grpc_health.v1 import health_pb2_grpc
+
+    engine_orchestrator_pb2 = _engine_orchestrator_pb2()
+    engine_orchestrator_pb2_grpc = _engine_orchestrator_pb2_grpc()
+    config = EngineOrchestratorConfig.load(app_ctx().config)
+    config.cleanup_socket()
+    server = grpc.aio.server(options=config.grpc_options)
     health_servicer = health.aio.HealthServicer()
-    service = EngineOrchestratorService()
+    service = service or EngineOrchestratorService()
     engine_orchestrator_pb2_grpc.add_EngineOrchestratorServicer_to_server(
         service,
         server,
@@ -696,7 +749,7 @@ async def serve_until_stopped(*, stop_event: asyncio.Event | None = None) -> Non
     service_name = engine_orchestrator_pb2.DESCRIPTOR.services_by_name[
         "EngineOrchestrator"
     ].full_name
-    target = orchestrator_target(config)
+    target = config.target
     credentials = _server_tls_credentials(config)
     bound_port = (
         server.add_secure_port(target, credentials)

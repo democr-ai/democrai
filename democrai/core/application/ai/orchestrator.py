@@ -1,7 +1,6 @@
 import asyncio
 import copy
 import json
-import os
 from typing import Callable, List, Optional, Dict, Any
 from sqlalchemy.orm import Session, joinedload
 from democrai.core.infrastructure.database import SessionLocal
@@ -22,7 +21,7 @@ from democrai.core.application.ai.engine.runtime.environment import (
     runtime_config_signature,
 )
 from democrai.core.application.ai.engine.orchestrator.config import (
-    orchestrator_runtime_transition_worker_count,
+    EngineOrchestratorConfig,
 )
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.platform.utils.system import get_resource_monitor
@@ -42,7 +41,6 @@ from democrai.core.application.ai.constants import (
 
 
 _RUNTIME_TRANSITION_SEMAPHORES: dict[tuple[int, int], asyncio.Semaphore] = {}
-
 
 async def _emit_orchestrator_event(
     event_hook: Callable[[str, Dict[str, Any]], Any] | None,
@@ -82,7 +80,9 @@ async def _record_runtime_transition(
 def _runtime_transition_semaphore() -> asyncio.Semaphore:
     loop = asyncio.get_running_loop()
     config = app_ctx().config
-    worker_count = orchestrator_runtime_transition_worker_count(config)
+    worker_count = EngineOrchestratorConfig.load(
+        config
+    ).runtime_transition_worker_count
     key = (id(loop), worker_count)
     semaphore = _RUNTIME_TRANSITION_SEMAPHORES.get(key)
     if semaphore is None:
@@ -91,11 +91,7 @@ def _runtime_transition_semaphore() -> asyncio.Semaphore:
     return semaphore
 
 
-def _use_remote_engine_orchestrator() -> bool:
-    return os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1"
-
-
-async def _remote_provider_result(
+async def _invocation_provider_result(
     *,
     selector_type: str,
     model_registry_id: int | None = None,
@@ -104,18 +100,23 @@ async def _remote_provider_result(
     prefer_local: Optional[bool] = None,
     confirm_swap: bool = False,
 ) -> Dict[str, Any]:
-    from democrai.core.application.ai.engine.orchestrator.remote_provider import (
-        RemoteEngineProvider,
+    from democrai.core.infrastructure.ai.engine.invocation.factory import (
+        EngineInvocationProviderFactory,
     )
 
-    provider = RemoteEngineProvider(
-        selector_type=selector_type,
-        model_registry_id=model_registry_id,
-        objective=objective,
-        capabilities=required_capabilities or [],
-        prefer_local=prefer_local,
-        confirm_swap=confirm_swap,
-    )
+    factory = EngineInvocationProviderFactory()
+    if selector_type == "model_registry_id":
+        provider = factory.provider_for_model_registry_id(
+            model_registry_id=int(model_registry_id or 0),
+            confirm_swap=confirm_swap,
+        )
+    else:
+        provider = factory.provider_for_objective(
+            objective=objective or "",
+            capabilities=required_capabilities or [],
+            prefer_local=prefer_local,
+            confirm_swap=confirm_swap,
+        )
     try:
         validation = await provider.validate()
     except Exception as exc:
@@ -466,14 +467,23 @@ class ModelOrchestrator:
         High-level entry point to get a GenAI provider ready for an objective.
         Returns a dict with {'status': 'ok'|'need_confirmation'|'error', 'provider': ..., 'to_unload': []}
         """
-        if _use_remote_engine_orchestrator():
-            return await _remote_provider_result(
-                selector_type="objective",
-                objective=objective,
-                required_capabilities=required_capabilities,
-                prefer_local=prefer_local,
-                confirm_swap=confirm_swap,
-            )
+        return await _invocation_provider_result(
+            selector_type="objective",
+            objective=objective,
+            required_capabilities=required_capabilities,
+            prefer_local=prefer_local,
+            confirm_swap=confirm_swap,
+        )
+
+    async def _resolve_runtime_provider_for_objective(
+        self,
+        objective: str,
+        confirm_swap: bool = False,
+        *,
+        required_capabilities: Optional[List[str]] = None,
+        prefer_local: Optional[bool] = None,
+        event_hook: Callable[[str, Dict[str, Any]], Any] | None = None,
+    ) -> Dict[str, Any]:
         model_info = self.get_model_for_objective(
             objective,
             required_capabilities=required_capabilities,
@@ -609,12 +619,25 @@ class ModelOrchestrator:
                 "status": "error",
                 "error": f"model_registry_row_not_found:{model_registry_id}",
             }
-        if _use_remote_engine_orchestrator():
-            return await _remote_provider_result(
-                selector_type="model_registry_id",
-                model_registry_id=model_info.id,
-                confirm_swap=confirm_swap,
-            )
+        return await _invocation_provider_result(
+            selector_type="model_registry_id",
+            model_registry_id=model_info.id,
+            confirm_swap=confirm_swap,
+        )
+
+    async def _resolve_runtime_provider_by_model_registry_id(
+        self,
+        model_registry_id: int,
+        confirm_swap: bool = False,
+        *,
+        event_hook: Callable[[str, Dict[str, Any]], Any] | None = None,
+    ) -> Dict[str, Any]:
+        model_info = self.get_model_by_registry_id(model_registry_id)
+        if not model_info:
+            return {
+                "status": "error",
+                "error": f"model_registry_row_not_found:{model_registry_id}",
+            }
         engine = model_info.engine
         provider_id = engine.provider if engine is not None else ""
         if not provider_id:
@@ -899,6 +922,8 @@ class ModelOrchestrator:
         policy: Dict[str, Any],
         mapped_model: Any,
         prefer_local: Optional[bool],
+        resources: Any | None = None,
+        warm_instances: Any | None = None,
     ) -> int:
         score = 0
         if mapped_model is model:
@@ -928,7 +953,8 @@ class ModelOrchestrator:
         }:
             score -= 40
 
-        resources = self.hardware.get_system_resources()
+        if resources is None:
+            resources = self.hardware.get_system_resources()
         if is_local:
             metadata = self._catalog_model_metadata(model)
             requirements = (
@@ -953,7 +979,104 @@ class ModelOrchestrator:
                     score -= 20 if cpu_fallback_allowed else 120
                 elif resources.vram_gb * 1024 < vram_required_mb:
                     score -= 10 if partial_gpu_offload else 80
+        if warm_instances and (model.engine.id, model.id) in warm_instances:
+            score += 50
         return score
+
+    def score_selector_for_view(
+        self,
+        *,
+        selector_type: str,
+        model_registry_id: Optional[int] = None,
+        objective: Optional[str] = None,
+        required_capabilities: Optional[List[str]] = None,
+        prefer_local: Optional[bool] = None,
+        view: Any,
+    ) -> Optional[int]:
+        """Score how well a node (described by ``view``) can serve a selector.
+
+        Used by placement: every orchestrator evaluates each
+        active node — itself included, through its own published view — with
+        the same scoring used for local model selection. Returns the best
+        candidate score, or None when no active model matches the selector.
+        ``view`` must expose ``ram_gb``/``vram_gb``/``has_gpu`` (free capacity)
+        and ``warm_instances`` as (engine_row_id, model_registry_id) pairs.
+        """
+        policy = self._load_selection_policy()
+        warm_instances = getattr(view, "warm_instances", None)
+        with self._session_factory() as session:
+            if selector_type == "model_registry_id":
+                model = (
+                    session.query(ModelRegistry)
+                    .options(
+                        joinedload(ModelRegistry.engine),
+                        joinedload(ModelRegistry.available_model),
+                    )
+                    .join(ModelRegistry.engine)
+                    .filter(ModelRegistry.id == int(model_registry_id or 0))
+                    .filter(ModelRegistry.status == "active")
+                    .filter(EngineRegistry.status == "active")
+                    .first()
+                )
+                if model is None:
+                    return None
+                return self._score_model_candidate(
+                    model,
+                    objective=objective or "",
+                    required_capabilities=[
+                        cap for cap in (required_capabilities or []) if cap
+                    ],
+                    policy=policy,
+                    mapped_model=None,
+                    prefer_local=prefer_local,
+                    resources=view,
+                    warm_instances=warm_instances,
+                )
+            if selector_type not in {"objective", "capability"}:
+                raise RuntimeError(
+                    f"engine_orchestrator_selector_unknown:{selector_type}"
+                )
+            if not objective:
+                raise RuntimeError("engine_orchestrator_objective_required")
+            required = [objective] + [
+                cap for cap in (required_capabilities or []) if cap
+            ]
+            mapping = (
+                session.query(ObjectiveMapping).filter_by(objective=objective).first()
+            )
+            all_models = (
+                session.query(ModelRegistry)
+                .options(
+                    joinedload(ModelRegistry.engine),
+                    joinedload(ModelRegistry.available_model),
+                )
+                .join(ModelRegistry.engine)
+                .filter(ModelRegistry.status == "active")
+                .filter(EngineRegistry.status == "active")
+                .all()
+            )
+            mapped_model = mapping.model if mapping else None
+            candidates = self._filter_candidate_models(
+                all_models,
+                required_capabilities=required,
+            )
+            if mapped_model is not None and mapped_model not in candidates:
+                candidates.insert(0, mapped_model)
+            if not candidates:
+                return None
+            return max(
+                self._score_model_candidate(
+                    model,
+                    objective=objective,
+                    required_capabilities=required,
+                    policy=policy,
+                    mapped_model=mapped_model,
+                    prefer_local=prefer_local,
+                    resources=view,
+                    warm_instances=warm_instances,
+                )
+                for model in candidates
+            )
 
     def _effective_policy_mode(
         self,

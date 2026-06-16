@@ -1,23 +1,6 @@
 from __future__ import annotations
 
-import os
 from typing import Any, Optional
-
-
-def _log_ai_sdk_error(*, generator: str, error: BaseException) -> None:
-    try:
-        from democrai.core.runtime.foundation.app import app_ctx
-
-        logger = app_ctx().logger
-        if logger is None:
-            return
-        logger.error(
-            "[AI Pipeline] sdk ai failed "
-            f"generator={generator} error_type={type(error).__name__} error={error}",
-            exc_info=True,
-        )
-    except Exception:
-        pass
 
 
 class AI:
@@ -124,39 +107,13 @@ class AI:
         required_capabilities: Optional[list[str]] = None,
         prefer_local: Optional[bool] = None,
     ) -> dict[str, Any]:
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") == "1":
-            from democrai.core.application.ai.orchestrator import model_orchestrator
+        from democrai.core.application.ai.orchestrator import model_orchestrator
 
-            return await model_orchestrator.get_provider_for_objective(
-                objective,
-                required_capabilities=required_capabilities,
-                prefer_local=prefer_local,
-            )
-        from democrai.core.application.ai.engine.orchestrator.remote_provider import (
-            RemoteEngineProvider,
-        )
-
-        provider = RemoteEngineProvider(
-            selector_type="objective",
-            objective=objective,
-            capabilities=list(required_capabilities or []),
+        return await model_orchestrator.get_provider_for_objective(
+            objective,
+            required_capabilities=required_capabilities,
             prefer_local=prefer_local,
         )
-        try:
-            validation = await provider.validate()
-        except Exception as exc:
-            _log_ai_sdk_error(
-                generator=f"provider_validation:objective:{objective}",
-                error=exc,
-            )
-            return {"status": "error", "error": str(exc).split("\n", 1)[0]}
-        if validation.get("status") not in {"ok", "need_confirmation"}:
-            return validation
-        return {
-            "status": "ok",
-            "provider": provider,
-            "validation": validation,
-        }
 
     async def get_provider_by_model_registry_id(
         self,
@@ -164,37 +121,12 @@ class AI:
         *,
         confirm_swap: bool = False,
     ) -> dict[str, Any]:
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") == "1":
-            from democrai.core.application.ai.orchestrator import model_orchestrator
+        from democrai.core.application.ai.orchestrator import model_orchestrator
 
-            return await model_orchestrator.get_provider_by_model_registry_id(
-                model_registry_id,
-                confirm_swap=confirm_swap,
-            )
-        from democrai.core.application.ai.engine.orchestrator.remote_provider import (
-            RemoteEngineProvider,
-        )
-
-        provider = RemoteEngineProvider(
-            selector_type="model_registry_id",
-            model_registry_id=int(model_registry_id),
+        return await model_orchestrator.get_provider_by_model_registry_id(
+            int(model_registry_id),
             confirm_swap=confirm_swap,
         )
-        try:
-            validation = await provider.validate()
-        except Exception as exc:
-            _log_ai_sdk_error(
-                generator=f"provider_validation:model_registry:{model_registry_id}",
-                error=exc,
-            )
-            return {"status": "error", "error": str(exc).split("\n", 1)[0]}
-        if validation.get("status") not in {"ok", "need_confirmation"}:
-            return validation
-        return {
-            "status": "ok",
-            "provider": provider,
-            "validation": validation,
-        }
 
     async def warmup_provider(
         self, provider: Any, *, wait: bool = True

@@ -15,15 +15,29 @@ def json_loads(value: str, default: Any) -> Any:
     return json.loads(raw)
 
 
-async def resolve_provider(request: Any, *, event_hook: Any = None):
+async def resolve_provider(
+    request: Any,
+    *,
+    event_hook: Any = None,
+    allow_prompt: bool = True,
+):
     resolved = await resolve_provider_result(
         request,
-        allow_prompt=True,
+        allow_prompt=allow_prompt,
         event_hook=event_hook,
     )
     status = (resolved or {}).get("status")
     provider = (resolved or {}).get("provider")
     if status != "ok" or provider is None:
+        if status == "need_confirmation" and not allow_prompt:
+            from democrai.core.infrastructure.ai.engine.invocation.queue.errors import (
+                ENGINE_NODE_CAPACITY_UNAVAILABLE,
+            )
+
+            raise RuntimeError(
+                f"{ENGINE_NODE_CAPACITY_UNAVAILABLE}:"
+                f"{provider_unavailable_error(resolved)}"
+            )
         raise RuntimeError(provider_unavailable_error(resolved))
     return provider
 
@@ -43,7 +57,7 @@ async def resolve_provider_result(
 
     if selector_type == "model_registry_id":
         model_registry_id = to_int_or_zero(request.model_registry_id)
-        resolved = await model_orchestrator.get_provider_by_model_registry_id(
+        resolved = await model_orchestrator._resolve_runtime_provider_by_model_registry_id(
             model_registry_id,
             confirm_swap=request.confirm_swap,
             event_hook=event_hook,
@@ -55,7 +69,7 @@ async def resolve_provider_result(
         objective = request.objective or request.capability
         if not objective:
             raise RuntimeError("engine_orchestrator_objective_required")
-        resolved = await model_orchestrator.get_provider_for_objective(
+        resolved = await model_orchestrator._resolve_runtime_provider_for_objective(
             objective,
             confirm_swap=request.confirm_swap,
             required_capabilities=[

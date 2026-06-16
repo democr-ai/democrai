@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import inspect
 import time
 import uuid
 from dataclasses import dataclass
@@ -13,46 +12,41 @@ from grpc_health.v1 import health_pb2
 from grpc_health.v1 import health_pb2_grpc
 
 from democrai.core.application.auth.internal_grpc import internal_service_auth_metadata
+from democrai.core.application.ai.engine.invocation import (
+    EngineInvocationRequest,
+    EngineInvocationTarget,
+    EngineOrchestratorProvider,
+    EngineOrchestratorStatus,
+)
+from democrai.core.infrastructure.ai.engine.invocation.client_helpers import (
+    build_request_context_json,
+    call_pipeline_callback,
+)
 from democrai.core.application.ai.engine.orchestrator.config import (
+    EngineOrchestratorConfig,
     ENGINE_ORCHESTRATOR_AUTH_AUDIENCE,
     ENGINE_ORCHESTRATOR_AUTH_SCOPE,
-    orchestrator_grpc_options,
-    orchestrator_invoke_timeout_seconds,
-    orchestrator_target,
-    orchestrator_tls_ca_file,
-    orchestrator_tls_enabled,
-    orchestrator_transport,
 )
-from democrai.core.application.ai.engine.orchestrator.proto import (
+from democrai.core.infrastructure.ai.engine.invocation.proto import (
     engine_orchestrator_pb2,
     engine_orchestrator_pb2_grpc,
 )
-from democrai.core.application.ai.pipeline_context import AiPipelineMessage
 from democrai.core.application.ai.engine.runtime.serialization import json_value
 from democrai.core.application.ai.engine.runtime.serialization import python_value
 from democrai.core.platform.utils.identity import to_int_or_zero
 from democrai.core.runtime.foundation.app import app_ctx
-from democrai.core.runtime.foundation.app import current_request_context_payload
 
 
-@dataclass(frozen=True)
-class EngineOrchestratorStatus:
-    ok: bool
-    node_id: str
-    pid: int
-    started_at: str
-    active_instances_json: str
-    active_jobs_json: str
+class EngineOrchestratorClient(EngineOrchestratorProvider):
+    receiver_names = ("grpc",)
 
-
-class EngineOrchestratorClient:
     def __init__(self, *, target: str | None = None, timeout: float = 10.0) -> None:
-        config = app_ctx().config
-        self._target = target or orchestrator_target(config)
+        orchestrator_config = EngineOrchestratorConfig.load(app_ctx().config)
+        self._target = target or orchestrator_config.target
         self._timeout = timeout
-        self._invoke_timeout = orchestrator_invoke_timeout_seconds(config)
-        self._options = orchestrator_grpc_options(config)
-        self._tls_credentials = _client_tls_credentials(config)
+        self._invoke_timeout = orchestrator_config.invoke_timeout_seconds
+        self._options = orchestrator_config.grpc_options
+        self._tls_credentials = _client_tls_credentials(orchestrator_config)
         self._aio_channel = None
 
     def _request(
@@ -96,15 +90,10 @@ class EngineOrchestratorClient:
         return engine_orchestrator_pb2.EngineInvokeRequest(**values)
 
     def _request_context_json(self, *, origin: str, request_id: str) -> str:
-        request_context = current_request_context_payload(origin)
-        if not request_context:
-            request_context = {
-                "request_id": request_id or uuid.uuid4().hex,
-                "channel": "background",
-                "module_name": "core",
-                "action_name": origin,
-            }
-        return json.dumps(request_context, ensure_ascii=True)
+        return build_request_context_json(
+            origin=origin,
+            request_id=request_id or uuid.uuid4().hex,
+        )
 
     def _aio_stub(self):
         if self._aio_channel is None:
@@ -144,13 +133,7 @@ class EngineOrchestratorClient:
 
     @staticmethod
     async def _call_callback(callback: Any, value: Any) -> None:
-        if callback is None:
-            return
-        if isinstance(value, dict):
-            value = AiPipelineMessage(**value)
-        result = callback(value)
-        if inspect.isawaitable(result):
-            await result
+        await call_pipeline_callback(callback, value)
 
     def status(self, *, timeout: float | None = None) -> EngineOrchestratorStatus:
         with self._sync_channel() as channel:
@@ -168,6 +151,17 @@ class EngineOrchestratorClient:
             active_instances_json=response.active_instances_json,
             active_jobs_json=response.active_jobs_json or "[]",
         )
+
+    def list_active_jobs(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        rows = json.loads(self.status().active_jobs_json or "[]")
+        start = max(0, int(offset or 0))
+        stop = start + max(1, int(limit or 100))
+        return list(rows[start:stop])
 
     def health_check(self, *, timeout: float | None = None) -> bool:
         with self._sync_channel() as channel:
@@ -213,34 +207,24 @@ class EngineOrchestratorClient:
 
     async def invoke(
         self,
-        *,
-        selector_type: str,
-        method: str,
-        payload: dict[str, Any] | None = None,
-        model_registry_id: int | None = None,
-        objective: str | None = None,
-        capability: str | None = None,
-        capabilities: list[str] | None = None,
-        prefer_local: bool | None = None,
-        confirm_swap: bool = False,
-        request_id: str | None = None,
-        security_context: dict[str, Any] | None = None,
+        target: EngineInvocationTarget,
+        request: EngineInvocationRequest,
     ) -> Any:
         try:
             stub = self._aio_stub()
             response = await stub.Invoke(
                 self._request(
-                    selector_type=selector_type,
-                    method=method,
-                    payload=payload,
-                    model_registry_id=model_registry_id,
-                    objective=objective,
-                    capability=capability,
-                    capabilities=capabilities,
-                    prefer_local=prefer_local,
-                    confirm_swap=confirm_swap,
-                    request_id=request_id,
-                    security_context=security_context,
+                    selector_type=target.selector_type,
+                    method=request.method,
+                    payload=request.payload,
+                    model_registry_id=target.model_registry_id,
+                    objective=target.objective,
+                    capability=target.capability,
+                    capabilities=list(target.capabilities),
+                    prefer_local=target.prefer_local,
+                    confirm_swap=target.confirm_swap,
+                    request_id=request.request_id,
+                    security_context=request.security_context,
                     origin="engine_orchestrator_client.invoke",
                 ),
                 timeout=self._invoke_timeout,
@@ -256,35 +240,26 @@ class EngineOrchestratorClient:
 
     async def invoke_stream(
         self,
+        target: EngineInvocationTarget,
+        request: EngineInvocationRequest,
         *,
-        selector_type: str,
-        method: str,
-        payload: dict[str, Any] | None = None,
-        model_registry_id: int | None = None,
-        objective: str | None = None,
-        capability: str | None = None,
-        capabilities: list[str] | None = None,
-        prefer_local: bool | None = None,
-        confirm_swap: bool = False,
-        request_id: str | None = None,
-        security_context: dict[str, Any] | None = None,
         on_message: Any = None,
     ):
         try:
             stub = self._aio_stub()
             responses = stub.InvokeStream(
                 self._request(
-                    selector_type=selector_type,
-                    method=method,
-                    payload=payload,
-                    model_registry_id=model_registry_id,
-                    objective=objective,
-                    capability=capability,
-                    capabilities=capabilities,
-                    prefer_local=prefer_local,
-                    confirm_swap=confirm_swap,
-                    request_id=request_id,
-                    security_context=security_context,
+                    selector_type=target.selector_type,
+                    method=request.method,
+                    payload=request.payload,
+                    model_registry_id=target.model_registry_id,
+                    objective=target.objective,
+                    capability=target.capability,
+                    capabilities=list(target.capabilities),
+                    prefer_local=target.prefer_local,
+                    confirm_swap=target.confirm_swap,
+                    request_id=request.request_id,
+                    security_context=request.security_context,
                     origin="engine_orchestrator_client.invoke_stream",
                 ),
                 timeout=self._invoke_timeout,
@@ -483,9 +458,12 @@ class EngineOrchestratorClient:
         return python_value(json.loads(response.result_json or "null"))
 
 
-def _client_tls_credentials(config: Any | None):
-    if orchestrator_transport(config) != "tcp" or not orchestrator_tls_enabled(config):
+def _client_tls_credentials(orchestrator_config: EngineOrchestratorConfig):
+    if (
+        orchestrator_config.transport != "tcp"
+        or not orchestrator_config.tls_enabled
+    ):
         return None
-    ca_file = orchestrator_tls_ca_file(config)
+    ca_file = orchestrator_config.tls_ca_file
     root_certificates = Path(ca_file).read_bytes() if ca_file else None
     return grpc.ssl_channel_credentials(root_certificates=root_certificates)

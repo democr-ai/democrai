@@ -26,6 +26,18 @@ class ExtractionProcessStats:
     claimed: int = 0
     completed: int = 0
     failed: int = 0
+    released: int = 0
+
+
+class ExtractorNotInstalledOnNode(RuntimeError):
+    """The resolved extractor is not installed on the claiming node."""
+
+    def __init__(self, extractor_id: str) -> None:
+        super().__init__(f"knowledge_extractor_not_installed_on_node:{extractor_id}")
+        self.extractor_id = extractor_id
+
+
+_RELEASE_DEFER_SECONDS = 5.0
 
 
 class KnowledgeExtractionQueueProcessor:
@@ -40,6 +52,8 @@ class KnowledgeExtractionQueueProcessor:
         extract_runtime: Callable[..., dict[str, Any]] = extract_with_runtime,
         max_attempts: int = 3,
         lease_seconds: int = 600,
+        node_id: str | None = None,
+        node_filter_enabled: bool | None = None,
     ) -> None:
         self._repository = repository
         self._media_provider = media_provider
@@ -47,19 +61,96 @@ class KnowledgeExtractionQueueProcessor:
         self._extract_runtime = extract_runtime
         self._max_attempts = max_attempts
         self._lease_seconds = lease_seconds
+        self._node_id = str(
+            node_id or getattr(app_ctx(), "node_id", "") or ""
+        ).strip()
+        self._node_filter_enabled = (
+            self._node_coordination_enabled()
+            if node_filter_enabled is None
+            else bool(node_filter_enabled)
+        )
+        self._installed_extractor_ids: list[str] | None = None
+
+    @staticmethod
+    def _node_coordination_enabled() -> bool:
+        from democrai.core.infrastructure.ai.engine.invocation.config import (
+            EngineInvocationRuntimeConfig,
+        )
+
+        return EngineInvocationRuntimeConfig.load(
+            getattr(app_ctx(), "config", None)
+        ).node_coordination_enabled
+
+    def _refresh_installed_extractor_ids(self) -> None:
+        if not self._node_filter_enabled or not self._node_id:
+            self._installed_extractor_ids = None
+            return
+        from democrai.core.infrastructure.database import SessionLocal
+        from democrai.core.infrastructure.database.models import (
+            ExtractorNodeInstallRegistry,
+        )
+
+        with SessionLocal() as session:
+            rows = (
+                session.query(ExtractorNodeInstallRegistry.extractor_id)
+                .filter(ExtractorNodeInstallRegistry.node_id == self._node_id)
+                .filter(ExtractorNodeInstallRegistry.status == "installed")
+                .all()
+            )
+            self._installed_extractor_ids = [str(row[0]) for row in rows]
+
+    def _extractor_installed_on_active_node(self, extractor_id: str) -> bool:
+        from datetime import timedelta
+
+        from democrai.core.infrastructure.ai.engine.invocation.config import (
+            EngineInvocationRuntimeConfig,
+        )
+        from democrai.core.infrastructure.database import SessionLocal
+        from democrai.core.infrastructure.database.models import (
+            ExtractorNodeInstallRegistry,
+            RuntimeNodeRegistry,
+        )
+        from democrai.core.platform.utils.timezone import utc_now_naive
+
+        threshold = EngineInvocationRuntimeConfig.load(
+            getattr(app_ctx(), "config", None)
+        ).node_state_active_threshold_seconds
+        cutoff = utc_now_naive() - timedelta(seconds=threshold)
+        with SessionLocal() as session:
+            rows = (
+                session.query(ExtractorNodeInstallRegistry.node_id)
+                .filter(ExtractorNodeInstallRegistry.extractor_id == extractor_id)
+                .filter(ExtractorNodeInstallRegistry.status == "installed")
+                .filter(ExtractorNodeInstallRegistry.node_id != self._node_id)
+                .all()
+            )
+            node_ids = [str(row[0]) for row in rows]
+            if not node_ids:
+                return False
+            active = (
+                session.query(RuntimeNodeRegistry)
+                .filter(RuntimeNodeRegistry.node_id.in_(node_ids))
+                .filter(RuntimeNodeRegistry.orchestrator_last_seen_at.isnot(None))
+                .filter(RuntimeNodeRegistry.orchestrator_last_seen_at >= cutoff)
+                .count()
+            )
+            return active > 0
 
     def process_one(self) -> bool:
         stats = self.process_batch(batch_size=1)
         return stats.completed > 0 or stats.failed > 0
 
     def process_batch(self, *, batch_size: int = 1) -> ExtractionProcessStats:
+        self._refresh_installed_extractor_ids()
         requests = self._repository.claim_extraction_requests(
             batch_size=max(1, batch_size),
             owner=self._owner,
             lease_seconds=self._lease_seconds,
+            installed_extractor_ids=self._installed_extractor_ids,
         )
         completed = 0
         failed = 0
+        released = 0
         for request in requests:
             with request_context_scope(dict(request.request_context or {})):
                 task_id = extraction_task_id_from_metadata(request.metadata)
@@ -87,6 +178,34 @@ class KnowledgeExtractionQueueProcessor:
                             result={"extraction_request_id": request.id},
                         )
                     completed += 1
+                except ExtractorNotInstalledOnNode as exc:
+                    if self._extractor_installed_on_active_node(exc.extractor_id):
+                        # Another active node has it: give the row back for
+                        # that node to claim, without consuming an attempt.
+                        self._repository.release_extraction_request(
+                            request.id,
+                            defer_seconds=_RELEASE_DEFER_SECONDS,
+                            reason=str(exc),
+                        )
+                        update_extraction_task(
+                            task_id,
+                            progress=0.2,
+                            label=(
+                                "Waiting for a node with the required "
+                                f"extractor: {request.original_filename}"
+                            ),
+                            checkpoint={"extraction_request_id": request.id},
+                        )
+                        released += 1
+                    else:
+                        self._repository.fail_extraction_request(
+                            request.id,
+                            error=str(exc),
+                            max_attempts=self._max_attempts,
+                        )
+                        if request.attempts + 1 >= self._max_attempts:
+                            fail_extraction_task(task_id, error=str(exc))
+                        failed += 1
                 except Exception as exc:
                     self._repository.fail_extraction_request(
                         request.id,
@@ -110,6 +229,7 @@ class KnowledgeExtractionQueueProcessor:
             claimed=len(requests),
             completed=completed,
             failed=failed,
+            released=released,
         )
 
     def _process_request(self, request) -> None:
@@ -121,6 +241,11 @@ class KnowledgeExtractionQueueProcessor:
             raise RuntimeError("knowledge_extraction_no_active_extractor")
         if request.extractor_id and request.extractor_id != resolved["extractor_id"]:
             raise RuntimeError("knowledge_extraction_configured_extractor_unavailable")
+        if (
+            self._installed_extractor_ids is not None
+            and resolved["extractor_id"] not in self._installed_extractor_ids
+        ):
+            raise ExtractorNotInstalledOnNode(str(resolved["extractor_id"]))
         config = dict(resolved.get("install_config") or {})
         config.update(dict(resolved.get("config") or {}))
         config.update(dict(request.extractor_config or {}))

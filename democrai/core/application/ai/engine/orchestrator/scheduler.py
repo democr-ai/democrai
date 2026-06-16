@@ -46,6 +46,7 @@ class EngineScheduler:
         )
         self._dispatcher: asyncio.Task | None = None
         self._running: set[asyncio.Task] = set()
+        self._slots = asyncio.Semaphore(self.max_concurrent_jobs)
         self._accepting = False
 
     @property
@@ -116,7 +117,12 @@ class EngineScheduler:
 
     async def _dispatcher_loop(self) -> None:
         while True:
-            queued = await self._queue.get()
+            await self._slots.acquire()
+            try:
+                queued = await self._queue.get()
+            except BaseException:
+                self._slots.release()
+                raise
             task = asyncio.create_task(
                 self._run_queued_job(queued),
                 context=queued.context,
@@ -156,6 +162,7 @@ class EngineScheduler:
             current_task = asyncio.current_task()
             if current_task is not None:
                 self._running.discard(current_task)
+            self._slots.release()
             self._queue.task_done()
 
     def _cancel_queued_jobs(self, reason: str) -> None:

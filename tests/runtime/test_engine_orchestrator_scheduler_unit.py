@@ -161,6 +161,41 @@ async def test_engine_scheduler_stop_cancels_queued_jobs_after_drain_timeout():
 
 
 @pytest.mark.asyncio
+async def test_engine_scheduler_worker_count_limits_running_jobs():
+    registry = EngineJobRegistry()
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    second_started = asyncio.Event()
+
+    async def executor(job):
+        if job.request_id == "request-1":
+            first_started.set()
+            await release_first.wait()
+            return "first"
+        second_started.set()
+        return "second"
+
+    scheduler = EngineScheduler(
+        registry=registry,
+        executor=executor,
+        config=EngineSchedulerConfig(worker_count=1, max_queue_depth=4),
+    )
+    scheduler.start()
+    first = _job(registry, "request-1")
+    second = _job(registry, "request-2")
+
+    await scheduler.submit(first)
+    await asyncio.wait_for(first_started.wait(), timeout=1)
+    await scheduler.submit(second)
+    await asyncio.sleep(0.05)
+
+    assert second_started.is_set() is False
+    release_first.set()
+    assert await asyncio.wait_for(second.result_future, timeout=1) == "second"
+    await scheduler.stop()
+
+
+@pytest.mark.asyncio
 async def test_engine_scheduler_does_not_let_one_engine_capacity_block_another():
     class Provider:
         def __init__(self, instance_id: str):
@@ -199,7 +234,7 @@ async def test_engine_scheduler_does_not_let_one_engine_capacity_block_another()
     scheduler = EngineScheduler(
         registry=registry,
         executor=executor,
-        config=EngineSchedulerConfig(worker_count=1, max_queue_depth=32),
+        config=EngineSchedulerConfig(worker_count=16, max_queue_depth=32),
     )
     scheduler.start()
     blocked_jobs = [

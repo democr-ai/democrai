@@ -498,7 +498,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
             sdk_bridge_code = _generated_module('''
                 class _SudoProbeProvider:
                     async def generate_completion(self, messages=None, options=None):
-                        return {{"status": "ok", "remote_provider": True, "orchestrator_boundary": True}}
+                        return {{"status": "ok", "orchestrator_provider": True, "orchestrator_boundary": True}}
 
                 async def _get_provider_by_model_registry_id(self, model_registry_id, *, confirm_swap=False):
                     return {{"status": "ok", "provider": _SudoProbeProvider()}}
@@ -904,7 +904,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
             boundary = bool(payload.get("orchestrator_boundary")) or bool(
                 payload.get("engine", {{}}).get("orchestrator_boundary")
             )
-            if not payload.get("remote_provider") or not boundary:
+            if not payload.get("orchestrator_provider") or not boundary:
                 raise AssertionError(f"extractor SDK did not use orchestrator boundary: {{payload!r}}")
             result(ok=True, payload=payload)
 

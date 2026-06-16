@@ -37,9 +37,8 @@ async def test_provider_api_discovery_uses_engine_action_without_model_runtime(m
         return None
 
     monkeypatch.setattr(mod, "_refresh_local_network_allowlist_for_engine", refresh_allowlist)
-    monkeypatch.delenv("DEMOCRAI_ENGINE_ORCHESTRATOR", raising=False)
 
-    class Client:
+    class Provider:
         def invoke_engine_action(self, **kwargs):
             calls.append(kwargs)
             return [
@@ -52,8 +51,8 @@ async def test_provider_api_discovery_uses_engine_action_without_model_runtime(m
             ]
 
     monkeypatch.setattr(
-        "democrai.core.application.ai.engine.orchestrator.client.EngineOrchestratorClient",
-        Client,
+        "democrai.core.infrastructure.ai.engine.invocation.orchestrator.EngineOrchestratorProviderResolver",
+        lambda: SimpleNamespace(provider=lambda: Provider()),
     )
 
     rows = await mod.list_available_models_for_engine(9)

@@ -66,8 +66,11 @@ class AIAudioExtractor(BaseExtractor):
         )
         if result.get("status") != "ok" or result.get("provider") is None:
             raise RuntimeError(result.get("error") or "audio_provider_unavailable")
+        storage_path = str(source.source or "").strip()
+        if not storage_path or storage_path == "inline-bytes" or source.path is not None:
+            raise RuntimeError("ai_audio_media_storage_path_required")
         transcription = await result["provider"].transcribe(
-            source.data,
+            media_storage_path=storage_path,
             language=str(self._config.get("language") or "").strip() or None,
         )
         return _transcription_payload(transcription)

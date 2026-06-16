@@ -16,11 +16,6 @@ from democrai.core.application.ai.constants import (
 from democrai.core.application.ai.models.catalog import list_engine_models
 from democrai.core.application.ai.engine.config_crypto import decrypt_provider_config
 from democrai.core.application.ai.engine.manifests import get_engine_manifest
-from democrai.core.application.ai.engine.runtime.methods import (
-    invoke_engine_method,
-    run_engine_result,
-)
-from democrai.core.application.ai.engine.runtime.worker import EngineWorkerSubject
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models import (
     AvailableModelRegistry,
@@ -321,35 +316,20 @@ async def list_available_models_for_engine(engine_id: int | str) -> list[dict[st
 
     config = decrypt_provider_config(provider, engine.config or {})
     if model_source == AIModelSource.PROVIDER_API:
-        import os
-
         catalog_rows = [row for row in list_engine_models(provider) if isinstance(row, dict)]
         await _refresh_local_network_allowlist_for_engine(provider)
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
-            )
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
 
-            rows = await asyncio.to_thread(
-                EngineOrchestratorClient().invoke_engine_action,
-                engine_registry_id=engine.id,
-                engine_id=provider,
-                config=config,
-                method="list_available_models",
-                payload={},
-            )
-        else:
-            subject = EngineWorkerSubject(engine_id=provider, config=config)
-            try:
-                rows = run_engine_result(
-                    invoke_engine_method(
-                        subject,
-                        "list_available_models",
-                        {},
-                    )
-                )
-            finally:
-                subject.close()
+        rows = await asyncio.to_thread(
+            EngineOrchestratorProviderResolver().provider().invoke_engine_action,
+            engine_registry_id=engine.id,
+            engine_id=provider,
+            config=config,
+            method="list_available_models",
+            payload={},
+        )
         if not isinstance(rows, list):
             return []
         if catalog_rows:

@@ -99,8 +99,10 @@ storage:
         service_name: democrai
 
 network:
-  # Optional stable node identifier used by RedisBusProvider in distributed setups.
+  # Optional stable node identifier used by cross-node providers.
   # node_id: democrai-node-1
+  stream:
+    type: memory
   redis:
     enabled: false
     url: redis://localhost:6379/0
@@ -131,6 +133,17 @@ ai:
     batch_queue_size: 256
     runtime_transition_worker_count: 1
     invocation_worker_count: 4
+    provider:
+      type: grpc
+      params: {}
+    # Cross-node coordination is off by default.
+    # node_coordination:
+    #   enabled: false
+    response_stream:
+      type: memory
+      params: {}
+      ttl_seconds: 3600
+      maxlen: 10000
 
 modules:
   # all | trusted_only

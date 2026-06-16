@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import contextvars
 import os
@@ -13,8 +14,7 @@ from typing import Any
 
 from democrai.core.application.access_policy import AccessManifestRule
 from democrai.core.application.ai.engine.orchestrator.config import (
-    orchestrator_socket_path,
-    orchestrator_transport,
+    EngineOrchestratorConfig,
 )
 from democrai.core.application.ai.engine.runtime.serialization import json_value
 from democrai.core.application.ai.engine.runtime.serialization import python_value
@@ -156,8 +156,11 @@ def worker_runtime_config() -> dict[str, Any]:
         value = getter(key, marker)
         if value is not marker:
             values[key] = value
-    if orchestrator_transport(config) == "unix":
-        values["ai.engine_orchestrator.socket_path"] = orchestrator_socket_path(config)
+    orchestrator_config = EngineOrchestratorConfig.load(config)
+    if orchestrator_config.transport == "unix":
+        values["ai.engine_orchestrator.socket_path"] = (
+            orchestrator_config.socket_path
+        )
     return values
 
 
@@ -208,6 +211,53 @@ def build_extractor_worker_init_payload(
         ],
         "allowed_imports": allowed_imports,
     }
+
+
+def _run_async_blocking(coro):
+    return asyncio.run(coro)
+
+
+def _parent_ai_provider_result(
+    result: Any,
+    provider_ref: dict[str, Any],
+) -> dict[str, Any]:
+    payload = {
+        key: value
+        for key, value in dict(result or {}).items()
+        if key != "provider"
+    }
+    if payload.get("status") == "ok":
+        payload["provider_ref"] = provider_ref
+    return payload
+
+
+async def _parent_ai_resolve_provider(provider_ref: dict[str, Any]) -> Any:
+    from democrai.core.application.ai.orchestrator import model_orchestrator
+
+    selector_type = str(provider_ref.get("selector_type") or "").strip()
+    if selector_type == "model_registry_id":
+        result = await model_orchestrator.get_provider_by_model_registry_id(
+            int(provider_ref.get("model_registry_id") or 0),
+            confirm_swap=bool(provider_ref.get("confirm_swap")),
+        )
+    elif selector_type == "objective":
+        result = await model_orchestrator.get_provider_for_objective(
+            str(provider_ref.get("objective") or ""),
+            required_capabilities=[
+                str(item)
+                for item in list(provider_ref.get("required_capabilities") or [])
+                if str(item).strip()
+            ],
+            prefer_local=provider_ref.get("prefer_local"),
+        )
+    else:
+        raise RuntimeError(f"extractor_worker_parent_ai_selector_unknown:{selector_type}")
+    provider = dict(result or {}).get("provider")
+    if dict(result or {}).get("status") != "ok" or provider is None:
+        raise RuntimeError(
+            str(dict(result or {}).get("error") or "extractor_worker_parent_ai_unavailable")
+        )
+    return provider
 
 
 def _stop_process_after_start_failure(process: subprocess.Popen[str] | None) -> None:
@@ -439,10 +489,13 @@ class ExtractorWorkerSubject:
     def _handle_parent_request(self, request: dict[str, Any]) -> None:
         response_id = str(request.get("id") or "")
         try:
-            result = self._parent_media_request(
-                str(request.get("operation") or "").strip(),
-                dict(request.get("payload") or {}),
-            )
+            from democrai.core.runtime.foundation.app import request_context_scope
+
+            with request_context_scope(dict(request.get("request_context") or {})):
+                result = self._parent_request(
+                    str(request.get("operation") or "").strip(),
+                    dict(request.get("payload") or {}),
+                )
             response = {
                 "id": response_id,
                 "parent_response": True,
@@ -460,6 +513,13 @@ class ExtractorWorkerSubject:
             if self._parent_channel is None:
                 return
             self._parent_channel.send_json(response, json_value)
+
+    def _parent_request(self, operation: str, payload: dict[str, Any]) -> Any:
+        if operation.startswith("media."):
+            return self._parent_media_request(operation, payload)
+        if operation.startswith("ai."):
+            return self._parent_ai_request(operation, payload)
+        raise RuntimeError(f"extractor_worker_parent_operation_unknown:{operation}")
 
     def _parent_media_request(self, operation: str, payload: dict[str, Any]) -> Any:
         from democrai.core.runtime.dependencies.extractor_env import (
@@ -488,6 +548,90 @@ class ExtractorWorkerSubject:
                 "temporary": bool(materialized.temporary),
             }
         raise RuntimeError(f"extractor_worker_parent_operation_unknown:{operation}")
+
+    def _parent_ai_request(self, operation: str, payload: dict[str, Any]) -> Any:
+        if operation == "ai.get_provider_by_model_registry_id":
+            return _run_async_blocking(
+                self._parent_ai_get_provider_by_model_registry_id(payload)
+            )
+        if operation == "ai.get_provider_for_objective":
+            return _run_async_blocking(self._parent_ai_get_provider_for_objective(payload))
+        if operation == "ai.invoke_provider":
+            return _run_async_blocking(self._parent_ai_invoke_provider(payload))
+        if operation == "ai.cancel_request":
+            from democrai.core.application.ai.engine.runtime.requests import (
+                cancel_runtime_request,
+            )
+
+            return cancel_runtime_request(str(payload.get("request_id") or ""))
+        raise RuntimeError(f"extractor_worker_parent_operation_unknown:{operation}")
+
+    async def _parent_ai_get_provider_by_model_registry_id(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        from democrai.core.application.ai.orchestrator import model_orchestrator
+
+        model_registry_id = int(payload.get("model_registry_id") or 0)
+        result = await model_orchestrator.get_provider_by_model_registry_id(
+            model_registry_id,
+            confirm_swap=bool(payload.get("confirm_swap")),
+        )
+        return _parent_ai_provider_result(
+            result,
+            {
+                "selector_type": "model_registry_id",
+                "model_registry_id": model_registry_id,
+                "confirm_swap": bool(payload.get("confirm_swap")),
+            },
+        )
+
+    async def _parent_ai_get_provider_for_objective(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        from democrai.core.application.ai.orchestrator import model_orchestrator
+
+        objective = str(payload.get("objective") or "")
+        required_capabilities = [
+            str(item)
+            for item in list(payload.get("required_capabilities") or [])
+            if str(item).strip()
+        ]
+        result = await model_orchestrator.get_provider_for_objective(
+            objective,
+            required_capabilities=required_capabilities,
+            prefer_local=payload.get("prefer_local"),
+        )
+        return _parent_ai_provider_result(
+            result,
+            {
+                "selector_type": "objective",
+                "objective": objective,
+                "required_capabilities": required_capabilities,
+                "prefer_local": payload.get("prefer_local"),
+            },
+        )
+
+    async def _parent_ai_invoke_provider(self, payload: dict[str, Any]) -> Any:
+        provider_ref = dict(payload.get("provider_ref") or {})
+        provider = await _parent_ai_resolve_provider(provider_ref)
+        method = str(payload.get("method") or "").strip()
+        if not method:
+            raise RuntimeError("extractor_worker_parent_ai_method_required")
+        target = getattr(provider, method, None)
+        if not callable(target):
+            raise RuntimeError(f"extractor_worker_parent_ai_method_unknown:{method}")
+        kwargs = dict(payload.get("kwargs") or {})
+        result = target(**kwargs)
+        if hasattr(result, "__aiter__"):
+            items = []
+            async for item in result:
+                items.append(item)
+            return items
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
 
     def _read_stdout(self) -> None:
         from democrai.core.application.knowledge.extractor.install_events import (

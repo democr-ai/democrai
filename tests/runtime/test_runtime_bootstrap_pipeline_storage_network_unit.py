@@ -335,10 +335,19 @@ def test_start_install_runtime_sync_coroutines_execute(monkeypatch):
             start_engine_install_reconcile=lambda: None,
         ),
     )
+    class _Resolver:
+        def __init__(self, *, config=None):
+            self.config = config
+
+        def provider(self):
+            return SimpleNamespace(
+                sync_active_engines=lambda: events.append("eng-sync")
+            )
+
     monkeypatch.setitem(
         sys.modules,
-        "democrai.core.application.ai.engine.orchestrator.client",
-        SimpleNamespace(EngineOrchestratorClient=lambda: SimpleNamespace(sync_active_engines=lambda: events.append("eng-sync"))),
+        "democrai.core.infrastructure.ai.engine.invocation.orchestrator",
+        SimpleNamespace(EngineOrchestratorProviderResolver=_Resolver),
     )
     monkeypatch.setitem(
         sys.modules,

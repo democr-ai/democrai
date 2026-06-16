@@ -4,7 +4,9 @@ from typing import Callable
 
 from democrai.core.infrastructure.network.contracts import StreamProvider
 from democrai.core.infrastructure.network.factory._registry import _RegistryFactory
-from democrai.core.infrastructure.network.providers.stream.memory import MemoryStreamProvider
+from democrai.core.infrastructure.network.providers.stream.memory import (
+    MemoryStreamProvider,
+)
 
 
 class StreamProviderFactory:
@@ -20,9 +22,10 @@ class StreamProviderFactory:
 
     @classmethod
     def get_provider(
-        cls, provider_type: str = "memory", **kwargs
+        cls, provider_type: str | None = "memory", **kwargs
     ) -> StreamProvider:
-        return cls._factory.create(provider_type, **kwargs)
+        explicit = bool(str(provider_type or "").strip())
+        return cls._factory.create(provider_type, strict=explicit, **kwargs)
 
 
 StreamProviderFactory.register(

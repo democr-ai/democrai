@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,8 +11,8 @@ import pytest
 
 import democrai.core.application.ai.engine.orchestrator.resolver as resolver_mod
 import democrai.core.application.ai.engine.orchestrator.server as server_mod
-from democrai.core.application.ai.engine.orchestrator.client import EngineOrchestratorClient
-from democrai.core.application.ai.engine.orchestrator.proto import engine_orchestrator_pb2
+from democrai.core.infrastructure.ai.engine.invocation.transports.grpc import EngineOrchestratorClient
+from democrai.core.infrastructure.ai.engine.invocation.proto import engine_orchestrator_pb2
 from democrai.core.application.ai.pipeline_context import AiPipelineMessage
 from democrai.core.application.runtime_prompt.models import RuntimePromptDecision
 from democrai.core.runtime.foundation.app import app_ctx
@@ -56,7 +57,7 @@ def test_engine_orchestrator_prefer_local_is_tristate():
 
 def test_engine_orchestrator_request_uses_background_context_when_missing(monkeypatch):
     monkeypatch.setattr(
-        "democrai.core.application.ai.engine.orchestrator.client.current_request_context_payload",
+        "democrai.core.infrastructure.ai.engine.invocation.client_helpers.current_request_context_payload",
         lambda _origin: {},
     )
     client = EngineOrchestratorClient(target="localhost:1")
@@ -75,10 +76,10 @@ def test_engine_orchestrator_request_uses_background_context_when_missing(monkey
 
 def test_engine_orchestrator_process_env_includes_parent_pid():
     from democrai.core.application.ai.engine.orchestrator.config import (
-        orchestrator_process_env,
+        EngineOrchestratorConfig,
     )
 
-    env = orchestrator_process_env(parent_pid=123)
+    env = EngineOrchestratorConfig.process_env(parent_pid=123)
 
     assert env["DEMOCRAI_ENGINE_ORCHESTRATOR"] == "1"
     assert env["DEMOCRAI_ENGINE_ORCHESTRATOR_PARENT_PID"] == "123"
@@ -617,7 +618,7 @@ async def test_engine_orchestrator_resource_swap_prompt_retries_with_confirm(mon
     calls = []
 
     class FakeModelOrchestrator:
-        async def get_provider_by_model_registry_id(
+        async def _resolve_runtime_provider_by_model_registry_id(
             self,
             model_registry_id,
             *,
@@ -851,7 +852,7 @@ async def test_engine_orchestrator_runtime_transition_pool_serializes(monkeypatc
 @pytest.mark.asyncio
 async def test_engine_orchestrator_validate_does_not_prompt(monkeypatch):
     class FakeModelOrchestrator:
-        async def get_provider_by_model_registry_id(
+        async def _resolve_runtime_provider_by_model_registry_id(
             self,
             model_registry_id,
             *,
@@ -889,22 +890,28 @@ async def test_engine_orchestrator_validate_does_not_prompt(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_sdk_ai_returns_provider_when_validate_needs_confirmation(monkeypatch):
-    import democrai.core.application.ai.engine.orchestrator.remote_provider as remote_mod
+    import democrai.core.application.ai.orchestrator as ai_orchestrator
     import democrai.sdk.ai as sdk_ai_mod
 
     class RemoteProvider:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
+        pass
 
-        async def validate(self):
-            return {
+    async def get_provider_for_objective(*_args, **_kwargs):
+        return {
+            "status": "ok",
+            "provider": RemoteProvider(),
+            "validation": {
                 "status": "need_confirmation",
                 "model_to_load": "next",
                 "to_unload": ["old"],
-            }
+            },
+        }
 
-    monkeypatch.delenv("DEMOCRAI_ENGINE_ORCHESTRATOR", raising=False)
-    monkeypatch.setattr(remote_mod, "RemoteEngineProvider", RemoteProvider)
+    monkeypatch.setattr(
+        ai_orchestrator.model_orchestrator,
+        "get_provider_for_objective",
+        get_provider_for_objective,
+    )
 
     result = await sdk_ai_mod.AI(SimpleNamespace()).get_provider_for_objective("chat")
 
@@ -915,10 +922,87 @@ async def test_sdk_ai_returns_provider_when_validate_needs_confirmation(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_model_orchestrator_public_provider_uses_invocation_factory(monkeypatch):
+    import democrai.core.application.ai.orchestrator as ai_orchestrator
+    import democrai.core.infrastructure.ai.engine.invocation.factory as invocation_factory_mod
+
+    calls = []
+
+    class Provider:
+        async def validate(self):
+            return {"status": "ok"}
+
+    class Factory:
+        def provider_for_objective(self, **kwargs):
+            calls.append(kwargs)
+            return Provider()
+
+    monkeypatch.setattr(
+        invocation_factory_mod, "EngineInvocationProviderFactory", Factory
+    )
+
+    result = await ai_orchestrator.model_orchestrator.get_provider_for_objective(
+        "chat",
+        required_capabilities=["chat"],
+        prefer_local=True,
+    )
+
+    assert result["status"] == "ok"
+    assert isinstance(result["provider"], Provider)
+    assert calls == [
+        {
+            "objective": "chat",
+            "capabilities": ["chat"],
+            "prefer_local": True,
+            "confirm_swap": False,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_resolver_uses_runtime_resolver(monkeypatch):
+    import democrai.core.application.ai.engine.orchestrator.resolver as resolver_mod
+    import democrai.core.application.ai.orchestrator as ai_orchestrator
+
+    provider = object()
+
+    async def public_provider(*_args, **_kwargs):
+        raise AssertionError("public invocation path must not be used by resolver")
+
+    async def runtime_provider(*_args, **_kwargs):
+        return {"status": "ok", "provider": provider}
+
+    monkeypatch.setattr(
+        ai_orchestrator.model_orchestrator,
+        "get_provider_for_objective",
+        public_provider,
+    )
+    monkeypatch.setattr(
+        ai_orchestrator.model_orchestrator,
+        "_resolve_runtime_provider_for_objective",
+        runtime_provider,
+    )
+
+    request = SimpleNamespace(
+        selector_type="objective",
+        model_registry_id=0,
+        objective="chat",
+        capability="",
+        capabilities_json="[]",
+        prefer_local=None,
+        confirm_swap=True,
+        HasField=lambda field: False if field == "prefer_local" else (_ for _ in ()).throw(ValueError(field)),
+    )
+
+    result = await resolver_mod.resolve_provider_result(request, allow_prompt=False)
+
+    assert result == {"status": "ok", "provider": provider}
+
+
+@pytest.mark.asyncio
 async def test_sdk_engines_loaded_models_use_remote_orchestrator(monkeypatch):
     import democrai.core.application.ai.orchestrator as ai_orchestrator
-    import democrai.core.application.ai.engine.orchestrator.client as client_mod
-    import democrai.core.application.ai.engine.orchestrator.config as config_mod
+    import democrai.core.infrastructure.ai.engine.invocation.orchestrator as provider_mod
     import democrai.sdk.engines as sdk_engines_mod
 
     class Client:
@@ -928,6 +1012,11 @@ async def test_sdk_engines_loaded_models_use_remote_orchestrator(monkeypatch):
                 active_jobs_json='[{"request_id": "request-1", "status": "loading"}]',
             )
 
+        def list_active_jobs(self, *, offset=0, limit=100):
+            assert offset == 0
+            assert limit == 100
+            return [{"request_id": "request-1", "status": "loading"}]
+
         def unload_model(self, *, engine_registry_id, model_registry_id):
             return int(engine_registry_id) == 9 and int(model_registry_id) == 12
 
@@ -935,8 +1024,11 @@ async def test_sdk_engines_loaded_models_use_remote_orchestrator(monkeypatch):
             return True
 
     monkeypatch.delenv("DEMOCRAI_ENGINE_ORCHESTRATOR", raising=False)
-    monkeypatch.setattr(config_mod, "orchestrator_enabled", lambda _config=None: True)
-    monkeypatch.setattr(client_mod, "EngineOrchestratorClient", Client)
+    monkeypatch.setattr(
+        provider_mod.EngineOrchestratorProviderResolver,
+        "provider",
+        lambda _self: Client(),
+    )
     monkeypatch.setattr(
         ai_orchestrator.model_orchestrator,
         "get_model_by_registry_id",
@@ -953,3 +1045,29 @@ async def test_sdk_engines_loaded_models_use_remote_orchestrator(monkeypatch):
     assert rows[0]["model_registry_id"] == 12
     assert jobs == [{"request_id": "request-1", "status": "loading"}]
     assert unload == {"status": "ok", "unloaded": True}
+
+
+@pytest.mark.asyncio
+async def test_sdk_engines_sync_runtime_runs_provider_call_off_event_loop(monkeypatch):
+    import democrai.core.infrastructure.ai.engine.invocation.orchestrator as provider_mod
+    import democrai.sdk.engines as sdk_engines_mod
+
+    loop_thread_id = threading.get_ident()
+    call_thread_ids: list[int] = []
+
+    class Client:
+        def sync_active_engines(self):
+            call_thread_ids.append(threading.get_ident())
+            return True
+
+    monkeypatch.setattr(
+        provider_mod.EngineOrchestratorProviderResolver,
+        "provider",
+        lambda _self: Client(),
+    )
+
+    engines = sdk_engines_mod.Engines(SimpleNamespace())
+    await engines.sync_runtime()
+
+    assert call_thread_ids
+    assert call_thread_ids[0] != loop_thread_id

@@ -129,7 +129,43 @@ class EngineRuntime:
             )
             with self._lock:
                 self._handles[key] = created
+            self._record_instance_running(
+                engine_row_id=engine_row_id,
+                model_registry_id=model_registry_id,
+                handle=created,
+            )
             return created
+
+    @staticmethod
+    def _record_instance_running(
+        *, engine_row_id: int, model_registry_id: int, handle: EngineHandle
+    ) -> None:
+        from democrai.core.application.ai.engine.orchestrator.node_state import (
+            record_instance_running,
+        )
+
+        process = getattr(handle.subject, "_process", None)
+        record_instance_running(
+            engine_row_id=engine_row_id,
+            model_registry_id=model_registry_id,
+            engine_id=handle.engine_id,
+            model=str(handle.config.get("model") or ""),
+            config_signature=runtime_config_signature(handle.config),
+            pid=getattr(process, "pid", None),
+        )
+
+    @staticmethod
+    def _record_instance_removed(
+        *, engine_row_id: int, model_registry_id: int | None = None
+    ) -> None:
+        from democrai.core.application.ai.engine.orchestrator.node_state import (
+            record_instance_removed,
+        )
+
+        record_instance_removed(
+            engine_row_id=engine_row_id,
+            model_registry_id=model_registry_id,
+        )
 
     def ensure_running(
         self,
@@ -289,6 +325,8 @@ class EngineRuntime:
             self._row_locks.pop(engine_row_id, None)
         for handle in handles:
             handle.close()
+        if handles:
+            self._record_instance_removed(engine_row_id=engine_row_id)
 
     def unload_model(self, *, engine_row_id: int, model_registry_id: int) -> bool:
         key = self._handle_key(
@@ -302,6 +340,10 @@ class EngineRuntime:
         if handle is None:
             return False
         handle.close()
+        self._record_instance_removed(
+            engine_row_id=engine_row_id,
+            model_registry_id=model_registry_id,
+        )
         return True
 
     def cancel_request(self, *, engine_row_id: int, request_id: str) -> bool:
@@ -318,11 +360,17 @@ class EngineRuntime:
 
     def shutdown(self) -> None:
         with self._lock:
+            keys = list(self._handles)
             handles = list(self._handles.values())
             self._handles.clear()
             self._row_locks.clear()
         for handle in handles:
             handle.close()
+        for engine_row_id, model_registry_id in keys:
+            self._record_instance_removed(
+                engine_row_id=engine_row_id,
+                model_registry_id=model_registry_id,
+            )
 
     def keys(self) -> list[str]:
         with self._lock:

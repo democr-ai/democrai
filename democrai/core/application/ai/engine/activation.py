@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from democrai.core.application.ai.engine.requirements import activation_requirements
@@ -14,6 +15,14 @@ def _engine_registry_payload(row: EngineRegistry) -> dict[str, Any]:
         "status": row.status,
         "supported": row.supported,
     }
+
+
+def _sync_active_engines() -> None:
+    from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+        EngineOrchestratorProviderResolver,
+    )
+
+    EngineOrchestratorProviderResolver().provider().sync_active_engines()
 
 
 async def activate_engine_instance(engine_registry_id: int) -> dict[str, Any]:
@@ -51,16 +60,7 @@ async def activate_engine_instance(engine_registry_id: int) -> dict[str, Any]:
         session.commit()
         payload = _engine_registry_payload(row)
 
-    from democrai.core.application.ai.engine.orchestrator.client import (
-        EngineOrchestratorClient,
-    )
-    from democrai.core.application.ai.engine.runtime import get_engine_runtime
-    import os
-
-    if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-        EngineOrchestratorClient().sync_active_engines()
-    else:
-        await get_engine_runtime().sync_active_engines()
+    await asyncio.to_thread(_sync_active_engines)
     return {
         **requirements,
         **payload,
@@ -91,16 +91,7 @@ async def deactivate_engine_instance(engine_registry_id: int) -> dict[str, Any]:
         session.commit()
         payload = _engine_registry_payload(row)
 
-    from democrai.core.application.ai.engine.orchestrator.client import (
-        EngineOrchestratorClient,
-    )
-    from democrai.core.application.ai.engine.runtime import get_engine_runtime
-    import os
-
-    if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-        EngineOrchestratorClient().sync_active_engines()
-    else:
-        await get_engine_runtime().sync_active_engines()
+    await asyncio.to_thread(_sync_active_engines)
     return {
         **payload,
         "ready": True,

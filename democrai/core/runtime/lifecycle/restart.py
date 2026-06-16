@@ -27,10 +27,12 @@ def _cleanup_engine_orchestrator_for_restart(ctx: Any) -> None:
         ctx.engine_orchestrator_process = None
         try:
             from democrai.core.application.ai.engine.orchestrator.config import (
-                cleanup_orchestrator_socket,
+                EngineOrchestratorConfig,
             )
 
-            cleanup_orchestrator_socket(getattr(ctx, "config", None))
+            EngineOrchestratorConfig.load(
+                getattr(ctx, "config", None)
+            ).cleanup_socket()
         except Exception as exc:
             logger = getattr(ctx, "logger", None)
             if logger is not None:

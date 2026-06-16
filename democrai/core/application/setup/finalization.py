@@ -213,7 +213,9 @@ def finalize_setup_runtime(
         start_engine_install_worker_process,
     )
     from democrai.core.application.ai.engine.manifests import sync_engine_manifests_to_registry
-    from democrai.core.application.ai.engine.orchestrator.client import EngineOrchestratorClient
+    from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+        EngineOrchestratorProviderResolver,
+    )
     from democrai.core.application.ai.engine.orchestrator.runtime import (
         start_engine_orchestrator_process,
     )
@@ -230,7 +232,7 @@ def finalize_setup_runtime(
     sync_engine_manifests_to_registry()
     start_engine_orchestrator_process(context)
     start_knowledge_query_process(context)
-    EngineOrchestratorClient().sync_active_engines()
+    EngineOrchestratorProviderResolver(config=context.config).provider().sync_active_engines()
     start_engine_install_worker_process(context)
     sync_extractor_manifests_to_registry()
     start_extraction_queue_worker_process(context)

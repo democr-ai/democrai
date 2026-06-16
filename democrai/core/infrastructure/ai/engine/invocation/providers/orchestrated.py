@@ -5,8 +5,11 @@ import time
 import uuid
 from typing import Any
 
-from democrai.core.application.ai.engine.orchestrator.client import (
-    EngineOrchestratorClient,
+from democrai.core.application.ai.engine.invocation import (
+    EngineInvocationProvider,
+    EngineInvocationRequest,
+    EngineInvocationTarget,
+    EngineOrchestratorProvider,
 )
 from democrai.core.application.ai.engine.base.llm import current_ai_call_context
 from democrai.core.application.ai.engine.runtime.requests import (
@@ -26,7 +29,7 @@ def _consume_task_exception(task: asyncio.Task) -> None:
         return
 
 
-class RemoteEngineProvider:
+class OrchestratedEngineProvider(EngineInvocationProvider):
     def __init__(
         self,
         *,
@@ -37,7 +40,7 @@ class RemoteEngineProvider:
         capabilities: list[str] | None = None,
         prefer_local: bool | None = None,
         confirm_swap: bool = False,
-        client: EngineOrchestratorClient | None = None,
+        orchestrator_provider: EngineOrchestratorProvider,
     ) -> None:
         self.selector_type = selector_type
         self.model_registry_id = to_int_or_zero(model_registry_id) or None
@@ -46,7 +49,38 @@ class RemoteEngineProvider:
         self.capabilities = list(capabilities or [])
         self.prefer_local = prefer_local
         self.confirm_swap = confirm_swap
-        self._client = client or EngineOrchestratorClient()
+        if orchestrator_provider is None:
+            raise RuntimeError("engine_orchestrator_provider_required")
+        self._orchestrator_provider = orchestrator_provider
+        self._target = EngineInvocationTarget(
+            selector_type=self.selector_type,
+            model_registry_id=self.model_registry_id,
+            objective=self.objective,
+            capability=self.capability,
+            capabilities=tuple(self.capabilities),
+            prefer_local=self.prefer_local,
+            confirm_swap=self.confirm_swap,
+        )
+
+    async def invoke(self, request: EngineInvocationRequest) -> Any:
+        return await self._orchestrator_provider.invoke(self._target, request)
+
+    def invoke_stream(
+        self,
+        request: EngineInvocationRequest,
+        *,
+        on_message: Any = None,
+    ):
+        return self._invoke_stream(
+            request.method,
+            request.payload,
+            request_id=request.request_id,
+            security_context=request.security_context,
+            on_message=on_message,
+        )
+
+    async def cancel(self, request_id: str) -> bool:
+        return await self._orchestrator_provider.cancel(request_id)
 
     async def _invoke(
         self,
@@ -55,17 +89,12 @@ class RemoteEngineProvider:
         *,
         request_id: str | None = None,
     ) -> Any:
-        return await self._client.invoke(
-            selector_type=self.selector_type,
-            model_registry_id=self.model_registry_id,
-            objective=self.objective,
-            capability=self.capability,
-            capabilities=self.capabilities,
-            prefer_local=self.prefer_local,
-            confirm_swap=self.confirm_swap,
-            method=method,
-            payload=payload,
-            request_id=request_id,
+        return await self.invoke(
+            EngineInvocationRequest(
+                method=method,
+                payload=payload,
+                request_id=request_id,
+            )
         )
 
     async def validate(self) -> dict[str, Any]:
@@ -100,7 +129,7 @@ class RemoteEngineProvider:
 
         task = asyncio.create_task(
             _run(),
-            name=f"remote-engine-warmup:{request_id}",
+            name=f"engine-invocation-warmup:{request_id}",
         )
         task.add_done_callback(_consume_task_exception)
         return {
@@ -117,19 +146,17 @@ class RemoteEngineProvider:
         payload: dict[str, Any] | None = None,
         *,
         request_id: str | None = None,
+        security_context: dict[str, Any] | None = None,
         on_message: Any = None,
     ):
-        async for item in self._client.invoke_stream(
-            selector_type=self.selector_type,
-            model_registry_id=self.model_registry_id,
-            objective=self.objective,
-            capability=self.capability,
-            capabilities=self.capabilities,
-            prefer_local=self.prefer_local,
-            confirm_swap=self.confirm_swap,
-            method=method,
-            payload=payload,
-            request_id=request_id,
+        async for item in self._orchestrator_provider.invoke_stream(
+            self._target,
+            EngineInvocationRequest(
+                method=method,
+                payload=payload,
+                request_id=request_id,
+                security_context=security_context,
+            ),
             on_message=on_message,
         ):
             yield item
@@ -219,11 +246,14 @@ class RemoteEngineProvider:
             finally:
                 unregister_runtime_request(request_id, task)
 
-        task = asyncio.create_task(_run(), name=f"remote-engine-completion:{request_id}")
+        task = asyncio.create_task(
+            _run(),
+            name=f"engine-invocation-completion:{request_id}",
+        )
         register_runtime_request(
             request_id,
             task,
-            cancel=lambda rid: self._client.cancel_sync(rid),
+            cancel=lambda rid: self._orchestrator_provider.cancel_sync(rid),
         )
         return CompletionResponse(id=request_id, request_id=request_id, status="running")
 
@@ -246,7 +276,7 @@ class RemoteEngineProvider:
             register_runtime_request(
                 resolved_request_id,
                 task,
-                cancel=lambda rid: self._client.cancel_sync(rid),
+                cancel=lambda rid: self._orchestrator_provider.cancel_sync(rid),
             )
         try:
             async for item in self._invoke_stream(
@@ -298,10 +328,12 @@ class RemoteEngineProvider:
             },
         )
 
-    async def transcribe(self, audio_data, language=None):
+    async def transcribe(self, *, media_storage_path=None, language=None):
+        if not media_storage_path:
+            raise RuntimeError("engine_invocation_media_storage_path_required")
         return await self._invoke(
             "transcribe",
-            {"audio_data": audio_data, "language": language},
+            {"media_storage_path": media_storage_path, "language": language},
         )
 
     async def synthesize(self, text, options=None):

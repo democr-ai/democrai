@@ -40,9 +40,18 @@ def test_request_application_restart_core_child_stops_orchestrator(monkeypatch):
             )
         ),
     )
+    from democrai.core.application.ai.engine.orchestrator.config import (
+        EngineOrchestratorConfig,
+    )
+
+    class _EngineOrchestratorConfig:
+        def cleanup_socket(self):
+            socket_cleanups.append(ctx.config)
+
     monkeypatch.setattr(
-        "democrai.core.application.ai.engine.orchestrator.config.cleanup_orchestrator_socket",
-        lambda config: socket_cleanups.append(config),
+        EngineOrchestratorConfig,
+        "load",
+        lambda _config: _EngineOrchestratorConfig(),
     )
 
     def _exit(code):
@@ -115,9 +124,18 @@ def test_request_application_restart_core_child_exits_when_orchestrator_cleanup_
         "democrai.core.runtime.lifecycle.process_supervisor.process_supervisor",
         SimpleNamespace(terminate=_terminate),
     )
+    from democrai.core.application.ai.engine.orchestrator.config import (
+        EngineOrchestratorConfig,
+    )
+
+    class _EngineOrchestratorConfig:
+        def cleanup_socket(self):
+            return None
+
     monkeypatch.setattr(
-        "democrai.core.application.ai.engine.orchestrator.config.cleanup_orchestrator_socket",
-        lambda _config: None,
+        EngineOrchestratorConfig,
+        "load",
+        lambda _config: _EngineOrchestratorConfig(),
     )
 
     def _exit(code):

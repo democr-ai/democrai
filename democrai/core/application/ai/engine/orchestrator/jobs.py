@@ -66,6 +66,9 @@ class EngineJob:
     capabilities: tuple[str, ...] = ()
     prefer_local: bool | None = None
     confirm_swap: bool = False
+    # False when the executing node cannot reach the user's session for the
+    # resource-swap prompt (claim on a non-origin node).
+    allow_swap_prompt: bool = True
     status: str = "queued"
     created_at: Any = field(default_factory=utc_now_naive)
     started_at: Any | None = None
@@ -261,6 +264,7 @@ class EngineJobRegistry:
         capabilities: list[str] | tuple[str, ...] | None = None,
         prefer_local: bool | None = None,
         confirm_swap: bool = False,
+        allow_swap_prompt: bool = True,
         max_queue_size: int = 256,
     ) -> EngineJob:
         job, _created = self.get_or_create_job(
@@ -277,6 +281,7 @@ class EngineJobRegistry:
             capabilities=capabilities,
             prefer_local=prefer_local,
             confirm_swap=confirm_swap,
+            allow_swap_prompt=allow_swap_prompt,
             max_queue_size=max_queue_size,
         )
         return job
@@ -297,6 +302,7 @@ class EngineJobRegistry:
         capabilities: list[str] | tuple[str, ...] | None = None,
         prefer_local: bool | None = None,
         confirm_swap: bool = False,
+        allow_swap_prompt: bool = True,
         max_queue_size: int = 256,
     ) -> tuple[EngineJob, bool]:
         resolved_request_id = uuid.uuid4().hex if request_id is None else request_id
@@ -328,6 +334,7 @@ class EngineJobRegistry:
             capabilities=tuple(capabilities or ()),
             prefer_local=prefer_local,
             confirm_swap=confirm_swap,
+            allow_swap_prompt=allow_swap_prompt,
             max_queue_size=max_queue_size,
         )
         with self._lock:

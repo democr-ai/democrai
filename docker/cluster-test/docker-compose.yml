@@ -1,0 +1,39 @@
+# Ephemeral postgres+redis for the two-node cluster integration tests
+# (tests/integration/test_engine_cluster_two_node_postgres.py).
+#
+#   docker compose -f docker/cluster-test/docker-compose.yml up -d --wait
+#   DEMOCRAI_CLUSTER_TEST_PG=postgresql://democrai:democrai@127.0.0.1:5440/democrai_cluster_test \
+#   DEMOCRAI_CLUSTER_TEST_REDIS=redis://127.0.0.1:6390/0 \
+#     .venv/bin/python -m pytest -c tests/pytest.ini tests/integration/test_engine_cluster_two_node_postgres.py -v
+#   docker compose -f docker/cluster-test/docker-compose.yml down -v
+#
+# No volumes: state is ephemeral by design, every run starts clean.
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    container_name: democrai-cluster-test-postgres
+    environment:
+      POSTGRES_USER: democrai
+      POSTGRES_PASSWORD: democrai
+      POSTGRES_DB: democrai_cluster_test
+    ports:
+      - "5440:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U democrai -d democrai_cluster_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8.4.0-alpine
+    container_name: democrai-cluster-test-redis
+    ports:
+      - "6390:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

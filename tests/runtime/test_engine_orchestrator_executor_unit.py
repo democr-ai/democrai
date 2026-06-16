@@ -56,7 +56,7 @@ async def test_engine_job_executor_invokes_resolved_provider(monkeypatch):
         async def generate_completion(self, **payload):
             return {"payload": payload}
 
-    async def fake_resolve_provider(request, *, event_hook=None):
+    async def fake_resolve_provider(request, *, event_hook=None, allow_prompt=True):
         assert request.model_registry_id == 7
         assert request.HasField("prefer_local") is False
         request.confirm_swap = True
@@ -97,7 +97,7 @@ async def test_engine_job_executor_uses_provider_batch_size(monkeypatch):
         async def generate_completion(self, **payload):
             return {"payload": payload}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return Provider()
@@ -130,7 +130,7 @@ async def test_engine_job_executor_batches_compatible_jobs(monkeypatch):
 
     provider = Provider()
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return provider
@@ -182,7 +182,7 @@ async def test_engine_batching_skips_cancelled_ticket(monkeypatch):
 
     provider = Provider()
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return provider
@@ -233,7 +233,7 @@ async def test_engine_batching_shutdown_fails_waiting_ticket(monkeypatch):
         async def generate_completion(self, **payload):
             return {"payload": payload}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return Provider()
@@ -277,7 +277,7 @@ async def test_engine_invocation_pool_serializes_calls(monkeypatch):
 
     provider = Provider()
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return provider
@@ -335,7 +335,7 @@ async def test_engine_job_executor_records_batching_and_engine_call_pipeline_ste
         async def generate_completion(self, **payload):
             return {"payload": payload}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return Provider()
@@ -398,7 +398,7 @@ async def test_engine_job_executor_applies_resolver_hitl_and_unload_events(monke
         async def generate_completion(self, **payload):
             return {"payload": payload}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         await event_hook("waiting_hitl", {"model_to_load": "qwen"})
         await event_hook("unloading", {"to_unload": ["old"]})
         await event_hook("loading", {"model_to_load": "qwen"})
@@ -461,7 +461,7 @@ async def test_engine_job_executor_rejects_stream_result(monkeypatch):
         async def generate_stream(self):
             yield "chunk"
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return Provider()
@@ -484,7 +484,7 @@ async def test_engine_job_executor_errors_when_method_missing(monkeypatch):
     class Provider:
         pass
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         return Provider()
 
     import democrai.core.application.ai.engine.orchestrator.executor as executor_mod
@@ -526,7 +526,7 @@ async def test_engine_job_executor_stream_publishes_chunks(monkeypatch):
             yield {"chunk": payload["messages"][0]}
             yield {"chunk": "done"}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "qwen"})
         return Provider()
@@ -563,7 +563,7 @@ async def test_engine_job_executor_does_not_pass_stream_control_fields_to_provid
                 await on_message({"type": "security.filter", "payload": {"ok": True}})
             return {"messages": messages, "options": options}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         return Provider()
 
     import democrai.core.application.ai.engine.orchestrator.executor as executor_mod
@@ -602,7 +602,7 @@ async def test_engine_job_executor_stream_publishes_single_result_as_chunk(monke
         async def transcribe(self, **_payload):
             return {"text": "hello"}
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         assert event_hook is not None
         await event_hook("loading", {"model_to_load": "whisper"})
         return Provider()
@@ -610,14 +610,24 @@ async def test_engine_job_executor_stream_publishes_single_result_as_chunk(monke
     import democrai.core.application.ai.engine.orchestrator.executor as executor_mod
 
     monkeypatch.setattr(executor_mod, "resolve_provider", fake_resolve_provider)
+    ctx = app_ctx()
+    previous_media = getattr(ctx, "media", None)
+    ctx.media = type(
+        "Media",
+        (),
+        {"load": staticmethod(lambda path: b"abc" if path == "media/audio.wav" else b"")},
+    )()
 
-    job = _job(method="transcribe", payload={"audio_data": b"abc"})
-    await job.next_event()
-    await job.set_status_async("resolving")
+    try:
+        job = _job(method="transcribe", payload={"media_storage_path": "media/audio.wav"})
+        await job.next_event()
+        await job.set_status_async("resolving")
 
-    await EngineJobExecutor().execute_stream(job)
+        await EngineJobExecutor().execute_stream(job)
 
-    events = [await job.next_event() for _ in range(8)]
+        events = [await job.next_event() for _ in range(8)]
+    finally:
+        ctx.media = previous_media
     assert events[-1].kind == "engine.chunk"
     assert events[-1].payload == {"value": {"text": "hello"}}
 
@@ -627,7 +637,7 @@ async def test_engine_job_executor_stream_errors_when_method_missing(monkeypatch
     class Provider:
         pass
 
-    async def fake_resolve_provider(_request, *, event_hook=None):
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
         return Provider()
 
     import democrai.core.application.ai.engine.orchestrator.executor as executor_mod

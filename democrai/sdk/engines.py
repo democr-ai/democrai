@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import asyncio
 import json
-import os
 from typing import Any, Optional
 
 from democrai.core.application.ai.engine.base.audio import BaseSTTProvider, BaseTTSProvider
@@ -226,16 +226,14 @@ class Engines:
 
     async def sync_runtime(self) -> None:
         """Synchronize engine lifecycle state with the runtime engine manager."""
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
+        def _sync() -> None:
+            from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+                EngineOrchestratorProviderResolver,
             )
 
-            EngineOrchestratorClient().sync_active_engines()
-            return
-        from democrai.core.application.ai.engine.runtime import get_engine_runtime
+            EngineOrchestratorProviderResolver().provider().sync_active_engines()
 
-        await get_engine_runtime().sync_active_engines()
+        await asyncio.to_thread(_sync)
 
     async def list_loaded_models(
         self,
@@ -244,17 +242,15 @@ class Engines:
     ) -> list[dict[str, Any]]:
         """List engine runtime instances currently loaded in memory."""
         from democrai.core.application.ai.orchestrator import model_orchestrator
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
-            )
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
 
-            status = EngineOrchestratorClient().status()
-            rows = json.loads(status.active_instances_json or "[]")
-        else:
-            from democrai.core.application.ai.engine.runtime import get_engine_runtime
+        def _status():
+            return EngineOrchestratorProviderResolver().provider().status()
 
-            rows = list(get_engine_runtime().active_instances())
+        status = await asyncio.to_thread(_status)
+        rows = json.loads(status.active_instances_json or "[]")
         rows = [
             self._annotate_loaded_model(dict(row), model_orchestrator=model_orchestrator)
             for row in rows
@@ -268,16 +264,24 @@ class Engines:
             if int(row.get("engine_row_id") or 0) == resolved_id
         ]
 
-    async def list_active_jobs(self) -> list[dict[str, Any]]:
+    async def list_active_jobs(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
         """List active engine orchestrator jobs."""
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
+
+        def _list_active_jobs():
+            return EngineOrchestratorProviderResolver().provider().list_active_jobs(
+                offset=offset,
+                limit=limit,
             )
 
-            status = EngineOrchestratorClient().status()
-            return list(json.loads(status.active_jobs_json or "[]"))
-        return []
+        return await asyncio.to_thread(_list_active_jobs)
 
     @staticmethod
     def _annotate_loaded_model(row: dict[str, Any], *, model_orchestrator: Any) -> dict[str, Any]:
@@ -305,39 +309,32 @@ class Engines:
         model_registry_id: int | str,
     ) -> dict[str, Any]:
         """Unload one loaded model runtime instance from memory."""
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
-            )
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
 
-            unloaded = EngineOrchestratorClient().unload_model(
+        def _unload_model():
+            return EngineOrchestratorProviderResolver().provider().unload_model(
                 engine_registry_id=engine_registry_id,
                 model_registry_id=model_registry_id,
             )
-            return {"status": "ok", "unloaded": bool(unloaded)}
-        from democrai.core.application.ai.engine.runtime import get_engine_runtime
 
-        unloaded = get_engine_runtime().unload_model(
-            engine_row_id=int(engine_registry_id),
-            model_registry_id=int(model_registry_id),
-        )
+        unloaded = await asyncio.to_thread(_unload_model)
         return {"status": "ok", "unloaded": bool(unloaded)}
 
     async def stop_engine(self, *, engine_registry_id: int | str) -> dict[str, Any]:
         """Stop all loaded models for one engine runtime instance."""
-        if os.environ.get("DEMOCRAI_ENGINE_ORCHESTRATOR") != "1":
-            from democrai.core.application.ai.engine.orchestrator.client import (
-                EngineOrchestratorClient,
-            )
+        from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+            EngineOrchestratorProviderResolver,
+        )
 
-            stopped = EngineOrchestratorClient().stop_engine(
+        def _stop_engine():
+            return EngineOrchestratorProviderResolver().provider().stop_engine(
                 engine_registry_id=engine_registry_id
             )
-            return {"status": "ok", "stopped": bool(stopped)}
-        from democrai.core.application.ai.engine.runtime import get_engine_runtime
 
-        get_engine_runtime().stop_engine(int(engine_registry_id))
-        return {"status": "ok", "stopped": True}
+        stopped = await asyncio.to_thread(_stop_engine)
+        return {"status": "ok", "stopped": bool(stopped)}
 
     async def check_runtime_config(
         self,

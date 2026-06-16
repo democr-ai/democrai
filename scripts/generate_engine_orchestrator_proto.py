@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTO_DIR = ROOT / "democrai/core/application/ai/engine/orchestrator/proto"
+PROTO_DIR = ROOT / "democrai/core/infrastructure/ai/engine/invocation/proto"
 PROTO_FILE = PROTO_DIR / "engine_orchestrator.proto"
 GRPC_FILE = PROTO_DIR / "engine_orchestrator_pb2_grpc.py"
 
@@ -29,7 +29,7 @@ def main() -> int:
     text = GRPC_FILE.read_text(encoding="utf-8")
     text = text.replace(
         "import engine_orchestrator_pb2 as engine__orchestrator__pb2",
-        "from democrai.core.application.ai.engine.orchestrator.proto import "
+        "from democrai.core.infrastructure.ai.engine.invocation.proto import "
         "engine_orchestrator_pb2 as engine__orchestrator__pb2",
     )
     GRPC_FILE.write_text(text, encoding="utf-8")

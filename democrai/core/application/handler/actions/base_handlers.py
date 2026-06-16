@@ -853,7 +853,6 @@ async def composer_transcribe_audio(action_ctx: dict, session: dict, sdk) -> dic
     try:
         upload = _audio_upload_ref(action_ctx)
         storage_path = _require_media_upload_access(upload)
-        audio_data = sdk.media.view(storage_path)
         provider_result = await sdk.ai.get_provider_for_objective(
             "stt",
             required_capabilities=["stt"],
@@ -865,8 +864,10 @@ async def composer_transcribe_audio(action_ctx: dict, session: dict, sdk) -> dic
             )
         payload = _first_payload_item(action_ctx)
         language = str(payload.get("language") or "").strip()
+        # The executing node loads the audio from the shared media storage:
+        # the payload carries the path, never inline bytes.
         response = await provider_result["provider"].transcribe(
-            audio_data=audio_data,
+            media_storage_path=storage_path,
             language=language or None,
         )
         text = _response_text(response)

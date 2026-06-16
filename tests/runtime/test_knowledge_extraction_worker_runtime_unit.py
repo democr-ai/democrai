@@ -209,21 +209,70 @@ def test_extractor_worker_init_payload_is_resolved_in_parent(monkeypatch, tmp_pa
     assert payload["access"][0]["resource"]["target"] == str(tmp_path / "source")
 
 
+def test_extractor_worker_ai_proxy_returns_provider_proxy():
+    calls = []
+
+    class _Bridge:
+        def request(self, operation, payload):
+            calls.append((operation, payload))
+            if operation == "ai.get_provider_by_model_registry_id":
+                return {
+                    "status": "ok",
+                    "provider_ref": {
+                        "selector_type": "model_registry_id",
+                        "model_registry_id": payload["model_registry_id"],
+                    },
+                }
+            if operation == "ai.invoke_provider":
+                return {"text": "ok"}
+            raise AssertionError(operation)
+
+    proxy = worker_mod._ParentAIProxy(_Bridge())
+    result = asyncio.run(proxy.get_provider_by_model_registry_id(7))
+    response = asyncio.run(
+        result["provider"].transcribe(media_storage_path="media/audio.wav")
+    )
+
+    assert result["status"] == "ok"
+    assert response == {"text": "ok"}
+    assert calls[0] == (
+        "ai.get_provider_by_model_registry_id",
+        {"model_registry_id": 7, "confirm_swap": False},
+    )
+    assert calls[1][0] == "ai.invoke_provider"
+    assert calls[1][1]["method"] == "transcribe"
+    assert calls[1][1]["kwargs"] == {
+        "language": None,
+        "media_storage_path": "media/audio.wav",
+    }
+
+
+def test_extractor_parent_ai_provider_result_strips_real_provider():
+    provider = object()
+
+    result = subject_mod._parent_ai_provider_result(
+        {"status": "ok", "provider": provider},
+        {"selector_type": "model_registry_id", "model_registry_id": 9},
+    )
+
+    assert result == {
+        "status": "ok",
+        "provider_ref": {"selector_type": "model_registry_id", "model_registry_id": 9},
+    }
+
+
 def test_extractor_worker_runtime_config_materializes_unix_orchestrator_socket(monkeypatch):
     class _Config:
         def get(self, key, default=None):
             values = {
                 "ai.engine_orchestrator.transport": "unix",
-                "ai.engine_orchestrator.socket_path": "",
+                "ai.engine_orchestrator.socket_path": (
+                    "/tmp/democrai-test/engine-orchestrator.sock"
+                ),
             }
             return values.get(key, default)
 
     monkeypatch.setattr(subject_mod, "app_ctx", lambda: SimpleNamespace(config=_Config()))
-    monkeypatch.setattr(
-        subject_mod,
-        "orchestrator_socket_path",
-        lambda _config: "/tmp/democrai-test/engine-orchestrator.sock",
-    )
 
     runtime_config = subject_mod.worker_runtime_config()
 

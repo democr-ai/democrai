@@ -128,33 +128,45 @@ async def _main() -> int:
             signal.signal(sig, lambda _signum, _frame: _stop())
 
     from democrai.core.application.ai.engine.orchestrator.server import (
-        serve_until_stopped,
+        EngineOrchestratorService,
     )
     from democrai.core.application.ai.engine.orchestrator.registry_reconcile import (
         reconcile_registries_until_stopped,
     )
-
-    reconcile_task = asyncio.create_task(
-        reconcile_registries_until_stopped(stop_event),
-        name="engine-orchestrator-registry-reconcile",
+    from democrai.core.infrastructure.ai.engine.invocation.receivers import (
+        EngineInvocationReceiverManager,
     )
-    parent_watchdog_task = asyncio.create_task(
-        _stop_when_parent_exits(stop_event),
-        name="engine-orchestrator-parent-watchdog",
+
+    ctx = app_ctx()
+    background_tasks: list[asyncio.Task] = [
+        asyncio.create_task(
+            reconcile_registries_until_stopped(stop_event),
+            name="engine-orchestrator-registry-reconcile",
+        ),
+        asyncio.create_task(
+            _stop_when_parent_exits(stop_event),
+            name="engine-orchestrator-parent-watchdog",
+        ),
+    ]
+    service = EngineOrchestratorService()
+    background_tasks.extend(
+        EngineInvocationReceiverManager(
+            node_id=str(ctx.node_id),
+            service=service,
+            config=ctx.config,
+        ).start(stop_event)
     )
     try:
-        await serve_until_stopped(stop_event=stop_event)
+        await stop_event.wait()
     finally:
-        reconcile_task.cancel()
-        parent_watchdog_task.cancel()
-        try:
-            await reconcile_task
-        except asyncio.CancelledError:
-            pass
-        try:
-            await parent_watchdog_task
-        except asyncio.CancelledError:
-            pass
+        for task in background_tasks:
+            task.cancel()
+        for task in background_tasks:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        await service.stop()
     return 0
 
 

@@ -75,8 +75,11 @@ storage:
         service_name: democrai
 
 network:
-  # Optional stable node identifier used for cross-node Redis bus routing.
-  # node_id: democrai-node-a
+  node_id: democrai-node-a
+  stream:
+    type: redis
+    params:
+      redis_url: redis://localhost:6379/0
   redis:
     enabled: true
     url: redis://localhost:6379/0
@@ -104,6 +107,28 @@ ai:
     batch_queue_size: 256
     runtime_transition_worker_count: 1
     invocation_worker_count: 4
+    provider:
+      type: queue
+      params: {}
+    node_coordination:
+      enabled: true
+    queue:
+      claim_poll_seconds: 2.0
+      lease_seconds: 120
+      max_attempts: 3
+      keepalive_seconds: 10
+      retention_seconds: 86400
+    placement:
+      force_claim_age_seconds: 10
+    node_state:
+      active_threshold_seconds: 10
+      publish_seconds: 2
+    response_stream:
+      type: redis
+      params:
+        redis_url: redis://localhost:6379/0
+      ttl_seconds: 3600
+      maxlen: 10000
 
 plugins:
   # all | trusted_only

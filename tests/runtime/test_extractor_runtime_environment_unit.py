@@ -234,7 +234,7 @@ def test_extractor_access_reads_python_executable_symlink_chain(monkeypatch, tmp
 def test_model_registry_extractor_runtime_can_resolve_orchestrator_socket():
     import democrai.core.application.knowledge.extractor.runtime as mod
     from democrai.core.application.ai.engine.orchestrator.config import (
-        orchestrator_socket_path,
+        EngineOrchestratorConfig,
     )
     from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
     from democrai.core.runtime.foundation.paths import runtime_ipc_dir
@@ -259,7 +259,9 @@ def test_model_registry_extractor_runtime_can_resolve_orchestrator_socket():
         include_runtime_access=False,
         inherit_parent_access=False,
     ):
-        assert orchestrator_socket_path(None).endswith("engine-orchestrator.sock")
+        assert EngineOrchestratorConfig.load(None).socket_path.endswith(
+            "engine-orchestrator.sock"
+        )
 
 
 def test_plain_extractor_runtime_does_not_get_orchestrator_ipc_access():

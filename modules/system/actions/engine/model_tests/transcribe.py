@@ -14,8 +14,9 @@ from modules.system.actions.engine.model_tests.transcribe_result import (
     update_transcribe_status,
 )
 from modules.system.utils.actions.engine.model_test_support import (
-    _media_bytes_from_upload,
     _upload_mime,
+    _upload_size_bytes,
+    _upload_storage_path,
 )
 
 
@@ -31,7 +32,10 @@ async def test_engine_model_transcribe(ctx: dict[str, Any], module_sdk):
 
     await clear_transcribe_result(module_sdk, stream_id)
     try:
-        audio_data = _media_bytes_from_upload(module_sdk, test_ctx.payload, "audio")
+        audio_storage_path = _upload_storage_path(test_ctx.payload, "audio")
+        if not audio_storage_path:
+            raise ValueError("audio_required")
+        audio_bytes = _upload_size_bytes(test_ctx.payload, "audio")
         audio_mime = _upload_mime(test_ctx.payload, "audio")
         await append_transcribe_trace(
             module_sdk,
@@ -39,7 +43,7 @@ async def test_engine_model_transcribe(ctx: dict[str, Any], module_sdk):
             label="transcribe request",
             payload={
                 "model_row_id": test_ctx.row_id,
-                "audio_bytes": len(audio_data),
+                "audio_bytes": audio_bytes,
                 "audio_mime": audio_mime,
             },
         )
@@ -79,7 +83,7 @@ async def test_engine_model_transcribe(ctx: dict[str, Any], module_sdk):
             payload={"method": "transcribe", "language": language or None},
         )
         response = await provider.transcribe(
-            audio_data=audio_data,
+            media_storage_path=audio_storage_path,
             language=language or None,
         )
         text = _response_text(response)
@@ -100,7 +104,7 @@ async def test_engine_model_transcribe(ctx: dict[str, Any], module_sdk):
             stream_id,
             text=text,
             language=response_language,
-            audio_bytes=len(audio_data),
+            audio_bytes=audio_bytes,
             audio_duration_seconds=audio_duration_seconds,
             stats=getattr(response, "stats", {}),
         )

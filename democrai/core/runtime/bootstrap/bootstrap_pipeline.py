@@ -14,6 +14,7 @@ from democrai.core.application.observability.sqlalchemy_audit import (
 from democrai.core.runtime.foundation.app import AppContext, app_ctx
 from democrai.core.platform.config.yaml_config import YamlConfigProvider
 from democrai.core.infrastructure.database.factory import PersistenceProviderFactory
+from democrai.core.infrastructure.network.config import NetworkStreamConfig
 from democrai.core.infrastructure.network.factory import StreamProviderFactory
 from democrai.core.infrastructure.network.runtime.network import Network
 from democrai.core.runtime.foundation.paths import (
@@ -499,15 +500,10 @@ class RuntimeBootstrapper:
             redis_bus = RedisBusProvider(node_id=str(node_id), redis_url=str(redis_url))
             buses.append(redis_bus)
 
-        stream_type = ctx.config.get("network.stream.type", "memory")
-
-        stream_kwargs = {}
-        if stream_type == "redis":
-            stream_kwargs["redis_url"] = ctx.config.get(
-                "network.redis.url", "redis://localhost:6379"
-            )
-
-        streams = StreamProviderFactory.get_provider(stream_type, **stream_kwargs)
+        stream_config = NetworkStreamConfig.load(ctx.config)
+        streams = StreamProviderFactory.get_provider(
+            stream_config.provider_type, **stream_config.params
+        )
 
         ctx.network = Network(buses, streams)
         if ipc_bus_cls is None:
@@ -552,11 +548,14 @@ class RuntimeBootstrapper:
                 logger.error(f"[Bootstrap] Engine install worker start failed: {exc}")
         if getattr(ctx, "network", None) is not None and getattr(ctx.network, "_loop", None) is not None:
             async def _sync_active() -> None:
-                from democrai.core.application.ai.engine.orchestrator.client import (
-                    EngineOrchestratorClient,
+                from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
+                    EngineOrchestratorProviderResolver,
                 )
 
-                await asyncio.to_thread(EngineOrchestratorClient().sync_active_engines)
+                provider = EngineOrchestratorProviderResolver(
+                    config=getattr(ctx, "config", None)
+                ).provider()
+                await asyncio.to_thread(provider.sync_active_engines)
 
             import asyncio
 

@@ -28,10 +28,10 @@ def run_shutdown_cleanup(ctx: Any, reloader: Any | None, child_proc: Any | None)
         ctx.engine_orchestrator_process = None
         try:
             from democrai.core.application.ai.engine.orchestrator.config import (
-                cleanup_orchestrator_socket,
+                EngineOrchestratorConfig,
             )
 
-            cleanup_orchestrator_socket(ctx.config)
+            EngineOrchestratorConfig.load(ctx.config).cleanup_socket()
         except Exception as exc:
             app_ctx().logger.error(
                 f"Error during engine orchestrator cleanup: {exc}"
@@ -103,6 +103,9 @@ def run_shutdown_cleanup(ctx: Any, reloader: Any | None, child_proc: Any | None)
 
     try:
         from democrai.core.application.ai.engine.provider_manager import genai_manager
+        from democrai.core.infrastructure.ai.engine.response.factory import (
+            EngineResponseStreamFactory,
+        )
         from democrai.core.infrastructure.modules.runtime import get_module_runtime
 
         genai_manager.shutdown()
@@ -110,6 +113,7 @@ def run_shutdown_cleanup(ctx: Any, reloader: Any | None, child_proc: Any | None)
         engine_runtime = getattr(ctx, "engine_runtime", None)
         if engine_runtime is not None:
             engine_runtime.shutdown()
+        asyncio.run(EngineResponseStreamFactory.aclose_shared_streams())
     except Exception as exc:
         app_ctx().logger.error(f"Error during AI cleanup: {exc}")
 

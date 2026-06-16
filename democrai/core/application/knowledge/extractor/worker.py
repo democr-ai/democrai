@@ -121,14 +121,24 @@ async def _collect_result(result: Any) -> Any:
     return result
 
 
-class _ParentMediaProxy:
+class _ParentBridge:
     def __init__(self) -> None:
         self._conn = connect_from_env("DEMOCRAI_EXTRACTOR_WORKER_PARENT")
         self._channel = LocalBinaryPayloadChannel(self._conn)
         self._lock = threading.Lock()
 
-    def _request(self, operation: str, payload: dict[str, Any]) -> Any:
+    def request(self, operation: str, payload: dict[str, Any]) -> Any:
         request_id = uuid.uuid4().hex
+        try:
+            from democrai.core.runtime.foundation.app import (
+                current_request_context_payload,
+            )
+
+            request_context = current_request_context_payload(
+                f"extractor_worker_parent.{operation}"
+            )
+        except Exception:
+            request_context = {}
         with self._lock:
             self._channel.send_json(
                 {
@@ -136,6 +146,7 @@ class _ParentMediaProxy:
                     "parent_request": True,
                     "operation": operation,
                     "payload": payload,
+                    "request_context": request_context,
                 },
                 _json_value,
             )
@@ -145,7 +156,7 @@ class _ParentMediaProxy:
                     continue
                 if not bool(response.get("ok")):
                     raise RuntimeError(
-                        str(response.get("error") or "extractor_runtime_parent_media_error")
+                        str(response.get("error") or "extractor_runtime_parent_error")
                     )
                 return response.get("result")
 
@@ -153,7 +164,7 @@ class _ParentMediaProxy:
         storage_path = str(path or "").strip()
         if not storage_path:
             raise ValueError("storage_path_required")
-        return bytes(self._request("media.load", {"storage_path": storage_path}))
+        return bytes(self.request("media.load", {"storage_path": storage_path}))
 
     def get_path(
         self,
@@ -164,7 +175,7 @@ class _ParentMediaProxy:
         storage_path = str(path or "").strip()
         if not storage_path:
             raise ValueError("storage_path_required")
-        result = self._request(
+        result = self.request(
             "media.materialize",
             {
                 "storage_path": storage_path,
@@ -190,6 +201,126 @@ class _ParentMediaProxy:
             pass
 
 
+class _ParentMediaSDK:
+    def __init__(self, bridge: _ParentBridge) -> None:
+        self._bridge = bridge
+
+    def view(self, path: str) -> bytes:
+        return self._bridge.load(path)
+
+    def get_path(
+        self,
+        path: str,
+        *,
+        destination_dir: str | None = None,
+    ) -> _RuntimeMaterializedMedia:
+        return self._bridge.get_path(path, destination_dir=destination_dir)
+
+
+class _ParentEngineProviderProxy:
+    def __init__(self, bridge: _ParentBridge, provider_ref: dict[str, Any]) -> None:
+        self._bridge = bridge
+        self._provider_ref = dict(provider_ref)
+
+    async def _invoke(self, method: str, kwargs: dict[str, Any]) -> Any:
+        return await asyncio.to_thread(
+            self._bridge.request,
+            "ai.invoke_provider",
+            {
+                "provider_ref": self._provider_ref,
+                "method": method,
+                "kwargs": kwargs,
+            },
+        )
+
+    async def generate_completion(self, **kwargs: Any) -> Any:
+        return await self._invoke("generate_completion", dict(kwargs))
+
+    async def transcribe(self, *, media_storage_path=None, language=None):
+        if not media_storage_path:
+            raise RuntimeError("engine_invocation_media_storage_path_required")
+        return await self._invoke(
+            "transcribe",
+            {"language": language, "media_storage_path": media_storage_path},
+        )
+
+    async def generate_stream(self, **kwargs: Any):
+        items = await self._invoke("generate_stream", dict(kwargs))
+        for item in list(items or []):
+            yield item
+
+    async def cancel(self, request_id: str) -> bool:
+        return bool(
+            await asyncio.to_thread(
+                self._bridge.request,
+                "ai.cancel_request",
+                {"request_id": str(request_id or "")},
+            )
+        )
+
+
+class _ParentAIProxy:
+    def __init__(self, bridge: _ParentBridge) -> None:
+        self._bridge = bridge
+
+    async def get_provider_by_model_registry_id(
+        self,
+        model_registry_id: int | str,
+        *,
+        confirm_swap: bool = False,
+    ) -> dict[str, Any]:
+        result = await asyncio.to_thread(
+            self._bridge.request,
+            "ai.get_provider_by_model_registry_id",
+            {
+                "model_registry_id": int(model_registry_id),
+                "confirm_swap": bool(confirm_swap),
+            },
+        )
+        return self._provider_result(result)
+
+    async def get_provider_for_objective(
+        self,
+        objective: str,
+        *,
+        required_capabilities: list[str] | None = None,
+        prefer_local: bool | None = None,
+    ) -> dict[str, Any]:
+        result = await asyncio.to_thread(
+            self._bridge.request,
+            "ai.get_provider_for_objective",
+            {
+                "objective": str(objective or ""),
+                "required_capabilities": list(required_capabilities or []),
+                "prefer_local": prefer_local,
+            },
+        )
+        return self._provider_result(result)
+
+    def cancel_request(self, request_id: str) -> bool:
+        return bool(
+            self._bridge.request(
+                "ai.cancel_request",
+                {"request_id": str(request_id or "")},
+            )
+        )
+
+    def _provider_result(self, result: Any) -> dict[str, Any]:
+        payload = dict(result or {}) if isinstance(result, dict) else {}
+        provider_ref = payload.pop("provider_ref", None)
+        if payload.get("status") == "ok" and isinstance(provider_ref, dict):
+            payload["provider"] = _ParentEngineProviderProxy(self._bridge, provider_ref)
+        return payload
+
+
+class _WorkerSDK:
+    def __init__(self, bridge: _ParentBridge) -> None:
+        self.module_name = "extractor"
+        self.session = {}
+        self.ai = _ParentAIProxy(bridge)
+        self.media = _ParentMediaSDK(bridge)
+
+
 class _Worker:
     def __init__(self, conn) -> None:
         self._conn = conn
@@ -199,10 +330,14 @@ class _Worker:
         self._extractor: Any = None
         self._extractor_id = ""
         self._phase = ""
-        self._media_proxy = _ParentMediaProxy()
+        self._parent_bridge = _ParentBridge()
+        self._previous_default_sdk: Any = None
         from democrai.core.runtime.foundation.app import app_ctx
+        import democrai.sdk.client as sdk_client
 
-        app_ctx().media = self._media_proxy
+        app_ctx().media = self._parent_bridge
+        self._previous_default_sdk = getattr(sdk_client, "_default_sdk", None)
+        sdk_client._default_sdk = _WorkerSDK(self._parent_bridge)
 
     def _send(self, payload: dict[str, Any]) -> None:
         self._channel.send_json(payload, _json_value)
@@ -371,7 +506,13 @@ class _Worker:
         cleanup = getattr(self._extractor, "cleanup", None)
         if callable(cleanup):
             cleanup()
-        self._media_proxy.close()
+        try:
+            import democrai.sdk.client as sdk_client
+
+            sdk_client._default_sdk = self._previous_default_sdk
+        except Exception:
+            pass
+        self._parent_bridge.close()
         self._stack.close()
         self._channel.close()
 

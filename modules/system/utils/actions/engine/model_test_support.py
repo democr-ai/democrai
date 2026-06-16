@@ -242,6 +242,11 @@ def _upload_mime(payload: dict[str, Any], key: str) -> str:
     ).strip()
 
 
+def _upload_size_bytes(payload: dict[str, Any], key: str) -> int:
+    item = _first_upload(payload, key)
+    return max(0, int(item.get("size_bytes") or item.get("size") or 0))
+
+
 def _media_bytes_from_upload(module_sdk, payload: dict[str, Any], key: str) -> bytes:
     storage_path = _upload_storage_path(payload, key)
     if not storage_path:

@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from democrai.core.application.ai.engine.orchestrator.proto import engine_orchestrator_pb2 as engine__orchestrator__pb2
+from democrai.core.infrastructure.ai.engine.invocation.proto import engine_orchestrator_pb2 as engine__orchestrator__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__

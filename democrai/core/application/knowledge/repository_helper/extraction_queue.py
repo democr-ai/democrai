@@ -9,7 +9,32 @@ from sqlalchemy import or_
 
 from democrai.core.platform.utils.identity import to_optional_int
 from democrai.core.platform.utils.timezone import utc_now_naive
+from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import current_request_context_payload
+
+
+def _node_coordination_enabled() -> bool:
+    from democrai.core.infrastructure.ai.engine.invocation.config import (
+        EngineInvocationRuntimeConfig,
+    )
+
+    return EngineInvocationRuntimeConfig.load(
+        getattr(app_ctx(), "config", None)
+    ).node_coordination_enabled
+
+
+def _resolve_extractor_id_for_mime(mime_type: str) -> str | None:
+    try:
+        from democrai.core.application.knowledge.extractor.bindings import (
+            resolve_bound_extractor,
+        )
+
+        bound = resolve_bound_extractor(mime_type=mime_type)
+    except Exception:
+        return None
+    if not isinstance(bound, dict):
+        return None
+    return str(bound.get("extractor_id") or "") or None
 
 
 def enqueue_extraction_request(
@@ -41,6 +66,8 @@ def enqueue_extraction_request(
         if isinstance(request_context, dict)
         else current_request_context_payload("knowledge_extraction.enqueue")
     )
+    if extractor_id is None and mime_type and _node_coordination_enabled():
+        extractor_id = _resolve_extractor_id_for_mime(mime_type)
     with repo._session_factory() as session:
         repo._attach_actor(session, user_id=user_id, organization_id=org_id)
         row = repo.KnowledgeExtractionRequestRecord(
@@ -83,8 +110,21 @@ def get_extraction_request_metadata(repo, request_id: str) -> dict:
         return repo._json_load(row.metadata_json)
 
 
-def claim_extraction_requests(repo, *, batch_size: int, owner: str, lease_seconds: int):
-    """Lease pending extraction requests for one worker instance."""
+def claim_extraction_requests(
+    repo,
+    *,
+    batch_size: int,
+    owner: str,
+    lease_seconds: int,
+    installed_extractor_ids: list[str] | None = None,
+):
+    """Lease pending extraction requests for one worker instance.
+
+    ``installed_extractor_ids`` filters the claim to rows whose extractor is
+    installed on the claiming node (rows with no extractor binding still pass
+    and are settled by the post-claim guard). ``None`` keeps the historical
+    single-node behavior untouched.
+    """
     now = utc_now_naive()
     lease_expires_at = now + timedelta(seconds=max(1, lease_seconds))
     with repo._session_factory() as session:
@@ -99,7 +139,18 @@ def claim_extraction_requests(repo, *, batch_size: int, owner: str, lease_second
                     repo.KnowledgeExtractionRequestRecord.lease_expires_at < now,
                 ),
             )
-            .order_by(
+        )
+        if installed_extractor_ids is not None:
+            query = query.filter(
+                or_(
+                    repo.KnowledgeExtractionRequestRecord.extractor_id.is_(None),
+                    repo.KnowledgeExtractionRequestRecord.extractor_id.in_(
+                        list(installed_extractor_ids)
+                    ),
+                )
+            )
+        query = (
+            query.order_by(
                 repo.KnowledgeExtractionRequestRecord.priority.desc(),
                 repo.KnowledgeExtractionRequestRecord.created_at.asc(),
             )
@@ -150,6 +201,34 @@ def complete_extraction_request(repo, request_id: str) -> None:
         row.completed_at = now
         row.lease_owner = None
         row.lease_expires_at = None
+        row.updated_at = now
+        session.commit()
+
+
+def release_extraction_request(
+    repo,
+    request_id: str,
+    *,
+    defer_seconds: float,
+    reason: str | None = None,
+) -> None:
+    """Put a claimed request back as pending without consuming an attempt.
+
+    Used when the claiming node cannot process it (extractor installed on a
+    different node): the row becomes claimable again after ``defer_seconds``.
+    """
+    now = utc_now_naive()
+    with repo._session_factory() as session:
+        repo._attach_actor(session)
+        row = session.get(repo.KnowledgeExtractionRequestRecord, request_id)
+        if row is None or row.status != "processing":
+            return
+        row.status = "pending"
+        row.lease_owner = None
+        row.lease_expires_at = None
+        row.available_at = now + timedelta(seconds=max(0.0, float(defer_seconds)))
+        if reason:
+            row.last_error = reason
         row.updated_at = now
         session.commit()
 

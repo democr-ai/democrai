@@ -28,6 +28,9 @@ class EngineJobResolverRequest:
     payload_json: str
     request_context_json: str
     security_context_json: str
+    # False when the executing node cannot reach the user's session for the
+    # resource-swap prompt (claim on a non-origin node).
+    allow_swap_prompt: bool = True
 
     def HasField(self, field_name: str) -> bool:
         if field_name == "prefer_local":
@@ -68,6 +71,7 @@ class EngineJobExecutor:
             provider = await resolve_provider(
                 request,
                 event_hook=lambda name, payload: _apply_resolver_event(job, name, payload),
+                allow_prompt=getattr(job, "allow_swap_prompt", True),
             )
             _apply_provider_metadata(provider)
             await job.publish_async(
@@ -84,6 +88,7 @@ class EngineJobExecutor:
         provider = await resolve_provider(
             request,
             event_hook=lambda name, payload: _apply_resolver_event(job, name, payload),
+            allow_prompt=getattr(job, "allow_swap_prompt", True),
         )
         _apply_provider_metadata(provider)
         await job.publish_async(
@@ -102,6 +107,7 @@ class EngineJobExecutor:
         provider = await resolve_provider(
             request,
             event_hook=lambda name, payload: _apply_resolver_event(job, name, payload),
+            allow_prompt=getattr(job, "allow_swap_prompt", True),
         )
         _apply_provider_metadata(provider)
         await job.publish_async(
@@ -118,12 +124,49 @@ class EngineJobExecutor:
 
 def provider_payload(job: EngineJob) -> dict[str, Any]:
     payload = dict(job.payload)
+    payload = _materialize_storage_refs(payload, method=job.method)
     stream_pipeline_messages = bool(payload.pop("_stream_pipeline_messages", False))
     if stream_pipeline_messages:
         payload["on_message"] = lambda message: job.publish_async(
             "engine.pipeline_message",
             {"message": message},
         )
+    return payload
+
+
+# Engine-side keyword that receives the loaded bytes, per method. Every
+# method that accepts a media file goes through the same single transit key
+# (media_storage_path); new methods extend this table.
+_MEDIA_REF_TARGET_BY_METHOD = {
+    "transcribe": "audio_data",
+}
+
+
+def _materialize_storage_refs(
+    payload: dict[str, Any], *, method: str
+) -> dict[str, Any]:
+    """Resolve a media_storage_path reference into bytes on the executing node.
+
+    Binary inputs travel as paths on the shared media storage instead of
+    inline bytes (the durable queue persists payloads on the DB); engines
+    keep receiving bytes on their method-specific keyword.
+    """
+    storage_path = payload.pop("media_storage_path", None)
+    if not storage_path:
+        return payload
+    target_key = _MEDIA_REF_TARGET_BY_METHOD.get(method)
+    if target_key is None:
+        raise RuntimeError(
+            f"engine_orchestrator_media_ref_unsupported_method:{method}"
+        )
+    if payload.get(target_key) is not None:
+        raise RuntimeError(f"engine_orchestrator_media_ref_payload_conflict:{method}")
+    from democrai.core.runtime.foundation.app import app_ctx
+
+    media = getattr(app_ctx(), "media", None)
+    if media is None:
+        raise RuntimeError("engine_orchestrator_media_provider_unavailable")
+    payload[target_key] = bytes(media.load(str(storage_path)))
     return payload
 
 
@@ -170,6 +213,7 @@ def resolver_request_from_job(job: EngineJob) -> EngineJobResolverRequest:
         capabilities_json=json.dumps(list(job.capabilities), ensure_ascii=True),
         prefer_local=job.prefer_local,
         confirm_swap=job.confirm_swap,
+        allow_swap_prompt=bool(getattr(job, "allow_swap_prompt", True)),
         method=job.method,
         payload_json=json.dumps(job.payload, ensure_ascii=True, default=str),
         request_context_json=json.dumps(job.request_context, ensure_ascii=True),

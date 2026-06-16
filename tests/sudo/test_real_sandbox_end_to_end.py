@@ -524,26 +524,37 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
                 class _SudoProbeProvider:
                     async def generate_completion(self, messages=None, options=None):
-                        from democrai.core.application.ai.engine.orchestrator.remote_provider import (
-                            RemoteEngineProvider,
+                        from democrai.core.infrastructure.ai.engine.invocation.providers.orchestrated import (
+                            OrchestratedEngineProvider,
                         )
 
-                        class _FakeEngineOrchestratorClient:
-                            async def invoke(self, **kwargs):
+                        class _FakeEngineOrchestratorProvider:
+                            requires_media_storage_refs = False
+
+                            async def invoke(self, target, request):
                                 return {{
                                     "status": "ok",
                                     "orchestrator_boundary": True,
                                     "caller": _sandbox_payload(),
-                                    "selector_type": kwargs.get("selector_type"),
-                                    "model_registry_id": kwargs.get("model_registry_id"),
-                                    "method": kwargs.get("method"),
-                                    "payload": kwargs.get("payload"),
+                                    "selector_type": target.selector_type,
+                                    "model_registry_id": target.model_registry_id,
+                                    "method": request.method,
+                                    "payload": request.payload,
                                 }}
 
-                        provider = RemoteEngineProvider(
+                            async def invoke_stream(self, target, request, *, on_message=None):
+                                raise NotImplementedError
+
+                            async def cancel(self, request_id):
+                                return True
+
+                            def cancel_sync(self, request_id):
+                                return True
+
+                        provider = OrchestratedEngineProvider(
                             selector_type="model_registry_id",
                             model_registry_id=1,
-                            client=_FakeEngineOrchestratorClient(),
+                            orchestrator_provider=_FakeEngineOrchestratorProvider(),
                         )
                         engine = await provider.generate_completion(
                             messages=messages,
@@ -551,7 +562,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         )
                         return {{
                             "status": "ok",
-                            "remote_provider": True,
+                            "orchestrator_provider": True,
                             "engine": engine,
                         }}
 
@@ -1262,8 +1273,8 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 engine_payload = payload.get("engine")
                 if not isinstance(engine_payload, dict):
                     raise AssertionError("extractor engine payload missing")
-                if not payload.get("remote_provider"):
-                    raise AssertionError("extractor SDK did not use remote engine provider")
+                if not payload.get("orchestrator_provider"):
+                    raise AssertionError("extractor SDK did not use orchestrator provider")
                 if not engine_payload.get("orchestrator_boundary"):
                     raise AssertionError("extractor SDK did not cross orchestrator boundary")
                 if not engine_payload.get("caller", {{}}).get("sandboxed"):

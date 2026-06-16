@@ -17,16 +17,22 @@ class _RegistryFactory(Generic[T]):
     def register(self, name: str, provider_entry: ProviderEntry[T]) -> None:
         self._registry[str(name).strip().lower()] = provider_entry
 
-    def create(self, provider_type: str | None, **kwargs: Any) -> T:
+    def create(
+        self, provider_type: str | None, *, strict: bool = False, **kwargs: Any
+    ) -> T:
+        raw_provider_type = "" if provider_type is None else str(provider_type).strip()
         normalized = (
-            self._fallback_name
-            if provider_type is None
-            else str(provider_type).strip().lower()
+            self._fallback_name if not raw_provider_type else raw_provider_type.lower()
         )
         entry = self._registry.get(normalized)
+        if entry is None and ":" in raw_provider_type:
+            entry = raw_provider_type
         if entry is None:
+            if strict:
+                raise ValueError(f"provider_type_unknown:{provider_type}")
             app_ctx().logger.warning(
-                f"Provider type '{provider_type}' not found. Falling back to '{self._fallback_name}'."
+                f"Provider type '{provider_type}' not found. Falling back to "
+                f"'{self._fallback_name}'."
             )
             normalized = self._fallback_name
             entry = self._registry[self._fallback_name]

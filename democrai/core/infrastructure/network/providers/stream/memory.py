@@ -45,7 +45,7 @@ class MemoryStreamProvider(StreamProvider):
                         loop.call_soon_threadsafe(queue.put_nowait, data)
                     else:
                         # Fallback to direct put if we are already in the right thread/loop
-                        # but in a cluster/distributed context, call_soon_threadsafe is usually safest.
+                        # call_soon_threadsafe is safe across producer loops.
                         queue.put_nowait(data)
                 except Exception as e:
                     app_ctx().logger.error(

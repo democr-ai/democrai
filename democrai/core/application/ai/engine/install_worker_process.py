@@ -8,6 +8,7 @@ import threading
 from types import SimpleNamespace
 
 from democrai.core.infrastructure.database.factory import PersistenceProviderFactory
+from democrai.core.infrastructure.network.config import NetworkStreamConfig
 from democrai.core.infrastructure.network.factory import StreamProviderFactory
 from democrai.core.infrastructure.observability.logger.manager import LoggerManager
 from democrai.core.platform.utils.env import SERVER_NAME
@@ -55,14 +56,10 @@ def _init_storage(ctx) -> None:
 
 def _init_stream_network(ctx) -> None:
     config = ctx.config
-    stream_type = config.get("network.stream.type", "memory")
-    stream_kwargs = {}
-    if stream_type == "redis":
-        stream_kwargs["redis_url"] = config.get(
-            "network.redis.url",
-            "redis://localhost:6379",
-        )
-    streams = StreamProviderFactory.get_provider(stream_type, **stream_kwargs)
+    stream_config = NetworkStreamConfig.load(config)
+    streams = StreamProviderFactory.get_provider(
+        stream_config.provider_type, **stream_config.params
+    )
     loop = asyncio.new_event_loop()
     loop_thread = threading.Thread(
         target=_run_stream_loop,

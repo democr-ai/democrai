@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 
 from democrai.core.application.ai.engine.orchestrator.config import (
-    orchestrator_registry_reconcile_seconds,
+    EngineOrchestratorConfig,
 )
 from democrai.core.runtime.foundation.app import app_ctx
 
 
 async def reconcile_registries_until_stopped(stop_event: asyncio.Event) -> None:
-    interval = orchestrator_registry_reconcile_seconds(app_ctx().config)
+    interval = EngineOrchestratorConfig.load(
+        app_ctx().config
+    ).registry_reconcile_seconds
     logger = getattr(app_ctx(), "logger", None)
     while not stop_event.is_set():
         try:

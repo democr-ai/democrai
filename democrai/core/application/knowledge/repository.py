@@ -245,6 +245,11 @@ class KnowledgeRepository:
     def fail_extraction_request(self, request_id: str, **kwargs) -> None:
         return _extraction_queue_ops.fail_extraction_request(self, request_id, **kwargs)
 
+    def release_extraction_request(self, request_id: str, **kwargs) -> None:
+        return _extraction_queue_ops.release_extraction_request(
+            self, request_id, **kwargs
+        )
+
     def complete_extraction_with_items(self, **kwargs) -> None:
         return _extraction_result_ops.complete_extraction_with_items(self, **kwargs)
 

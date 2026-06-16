@@ -4,6 +4,8 @@ from sqlalchemy import (
     String,
     Text,
     Boolean,
+    Float,
+    Index,
     JSON,
     ForeignKey,
     Table,
@@ -358,6 +360,16 @@ class RuntimeNodeRegistry(Base):
     has_nvidia_gpu = Column(Boolean, nullable=False, default=False)
     started_at = Column(DateTime, nullable=True)
     last_seen_at = Column(DateTime, nullable=True, index=True)
+    # Written only by the engine orchestrator subprocess node-state publisher;
+    # last_seen_at stays owned by the core runtime-metrics writer.
+    orchestrator_last_seen_at = Column(DateTime, nullable=True, index=True)
+    cpu_percent = Column(Float, nullable=False, default=0.0)
+    ram_total_mb = Column(Integer, nullable=False, default=0)
+    ram_free_mb = Column(Integer, nullable=False, default=0)
+    vram_total_mb = Column(Integer, nullable=False, default=0)
+    vram_free_mb = Column(Integer, nullable=False, default=0)
+    gpu_inventory_json = Column(Text, nullable=False, default="[]")
+    resources_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utc_now_naive, nullable=False)
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
@@ -393,6 +405,95 @@ class EngineNodeInstallRegistry(Base):
         return (
             f"<EngineNodeInstallRegistry(engine_id='{self.engine_id}', "
             f"node_id='{self.node_id}', status='{self.status}')>"
+        )
+
+
+class EngineNodeInstanceRegistry(Base):
+    __tablename__ = "engine_node_instance_registry"
+    __table_args__ = (
+        UniqueConstraint(
+            "node_id",
+            "engine_row_id",
+            "model_registry_id",
+            name="uq_engine_node_instance_registry_node_engine_model",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_id = Column(String(255), nullable=False, index=True)
+    engine_row_id = Column(Integer, nullable=False, index=True)
+    engine_id = Column(String(255), nullable=False, default="")
+    model_registry_id = Column(Integer, nullable=False, index=True)
+    model = Column(String(512), nullable=False, default="")
+    config_signature = Column(String(128), nullable=False, default="")
+    status = Column(String(32), nullable=False, default="running", index=True)
+    pid = Column(Integer, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    def __repr__(self):
+        return (
+            f"<EngineNodeInstanceRegistry(node_id='{self.node_id}', "
+            f"engine_id='{self.engine_id}', model_registry_id={self.model_registry_id}, "
+            f"status='{self.status}')>"
+        )
+
+
+class EngineInvocationQueue(Base):
+    __tablename__ = "engine_invocation_queue"
+    __table_args__ = (
+        Index(
+            "ix_engine_invocation_queue_claim",
+            "status",
+            "available_at",
+            "priority",
+            "created_at",
+        ),
+        Index(
+            "ix_engine_invocation_queue_lease",
+            "status",
+            "lease_expires_at",
+        ),
+    )
+
+    # id == request_id: enqueue idempotency through the primary key.
+    id = Column(String(64), primary_key=True)
+    pipeline_id = Column(String(64), nullable=True)
+    selector_type = Column(String(32), nullable=False)
+    model_registry_id = Column(Integer, nullable=True)
+    objective = Column(String(255), nullable=True)
+    capabilities_json = Column(Text, nullable=False, default="[]")
+    prefer_local = Column(Boolean, nullable=True)
+    confirm_swap = Column(Boolean, nullable=False, default=False)
+    method = Column(String(128), nullable=False)
+    response_mode = Column(String(16), nullable=False, default="unary")
+    payload_json = Column(Text, nullable=False, default="{}")
+    request_context_json = Column(Text, nullable=False, default="{}")
+    security_context_json = Column(Text, nullable=False, default="{}")
+    origin_node_id = Column(String(255), nullable=False, index=True)
+    response_stream_key = Column(String(512), nullable=False)
+    requires_origin_hitl = Column(Boolean, nullable=False, default=False, index=True)
+    status = Column(String(32), nullable=False, default="pending", index=True)
+    priority = Column(Integer, nullable=False, default=0)
+    attempts = Column(Integer, nullable=False, default=0)
+    available_at = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
+    lease_owner = Column(String(255), nullable=True, index=True)
+    lease_expires_at = Column(DateTime, nullable=True, index=True)
+    cancel_requested = Column(Boolean, nullable=False, default=False)
+    first_chunk_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    result_summary_json = Column(Text, nullable=True)
+    claimed_by_node_id = Column(String(255), nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    def __repr__(self):
+        return (
+            f"<EngineInvocationQueue(id='{self.id}', method='{self.method}', "
+            f"status='{self.status}', origin_node_id='{self.origin_node_id}')>"
         )
 
 
