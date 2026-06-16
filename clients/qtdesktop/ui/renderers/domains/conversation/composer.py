@@ -382,6 +382,7 @@ class ComposerRenderer(BaseRenderer):
                     local_path=local_path,
                     module_name=module_name,
                     ingest=bool(props.get("ingest", True)),
+                    action_name=str(action_def.get("name") or "").strip(),
                     app_instance=app_instance,
                 )
                 if row is None:
@@ -1071,6 +1072,7 @@ class ComposerRenderer(BaseRenderer):
                 local_path=local_path,
                 module_name=_infer_module_name({"action": voice_def}, app_instance),
                 ingest=False,
+                action_name=str(voice_def.get("name") or "").strip(),
                 app_instance=app_instance,
             )
             if uploaded is None:

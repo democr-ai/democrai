@@ -204,6 +204,7 @@ class ActionController:
         input_ids: list[str],
         *,
         module_name: str,
+        action_name: str,
     ) -> dict:
         values: dict[str, Any] = {}
         self.window._rebuild_widget_index_from_window()
@@ -235,6 +236,7 @@ class ActionController:
                 module_name=module_name,
                 ingest=widget._attachment_state.get("props", {}).get("ingest")
                 is not False,
+                action_name=action_name,
                 app_instance=self.window,
             )
             self.window._debug(
@@ -293,6 +295,7 @@ class ActionController:
             uploaded = self._collect_uploaded_context_for_ids(
                 upload_input_ids,
                 module_name=module_name,
+                action_name=action_name,
             )
             collected = {**collected, **uploaded}
 

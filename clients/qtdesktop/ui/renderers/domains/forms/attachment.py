@@ -161,6 +161,7 @@ def _build_upload_multipart(
     filename: str,
     file_bytes: bytes,
     content_type: str,
+    action_name: str | None = None,
 ) -> tuple[bytes, str]:
     boundary = f"----democrai-{uuid4().hex}"
     lines: list[bytes] = [
@@ -171,14 +172,27 @@ def _build_upload_multipart(
         b'Content-Disposition: form-data; name="ingest"\r\n\r\n',
         ("true\r\n" if ingest else "false\r\n").encode("utf-8"),
         f"--{boundary}\r\n".encode("utf-8"),
-        (
-            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        ).encode("utf-8"),
-        f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
-        bytes(file_bytes or b""),
-        b"\r\n",
-        f"--{boundary}--\r\n".encode("utf-8"),
     ]
+    normalized_action_name = str(action_name or "").strip()
+    if normalized_action_name:
+        lines.extend(
+            [
+                b'Content-Disposition: form-data; name="action_name"\r\n\r\n',
+                f"{normalized_action_name}\r\n".encode("utf-8"),
+                f"--{boundary}\r\n".encode("utf-8"),
+            ]
+        )
+    lines.extend(
+        [
+            (
+                f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            ).encode("utf-8"),
+            f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
+            bytes(file_bytes or b""),
+            b"\r\n",
+            f"--{boundary}--\r\n".encode("utf-8"),
+        ]
+    )
     payload = b"".join(lines)
     return payload, boundary
 
@@ -188,6 +202,7 @@ def _upload_file_to_media_storage(
     local_path: str,
     module_name: str,
     ingest: bool,
+    action_name: str | None = None,
     app_instance: Any,
 ) -> dict[str, Any] | None:
     resolved = Path(str(local_path or "")).expanduser()
@@ -207,6 +222,7 @@ def _upload_file_to_media_storage(
     form_payload, boundary = _build_upload_multipart(
         module_name=module_name,
         ingest=bool(ingest),
+        action_name=action_name,
         filename=filename,
         file_bytes=file_bytes,
         content_type=content_type,
@@ -274,6 +290,7 @@ def upload_attachment_entries(
     *,
     module_name: str,
     ingest: bool = True,
+    action_name: str | None = None,
     app_instance: Any,
 ) -> list[dict[str, Any]] | None:
     uploaded: list[dict[str, Any]] = []
@@ -289,6 +306,7 @@ def upload_attachment_entries(
             local_path=local_path,
             module_name=module_name,
             ingest=bool(ingest),
+            action_name=action_name,
             app_instance=app_instance,
         )
         if materialized is None:

@@ -49,6 +49,7 @@ def test_upload_file_to_media_storage_success(monkeypatch, tmp_path):
         local_path=str(f),
         module_name="chat",
         ingest=False,
+        action_name="chat.submit_message",
         app_instance=app,
     )
     assert out is not None
@@ -62,7 +63,22 @@ def test_upload_file_to_media_storage_success(monkeypatch, tmp_path):
     assert request is not None
     assert b'name="module_name"' in request.data
     assert b"chat" in request.data
+    assert b'name="action_name"' in request.data
+    assert b"chat.submit_message" in request.data
     assert b'name="file"; filename="doc.txt"' in request.data
+
+
+def test_upload_multipart_keeps_action_name_optional():
+    payload, _boundary = mod._build_upload_multipart(
+        module_name="chat",
+        ingest=False,
+        filename="doc.txt",
+        file_bytes=b"hello",
+        content_type="text/plain",
+    )
+
+    assert b'name="module_name"' in payload
+    assert b'name="action_name"' not in payload
 
 
 def test_upload_file_to_media_storage_requires_jwt(tmp_path):

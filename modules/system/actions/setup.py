@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from democrai.sdk.decorators import action, setup_only, validate
+from democrai.sdk.decorators import action, allow_public_upload, setup_only, validate
 
 from modules.system.utils.actions.setup import validate_distributed_config
 
@@ -98,6 +98,7 @@ async def _store_value(
 
 @action("setup_next")
 @validate(SetupNextPayload, strip_extra=True)
+@allow_public_upload
 @setup_only
 async def setup_next(ctx: dict[str, Any], session: dict, module_sdk):
     curr = ctx["step"]
@@ -179,6 +180,7 @@ async def setup_prev(ctx: dict[str, Any], session: dict, module_sdk):
 
 @action("validate_setup_config")
 @validate(SetupConfigValidationPayload, strip_extra=True)
+@allow_public_upload
 @setup_only
 async def validate_setup_config(ctx: dict[str, Any], session: dict, module_sdk):
     upload_items = ctx.get("config_attachment_input")

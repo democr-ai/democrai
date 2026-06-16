@@ -31,11 +31,13 @@ async def route_proxy_external_media(
 async def route_upload_media_asset(
     module_name: str = Form(...),
     ingest: bool = Form(True),
+    action_name: str | None = Form(None),
     file: UploadFile = File(...),
 ):
     return await uploads.upload_media_asset(
         module_name=module_name,
         ingest=ingest,
+        action_name=action_name,
         file=file,
     )
 

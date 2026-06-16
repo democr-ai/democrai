@@ -122,3 +122,22 @@ async def setup_finish(ctx: dict, session: dict, module_sdk):
 ```
 
 `setup_only` does not mean "public forever". Outside setup mode the runtime rejects the action, even for authenticated users.
+
+## Public Actions and Uploads
+
+Public actions do not automatically authorize unauthenticated file uploads.
+
+When a client uploads a file before submitting a form or action, `/media/uploads/raw` receives the target `action_name` and checks whether that action is allowed. For authenticated users, normal action authorization is enough. For unauthenticated users, a public action must also be explicitly marked as upload-capable:
+
+```python
+from democrai.sdk.decorators import action, allow_public_upload
+from democrai.sdk.auth import public
+
+@action("public_upload_action")
+@public
+@allow_public_upload
+async def public_upload_action(ctx: dict, session: dict, module_sdk):
+    ...
+```
+
+Do not add `@allow_public_upload` to generic public actions such as login. Without this marker, a guest cannot use that public action as a reason to store a file.

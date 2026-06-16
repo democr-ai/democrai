@@ -28,6 +28,11 @@ def public(func: Callable):
     return func
 
 
+def allow_public_upload(func: Callable):
+    setattr(func, "_allow_public_upload", True)
+    return func
+
+
 def setup_only(func: Callable):
     setattr(func, "_setup_only_action", True)
     return func
@@ -47,6 +52,10 @@ def get_required_permissions(func: Callable) -> List[str]:
 
 def is_public_action(func: Callable) -> bool:
     return bool(getattr(_unwrap(func), "_public_action", False))
+
+
+def allows_public_upload(func: Callable) -> bool:
+    return bool(getattr(_unwrap(func), "_allow_public_upload", False))
 
 
 def is_setup_only_action(func: Callable) -> bool:

@@ -276,3 +276,23 @@ async def setup_finish(ctx: dict, session: dict, module_sdk):
 ```
 
 `@setup_only` is intentionally separate from `@public`. A setup action should not stay available after setup has completed.
+
+## `allow_public_upload`
+
+`@allow_public_upload` marks a public or setup action as allowed to justify a deferred media upload from an unauthenticated client.
+
+This decorator does not make an action callable by guests. It only adds upload-specific metadata inspected by the `/media/uploads/raw` endpoint when the request has no authenticated user.
+
+Use it only on actions that genuinely consume an uploaded file before login or during setup, for example a setup configuration validation action.
+
+```python
+from democrai.sdk.decorators import action, allow_public_upload, setup_only
+
+@action("validate_setup_config")
+@allow_public_upload
+@setup_only
+async def validate_setup_config(ctx: dict, session: dict, module_sdk):
+    ...
+```
+
+For authenticated users, normal action authorization is still the controlling check. The marker is only a guard against guests using unrelated public actions, such as login, as a pretext for storing files.

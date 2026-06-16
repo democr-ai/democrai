@@ -743,6 +743,7 @@ def _materialize_attachment_values(
             current,
             module_name=module_name,
             ingest=field_def.get("ingest") is not False,
+            action_name=str(action_def.get("name") or "").strip(),
             app_instance=app_instance,
         )
         if uploaded is None:

@@ -94,6 +94,14 @@ def setup_only(func: Callable):
     return _setup_only(func)
 
 
+def allow_public_upload(func: Callable):
+    from democrai.core.application.auth.action import (
+        allow_public_upload as _allow_public_upload,
+    )
+
+    return _allow_public_upload(func)
+
+
 def callable_command(name: Optional[str] = None):
     """Register a callable module command."""
     return _command_decorators.callable_command(_CTX, name=name)

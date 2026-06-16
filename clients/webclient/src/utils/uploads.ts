@@ -65,17 +65,28 @@ export function inferModuleNameFromAction(action: any): string {
   return getCurrentModule();
 }
 
+export function inferActionName(action: any): string {
+  if (typeof action === 'string') return action.trim();
+  if (action && typeof action === 'object' && typeof action.name === 'string') {
+    return action.name.trim();
+  }
+  return '';
+}
+
 export async function uploadBrowserFile(
   file: File,
   options: {
     moduleName: string;
     ingest?: boolean;
+    actionName?: string;
   },
 ): Promise<UploadedFileRef> {
-  const { moduleName, ingest = true } = options;
+  const { moduleName, ingest = true, actionName = '' } = options;
   const formData = new FormData();
   formData.append('module_name', String(moduleName || '').trim() || getCurrentModule());
   formData.append('ingest', ingest ? 'true' : 'false');
+  const normalizedActionName = String(actionName || '').trim();
+  if (normalizedActionName) formData.append('action_name', normalizedActionName);
   formData.append('file', file);
 
   const headers: Record<string, string> = {};
@@ -120,11 +131,12 @@ export async function uploadBrowserFiles(
   options: {
     moduleName: string;
     ingest?: boolean;
+    actionName?: string;
   },
 ): Promise<UploadedFileRef[]> {
-  const { moduleName, ingest = true } = options;
+  const { moduleName, ingest = true, actionName = '' } = options;
   return Promise.all(
-    files.map((file) => uploadBrowserFile(file, { moduleName, ingest })),
+    files.map((file) => uploadBrowserFile(file, { moduleName, ingest, actionName })),
   );
 }
 
@@ -158,6 +170,7 @@ export async function materializeAttachmentUploads(
   options: {
     moduleName: string;
     ingest?: boolean;
+    actionName?: string;
   },
 ): Promise<UploadedFileRef[]> {
   const source = Array.isArray(entries) ? entries : [];
@@ -197,6 +210,7 @@ export async function materializeAttachmentUploads(
     pendingEntries.map((entry) => uploadBrowserFile(entry.file, {
       moduleName: options.moduleName,
       ingest: entry.ingest,
+      actionName: options.actionName,
     })),
   );
   return [...resolved, ...uploaded];

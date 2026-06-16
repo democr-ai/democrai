@@ -56,6 +56,8 @@ def action(mod, name: Optional[str] = None):
 
         if getattr(func, "_public_action", False):
             setattr(wrapper, "_public_action", True)
+        if getattr(func, "_allow_public_upload", False):
+            setattr(wrapper, "_allow_public_upload", True)
         if getattr(func, "_setup_only_action", False):
             setattr(wrapper, "_setup_only_action", True)
         validation = getattr(func, "_democrai_action_validation", None)

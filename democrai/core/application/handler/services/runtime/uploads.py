@@ -2,7 +2,19 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+from democrai.core.application.auth.action import allows_public_upload
+from democrai.core.application.auth.action import is_public_action
+from democrai.core.application.auth.action import is_setup_only_action
+from democrai.core.application.auth.service import get_user_permissions
 from democrai.core.application.auth.service import is_valid_module_name
+from democrai.core.application.handler.action_resolution import (
+    check_action_permissions,
+    resolve_core_action,
+    resolve_legacy_action,
+    resolve_module_name,
+    resolve_registry_action,
+)
+from democrai.core.application.handler.dispatcher import _get_core_default_actions
 from democrai.core.application.handler.services.runtime.cache import (
     safe_upload_name,
 )
@@ -11,6 +23,7 @@ from democrai.core.infrastructure.database.media_uploads import get_media_upload
 from democrai.core.platform.utils.mime_detection import detect_mime_type
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import req_ctx
+from democrai.sdk.client import SDK as ModuleSDK
 
 
 def _media_upload_payload(row) -> dict[str, object]:
@@ -34,13 +47,102 @@ def _media_upload_payload(row) -> dict[str, object]:
     }
 
 
-async def upload_media_asset(*, module_name: str, file, ingest: bool = True):
+def _core_upload_sdk(session: dict) -> ModuleSDK:
+    return ModuleSDK(
+        "",
+        "core",
+        current_path=session.get("current_path", ""),
+        session=session,
+    )
+
+
+def _authorize_upload_action(action_name: str | None) -> None:
+    normalized_action = str(action_name or "").strip()
+    current = req_ctx()
+    is_setup_mode = bool(getattr(app_ctx(), "setup_mode", False))
+    if not normalized_action:
+        if current.user is None and not is_setup_mode:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        return
+
+    session: dict = {}
+    sdk = _core_upload_sdk(session)
+    resolved = resolve_core_action(
+        normalized_action,
+        _get_core_default_actions(),
+        sdk,
+    )
+    if resolved is None:
+        resolved = resolve_registry_action(normalized_action, session, sdk)
+    if resolved is None:
+        resolved = resolve_legacy_action(normalized_action, session)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="Unknown action")
+
+    if is_setup_only_action(resolved.handler):
+        if not is_setup_mode:
+            raise HTTPException(status_code=403, detail="Setup mode required")
+        denied = check_action_permissions(normalized_action, resolved.handler, [])
+        if denied is None:
+            return
+        raise HTTPException(
+            status_code=403,
+            detail=str(denied.get("error") or "permission_denied"),
+        )
+
+    if current.user is None:
+        if is_public_action(resolved.handler):
+            if not allows_public_upload(resolved.handler):
+                raise HTTPException(status_code=403, detail="Public upload not allowed")
+            denied = check_action_permissions(normalized_action, resolved.handler, [])
+            if denied is None:
+                return
+            raise HTTPException(
+                status_code=403,
+                detail=str(denied.get("error") or "permission_denied"),
+            )
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    module_name = resolve_module_name(normalized_action)
+    if module_name is None:
+        sdk_module = getattr(resolved.sdk, "module_name", None)
+        if sdk_module and sdk_module != "core":
+            module_name = sdk_module
+    if module_name is not None and module_name != "core":
+        from democrai.core.application.auth.module_access import is_module_locked_for_user
+
+        if is_module_locked_for_user(
+            module_name,
+            user_id=current.user,
+            organization_id=current.organization_id,
+            role=current.role,
+        ):
+            raise HTTPException(status_code=403, detail="Module locked")
+
+    denied = check_action_permissions(
+        normalized_action,
+        resolved.handler,
+        get_user_permissions(current.user),
+    )
+    if denied is not None:
+        raise HTTPException(
+            status_code=403,
+            detail=str(denied.get("error") or "permission_denied"),
+        )
+
+
+async def upload_media_asset(
+    *,
+    module_name: str,
+    file,
+    ingest: bool = True,
+    action_name: str | None = None,
+):
     current = req_ctx()
     if not is_valid_module_name(module_name):
         raise HTTPException(status_code=400, detail="Invalid module name")
     is_setup_mode = app_ctx().setup_mode
-    if current.user is None and not is_setup_mode:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    _authorize_upload_action(action_name)
     user_id = current.user
     if user_id is None:
         user_id = 0

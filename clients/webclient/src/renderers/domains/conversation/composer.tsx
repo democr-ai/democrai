@@ -33,7 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { AudioRecordingController, startBrowserAudioRecording } from '@/utils/audioRecording';
-import { inferModuleNameFromAction, uploadBrowserFile, uploadBrowserFiles } from '@/utils/uploads';
+import { inferActionName, inferModuleNameFromAction, uploadBrowserFile, uploadBrowserFiles } from '@/utils/uploads';
 
 const normalizeModels = (raw: any): Array<{ id: string; name: string }> => {
   if (!Array.isArray(raw)) return [];
@@ -342,6 +342,7 @@ export const Composer: React.FC<any> = ({
         const uploaded = await uploadBrowserFiles(fileAttachments, {
           moduleName,
           ingest: ingest !== false,
+          actionName: parsedSubmitAction.name,
         });
         uploadedAttachments = [
           ...uploadedAttachments,
@@ -432,6 +433,7 @@ export const Composer: React.FC<any> = ({
       const uploaded = await uploadBrowserFile(file, {
         moduleName: inferModuleNameFromAction(voiceAction),
         ingest: false,
+        actionName: inferActionName(voiceAction),
       });
       emitActionSpec(voiceAction, onAction, {
         [id]: buildInteractionPayload('voice_transcribe', {
