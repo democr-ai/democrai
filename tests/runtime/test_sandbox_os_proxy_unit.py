@@ -100,6 +100,18 @@ def test_proxy_update_session_preserves_proxy_url_and_replaces_policy():
     assert updated_session.endpoints.allows("new.local", 443)
 
 
+def test_proxy_sessions_do_not_expire_by_time():
+    proxy = OsSandboxConnectProxy()
+    proxy._server = object()
+    proxy._port = 4123
+
+    created = proxy.create_session(endpoints=[])
+    session = proxy._sessions[created["session_id"]]
+
+    assert not hasattr(session, "expires_at")
+    assert proxy.update_session(created["session_id"], endpoints=[]) == created
+
+
 def test_proxy_update_session_fails_for_unknown_session():
     proxy = OsSandboxConnectProxy()
 

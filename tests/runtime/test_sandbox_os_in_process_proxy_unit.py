@@ -3,6 +3,7 @@ import os
 import pytest
 
 import democrai.core.infrastructure.sandbox.os.core_relaunch as core_relaunch
+import democrai.core.infrastructure.sandbox.os.proxy_session as proxy_session
 from democrai.core.infrastructure.sandbox.os.core_relaunch import (
     CORE_OS_SANDBOX_PROXY_SESSION_ENV,
     ensure_in_process_core_proxy_session,
@@ -144,3 +145,44 @@ def test_in_process_proxy_session_failure_is_a_hard_error(monkeypatch):
         ensure_in_process_core_proxy_session(_Config(enabled=True))
     assert "HTTPS_PROXY" not in os.environ
     assert CORE_OS_SANDBOX_PROXY_SESSION_ENV not in os.environ
+
+
+def test_update_core_proxy_session_recovers_missing_session(monkeypatch):
+    _clear_proxy_env(monkeypatch)
+    monkeypatch.setenv(CORE_OS_SANDBOX_PROXY_SESSION_ENV, "stale-session")
+    monkeypatch.setattr(
+        core_relaunch, "provider_supports_current_process_os_sandbox", lambda: True
+    )
+    monkeypatch.setattr(core_relaunch, "is_core_os_sandbox_relaunched", lambda: False)
+    monkeypatch.setattr(
+        core_relaunch,
+        "_start_core_proxy_session",
+        lambda allowlist, *, config: {
+            "session_id": "recovered-session",
+            "proxy_url": "http://new-token:x@127.0.0.1:49200",
+        },
+    )
+
+    class _Manager:
+        def __init__(self, config=None):
+            self.config = config
+
+        def update(self, session_id, allowlist):
+            assert session_id == "stale-session"
+            raise RuntimeError("os_sandbox_proxy_session_not_found:stale-session")
+
+        def apply_env(self, env, proxy_url):
+            env["HTTPS_PROXY"] = proxy_url
+            env["HTTP_PROXY"] = proxy_url
+
+    monkeypatch.setattr(proxy_session, "ProxySessionManager", _Manager)
+
+    assert (
+        core_relaunch.update_core_os_sandbox_proxy_session(
+            ApplicationNetworkAllowlist(endpoints=()),
+            config=_Config(enabled=True),
+        )
+        is True
+    )
+    assert os.environ[CORE_OS_SANDBOX_PROXY_SESSION_ENV] == "recovered-session"
+    assert os.environ["HTTPS_PROXY"] == "http://new-token:x@127.0.0.1:49200"
