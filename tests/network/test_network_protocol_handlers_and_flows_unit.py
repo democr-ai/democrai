@@ -247,11 +247,13 @@ async def test_stream_flows_paths(monkeypatch):
     network._session_scope_key = lambda _b, _c: "client:k1"
     network._session_external_approvals = {"client:k1": {"x"}, "user:1:2": {"y"}}
     network._client_session_keys = {key: "sess"}
+    network._client_ips = {key: "203.0.113.10"}
     network._default_stream_id = lambda cid: f"stream_{cid}"
     network._stream_owners = {"stream_c1": key}
     network._authenticated_clients = {key: (1, "User", None, None)}
     await mod.cleanup_client(network, bus, "c1")
     assert cleanup_calls == [(bus, "c1", "m2")]
+    assert key not in network._client_ips
     assert "client:k1" not in network._session_external_approvals
     assert "user:1:2" in network._session_external_approvals
 
@@ -340,8 +342,9 @@ async def test_protocol_handlers_core_paths(monkeypatch):
     )
     network._extract_auth = lambda _msg: (1, "Super", 2, 1)
     network.register_authenticated_client = lambda *a, **k: mod.register_authenticated_client(network, *a, **k)
+    mod.register_client_ip(network, bus, "c2", "203.0.113.10")
     ctx = mod.build_context(network, bus, "c2", {"request_id": "r1", "userAction": {"name": "a"}})
-    assert ctx.user == 1 and pushed
+    assert ctx.user == 1 and ctx.client_ip == "203.0.113.10" and pushed
 
     # Cached connection auth must not authenticate a request without JWT.
     network._extract_auth = lambda _msg: (None, None, None, None)

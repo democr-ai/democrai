@@ -198,6 +198,14 @@ def register_client_session_key(network, bus, client_id, session_key: str) -> No
         network._client_session_keys[(id(bus), client_id)] = session_key
 
 
+def register_client_ip(network, bus, client_id, client_ip: str | None) -> None:
+    resolved = str(client_ip or "").strip()
+    if resolved:
+        if not hasattr(network, "_client_ips"):
+            network._client_ips = {}
+        network._client_ips[(id(bus), client_id)] = resolved
+
+
 def _auth_tuple(auth):
     if isinstance(auth, tuple):
         user, role, organization_id, access_level = auth
@@ -243,7 +251,7 @@ def build_context(network, bus, client_id, msg):
         access_level=access_level,
         channel="bus",
         session_key=session_key,
-        client_ip=None,
+        client_ip=getattr(network, "_client_ips", {}).get(conn_key),
         action_name=action_name,
         module_name=module_name_from_action(action_name),
     )

@@ -180,6 +180,7 @@ def register_ws_route(
     decode_token_if_present: Callable[[str | None], dict | None],
     resolve_websocket_token: Callable[[WebSocket], str | None],
     session_cookie_name: Callable[[], str],
+    resolve_client_ip: Callable[[Any, Any], str | None],
 ) -> None:
     @app.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
@@ -213,6 +214,12 @@ def register_ws_route(
             client_id = f"ws_{uuid4().hex[:8]}"
             if hasattr(network, "register_client_session_key"):
                 network.register_client_session_key(ws_bus, client_id, session_key)
+            if hasattr(network, "register_client_ip"):
+                network.register_client_ip(
+                    ws_bus,
+                    client_id,
+                    resolve_client_ip(ws.headers, getattr(ws, "client", None)),
+                )
             if payload and to_optional_int(payload.get("user_id")) is not None:
                 network.register_authenticated_client(
                     ws_bus,

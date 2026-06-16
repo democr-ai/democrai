@@ -153,6 +153,7 @@ def build_fastapi_app(core: Core, *, app_mode: str = "full") -> FastAPI:
         decode_token_if_present=decode_token_if_present,
         resolve_websocket_token=resolve_websocket_token,
         session_cookie_name=session_cookie_name,
+        resolve_client_ip=resolve_client_ip,
     )
 
     return app

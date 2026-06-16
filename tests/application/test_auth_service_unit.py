@@ -1,8 +1,14 @@
 from types import SimpleNamespace
+from datetime import timedelta
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 import democrai.core.application.auth.service as auth_service_mod
+from democrai.core.infrastructure.database.models import AuthLoginRateLimit, Base as AuthBase
+from democrai.core.platform.utils.timezone import utc_now_naive
+from democrai.core.runtime.foundation.app import RequestContext, app_ctx, reset_req_ctx, set_req_ctx
 
 
 def test_module_name_and_qualification_helpers():
@@ -79,6 +85,189 @@ def test_password_hash_and_check():
     hashed = auth_service_mod.get_hashed_password(b"pw")
     assert isinstance(hashed, (bytes, str))
     assert auth_service_mod.check_password(b"pw", hashed) is True
+
+
+def _auth_rate_limit_session(tmp_path, monkeypatch, config_values):
+    engine = create_engine(f"sqlite:///{tmp_path / 'auth-rate-limit.sqlite'}")
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    AuthBase.metadata.create_all(engine)
+    monkeypatch.setattr(auth_service_mod, "SessionLocal", SessionLocal)
+    ctx = app_ctx()
+    previous_config = getattr(ctx, "config", None)
+    previous_logger = getattr(ctx, "logger", None)
+    ctx.config = SimpleNamespace(
+        get=lambda key, default=None: config_values.get(key, default)
+    )
+    ctx.logger = SimpleNamespace(
+        error=lambda *a, **k: None,
+        info=lambda *a, **k: None,
+        warning=lambda *a, **k: None,
+        debug=lambda *a, **k: None,
+    )
+    return engine, previous_config, previous_logger
+
+
+def test_login_rate_limit_uses_core_db_username_bucket(tmp_path, monkeypatch):
+    engine, previous_config, previous_logger = _auth_rate_limit_session(
+        tmp_path,
+        monkeypatch,
+        {
+            "auth.login_rate_limit.username.max_failures": 2,
+            "auth.login_rate_limit.username.window_seconds": 300,
+            "auth.login_rate_limit.username.lockout_seconds": 900,
+        },
+    )
+    ctx = app_ctx()
+    try:
+        assert auth_service_mod.check_login_allowed("Fabio") is True
+        auth_service_mod.record_login_failure("Fabio")
+        assert auth_service_mod.check_login_allowed("fabio") is True
+        auth_service_mod.record_login_failure("fabio")
+        assert auth_service_mod.check_login_allowed("FABIO") is False
+        auth_service_mod.clear_login_failures("fabio")
+        assert auth_service_mod.check_login_allowed("fabio") is True
+    finally:
+        ctx.config = previous_config
+        ctx.logger = previous_logger
+        engine.dispose()
+
+
+def test_login_rate_limit_uses_core_db_ip_bucket(tmp_path, monkeypatch):
+    engine, previous_config, previous_logger = _auth_rate_limit_session(
+        tmp_path,
+        monkeypatch,
+        {
+            "auth.login_rate_limit.username.max_failures": 10,
+            "auth.login_rate_limit.ip.max_failures": 2,
+            "auth.login_rate_limit.ip.window_seconds": 300,
+            "auth.login_rate_limit.ip.lockout_seconds": 900,
+        },
+    )
+    ctx = app_ctx()
+    try:
+        auth_service_mod.record_login_failure("a", "203.0.113.10")
+        assert auth_service_mod.check_login_allowed("b", "203.0.113.10") is True
+        auth_service_mod.record_login_failure("b", "203.0.113.10")
+        assert auth_service_mod.check_login_allowed("c", "203.0.113.10") is False
+        auth_service_mod.clear_login_failures("a")
+        assert auth_service_mod.check_login_allowed("a", "203.0.113.10") is False
+    finally:
+        ctx.config = previous_config
+        ctx.logger = previous_logger
+        engine.dispose()
+
+
+def test_login_user_records_request_context_ip_bucket(tmp_path, monkeypatch):
+    engine, previous_config, previous_logger = _auth_rate_limit_session(
+        tmp_path,
+        monkeypatch,
+        {
+            "auth.login_rate_limit.username.max_failures": 10,
+            "auth.login_rate_limit.ip.max_failures": 1,
+            "auth.login_rate_limit.ip.window_seconds": 300,
+            "auth.login_rate_limit.ip.lockout_seconds": 900,
+        },
+    )
+    ctx = app_ctx()
+    token = set_req_ctx(
+        RequestContext(
+            app=ctx,
+            request_id="login-ip",
+            user=None,
+            role=None,
+            organization_id=None,
+            access_level=None,
+            channel="test",
+            client_ip="203.0.113.20",
+        )
+    )
+    try:
+        monkeypatch.setattr(auth_service_mod, "verify_user", lambda *_a, **_k: (False, None))
+        result = auth_service_mod.login_user("fabio", "bad")
+        assert result["error"] == "invalid_credentials"
+        assert auth_service_mod.check_login_allowed("other", "203.0.113.20") is False
+    finally:
+        reset_req_ctx(token)
+        ctx.config = previous_config
+        ctx.logger = previous_logger
+        engine.dispose()
+
+
+def test_login_rate_limit_prunes_expired_buckets(tmp_path, monkeypatch):
+    engine, previous_config, previous_logger = _auth_rate_limit_session(
+        tmp_path,
+        monkeypatch,
+        {
+            "auth.login_rate_limit.username.window_seconds": 300,
+            "auth.login_rate_limit.username.lockout_seconds": 900,
+            "auth.login_rate_limit.ip.window_seconds": 300,
+            "auth.login_rate_limit.ip.lockout_seconds": 900,
+        },
+    )
+    ctx = app_ctx()
+    try:
+        db = auth_service_mod.SessionLocal()
+        old = utc_now_naive() - timedelta(seconds=2000)
+        db.add(
+            AuthLoginRateLimit(
+                bucket_type="ip",
+                bucket_value="203.0.113.30",
+                failures=1,
+                window_started_at=old,
+                last_failed_at=old,
+                locked_until=None,
+                created_at=old,
+            )
+        )
+        db.commit()
+        db.close()
+
+        assert auth_service_mod.check_login_allowed("new", "203.0.113.31") is True
+
+        db = auth_service_mod.SessionLocal()
+        rows = db.query(AuthLoginRateLimit).all()
+        db.close()
+        assert rows == []
+    finally:
+        ctx.config = previous_config
+        ctx.logger = previous_logger
+        engine.dispose()
+
+
+def test_verify_user_runs_dummy_bcrypt_for_missing_user(monkeypatch):
+    calls = []
+
+    class _Query:
+        def filter(self, _expr):
+            return self
+
+        def first(self):
+            return None
+
+    class _DB:
+        def query(self, _model):
+            return _Query()
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(auth_service_mod, "SessionLocal", lambda: _DB())
+    monkeypatch.setattr(auth_service_mod, "current_request_profiler", lambda: None)
+    monkeypatch.setattr(
+        auth_service_mod,
+        "check_password",
+        lambda password, hashed: calls.append((password, hashed)) or False,
+    )
+    monkeypatch.setattr(
+        auth_service_mod,
+        "app_ctx",
+        lambda: SimpleNamespace(logger=SimpleNamespace(error=lambda *a, **k: None)),
+    )
+
+    ok, user = auth_service_mod.verify_user("missing", "pw")
+
+    assert ok is False and user is None
+    assert calls == [("pw", auth_service_mod._DUMMY_PASSWORD_HASH)]
 
 
 def test_verify_permissions_and_profiles(monkeypatch):

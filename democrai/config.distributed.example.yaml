@@ -181,8 +181,22 @@ auth:
   cookie_secure: true
   cookie_http_only: true
   cookie_samesite: lax
+  login_rate_limit:
+    enabled: true
+    username:
+      max_failures: 5
+      window_seconds: 300
+      lockout_seconds: 900
+    ip:
+      max_failures: 20
+      window_seconds: 300
+      lockout_seconds: 900
 
 http:
+  client_ip:
+    # always_trust | trusted_proxy | never
+    mode: always_trust
+    trusted_proxies: []
   cors:
     enabled: true
     allow_origins:

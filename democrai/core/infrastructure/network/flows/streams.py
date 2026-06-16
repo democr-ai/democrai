@@ -139,6 +139,7 @@ async def cleanup_client(network, bus, client_id):
     if session_scope.startswith("client:"):
         network._session_external_approvals.pop(session_scope, None)
     network._client_session_keys.pop(key, None)
+    getattr(network, "_client_ips", {}).pop(key, None)
     network._stream_owners.pop(network._default_stream_id(client_id), None)
 
 

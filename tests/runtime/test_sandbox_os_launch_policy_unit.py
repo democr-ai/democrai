@@ -1031,6 +1031,7 @@ def test_windows_low_integrity_cleanup_is_noop(monkeypatch, tmp_path):
     assert calls == []
 
 
+@pytest.mark.windows_only
 def test_windows_stdio_handles_are_made_inheritable(monkeypatch):
     calls = []
 

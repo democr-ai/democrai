@@ -61,6 +61,7 @@ class Network:
     _build_context = protocol_handlers.build_context
     register_authenticated_client = protocol_handlers.register_authenticated_client
     register_client_session_key = protocol_handlers.register_client_session_key
+    register_client_ip = protocol_handlers.register_client_ip
     _default_stream_id = staticmethod(protocol_handlers.default_stream_id)
     _bind_stream_to_owner = protocol_handlers.bind_stream_to_owner
     _stream_owner_matches = protocol_handlers.stream_owner_matches
@@ -105,6 +106,7 @@ class Network:
             Tuple[int, Any], Tuple[int, Optional[str], Optional[int], Optional[int]]
         ]
         self._client_session_keys: Dict[Tuple[int, Any], str]
+        self._client_ips: Dict[Tuple[int, Any], str]
         self._session_external_approvals: Dict[str, set[str]]
         self._stream_owners: Dict[str, Tuple[int, Any]]
         self._media_stream_tasks: Dict[str, asyncio.Task]

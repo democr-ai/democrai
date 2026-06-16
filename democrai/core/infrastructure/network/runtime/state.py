@@ -14,6 +14,7 @@ def init_state(network) -> None:
     network._active_subscriptions = {}
     network._authenticated_clients = {}
     network._client_session_keys = {}
+    network._client_ips = {}
     network._session_external_approvals = {}
     network._stream_owners = {}
     network._media_stream_tasks = {}

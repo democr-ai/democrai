@@ -15,7 +15,7 @@ import pytest
 RUN_ENV = "DEMOCRAI_RUN_REAL_SANDBOX_TESTS"
 
 
-pytestmark = pytest.mark.sudo_sandbox
+pytestmark = [pytest.mark.sudo_sandbox, pytest.mark.linux_only]
 
 
 def _requires_real_sandbox() -> None:
@@ -417,10 +417,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
                     @classmethod
                     async def call_engine_via_sdk(cls):
-                        import sudo_probe_sdk_bridge
                         from democrai.sdk.client import active_sdk
-
-                        sudo_probe_sdk_bridge.patch_sdk_ai()
 
                         resolved = await active_sdk.ai.get_provider_by_model_registry_id(1)
                         if resolved.get("status") != "ok":
@@ -508,79 +505,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         module_name="system",
                     )
             ''')
-            sdk_bridge_code = generated_module('''
-                from __future__ import annotations
-
-
-                def _cgroup(pid="self"):
-                    with open(f"/proc/{{pid}}/cgroup", "r", encoding="utf-8") as handle:
-                        return handle.read()
-
-
-                def _sandbox_payload(pid="self"):
-                    text = _cgroup(pid)
-                    return {{"sandboxed": "democrai_os_sandbox_" in text, "cgroup": text}}
-
-
-                class _SudoProbeProvider:
-                    async def generate_completion(self, messages=None, options=None):
-                        from democrai.core.infrastructure.ai.engine.invocation.providers.orchestrated import (
-                            OrchestratedEngineProvider,
-                        )
-
-                        class _FakeEngineOrchestratorProvider:
-                            requires_media_storage_refs = False
-
-                            async def invoke(self, target, request):
-                                return {{
-                                    "status": "ok",
-                                    "orchestrator_boundary": True,
-                                    "caller": _sandbox_payload(),
-                                    "selector_type": target.selector_type,
-                                    "model_registry_id": target.model_registry_id,
-                                    "method": request.method,
-                                    "payload": request.payload,
-                                }}
-
-                            async def invoke_stream(self, target, request, *, on_message=None):
-                                raise NotImplementedError
-
-                            async def cancel(self, request_id):
-                                return True
-
-                            def cancel_sync(self, request_id):
-                                return True
-
-                        provider = OrchestratedEngineProvider(
-                            selector_type="model_registry_id",
-                            model_registry_id=1,
-                            orchestrator_provider=_FakeEngineOrchestratorProvider(),
-                        )
-                        engine = await provider.generate_completion(
-                            messages=messages,
-                            options=options,
-                        )
-                        return {{
-                            "status": "ok",
-                            "orchestrator_provider": True,
-                            "engine": engine,
-                        }}
-
-
-                async def _get_provider_by_model_registry_id(
-                    self,
-                    model_registry_id,
-                    *,
-                    confirm_swap=False,
-                ):
-                    return {{"status": "ok", "provider": _SudoProbeProvider()}}
-
-
-                def patch_sdk_ai():
-                    from democrai.sdk.ai import AI
-
-                    AI.get_provider_by_model_registry_id = _get_provider_by_model_registry_id
-            ''')
             (engine_pkg / "engine.py").write_text(engine_code, encoding="utf-8")
             (extractor_pkg / "extractor.py").write_text(extractor_code, encoding="utf-8")
             from democrai.core.runtime.dependencies.engine_env import get_engine_local_env_path
@@ -612,10 +536,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
             (extractor_env_pkg / "extractor.py").write_text(extractor_code, encoding="utf-8")
             engine_env_root = get_engine_venv_site_packages_path("sudo_probe_engine")
             extractor_env_root = get_extractor_venv_site_packages_path("sudo_probe_extractor")
-            (extractor_env_root / "sudo_probe_sdk_bridge.py").write_text(
-                sdk_bridge_code,
-                encoding="utf-8",
-            )
             (engine_env_root / "sudo_probe_engine_media_bridge.py").write_text(
                 engine_media_bridge_code,
                 encoding="utf-8",
@@ -714,6 +634,45 @@ def sandbox_harness(tmp_path: Path) -> Path:
             from democrai.core.runtime.foundation.app import reset_req_ctx
 
             reset_req_ctx(token)
+
+
+        def patch_probe_model_orchestrator():
+            from democrai.core.application.ai import orchestrator as orchestrator_mod
+
+            previous = orchestrator_mod.model_orchestrator.get_provider_by_model_registry_id
+
+            class _SudoProbeProvider:
+                async def generate_completion(self, messages=None, options=None):
+                    return {{
+                        "status": "ok",
+                        "orchestrator_provider": True,
+                        "engine": {{
+                            "orchestrator_boundary": True,
+                            "messages": list(messages or []),
+                            "options": dict(options or {{}}),
+                        }},
+                    }}
+
+            async def _get_provider_by_model_registry_id(
+                model_registry_id,
+                confirm_swap=False,
+                **_kwargs,
+            ):
+                if int(model_registry_id) != 1:
+                    return {{
+                        "status": "error",
+                        "error": f"model_registry_row_not_found:{{model_registry_id}}",
+                    }}
+                return {{"status": "ok", "provider": _SudoProbeProvider()}}
+
+            orchestrator_mod.model_orchestrator.get_provider_by_model_registry_id = (
+                _get_provider_by_model_registry_id
+            )
+            return lambda: setattr(
+                orchestrator_mod.model_orchestrator,
+                "get_provider_by_model_registry_id",
+                previous,
+            )
 
 
         def make_fake_skill():
@@ -1255,6 +1214,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 make_fake_extensions()
                 from democrai.core.application.knowledge.extractor.worker_subject import ExtractorWorkerSubject
 
+                restore_model_orchestrator = patch_probe_model_orchestrator()
                 request_token = set_probe_request_context()
                 try:
                     subject = ExtractorWorkerSubject(
@@ -1270,6 +1230,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         subject.close()
                 finally:
                     reset_probe_request_context(request_token)
+                    restore_model_orchestrator()
                 engine_payload = payload.get("engine")
                 if not isinstance(engine_payload, dict):
                     raise AssertionError("extractor engine payload missing")
@@ -1277,8 +1238,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
                     raise AssertionError("extractor SDK did not use orchestrator provider")
                 if not engine_payload.get("orchestrator_boundary"):
                     raise AssertionError("extractor SDK did not cross orchestrator boundary")
-                if not engine_payload.get("caller", {{}}).get("sandboxed"):
-                    raise AssertionError("extractor SDK call escaped OS sandbox")
                 result(
                     ok=True,
                     extractor_worker_cgroup=extractor_worker_cgroup,

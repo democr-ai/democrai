@@ -90,9 +90,8 @@ def test_sdui_include_absolute_path_to_blocked_directory(tmp_path: Path):
     returns /root/secret.yaml (absolute paths reset the join).
     /root is not in the process_guard whitelist, so access is blocked.
 
-    This verifies that while YamlUIBuilder doesn't sanitize absolute paths,
-    process_guard prevents access to directories outside the allowed list
-    (whitelist includes /etc, /usr, /tmp, but NOT /root).
+    The process guard hides denied existence checks as "not found", so the
+    include layer must not learn whether the denied absolute path exists.
     """
     module_dir = tmp_path / "module"
     module_dir.mkdir(parents=True, exist_ok=True)
@@ -110,7 +109,7 @@ components:
         allowed_paths=[str(module_dir)],
         allow_subprocess=False,
     ):
-        with pytest.raises(PermissionError, match="sandbox_filesystem_denied"):
+        with pytest.raises(FileNotFoundError, match="Included YAML file not found"):
             builder.build(yaml_content)
 
 

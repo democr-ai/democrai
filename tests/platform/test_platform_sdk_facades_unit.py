@@ -412,6 +412,21 @@ async def test_events_extractors_hooks_knowledge_engines_effects_models(monkeypa
         async def sync_active_engines(self):
             runtime_calls.append("sync")
 
+    class _EngineInvocationProvider:
+        def sync_active_engines(self):
+            runtime_calls.append("sync")
+
+    class _EngineOrchestratorProviderResolver:
+        def provider(self):
+            return _EngineInvocationProvider()
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "democrai.core.infrastructure.ai.engine.invocation.orchestrator",
+        SimpleNamespace(
+            EngineOrchestratorProviderResolver=_EngineOrchestratorProviderResolver
+        ),
+    )
     monkeypatch.setitem(__import__("sys").modules, "democrai.core.application.ai.engine.runtime", SimpleNamespace(get_engine_runtime=lambda: _EngineRuntime(), check_engine_runtime_config=lambda engine_id, config: {"engine": engine_id, "config": config}))
     monkeypatch.setitem(__import__("sys").modules, "democrai.core.application.ai.models.catalog", SimpleNamespace(engine_model_source_modes=lambda engine_id: ["catalog"], get_engine_model_management=lambda engine_id: {"m": engine_id}, get_engine_model_schema=lambda engine_id, source_mode: {"schema": source_mode}, list_engine_models=lambda engine_id: [{"id": 1}], resolve_engine_model=lambda *a, **k: {"resolved": True}))
     async def _available_models(engine_id):

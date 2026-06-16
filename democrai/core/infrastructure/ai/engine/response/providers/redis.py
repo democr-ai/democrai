@@ -53,6 +53,13 @@ return id
 """
 
 
+def _log_warning(message: str) -> None:
+    logger = getattr(app_ctx(), "logger", None)
+    warning = getattr(logger, "warning", None)
+    if callable(warning):
+        warning(message)
+
+
 class RedisEngineResponseStream(EngineResponseStream):
     """Per-request engine response stream backed by Redis Streams.
 
@@ -257,12 +264,10 @@ class RedisEngineResponseStream(EngineResponseStream):
                     try:
                         await self._refresh_local_subscribers(channel_id)
                     except Exception as exc:
-                        logger = getattr(app_ctx(), "logger", None)
-                        if logger is not None:
-                            logger.warning(
-                                "[Engine] Redis response subscriber refresh "
-                                f"failed: {exc}"
-                            )
+                        _log_warning(
+                            "[Engine] Redis response subscriber refresh "
+                            f"failed: {exc}"
+                        )
                     await asyncio.sleep(0.01)
                     continue
                 raise RuntimeError("engine_response_stream_no_active_subscriber")
@@ -275,7 +280,6 @@ class RedisEngineResponseStream(EngineResponseStream):
         channel_id: str,
         state: _ChannelState,
     ) -> None:
-        logger = getattr(app_ctx(), "logger", None)
         while True:
             try:
                 tokens = list(state.tokens.values())
@@ -286,10 +290,9 @@ class RedisEngineResponseStream(EngineResponseStream):
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                if logger is not None:
-                    logger.warning(
-                        f"[Engine] Redis response subscriber heartbeat failed: {exc}"
-                    )
+                _log_warning(
+                    f"[Engine] Redis response subscriber heartbeat failed: {exc}"
+                )
             await asyncio.sleep(_SUBSCRIBER_HEARTBEAT_SECONDS)
 
     async def _register_subscriber(self, channel_id: str, token: str) -> None:
@@ -338,7 +341,6 @@ class RedisEngineResponseStream(EngineResponseStream):
 
     async def _read_channel(self, channel_id: str, state: _ChannelState) -> None:
         last_id = "0-0"
-        logger = getattr(app_ctx(), "logger", None)
         while True:
             try:
                 client = await self._client()
@@ -360,10 +362,7 @@ class RedisEngineResponseStream(EngineResponseStream):
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                if logger is not None:
-                    logger.warning(
-                        f"[Engine] Redis response stream read failed: {exc}"
-                    )
+                _log_warning(f"[Engine] Redis response stream read failed: {exc}")
                 await asyncio.sleep(1.0)
 
     @staticmethod

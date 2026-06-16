@@ -74,6 +74,7 @@ desktop = [
 ]
 dev = [
     "grpcio-tools>=1.80,<1.82",
+    "httpx2>=2,<3",
     "pytest>=9,<10",
     "pytest-asyncio>=1.4,<2",
     "pytest-cov>=7,<8",

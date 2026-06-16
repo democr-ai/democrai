@@ -55,6 +55,33 @@ class User(Base):
         return f"<User(username='{self.username}')>"
 
 
+class AuthLoginRateLimit(Base):
+    __tablename__ = "auth_login_rate_limits"
+    __table_args__ = (
+        UniqueConstraint(
+            "bucket_type",
+            "bucket_value",
+            name="uq_auth_login_rate_limit_bucket",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bucket_type = Column(String(32), nullable=False, index=True)
+    bucket_value = Column(String(255), nullable=False, index=True)
+    failures = Column(Integer, nullable=False, default=0)
+    window_started_at = Column(DateTime, nullable=True)
+    last_failed_at = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    def __repr__(self):
+        return (
+            f"<AuthLoginRateLimit(bucket='{self.bucket_type}:{self.bucket_value}', "
+            f"failures={self.failures})>"
+        )
+
+
 class Role(Base):
     __tablename__ = "roles"
 

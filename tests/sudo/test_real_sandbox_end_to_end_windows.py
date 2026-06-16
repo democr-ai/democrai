@@ -17,7 +17,7 @@ import pytest
 RUN_ENV = "DEMOCRAI_RUN_REAL_SANDBOX_TESTS"
 
 
-pytestmark = pytest.mark.sudo_sandbox
+pytestmark = [pytest.mark.sudo_sandbox, pytest.mark.windows_only]
 
 
 def _requires_real_sandbox() -> None:
@@ -361,6 +361,45 @@ def sandbox_harness(tmp_path: Path) -> Path:
             reset_req_ctx(token)
 
 
+        def patch_probe_model_orchestrator():
+            from democrai.core.application.ai import orchestrator as orchestrator_mod
+
+            previous = orchestrator_mod.model_orchestrator.get_provider_by_model_registry_id
+
+            class _SudoProbeProvider:
+                async def generate_completion(self, messages=None, options=None):
+                    return {{
+                        "status": "ok",
+                        "orchestrator_provider": True,
+                        "engine": {{
+                            "orchestrator_boundary": True,
+                            "messages": list(messages or []),
+                            "options": dict(options or {{}}),
+                        }},
+                    }}
+
+            async def _get_provider_by_model_registry_id(
+                model_registry_id,
+                confirm_swap=False,
+                **_kwargs,
+            ):
+                if int(model_registry_id) != 1:
+                    return {{
+                        "status": "error",
+                        "error": f"model_registry_row_not_found:{{model_registry_id}}",
+                    }}
+                return {{"status": "ok", "provider": _SudoProbeProvider()}}
+
+            orchestrator_mod.model_orchestrator.get_provider_by_model_registry_id = (
+                _get_provider_by_model_registry_id
+            )
+            return lambda: setattr(
+                orchestrator_mod.model_orchestrator,
+                "get_provider_by_model_registry_id",
+                previous,
+            )
+
+
         def _generated_module(body):
             lines = textwrap.dedent(body).splitlines()
             while lines and not lines[0].strip():
@@ -468,10 +507,10 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
                     @classmethod
                     async def call_engine_via_sdk(cls):
-                        import sudo_probe_sdk_bridge
                         from democrai.sdk.client import active_sdk
-                        sudo_probe_sdk_bridge.patch_sdk_ai()
                         resolved = await active_sdk.ai.get_provider_by_model_registry_id(1)
+                        if resolved.get("status") != "ok":
+                            raise RuntimeError(resolved.get("error") or "provider_unavailable")
                         provider = resolved.get("provider")
                         if provider is None:
                             raise RuntimeError("provider_missing")
@@ -483,18 +522,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
                         return sudo_probe_extractor_media_bridge.materialize(storage_path)
             ''').replace("__CHILD__", repr(CHILD))
 
-            sdk_bridge_code = _generated_module('''
-                class _SudoProbeProvider:
-                    async def generate_completion(self, messages=None, options=None):
-                        return {{"status": "ok", "orchestrator_provider": True, "orchestrator_boundary": True}}
-
-                async def _get_provider_by_model_registry_id(self, model_registry_id, *, confirm_swap=False):
-                    return {{"status": "ok", "provider": _SudoProbeProvider()}}
-
-                def patch_sdk_ai():
-                    from democrai.sdk.ai import AI
-                    AI.get_provider_by_model_registry_id = _get_provider_by_model_registry_id
-            ''')
             engine_media_bridge_code = _generated_module('''
                 import uuid
                 from democrai.core.application.ai.engine.runtime.serialization import json_value
@@ -560,7 +587,6 @@ def sandbox_harness(tmp_path: Path) -> Path:
             (extractor_env_root / "sudo_probe_extractor" / "__init__.py").write_text("", encoding="utf-8")
             (engine_env_root / "sudo_probe_engine" / "engine.py").write_text(engine_code, encoding="utf-8")
             (extractor_env_root / "sudo_probe_extractor" / "extractor.py").write_text(extractor_code, encoding="utf-8")
-            (extractor_env_root / "sudo_probe_sdk_bridge.py").write_text(sdk_bridge_code, encoding="utf-8")
             (engine_env_root / "sudo_probe_engine_media_bridge.py").write_text(engine_media_bridge_code, encoding="utf-8")
             (extractor_env_root / "sudo_probe_extractor_media_bridge.py").write_text(extractor_media_bridge_code, encoding="utf-8")
             (engine_env_root / "sudo_probe_mcp_bridge.py").write_text(mcp_bridge_code, encoding="utf-8")
@@ -868,6 +894,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
         def case_extractor_calls_engine_via_sdk():
             make_fake_extensions()
             from democrai.core.application.knowledge.extractor.worker_subject import ExtractorWorkerSubject
+            restore_model_orchestrator = patch_probe_model_orchestrator()
             request_token = set_probe_request_context()
             try:
                 subject = ExtractorWorkerSubject(extractor_id="sudo_probe_extractor", phase="runtime", config={{}})
@@ -877,6 +904,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
                     subject.close()
             finally:
                 reset_probe_request_context(request_token)
+                restore_model_orchestrator()
             if not payload.get("orchestrator_provider") or not payload.get("engine", {{}}).get("orchestrator_boundary"):
                 raise AssertionError(f"extractor SDK did not use orchestrator boundary: {{payload!r}}")
             result(ok=True, payload=payload)

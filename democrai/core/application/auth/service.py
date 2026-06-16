@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-import threading
-import time
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, Optional
-from democrai.core.infrastructure.database.models import User, Role, Permission
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
+from democrai.core.infrastructure.database.models import (
+    AuthLoginRateLimit,
+    User,
+    Role,
+    Permission,
+)
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.application.auth.jwt import create_access_token, decode_access_token
-from democrai.core.runtime.foundation.app import app_ctx
+from democrai.core.runtime.foundation.app import app_ctx, req_ctx
 from democrai.core.application.auth.roles import (
     ROLE_GUEST,
     ROLE_LEVEL_GUEST,
@@ -21,6 +28,8 @@ from democrai.core.application.auth.roles import (
 )
 from democrai.core.runtime.observability.profiling import current_request_profiler
 from democrai.core.platform.utils.identity import to_optional_int, to_required_int
+from democrai.core.platform.utils.normalize import normalize_bool
+from democrai.core.platform.utils.timezone import utc_now_naive
 import bcrypt
 
 from democrai.core.platform.utils.runtime_names import RUNTIME_NAME_SEGMENT_PATTERN
@@ -34,30 +43,212 @@ CORE_MODULE_ROLES = {
     ROLE_USER: ("Authenticated User", ROLE_LEVEL_USER),
     ROLE_GUEST: ("Guest User", ROLE_LEVEL_GUEST),
 }
-_LOGIN_RATE_LIMIT_LOCK = threading.Lock()
 _LOGIN_FAILURE_WINDOW_SECONDS = 300.0
 _LOGIN_LOCKOUT_SECONDS = 900.0
 _LOGIN_MAX_FAILURES = 5
-_login_attempts: dict[str, dict[str, float | int]] = {}
+_LOGIN_IP_MAX_FAILURES = 20
+_DUMMY_PASSWORD_HASH = "$2a$12$KIo8MTw30r.gDmKPxjGOX.r5Ys6MxBGaXfub9RVrYeNkFiBVLtxr2"
 
 
 def _normalize_login_key(username: str) -> str:
     return username.strip().casefold() if isinstance(username, str) else ""
 
 
-def _prune_login_attempt(
-    now: float,
-    record: dict[str, float | int] | None,
-) -> dict[str, float | int] | None:
-    if not record:
+def _normalize_ip_key(client_ip: str | None) -> str:
+    return client_ip.strip() if isinstance(client_ip, str) else ""
+
+
+@dataclass(frozen=True)
+class _LoginRateLimitPolicy:
+    max_failures: int
+    window_seconds: int
+    lockout_seconds: int
+
+
+def _config_value(key: str, default: Any) -> Any:
+    config = getattr(app_ctx(), "config", None)
+    if config is None:
+        return default
+    return config.get(key, default)
+
+
+def _config_positive_int(key: str, default: int) -> int:
+    try:
+        value = int(_config_value(key, default))
+    except Exception:
+        return default
+    return value if value > 0 else default
+
+
+def _login_rate_limit_enabled() -> bool:
+    return normalize_bool(
+        _config_value("auth.login_rate_limit.enabled", True),
+        default=True,
+    )
+
+
+def _login_rate_limit_policy(bucket_type: str) -> _LoginRateLimitPolicy:
+    if bucket_type == "ip":
+        return _LoginRateLimitPolicy(
+            max_failures=_config_positive_int(
+                "auth.login_rate_limit.ip.max_failures",
+                _LOGIN_IP_MAX_FAILURES,
+            ),
+            window_seconds=_config_positive_int(
+                "auth.login_rate_limit.ip.window_seconds",
+                int(_LOGIN_FAILURE_WINDOW_SECONDS),
+            ),
+            lockout_seconds=_config_positive_int(
+                "auth.login_rate_limit.ip.lockout_seconds",
+                int(_LOGIN_LOCKOUT_SECONDS),
+            ),
+        )
+    return _LoginRateLimitPolicy(
+        max_failures=_config_positive_int(
+            "auth.login_rate_limit.username.max_failures",
+            _LOGIN_MAX_FAILURES,
+        ),
+        window_seconds=_config_positive_int(
+            "auth.login_rate_limit.username.window_seconds",
+            int(_LOGIN_FAILURE_WINDOW_SECONDS),
+        ),
+        lockout_seconds=_config_positive_int(
+            "auth.login_rate_limit.username.lockout_seconds",
+            int(_LOGIN_LOCKOUT_SECONDS),
+        ),
+    )
+
+
+def _current_client_ip() -> str | None:
+    try:
+        current = req_ctx()
+    except Exception:
         return None
-    last_failed_at = float(record.get("last_failed_at", 0.0))
-    locked_until = float(record.get("locked_until", 0.0))
-    if locked_until > now:
-        return record
-    if (now - last_failed_at) > _LOGIN_FAILURE_WINDOW_SECONDS:
-        return None
-    return record
+    return _normalize_ip_key(getattr(current, "client_ip", None)) or None
+
+
+def _login_rate_limit_buckets(
+    username: str,
+    client_ip: str | None,
+) -> list[tuple[str, str]]:
+    buckets = []
+    username_key = _normalize_login_key(username)
+    if username_key:
+        buckets.append(("username", username_key))
+    ip_key = _normalize_ip_key(client_ip)
+    if ip_key:
+        buckets.append(("ip", ip_key))
+    return buckets
+
+
+def _get_rate_limit_bucket(db, bucket_type: str, bucket_value: str):
+    return (
+        db.query(AuthLoginRateLimit)
+        .filter(
+            AuthLoginRateLimit.bucket_type == bucket_type,
+            AuthLoginRateLimit.bucket_value == bucket_value,
+        )
+        .with_for_update()
+        .first()
+    )
+
+
+def _ensure_rate_limit_bucket(db, bucket_type: str, bucket_value: str):
+    bucket = _get_rate_limit_bucket(db, bucket_type, bucket_value)
+    if bucket is not None:
+        return bucket
+    now = utc_now_naive()
+    bucket = AuthLoginRateLimit(
+        bucket_type=bucket_type,
+        bucket_value=bucket_value,
+        failures=0,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(bucket)
+    db.flush()
+    return bucket
+
+
+def _bucket_is_locked(bucket: AuthLoginRateLimit | None, now) -> bool:
+    if bucket is None:
+        return False
+    locked_until = bucket.locked_until
+    return locked_until is not None and locked_until > now
+
+
+def _bucket_within_window(bucket: AuthLoginRateLimit, policy: _LoginRateLimitPolicy, now) -> bool:
+    if bucket.window_started_at is None:
+        return False
+    return now - bucket.window_started_at <= timedelta(seconds=policy.window_seconds)
+
+
+def _max_login_rate_limit_window_seconds() -> int:
+    username_policy = _login_rate_limit_policy("username")
+    ip_policy = _login_rate_limit_policy("ip")
+    return max(
+        username_policy.window_seconds,
+        username_policy.lockout_seconds,
+        ip_policy.window_seconds,
+        ip_policy.lockout_seconds,
+    )
+
+
+def _prune_expired_login_rate_limits(db, now) -> None:
+    cutoff = now - timedelta(seconds=_max_login_rate_limit_window_seconds())
+    db.query(AuthLoginRateLimit).filter(
+        or_(
+            AuthLoginRateLimit.last_failed_at.is_(None),
+            AuthLoginRateLimit.last_failed_at < cutoff,
+        ),
+        or_(
+            AuthLoginRateLimit.locked_until.is_(None),
+            AuthLoginRateLimit.locked_until <= now,
+        ),
+    ).delete(synchronize_session=False)
+
+
+def _check_login_allowed_locked(
+    db,
+    buckets: list[tuple[str, str]],
+    now,
+    client_ip: str | None,
+) -> bool:
+    for bucket_type, bucket_value in buckets:
+        bucket = _ensure_rate_limit_bucket(db, bucket_type, bucket_value)
+        if _bucket_is_locked(bucket, now):
+            _record_auth_event(
+                event_type="auth.login.rate_limited",
+                subject_user_id=None,
+                success=False,
+                metadata={
+                    "reason": "too_many_attempts",
+                    "bucket_type": bucket_type,
+                    "client_ip": client_ip,
+                },
+            )
+            return False
+    return True
+
+
+def _record_login_failure_locked(
+    db,
+    buckets: list[tuple[str, str]],
+    now,
+) -> None:
+    for bucket_type, bucket_value in buckets:
+        policy = _login_rate_limit_policy(bucket_type)
+        bucket = _ensure_rate_limit_bucket(db, bucket_type, bucket_value)
+        if not _bucket_within_window(bucket, policy, now):
+            bucket.failures = 0
+            bucket.window_started_at = now
+            bucket.locked_until = None
+        bucket.failures = int(bucket.failures or 0) + 1
+        bucket.last_failed_at = now
+        bucket.updated_at = now
+        if bucket.failures >= policy.max_failures:
+            bucket.locked_until = now + timedelta(seconds=policy.lockout_seconds)
+            bucket.failures = 0
 
 
 def is_valid_module_name(module_name: str | None) -> bool:
@@ -287,51 +478,80 @@ def _record_auth_event(
         return
 
 
-def check_login_allowed(username: str) -> bool:
-    key = _normalize_login_key(username)
-    now = time.monotonic()
-    with _LOGIN_RATE_LIMIT_LOCK:
-        record = _prune_login_attempt(now, _login_attempts.get(key))
-        if record is None:
-            _login_attempts.pop(key, None)
-            return True
-        _login_attempts[key] = record
-        allowed = float(record.get("locked_until", 0.0)) <= now
-    if not allowed:
-        _record_auth_event(
-            event_type="auth.login.rate_limited",
-            subject_user_id=None,
-            success=False,
-            metadata={"reason": "too_many_attempts"},
-        )
-    return allowed
+def check_login_allowed(username: str, client_ip: str | None = None) -> bool:
+    if not _login_rate_limit_enabled():
+        return True
+    buckets = _login_rate_limit_buckets(username, client_ip)
+    if not buckets:
+        return True
+    now = utc_now_naive()
+    db = SessionLocal()
+    try:
+        _prune_expired_login_rate_limits(db, now)
+        for bucket_type, bucket_value in buckets:
+            bucket = _get_rate_limit_bucket(db, bucket_type, bucket_value)
+            if _bucket_is_locked(bucket, now):
+                _record_auth_event(
+                    event_type="auth.login.rate_limited",
+                    subject_user_id=None,
+                    success=False,
+                    metadata={
+                        "reason": "too_many_attempts",
+                        "bucket_type": bucket_type,
+                        "client_ip": client_ip,
+                    },
+                )
+                db.commit()
+                return False
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
-def record_login_failure(username: str) -> None:
-    key = _normalize_login_key(username)
-    now = time.monotonic()
-    with _LOGIN_RATE_LIMIT_LOCK:
-        record = _prune_login_attempt(now, _login_attempts.get(key)) or {
-            "failures": 0,
-            "last_failed_at": 0.0,
-            "locked_until": 0.0,
-        }
-        failures = record.get("failures", 0) + 1
-        locked_until = record.get("locked_until", 0.0)
-        if failures >= _LOGIN_MAX_FAILURES:
-            locked_until = now + _LOGIN_LOCKOUT_SECONDS
-            failures = 0
-        _login_attempts[key] = {
-            "failures": failures,
-            "last_failed_at": now,
-            "locked_until": locked_until,
-        }
+def record_login_failure(username: str, client_ip: str | None = None) -> None:
+    if not _login_rate_limit_enabled():
+        return
+    buckets = _login_rate_limit_buckets(username, client_ip)
+    if not buckets:
+        return
+    for attempt in range(2):
+        now = utc_now_naive()
+        db = SessionLocal()
+        try:
+            _prune_expired_login_rate_limits(db, now)
+            _record_login_failure_locked(db, buckets, now)
+            db.commit()
+            return
+        except IntegrityError:
+            db.rollback()
+            if attempt:
+                raise
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
 
 def clear_login_failures(username: str) -> None:
     key = _normalize_login_key(username)
-    with _LOGIN_RATE_LIMIT_LOCK:
-        _login_attempts.pop(key, None)
+    if not key:
+        return
+    db = SessionLocal()
+    try:
+        bucket = _get_rate_limit_bucket(db, "username", key)
+        if bucket is not None:
+            db.delete(bucket)
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def build_token_payload(user_info: dict[str, Any]) -> dict[str, Any]:
@@ -453,6 +673,11 @@ def verify_user(username, password) -> tuple[bool, Optional[User]]:
             else:
                 ok = check_password(password, user.password_hash)
         else:
+            if profiler is not None:
+                with profiler.span("auth.verify.check_password"):
+                    check_password(password, _DUMMY_PASSWORD_HASH)
+            else:
+                check_password(password, _DUMMY_PASSWORD_HASH)
             ok = False
 
         if ok:
@@ -572,23 +797,56 @@ def get_user_access_profile_by_username(username: str) -> Optional[dict]:
 
 
 def login_user(username: str, password: str) -> dict[str, Any]:
-    if not check_login_allowed(username):
-        return {
-            "ok": False,
-            "type": "error",
-            "error": "rate_limited",
-            "details": "Too many attempts. Please try again later.",
-        }
+    client_ip = _current_client_ip()
+    buckets = _login_rate_limit_buckets(username, client_ip)
+    rate_limit_db = None
+    if _login_rate_limit_enabled() and buckets:
+        rate_limit_db = SessionLocal()
+        try:
+            now = utc_now_naive()
+            _prune_expired_login_rate_limits(rate_limit_db, now)
+            if not _check_login_allowed_locked(rate_limit_db, buckets, now, client_ip):
+                rate_limit_db.rollback()
+                return {
+                    "ok": False,
+                    "type": "error",
+                    "error": "rate_limited",
+                    "details": "Too many attempts. Please try again later.",
+                }
+        except IntegrityError:
+            rate_limit_db.rollback()
+            rate_limit_db.close()
+            return login_user(username, password)
+        except Exception:
+            rate_limit_db.rollback()
+            rate_limit_db.close()
+            raise
 
-    verified, user = verify_user(username, password)
+    try:
+        verified, user = verify_user(username, password)
+    except Exception:
+        if rate_limit_db is not None:
+            rate_limit_db.rollback()
+            rate_limit_db.close()
+        raise
     subject_user_id = user.id if user else None
     if not verified or user is None or subject_user_id is None:
-        record_login_failure(username)
+        if rate_limit_db is not None:
+            try:
+                _record_login_failure_locked(rate_limit_db, buckets, utc_now_naive())
+                rate_limit_db.commit()
+            except Exception:
+                rate_limit_db.rollback()
+                rate_limit_db.close()
+                raise
+            rate_limit_db.close()
+        else:
+            record_login_failure(username, client_ip)
         _record_auth_event(
             event_type="auth.login.failed",
             subject_user_id=subject_user_id,
             success=False,
-            metadata={"reason": "invalid_credentials"},
+            metadata={"reason": "invalid_credentials", "client_ip": client_ip},
         )
         return {
             "ok": False,
@@ -596,6 +854,9 @@ def login_user(username: str, password: str) -> dict[str, Any]:
             "error": "invalid_credentials",
             "details": "Invalid credentials.",
         }
+    if rate_limit_db is not None:
+        rate_limit_db.rollback()
+        rate_limit_db.close()
 
     user_info = get_user_access_profile(subject_user_id)
     if not user_info:
@@ -603,7 +864,7 @@ def login_user(username: str, password: str) -> dict[str, Any]:
             event_type="auth.login.failed",
             subject_user_id=subject_user_id,
             success=False,
-            metadata={"reason": "profile_unavailable"},
+            metadata={"reason": "profile_unavailable", "client_ip": client_ip},
         )
         return {
             "ok": False,
@@ -623,7 +884,7 @@ def login_user(username: str, password: str) -> dict[str, Any]:
             event_type="auth.login.failed",
             subject_user_id=subject_user_id,
             success=False,
-            metadata={"reason": "token_creation_error"},
+            metadata={"reason": "token_creation_error", "client_ip": client_ip},
         )
         return {
             "ok": False,
@@ -637,7 +898,7 @@ def login_user(username: str, password: str) -> dict[str, Any]:
             event_type="auth.login.failed",
             subject_user_id=subject_user_id,
             success=False,
-            metadata={"reason": "token_immediately_invalid"},
+            metadata={"reason": "token_immediately_invalid", "client_ip": client_ip},
         )
         return {
             "ok": False,
@@ -655,6 +916,7 @@ def login_user(username: str, password: str) -> dict[str, Any]:
             "role": token_payload["role"],
             "organization_id": token_payload["organization_id"],
             "access_level": token_payload["access_level"],
+            "client_ip": client_ip,
         },
     )
     return {

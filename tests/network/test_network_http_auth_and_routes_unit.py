@@ -25,7 +25,15 @@ def test_http_auth_helpers(monkeypatch):
     from democrai.core.infrastructure.network.http import auth as mod
 
     logger = _Logger()
-    monkeypatch.setattr(mod, "app_ctx", lambda: SimpleNamespace(logger=logger))
+    config_values = {}
+    monkeypatch.setattr(
+        mod,
+        "app_ctx",
+        lambda: SimpleNamespace(
+            logger=logger,
+            config=SimpleNamespace(get=lambda key, default=None: config_values.get(key, default)),
+        ),
+    )
     monkeypatch.setattr(mod, "decode_access_token", lambda token, log_expired=False: {"tok": token, "ok": True})
 
     assert mod.decode_token_if_present(None) is None
@@ -66,6 +74,45 @@ def test_http_auth_helpers(monkeypatch):
     assert mod.resolve_client_ip(object(), None) is None
     assert logger.warnings
 
+    config_values["http.client_ip.mode"] = "trusted_proxy"
+    config_values["http.client_ip.trusted_proxies"] = ["10.0.0.0/8"]
+    assert (
+        mod.resolve_client_ip(
+            {"x-forwarded-for": "4.4.4.4"},
+            SimpleNamespace(host="10.1.2.3"),
+        )
+        == "4.4.4.4"
+    )
+    assert (
+        mod.resolve_client_ip(
+            {"x-forwarded-for": "6.6.6.6, 4.4.4.4, 10.2.3.4"},
+            SimpleNamespace(host="10.1.2.3"),
+        )
+        == "4.4.4.4"
+    )
+    assert (
+        mod.resolve_client_ip(
+            {"x-forwarded-for": "4.4.4.4"},
+            SimpleNamespace(host="9.9.9.9"),
+        )
+        == "9.9.9.9"
+    )
+    assert (
+        mod.resolve_client_ip(
+            {"x-forwarded-for": "not-an-ip"},
+            SimpleNamespace(host="10.1.2.3"),
+        )
+        == "10.1.2.3"
+    )
+    config_values["http.client_ip.mode"] = "never"
+    assert (
+        mod.resolve_client_ip(
+            {"x-forwarded-for": "4.4.4.4"},
+            SimpleNamespace(host="9.9.9.9"),
+        )
+        == "9.9.9.9"
+    )
+
     monkeypatch.setitem(
         sys.modules,
         "democrai.core.application.auth.service",
@@ -100,6 +147,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
     session_cookies = []
     cleared = []
     cleanup_called = []
+    registered_ips = []
 
     def _decode_token_if_present(token):
         if token == "valid":
@@ -143,6 +191,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
     network = SimpleNamespace(
         buses=[_FakeWsBus()],
         register_client_session_key=lambda *a, **k: None,
+        register_client_ip=lambda *a, **k: registered_ips.append(a),
         register_authenticated_client=lambda *a, **k: None,
         _cleanup_client=_cleanup_client,
     )
@@ -154,6 +203,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         decode_token_if_present=_decode_token_if_present,
         resolve_websocket_token=lambda ws: ws.query_params.get("token"),
         session_cookie_name=lambda: "sess",
+        resolve_client_ip=lambda headers, client: "203.0.113.10",
     )
 
     client = TestClient(app)
@@ -200,6 +250,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         msg = ws.receive_json()
         assert msg["ok"] is True
     assert cleanup_called
+    assert registered_ips and registered_ips[0][-1] == "203.0.113.10"
 
     # WS fallback when no bus provider
     app2 = FastAPI()
@@ -211,6 +262,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         decode_token_if_present=_decode_token_if_present,
         resolve_websocket_token=lambda ws: None,
         session_cookie_name=lambda: "sess",
+        resolve_client_ip=lambda *_a, **_k: None,
     )
     client2 = TestClient(app2)
     with client2.websocket_connect("/ws") as ws:
@@ -227,6 +279,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         decode_token_if_present=_decode_token_if_present,
         resolve_websocket_token=lambda ws: None,
         session_cookie_name=lambda: "sess",
+        resolve_client_ip=lambda *_a, **_k: None,
     )
     client2b = TestClient(app2b)
     with client2b.websocket_connect("/ws") as ws:
@@ -265,6 +318,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         decode_token_if_present=lambda _t: None,
         resolve_websocket_token=lambda ws: None,
         session_cookie_name=lambda: "sess",
+        resolve_client_ip=lambda *_a, **_k: None,
     )
     client6 = TestClient(app6)
     with client6.websocket_connect("/ws") as ws:
@@ -322,6 +376,7 @@ def test_http_routes_auth_session_and_ws(monkeypatch):
         decode_token_if_present=lambda _t: None,
         resolve_websocket_token=lambda ws: None,
         session_cookie_name=lambda: "sess",
+        resolve_client_ip=lambda *_a, **_k: None,
     )
     client5 = TestClient(app5)
     with pytest.raises(Exception):

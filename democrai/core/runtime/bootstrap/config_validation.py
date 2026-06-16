@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import ipaddress
 from dataclasses import asdict
 from dataclasses import dataclass, field
 
@@ -69,6 +70,18 @@ def validate_config_provider(provider, *, config_path: str = "<memory>") -> Conf
             return None
         return normalized
 
+    def require_positive_int(key: str) -> None:
+        value = provider.get(key)
+        if value is None:
+            return
+        try:
+            parsed = int(value)
+        except Exception:
+            errors.append(_as_issue("error", f"{key} must be an integer"))
+            return
+        if parsed <= 0:
+            errors.append(_as_issue("error", f"{key} must be > 0"))
+
     db_type = require_one_of("database.type", {"sqlite", "postgres"})
     data_type = require_one_of("database.data_type", {"sqlite", "postgres", "supabase"})
     media_type = require_one_of("storage.media.type", {"local", "s3"})
@@ -80,6 +93,7 @@ def validate_config_provider(provider, *, config_path: str = "<memory>") -> Conf
     ui_state_provider = require_one_of("session.ui_state.provider", {"sqlite", "postgres", "redis"})
     cache_provider = require_one_of("session.cache.provider", {"memory", "redis"})
     require_one_of("network.ws.codec", {"json", "deflate-json"})
+    require_one_of("http.client_ip.mode", {"always_trust", "trusted_proxy", "never"})
     logging_provider = require_one_of("logging.provider", {"local", "http"})
     require_one_of("logging.method", {"get", "post"})
     require_one_of("modules.trust_mode", {"all", "trusted_only"})
@@ -126,6 +140,28 @@ def validate_config_provider(provider, *, config_path: str = "<memory>") -> Conf
                 "network.redis.url is required when network.redis.enabled=true",
             )
         )
+
+    login_rate_limit_enabled = provider.get("auth.login_rate_limit.enabled")
+    if login_rate_limit_enabled is not None:
+        if not isinstance(login_rate_limit_enabled, bool):
+            normalized = normalize_key(login_rate_limit_enabled)
+            if normalized not in TRUE_STRINGS and normalized not in FALSE_STRINGS:
+                errors.append(
+                    _as_issue(
+                        "error",
+                        "auth.login_rate_limit.enabled must be a boolean",
+                    )
+                )
+
+    for key in (
+        "auth.login_rate_limit.username.max_failures",
+        "auth.login_rate_limit.username.window_seconds",
+        "auth.login_rate_limit.username.lockout_seconds",
+        "auth.login_rate_limit.ip.max_failures",
+        "auth.login_rate_limit.ip.window_seconds",
+        "auth.login_rate_limit.ip.lockout_seconds",
+    ):
+        require_positive_int(key)
 
     allow_user_modules = provider.get("modules.allow_user_modules")
     if allow_user_modules is not None and not isinstance(allow_user_modules, bool):
@@ -269,6 +305,18 @@ def validate_config_provider(provider, *, config_path: str = "<memory>") -> Conf
         if isinstance(value, (list, tuple, set)):
             return [str(item).strip() for item in value if str(item).strip()]
         return [item.strip() for item in str(value).split(",") if item.strip()]
+
+    trusted_proxies = _normalize_listish(provider.get("http.client_ip.trusted_proxies"))
+    for proxy in trusted_proxies:
+        try:
+            ipaddress.ip_network(proxy, strict=False)
+        except ValueError:
+            errors.append(
+                _as_issue(
+                    "error",
+                    f"http.client_ip.trusted_proxies contains invalid CIDR/IP: {proxy}",
+                )
+            )
 
     cors_enabled = provider.get("http.cors.enabled")
     cors_enabled_normalized = False
