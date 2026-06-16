@@ -27,6 +27,7 @@ __all__ = ["is_process_elevated", "spawn_elevated_process", "ElevatedProcess"]
 _SEE_MASK_NOCLOSEPROCESS = 0x00000040
 _SW_HIDE = 0
 _ERROR_CANCELLED = 1223
+_WAIT_TIMEOUT = 0x00000102
 
 
 class _SHELLEXECUTEINFOW(ctypes.Structure):
@@ -67,9 +68,13 @@ class ElevatedProcess:
     def wait(self, timeout: float | None = None) -> int:
         if self.returncode is not None:
             return self.returncode
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         ms = 0xFFFFFFFF if timeout is None else max(0, int(float(timeout) * 1000))
-        if int(ctypes.windll.kernel32.WaitForSingleObject(self._handle, ms)) != 0:
+        result = int(kernel32.WaitForSingleObject(self._handle, ms))
+        if result == _WAIT_TIMEOUT:
             raise subprocess.TimeoutExpired("os-sandbox-helper", timeout)
+        if result != 0:  # WAIT_FAILED / WAIT_ABANDONED — not a timeout
+            raise ctypes.WinError(ctypes.get_last_error())
         self.returncode = self._exit_code()
         return self.returncode
 

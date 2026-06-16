@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
 import socket
 import subprocess
@@ -75,6 +76,9 @@ class WindowsHelperBackend:
         # same sandbox-host executable share one filter set; ref-count so one
         # child's teardown does not clear another's enforcement).
         self._identity_pids: dict[str, set[int]] = {}
+        # identity key -> the allowlist installed by the first child of that
+        # identity (to detect later children asking for a divergent allowlist).
+        self._identity_allowed: dict[str, tuple] = {}
 
     def ensure_ready(self) -> None:
         # Fail closed: WFP write access requires elevation. Without it we must NOT
@@ -193,10 +197,40 @@ class WindowsHelperBackend:
             live = self._identity_pids.setdefault(identity_key, set())
             first_for_identity = not live
             live.add(int(pid))
-            # One filter set per identity: install only for the first child that
-            # uses this sandbox-host image; later children share it.
+            # INVARIANT: children sharing a sandbox-host image share ONE filter
+            # set — installed by the first child and ref-counted. This is correct
+            # only while those children have IDENTICAL allowlists. Today they do:
+            # deny and proxy both reduce to block-except-loopback (the proxy is
+            # loopback). If a future allowlist carried a non-loopback endpoint,
+            # the first child would silently dictate the others' network policy —
+            # which would need a per-policy-class identity instead. Surface any
+            # divergence loudly so it is never silent.
             if first_for_identity:
-                self._engine.apply_block_except(identity, allowed=allowed, loopback=True)
+                self._identity_allowed[identity_key] = tuple(allowed)
+                try:
+                    self._engine.apply_block_except(identity, allowed=allowed, loopback=True)
+                except BaseException:
+                    # Atomic apply: a partial install (e.g. FwpmFilterAdd0 fails
+                    # after the v4 BLOCK is in) must not leave this pid registered
+                    # with a half-applied filter set — a sibling sharing the
+                    # identity would find first_for_identity False and inherit it.
+                    # Roll back the tracking and drop any filters already added.
+                    self._pid_identity.pop(int(pid), None)
+                    live.discard(int(pid))
+                    if not live:
+                        self._identity_pids.pop(identity_key, None)
+                    self._identity_allowed.pop(identity_key, None)
+                    with contextlib.suppress(Exception):
+                        self._engine.clear_identity(identity)
+                    raise
+            elif tuple(allowed) != self._identity_allowed.get(identity_key, ()):
+                debug_os_sandbox_flow(
+                    "windows.shared_identity_allowlist_divergence",
+                    pid=int(pid),
+                    identity=image_path,
+                    installed=[str(e) for e in self._identity_allowed.get(identity_key, ())],
+                    requested=[str(e) for e in allowed],
+                )
 
     def clear(self, *, pid: int | None) -> None:
         if pid is None or self._engine is None:
@@ -213,4 +247,5 @@ class WindowsHelperBackend:
                     # Other children still share this identity's filters.
                     return
                 self._identity_pids.pop(identity_key, None)
+            self._identity_allowed.pop(identity_key, None)
             self._engine.clear_identity(identity)

@@ -541,6 +541,20 @@ class WfpEngine:
         condition.conditionValue.v4AddrMask = ctypes.pointer(addr_mask)
         return condition
 
+    def _remote_address_condition_v6(
+        self, addr16: bytes, prefix_len: int, keepalive: list[object]
+    ) -> FWPM_FILTER_CONDITION0:
+        condition = FWPM_FILTER_CONDITION0()
+        condition.fieldKey = GUID(_FWPM_CONDITION_IP_REMOTE_ADDRESS)
+        condition.matchType = FWP_MATCH_EQUAL
+        addr_mask = FWP_V6_ADDR_AND_MASK()
+        addr_mask.addr[:] = bytes(addr16)[:16]
+        addr_mask.prefixLength = int(prefix_len) & 0xFF
+        keepalive.append(addr_mask)
+        condition.conditionValue.type = FWP_V6_ADDR_MASK
+        condition.conditionValue.v6AddrMask = ctypes.pointer(addr_mask)
+        return condition
+
     def _port_condition(self, port: int) -> FWPM_FILTER_CONDITION0:
         condition = FWPM_FILTER_CONDITION0()
         condition.fieldKey = GUID(_FWPM_CONDITION_IP_REMOTE_PORT)
@@ -569,35 +583,54 @@ class WfpEngine:
         """Block all egress for ``identity`` except loopback + ``allowed``.
 
         ``allowed`` empty + ``loopback`` True == the ``deny`` policy (only
-        loopback IPC reachable). IPv4 only for now; IPv6 follows once the IPv4
-        path is validated on a real Windows box (see the spike).
+        loopback IPC reachable). IPv4 carries the resolved allowlist; IPv6 is a
+        bridge measure — a catch-all BLOCK plus a ``::1`` loopback PERMIT, so v6
+        internet egress is denied while v6 loopback IPC keeps working (the
+        per-endpoint v6 allowlist is future work, see the spike).
         """
         identity_key = f"{identity.kind}:{identity.value}".lower()
         keepalive = self._keepalive.setdefault(identity_key, [])
 
-        # Catch-all BLOCK for this identity (low weight).
-        block_conditions = [self._identity_condition(identity, keepalive)]
-        self._add_filter(
-            identity_key,
-            layer_guid=_FWPM_LAYER_ALE_AUTH_CONNECT_V4,
-            action=FWP_ACTION_BLOCK,
-            weight=_WEIGHT_BLOCK,
-            conditions=block_conditions,
-            keepalive=keepalive,
-        )
+        # Resolve the identity (ALE_APP_ID blob via FwpmGetAppIdFromFileName0, or
+        # the ALE_USER_ID security descriptor) ONCE and reuse it across every
+        # filter below — _add_filter copies conditions by value into its own
+        # array, so the single kept-alive blob safely backs all of them.
+        identity_condition = self._identity_condition(identity, keepalive)
+
+        # Catch-all BLOCK for this identity (low weight), on both IP families.
+        for layer in (_FWPM_LAYER_ALE_AUTH_CONNECT_V4, _FWPM_LAYER_ALE_AUTH_CONNECT_V6):
+            self._add_filter(
+                identity_key,
+                layer_guid=layer,
+                action=FWP_ACTION_BLOCK,
+                weight=_WEIGHT_BLOCK,
+                conditions=[identity_condition],
+                keepalive=keepalive,
+            )
 
         if loopback:
-            # 127.0.0.0/8 PERMIT (high weight) so IPC/HTTP/gRPC loopback works.
-            loop_conditions = [
-                self._identity_condition(identity, keepalive),
-                self._remote_address_condition_v4(0x7F000000, 0xFF000000, keepalive),
-            ]
+            # 127.0.0.0/8 (v4) + ::1/128 (v6) PERMIT (high weight) so IPC/HTTP/gRPC
+            # loopback works over both families.
             self._add_filter(
                 identity_key,
                 layer_guid=_FWPM_LAYER_ALE_AUTH_CONNECT_V4,
                 action=FWP_ACTION_PERMIT,
                 weight=_WEIGHT_PERMIT,
-                conditions=loop_conditions,
+                conditions=[
+                    identity_condition,
+                    self._remote_address_condition_v4(0x7F000000, 0xFF000000, keepalive),
+                ],
+                keepalive=keepalive,
+            )
+            self._add_filter(
+                identity_key,
+                layer_guid=_FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+                action=FWP_ACTION_PERMIT,
+                weight=_WEIGHT_PERMIT,
+                conditions=[
+                    identity_condition,
+                    self._remote_address_condition_v6(b"\x00" * 15 + b"\x01", 128, keepalive),
+                ],
                 keepalive=keepalive,
             )
 
@@ -608,7 +641,7 @@ class WfpEngine:
                 continue
             addr = int.from_bytes(packed, "big")
             allow_conditions = [
-                self._identity_condition(identity, keepalive),
+                identity_condition,
                 self._remote_address_condition_v4(addr, 0xFFFFFFFF, keepalive),
                 self._port_condition(endpoint.port),
                 self._protocol_condition(endpoint.protocol),

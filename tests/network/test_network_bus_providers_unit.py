@@ -152,6 +152,7 @@ def _install_fake_pyside(monkeypatch):
     return qtnetwork
 
 
+@pytest.mark.posix_only
 def test_ipc_bus_provider_branches(monkeypatch, tmp_path):
     logger = _DummyLogger()
     monkeypatch.setattr("democrai.core.runtime.foundation.app.app_ctx", lambda: SimpleNamespace(logger=logger))

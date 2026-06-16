@@ -418,6 +418,7 @@ def test_helper_sync_and_commands(monkeypatch, tmp_path: Path):
         mod._run_helper_request_sync(socket_path="/tmp/s.sock", payload={"a": 1})
 
 
+@pytest.mark.posix_only
 def test_helper_process_tracking_and_start(monkeypatch, tmp_path: Path):
     mod = _import_helper_module(monkeypatch, tmp_path)
     monkeypatch.setattr(mod, "debug_os_sandbox_flow", lambda *a, **k: None)
@@ -663,6 +664,7 @@ def test_helper_sync_async_wrappers_and_apply_clear(monkeypatch, tmp_path: Path)
     assert reqs[2]["payload"]["action"] == "clear"
 
 
+@pytest.mark.posix_only
 def test_helper_cleanup_stop_start_remaining_branches(monkeypatch, tmp_path: Path):
     mod = _import_helper_module(monkeypatch, tmp_path)
 

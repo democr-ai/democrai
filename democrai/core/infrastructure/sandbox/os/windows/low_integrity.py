@@ -53,6 +53,11 @@ TOKEN_INTEGRITY_LEVEL = 25
 SE_GROUP_INTEGRITY = 0x00000020
 ERROR_PRIVILEGE_NOT_HELD = 1314
 LOGON_WITH_PROFILE = 0x00000001
+# Create the child with its main thread suspended so WFP egress filters are
+# installed (round-trip to the elevated helper included) BEFORE it can run — no
+# race window where the first child of an identity opens connections unfiltered.
+CREATE_SUSPENDED = 0x00000004
+WAIT_TIMEOUT = 0x00000102
 
 _WRITABLE_OPERATIONS = {"create", "modify", "delete", "write"}
 
@@ -223,10 +228,16 @@ class WindowsLowIntegrityProcess:
     def wait(self, timeout: float | None = None):
         if self.returncode is not None:
             return self.returncode
-        kernel32 = ctypes.windll.kernel32
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         milliseconds = 0xFFFFFFFF if timeout is None else max(0, int(float(timeout) * 1000))
-        if int(kernel32.WaitForSingleObject(self._process_handle, milliseconds)) != 0:
-            raise TimeoutError("windows_low_integrity_process_wait_timeout")
+        result = int(kernel32.WaitForSingleObject(self._process_handle, milliseconds))
+        if result == WAIT_TIMEOUT:
+            # subprocess.TimeoutExpired (not TimeoutError) for Popen parity: the
+            # spawn broker's _wait catches exactly that to map it to a
+            # spawn_broker_wait_timeout, matching ElevatedProcess.wait.
+            raise subprocess.TimeoutExpired("windows-low-integrity-process", timeout)
+        if result != 0:  # WAIT_FAILED / WAIT_ABANDONED — not a timeout
+            raise ctypes.WinError(ctypes.get_last_error())
         self.returncode = self._exit_code()
         self._close()
         return self.returncode
@@ -410,9 +421,10 @@ def spawn_low_integrity_process(
                 network_pid=pid if enforce else None,
             )
             if enforce:
-                # Fail closed: if OS-level egress enforcement cannot be applied
-                # (e.g. the elevated helper is unavailable), the child must not
-                # run unconfined — terminate it and propagate.
+                # The child is SUSPENDED here. Install WFP egress filters before
+                # it runs, so there is no unfiltered window. Fail closed: if
+                # enforcement cannot be applied (e.g. the elevated helper is
+                # unavailable), terminate the still-suspended child — it never ran.
                 try:
                     _apply_network_enforcement(policy, pid)
                 except BaseException:
@@ -422,6 +434,20 @@ def spawn_low_integrity_process(
                     proc._close()
                     token = None
                     raise
+            # Filters are in place (or none needed) — release the main thread.
+            # Fail closed: if the resume itself fails the child would hang
+            # SUSPENDED forever (and, for an enforced child, sit there holding a
+            # filter set); terminate it and raise rather than leak a stuck process.
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+            kernel32.ResumeThread.restype = wintypes.DWORD
+            if int(kernel32.ResumeThread(process_info.hThread)) == 0xFFFFFFFF:
+                error = ctypes.get_last_error()
+                with contextlib.suppress(Exception):
+                    kernel32.TerminateProcess(process_info.hProcess, 1)
+                proc._close()
+                token = None
+                raise ctypes.WinError(error)
             return proc
         finally:
             if attribute_list is not None:
@@ -443,7 +469,7 @@ def _create_process_as_user(token, command_line, environment, cwd, startup, proc
     advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
     # EXTENDED_STARTUPINFO_PRESENT makes CreateProcess* read the STARTUPINFOEXW
     # attribute list (the restricted handle-inheritance list).
-    flags = CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT
+    flags = CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED
     created = advapi32.CreateProcessAsUserW(
         token, None, command_line, None, None, True,
         flags, environment, cwd,

@@ -86,6 +86,75 @@ def test_distinct_identities_each_get_filters(patched, monkeypatch):
     assert len(patched.cleared) == 1
 
 
+def test_apply_block_except_covers_v4_and_v6(monkeypatch):
+    # apply_block_except must install BLOCK + loopback PERMIT on BOTH ALE layers.
+    monkeypatch.setattr(winfwp, "_fwpuclnt", lambda: SimpleNamespace())
+    engine = winfwp.WfpEngine()
+    calls: list[tuple] = []
+    monkeypatch.setattr(engine, "_identity_condition", lambda identity, ka: object())
+    monkeypatch.setattr(engine, "_remote_address_condition_v4", lambda a, m, ka: object())
+    monkeypatch.setattr(engine, "_remote_address_condition_v6", lambda a, p, ka: object())
+    monkeypatch.setattr(
+        engine,
+        "_add_filter",
+        lambda key, *, layer_guid, action, weight, conditions, keepalive: calls.append(
+            (layer_guid, action)
+        ),
+    )
+    identity = winfwp.WfpIdentity(kind="app_id", value=r"C:\v\python-democrai-sandbox.exe")
+    engine.apply_block_except(identity, allowed=[], loopback=True)
+
+    v4, v6 = winfwp._FWPM_LAYER_ALE_AUTH_CONNECT_V4, winfwp._FWPM_LAYER_ALE_AUTH_CONNECT_V6
+    assert (v4, winfwp.FWP_ACTION_BLOCK) in calls
+    assert (v6, winfwp.FWP_ACTION_BLOCK) in calls  # v6 egress denied (bridge)
+    assert (v4, winfwp.FWP_ACTION_PERMIT) in calls  # 127.0.0.0/8 loopback
+    assert (v6, winfwp.FWP_ACTION_PERMIT) in calls  # ::1 loopback
+
+
+def test_shared_identity_divergent_allowlist_warns(patched, monkeypatch):
+    events: list[str] = []
+    monkeypatch.setattr(
+        helper_mod, "debug_os_sandbox_flow", lambda event, **k: events.append(event)
+    )
+    backend = helper_mod.WindowsHelperBackend()
+    backend.apply([], pid=1000)  # first child: deny (empty allowlist) -> installs
+    assert len(patched.applied) == 1
+
+    # second child, SAME sandbox-host identity, but a divergent (non-loopback) allowlist
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda h, p, *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("203.0.113.9", p))],
+    )
+    backend.apply([{"host": "api.example", "port": 443, "protocol": "tcp"}], pid=1001)
+    assert len(patched.applied) == 1  # shared: NOT reinstalled
+    assert "windows.shared_identity_allowlist_divergence" in events
+
+
+def test_apply_rolls_back_on_engine_failure(patched, monkeypatch):
+    # A partial install (apply_block_except raises after adding some filters) must
+    # not leave the pid registered with a half-applied set — a sibling sharing the
+    # identity would otherwise find first_for_identity False and inherit it.
+    backend = helper_mod.WindowsHelperBackend()
+    real_apply = patched.apply_block_except
+    calls = {"n": 0}
+
+    def _maybe_boom(identity, *, allowed=None, loopback=True):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OSError("FwpmFilterAdd0 failed")
+        real_apply(identity, allowed=allowed, loopback=loopback)
+
+    monkeypatch.setattr(patched, "apply_block_except", _maybe_boom)
+    with pytest.raises(OSError):
+        backend.apply([], pid=1000)
+    assert patched.applied == []  # the failed install recorded nothing
+    assert len(patched.cleared) == 1  # rollback dropped any partial filters
+    # Fully rolled back: a retry is treated as the first child and installs fresh.
+    backend.apply([], pid=1000)
+    assert len(patched.applied) == 1
+
+
 def test_apply_skips_non_host_interpreter_image(patched, monkeypatch):
     # A pid whose image is a plain shared interpreter (not a sandbox-host exe)
     # must NOT get a WFP block — that would confine the helper/desktop too.
