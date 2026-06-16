@@ -1,133 +1,137 @@
-- kind: Column
-  id: auth_profile_page
-  spacing: 22
-  padding: [28, 28, 28, 28]
+- kind: ScrollArea
+  id: auth_profile_scroll
+  scroll_y: true
   children:
-    - kind: Card
-      id: auth_profile_hero
-      variant: outlined
-      padding: [22, 24, 22, 24]
-      style: "max-width: 1180px;"
-      children:
-        - kind: Row
-          id: auth_profile_hero_content
-          spacing: 18
-          align: center
-          children:
-            - kind: Column
-              id: auth_profile_identity
-              spacing: 8
-              children:
-                - kind: Text
-                  id: auth_profile_kicker
-                  text: "@t/auth.profile.kicker"
-                  muted: true
-                - kind: Title
-                  id: auth_profile_username
-                  text: "@data/auth_profile/summary/username"
-                  level: 1
-                - kind: Text
-                  id: auth_profile_email
-                  text: "@data/auth_profile/summary/email"
-                  muted: true
-                - kind: Row
-                  id: auth_profile_badges
-                  spacing: 8
-                  children:
-                    - kind: Badge
-                      id: auth_profile_role_badge
-                      text: "@data/auth_profile/summary/role"
-                      variant: default
-                    - kind: Badge
-                      id: auth_profile_org_badge
-                      text: "@data/auth_profile/summary/organization"
-                      variant: secondary
-            - kind: FlexContainer
-              id: auth_profile_hero_spacer
-            - kind: Column
-              id: auth_profile_actions
-              spacing: 10
-              children:
-                - kind: Button
-                  id: auth_profile_edit_button
-                  label: "@t/auth.profile.action.edit"
-                  icon: ric.edit-line
-                  variant: default
-                  action:
-                    name: open_drawer
-                    context: {path: /auth/profile_edit, position: right, dim: 520}
-                - kind: Button
-                  id: auth_profile_password_button
-                  label: "@t/auth.profile.action.password"
-                  icon: ric.lock-password-line
-                  variant: warning
-                  action:
-                    name: open_drawer
-                    context: {path: /auth/profile_password, position: right, dim: 520}
-    - kind: Grid
-      id: auth_profile_details_grid
-      columns: 1
-      style: "max-width: 1180px;"
+    - kind: Column
+      id: auth_profile_page
+      spacing: 22
+      padding: [28, 28, 28, 28]
       children:
         - kind: Card
-          id: auth_profile_details_card
+          id: auth_profile_hero
           variant: outlined
-          style: "padding: 0px;"
-          children:
-            - kind: Descriptions
-              id: auth_profile_details
-              key_header: "@t/auth.profile.info.key"
-              value_header: "@t/auth.profile.info.value"
-              borders: true
-              model:
-                - field: username
-                  label: "@t/auth.profile.field.username"
-                  type: str
-                - field: email
-                  label: "@t/auth.profile.field.email"
-                  type: str
-                - field: role
-                  label: "@t/auth.profile.field.role"
-                  type: str
-                - field: organization
-                  label: "@t/auth.profile.field.organization"
-                  type: str
-                - field: created_at
-                  label: "@t/auth.profile.field.created_at"
-                  type: str
-              data: "@data/auth_profile/summary"
-    - kind: Card
-      id: auth_profile_recommendations_card
-      variant: outlined
-      padding: [22, 22, 22, 22]
-      style: "max-width: 1180px;"
-      children:
-        - kind: Column
-          id: auth_profile_recommendations_section
-          spacing: 14
+          padding: [22, 24, 22, 24]
+          style: "max-width: 1180px;"
           children:
             - kind: Row
-              id: auth_profile_recommendations_header
-              spacing: 10
+              id: auth_profile_hero_content
+              spacing: 18
               align: center
               children:
                 - kind: Column
-                  id: auth_profile_recommendations_heading
-                  spacing: 4
+                  id: auth_profile_identity
+                  spacing: 8
                   children:
-                    - kind: Title
-                      id: auth_profile_recommendations_title
-                      text: "@t/auth.profile.recommendations.title"
-                      level: 2
                     - kind: Text
-                      id: auth_profile_recommendations_subtitle
-                      text: "@t/auth.profile.recommendations.subtitle"
+                      id: auth_profile_kicker
+                      text: "@t/auth.profile.kicker"
                       muted: true
-            - kind: Text
-              id: auth_profile_recommendations_empty
-              text: "@t/auth.profile.recommendations.empty"
-              muted: true
-            - kind: Grid
-              id: auth_profile_recommendations
-              columns: 2
-              children: []
+                    - kind: Title
+                      id: auth_profile_username
+                      text: "@data/auth_profile/summary/username"
+                      level: 1
+                    - kind: Text
+                      id: auth_profile_email
+                      text: "@data/auth_profile/summary/email"
+                      muted: true
+                    - kind: Row
+                      id: auth_profile_badges
+                      spacing: 8
+                      children:
+                        - kind: Badge
+                          id: auth_profile_role_badge
+                          text: "@data/auth_profile/summary/role"
+                          variant: default
+                        - kind: Badge
+                          id: auth_profile_org_badge
+                          text: "@data/auth_profile/summary/organization"
+                          variant: secondary
+                - kind: FlexContainer
+                  id: auth_profile_hero_spacer
+                - kind: Column
+                  id: auth_profile_actions
+                  spacing: 10
+                  children:
+                    - kind: Button
+                      id: auth_profile_edit_button
+                      label: "@t/auth.profile.action.edit"
+                      icon: ric.edit-line
+                      variant: default
+                      action:
+                        name: open_drawer
+                        context: {path: /auth/profile_edit, position: right, dim: 520}
+                    - kind: Button
+                      id: auth_profile_password_button
+                      label: "@t/auth.profile.action.password"
+                      icon: ric.lock-password-line
+                      variant: warning
+                      action:
+                        name: open_drawer
+                        context: {path: /auth/profile_password, position: right, dim: 520}
+        - kind: Grid
+          id: auth_profile_details_grid
+          columns: 1
+          style: "max-width: 1180px;"
+          children:
+            - kind: Card
+              id: auth_profile_details_card
+              variant: outlined
+              style: "padding: 0px;"
+              children:
+                - kind: Descriptions
+                  id: auth_profile_details
+                  key_header: "@t/auth.profile.info.key"
+                  value_header: "@t/auth.profile.info.value"
+                  borders: true
+                  model:
+                    - field: username
+                      label: "@t/auth.profile.field.username"
+                      type: str
+                    - field: email
+                      label: "@t/auth.profile.field.email"
+                      type: str
+                    - field: role
+                      label: "@t/auth.profile.field.role"
+                      type: str
+                    - field: organization
+                      label: "@t/auth.profile.field.organization"
+                      type: str
+                    - field: created_at
+                      label: "@t/auth.profile.field.created_at"
+                      type: str
+                  data: "@data/auth_profile/summary"
+        - kind: Card
+          id: auth_profile_recommendations_card
+          variant: outlined
+          padding: [22, 22, 22, 22]
+          style: "max-width: 1180px;"
+          children:
+            - kind: Column
+              id: auth_profile_recommendations_section
+              spacing: 14
+              children:
+                - kind: Row
+                  id: auth_profile_recommendations_header
+                  spacing: 10
+                  align: center
+                  children:
+                    - kind: Column
+                      id: auth_profile_recommendations_heading
+                      spacing: 4
+                      children:
+                        - kind: Title
+                          id: auth_profile_recommendations_title
+                          text: "@t/auth.profile.recommendations.title"
+                          level: 2
+                        - kind: Text
+                          id: auth_profile_recommendations_subtitle
+                          text: "@t/auth.profile.recommendations.subtitle"
+                          muted: true
+                - kind: Text
+                  id: auth_profile_recommendations_empty
+                  text: "@t/auth.profile.recommendations.empty"
+                  muted: true
+                - kind: Grid
+                  id: auth_profile_recommendations
+                  columns: 2
+                  children: []

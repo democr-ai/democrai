@@ -10,6 +10,8 @@
 !reactbootstrap/**
 !reactfluent
 !reactfluent/**
+!reactnativeclient
+!reactnativeclient/**
 !electron
 !electron/**
 !__init__.py
