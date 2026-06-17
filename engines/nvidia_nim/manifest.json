@@ -1,0 +1,110 @@
+{
+  "id": "nvidia_nim",
+  "name": "NVIDIA NIM",
+  "kind": "llm",
+  "entrypoint": "engines.nvidia_nim.engine:NvidiaNimEngine",
+  "models": {
+    "catalog": {
+      "enabled": true,
+      "path": "models/catalog.json"
+    },
+    "definition_schema": "models/schemas/add_model.json"
+  },
+  "install": {
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "runtime": {
+    "allowed_config_urls": [
+      "base_url",
+      "speech_base_url"
+    ],
+    "allowed_imports": [
+      "ctypes",
+      "_ctypes"
+    ]
+  },
+  "provider": {
+    "id": "nvidia_nim",
+    "label": "NVIDIA NIM",
+    "kind": "llm",
+    "deployment": "hybrid",
+    "model_source": "engine_catalog",
+    "runtime_methods": [
+      "generate_completion",
+      "generate_stream",
+      "embed_texts",
+      "transcribe",
+      "synthesize",
+      "synthesize_stream"
+    ],
+    "icon_url": "engines/nvidia_nim/assets/icon.svg",
+    "dependencies": [
+      {
+        "dependency_key": "requests",
+        "module": "requests",
+        "label": "requests",
+        "pip_packages": [
+          "requests==2.34.2"
+        ]
+      }
+    ],
+    "configurable": true,
+    "config_schema": [
+      {
+        "name": "base_url",
+        "label": "Base URL",
+        "type": "text",
+        "placeholder": "https://host.example/v1",
+        "validations": [
+          {
+            "rule": "required",
+            "message": "Base URL is required"
+          }
+        ]
+      },
+      {
+        "name": "speech_base_url",
+        "label": "Speech Base URL",
+        "type": "text",
+        "placeholder": "optional; uses Base URL when empty"
+      },
+      {
+        "name": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "placeholder": "optional"
+      },
+      {
+        "name": "timeout_seconds",
+        "label": "Timeout seconds",
+        "type": "number",
+        "value": 60
+      }
+    ],
+    "encrypted_keys": [
+      "api_key"
+    ],
+    "description": "Use NVIDIA NIM endpoints configured by the user.",
+    "model_capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text",
+      "embedding",
+      "stt",
+      "tts"
+    ],
+    "capabilities": [
+      "chat",
+      "tool_calling",
+      "reasoning",
+      "image_to_text",
+      "embedding",
+      "stt",
+      "tts"
+    ]
+  }
+}

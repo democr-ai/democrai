@@ -194,6 +194,7 @@ async def activation_requirements(engine_registry_id: int) -> dict[str, Any]:
         }
 
     from democrai.core.application.ai.engine.runtime import check_engine_ready_runtime
+    from democrai.core.runtime.dependencies.engine_env import get_engine_venv_python_path
 
     ready_result = check_engine_ready_runtime(engine_id=provider)
     missing = [
@@ -206,7 +207,12 @@ async def activation_requirements(engine_registry_id: int) -> dict[str, Any]:
     ]
     if not ready_result.get("ready"):
         if not missing:
-            missing = [item for item in requirements.get("missing_dependencies", [])]
+            if not get_engine_venv_python_path(provider, create=False).exists():
+                # If the engine venv does not exist yet, install must provision all
+                # declared engine-local dependencies before readiness can inspect them.
+                missing = [item for item in requirements.get("dependencies", [])]
+            else:
+                missing = [item for item in requirements.get("missing_dependencies", [])]
         return {
             "ready": False,
             "reason": "missing_dependencies",

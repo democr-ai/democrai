@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "democrai://engines/nvidia_nim/add_model.schema.json",
+  "title": "NVIDIA NIM custom model",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "capabilities",
+    "runtime"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "chat",
+          "tool_calling",
+          "reasoning",
+          "image_to_text",
+          "embedding",
+          "stt",
+          "tts"
+        ]
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "model_ref"
+      ],
+      "properties": {
+        "execution_mode": {
+          "type": "string",
+          "const": "standard"
+        },
+        "model_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

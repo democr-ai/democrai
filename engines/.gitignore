@@ -20,6 +20,7 @@
 !vllm
 !whisper
 !yolo
+!nvidia_nim
 !anthropic/**
 !edge/**
 !espeak/**
@@ -38,6 +39,7 @@
 !vllm/**
 !whisper/**
 !yolo/**
+!nvidia_nim/**
 !__init__.py
 !README.md
 

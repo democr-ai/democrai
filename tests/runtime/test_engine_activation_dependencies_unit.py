@@ -104,6 +104,79 @@ async def test_remote_activation_requires_declared_dependencies(monkeypatch):
     assert result["missing_dependencies"][0]["dependency_key"] == "google-genai"
 
 
+@pytest.mark.asyncio
+async def test_activation_requires_declared_dependencies_when_engine_venv_missing(
+    monkeypatch,
+    tmp_path,
+):
+    import democrai.core.runtime.dependencies.engine_env as engine_env_mod
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    monkeypatch.setattr(requirements_mod, "SessionLocal", SessionLocal)
+
+    with SessionLocal() as session:
+        row = EngineRegistry(
+            name="nim-main",
+            provider="nvidia_nim",
+            config={"base_url": "https://nim.example/v1"},
+            status="uninstalled",
+            supported=True,
+        )
+        session.add(row)
+        session.commit()
+        engine_registry_id = row.id
+
+    dependency = {
+        "dependency_key": "requests",
+        "module": "requests",
+        "label": "requests",
+    }
+    monkeypatch.setattr(
+        requirements_mod,
+        "provider_requirements",
+        lambda provider_id: {
+            "provider": provider_id,
+            "provider_label": "NVIDIA NIM",
+            "supported": True,
+            "configurable": True,
+            "requires_config": True,
+            "config_schema": [
+                {
+                    "name": "base_url",
+                    "validations": [{"rule": "required"}],
+                }
+            ],
+            "dependencies": [dependency],
+            "missing_dependencies": [],
+        },
+    )
+    monkeypatch.setattr(
+        engine_runtime_mod,
+        "check_engine_ready_runtime",
+        lambda *, engine_id: {
+            "ready": False,
+            "missing_shared": [],
+            "missing_local": [],
+            "message": "engine environment not provisioned",
+        },
+    )
+    monkeypatch.setattr(
+        engine_env_mod,
+        "get_engine_venv_python_path",
+        lambda engine_id, create=False: tmp_path / "missing" / "bin" / "python",
+    )
+
+    result = await requirements_mod.activation_requirements(
+        engine_registry_id=engine_registry_id,
+    )
+
+    assert result["ready"] is False
+    assert result["reason"] == "missing_dependencies"
+    assert result["missing_dependencies"] == [dependency]
+
+
 def test_configurable_remote_engine_created_uninstalled(monkeypatch):
     created_payloads = []
 

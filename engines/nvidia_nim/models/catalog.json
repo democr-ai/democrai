@@ -1,0 +1,186 @@
+{
+  "engine_id": "nvidia_nim",
+  "schema": "../../_schemas/model-definition.schema.json",
+  "models": [
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "label": "Nemotron 3 Ultra 550B A55B",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nemotron-3-ultra-550b-a55b"}
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b",
+      "label": "Nemotron 3 Super 120B A12B",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nemotron-3-super-120b-a12b"}
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-30b-a3b",
+      "label": "Nemotron 3 Nano 30B A3B",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nemotron-3-nano-30b-a3b"}
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+      "label": "Nemotron 3 Nano Omni 30B A3B Reasoning",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning", "image_to_text"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"}
+    },
+    {
+      "id": "nvidia/nemotron-nano-12b-v2-vl",
+      "label": "Nemotron Nano 12B V2 VL",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "vision", "free"],
+      "capabilities": ["chat", "image_to_text"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nemotron-nano-12b-v2-vl"}
+    },
+    {
+      "id": "nvidia/llama-3.3-nemotron-super-49b-v1",
+      "label": "Llama 3.3 Nemotron Super 49B V1",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/llama-3.3-nemotron-super-49b-v1"}
+    },
+    {
+      "id": "minimaxai/minimax-m3",
+      "label": "MiniMax M3",
+      "engine_id": "nvidia_nim",
+      "family": "minimax",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "minimaxai/minimax-m3"}
+    },
+    {
+      "id": "minimaxai/minimax-m2.7",
+      "label": "MiniMax M2.7",
+      "engine_id": "nvidia_nim",
+      "family": "minimax",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "minimaxai/minimax-m2.7"}
+    },
+    {
+      "id": "z-ai/glm-5.1",
+      "label": "GLM 5.1",
+      "engine_id": "nvidia_nim",
+      "family": "glm",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "z-ai/glm-5.1"}
+    },
+    {
+      "id": "deepseek-ai/deepseek-v4-pro",
+      "label": "DeepSeek V4 Pro",
+      "engine_id": "nvidia_nim",
+      "family": "deepseek",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "deepseek-ai/deepseek-v4-pro"}
+    },
+    {
+      "id": "deepseek-ai/deepseek-v4-flash",
+      "label": "DeepSeek V4 Flash",
+      "engine_id": "nvidia_nim",
+      "family": "deepseek",
+      "tags": ["llm", "frontier", "free"],
+      "capabilities": ["chat", "tool_calling", "reasoning"],
+      "interfaces": ["chat_completion"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "deepseek-ai/deepseek-v4-flash"}
+    },
+    {
+      "id": "nvidia/llama-nemotron-embed-1b-v2",
+      "label": "Llama Nemotron Embed 1B V2",
+      "engine_id": "nvidia_nim",
+      "family": "nemotron-embed",
+      "tags": ["embedding", "free"],
+      "capabilities": ["embedding"],
+      "interfaces": ["text_embedding"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/llama-nemotron-embed-1b-v2"}
+    },
+    {
+      "id": "nvidia/nv-embedqa-e5-v5",
+      "label": "NV-EmbedQA E5 V5",
+      "engine_id": "nvidia_nim",
+      "family": "nv-embedqa",
+      "tags": ["embedding", "free"],
+      "capabilities": ["embedding"],
+      "interfaces": ["text_embedding"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nv-embedqa-e5-v5"}
+    },
+    {
+      "id": "nvidia/nv-embedcode-7b-v1",
+      "label": "NV-EmbedCode 7B V1",
+      "engine_id": "nvidia_nim",
+      "family": "nv-embedcode",
+      "tags": ["embedding", "code", "free"],
+      "capabilities": ["embedding"],
+      "interfaces": ["text_embedding"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "nvidia/nv-embedcode-7b-v1"}
+    },
+    {
+      "id": "magpie-tts-multilingual",
+      "label": "Magpie TTS Multilingual",
+      "engine_id": "nvidia_nim",
+      "family": "magpie",
+      "tags": ["speech", "tts", "free"],
+      "capabilities": ["tts"],
+      "interfaces": ["text_to_audio"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {
+        "execution_mode": "standard",
+        "model_ref": "magpie-tts-multilingual",
+        "defaults": {"runtime": {"response_format": "wav"}}
+      }
+    },
+    {
+      "id": "parakeet-1.1b-rnnt-multilingual-asr",
+      "label": "Parakeet 1.1B RNNT Multilingual ASR",
+      "engine_id": "nvidia_nim",
+      "family": "parakeet",
+      "tags": ["speech", "stt", "free"],
+      "capabilities": ["stt"],
+      "interfaces": ["audio_to_text"],
+      "provisioning": {"mode": "catalog", "download": {"strategy": "none"}},
+      "runtime": {"execution_mode": "standard", "model_ref": "parakeet-1.1b-rnnt-multilingual-asr"}
+    }
+  ]
+}
