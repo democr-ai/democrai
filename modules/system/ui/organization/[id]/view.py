@@ -139,7 +139,7 @@ async def render(params: dict, session: dict):
 
             page_builder.set_store(
                 "/engine_quota_limits/create_path",
-                f"/system/engine/quota/limit/organization/{organization_id}/create",
+                f"/system/engine_quota/limit/organization/{organization_id}/create",
                 scope="page",
             )
             page_builder.set_store("/engine_quota_limits/visible", True, scope="page")

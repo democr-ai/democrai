@@ -21,7 +21,7 @@ def quota_counter_table_model(module_sdk) -> list[dict[str, Any]]:
             "header": module_sdk.i18n.t("system.engine.quotas.field.counter"),
         },
         {
-            "field": "period_unit_label",
+            "field": "period_label",
             "type": "str",
             "header": module_sdk.i18n.t("system.engine.quotas.field.period"),
         },
@@ -41,7 +41,7 @@ def quota_limit_table_model(module_sdk) -> list[dict[str, Any]]:
             "header": module_sdk.i18n.t("system.engine.quotas.field.counter"),
         },
         {
-            "field": "period_unit_label",
+            "field": "period_label",
             "type": "str",
             "header": module_sdk.i18n.t("system.engine.quotas.field.period"),
         },
@@ -51,9 +51,14 @@ def quota_limit_table_model(module_sdk) -> list[dict[str, Any]]:
             "header": module_sdk.i18n.t("system.engine.quotas.field.scope"),
         },
         {
-            "field": "limit_total_tokens",
+            "field": "metric_type_label",
+            "type": "str",
+            "header": module_sdk.i18n.t("system.engine.quotas.field.metric_type"),
+        },
+        {
+            "field": "limit_value",
             "type": "int",
-            "header": module_sdk.i18n.t("system.engine.quotas.field.limit_total_tokens"),
+            "header": module_sdk.i18n.t("system.engine.quotas.field.limit_value"),
         },
     ]
 
@@ -69,8 +74,12 @@ def quota_counter_rows(
     return [
         {
             **row,
-            "period_unit_label": period_unit_label(module_sdk, row.get("period_unit")),
-            "update_path": f"/system/engine/quota/counters/{int(row['id'])}/update",
+            "period_label": period_label(
+                module_sdk,
+                row.get("period_count"),
+                row.get("period_unit"),
+            ),
+            "update_path": f"/system/engine_quota/counters/{int(row['id'])}/update",
         }
         for row in rows
         if isinstance(row, dict) and row.get("id") is not None
@@ -103,13 +112,15 @@ def quota_limit_rows(
                 "subject_id": int(subject_id),
                 "engine_label": engine_label(engine),
                 "counter_label": str(counter.get("name") or row.get("counter_id") or ""),
-                "period_unit_label": period_unit_label(
+                "period_label": period_label(
                     module_sdk,
+                    counter.get("period_count"),
                     counter.get("period_unit"),
                 ),
+                "metric_type_label": metric_type_label(module_sdk, row.get("metric_type")),
                 "scope_label": scope_label(module_sdk, row.get("scope_type")),
                 "update_path": (
-                    "/system/engine/quota/limit/"
+                    "/system/engine_quota/limit/"
                     f"{subject_scope}/{int(subject_id)}/{int(row['id'])}/update"
                 ),
             }
@@ -144,6 +155,19 @@ def counter_form_model(
             ],
         },
         {
+            "name": "period_count",
+            "type": "integer",
+            "label": module_sdk.i18n.t("system.engine.quotas.field.period_count"),
+            "value": int(values.get("period_count") or 1),
+            "validations": [
+                {
+                    "rule": "min",
+                    "params": [1],
+                    "message": module_sdk.i18n.t("system.engine.quotas.validation.period_count_min"),
+                }
+            ],
+        },
+        {
             "name": "period_unit",
             "type": "select",
             "label": module_sdk.i18n.t("system.engine.quotas.field.period"),
@@ -166,6 +190,13 @@ def limit_form_model(
     defaults: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     values = dict(defaults or {})
+    metric_options = [
+        {
+            "label": metric_type_label(module_sdk, metric),
+            "value": metric,
+        }
+        for metric in module_sdk.engines.quota_metadata().get("metric_types", [])
+    ]
     fields: list[dict[str, Any]] = []
     if scope in TARGET_SCOPES:
         fields.append(
@@ -218,10 +249,23 @@ def limit_form_model(
                 ],
             },
             {
-                "name": "limit_total_tokens",
+                "name": "metric_type",
+                "type": "select",
+                "label": module_sdk.i18n.t("system.engine.quotas.field.metric_type"),
+                "value": str(values.get("metric_type") or "total_tokens"),
+                "options": metric_options,
+                "validations": [
+                    {
+                        "rule": "required",
+                        "message": module_sdk.i18n.t("system.engine.quotas.validation.metric_required"),
+                    }
+                ],
+            },
+            {
+                "name": "limit_value",
                 "type": "integer",
-                "label": module_sdk.i18n.t("system.engine.quotas.field.limit_total_tokens"),
-                "value": int(values.get("limit_total_tokens") or 0),
+                "label": module_sdk.i18n.t("system.engine.quotas.field.limit_value"),
+                "value": int(values.get("limit_value") or 0),
                 "validations": [
                     {
                         "rule": "min",
@@ -264,6 +308,18 @@ def engine_label(row: dict[str, Any]) -> str:
 def period_unit_label(module_sdk, value: Any) -> str:
     normalized = str(value or "").strip()
     key = f"system.engine.quotas.period.{normalized}"
+    translated = module_sdk.i18n.t(key)
+    return normalized if translated == key else translated
+
+
+def period_label(module_sdk, count: Any, unit: Any) -> str:
+    period_count = int(count or 1)
+    return f"{period_count} {period_unit_label(module_sdk, unit)}"
+
+
+def metric_type_label(module_sdk, value: Any) -> str:
+    normalized = str(value or "").strip()
+    key = f"system.engine.quotas.metric.{normalized}"
     translated = module_sdk.i18n.t(key)
     return normalized if translated == key else translated
 

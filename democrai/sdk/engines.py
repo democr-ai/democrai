@@ -81,6 +81,7 @@ class Engines:
 
     def quota_metadata(self) -> dict[str, Any]:
         """Return public engine quota constants."""
+        from democrai.core.application.ai.engine.quotas.types import METRIC_TYPES
         from democrai.core.application.ai.engine.quotas.types import PERIOD_UNITS
         from democrai.core.application.ai.engine.quotas.types import SCOPE_ALL
         from democrai.core.application.ai.engine.quotas.types import SCOPE_GUEST
@@ -90,6 +91,7 @@ class Engines:
         from democrai.core.application.ai.engine.quotas.types import SCOPE_USER
 
         return {
+            "metric_types": sorted(METRIC_TYPES),
             "period_units": sorted(PERIOD_UNITS),
             "scope_types": sorted(SCOPE_TYPES),
             "global_scope_types": [SCOPE_ALL, SCOPE_GUEST],

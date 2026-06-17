@@ -189,9 +189,16 @@ def test_engine_quota_core_models_create_update_delete_and_registry(core_session
     counters = build_core_model("engine_quota_counters", _ctx())
     limits = build_core_model("engine_quota_limits", _ctx())
 
-    counter = counters.create({"name": "daily tokens", "period_unit": "day"})
+    counter = counters.create(
+        {"name": "daily tokens", "period_count": 1, "period_unit": "day"}
+    )
+    assert counter["period_count"] == 1
     assert counter["period_unit"] == "day"
-    updated_counter = counters.update(counter["id"], {"period_unit": "hour"})
+    updated_counter = counters.update(
+        counter["id"],
+        {"period_count": 2, "period_unit": "hour"},
+    )
+    assert updated_counter["period_count"] == 2
     assert updated_counter["period_unit"] == "hour"
 
     limit = limits.create(
@@ -200,31 +207,47 @@ def test_engine_quota_core_models_create_update_delete_and_registry(core_session
             "engine_row_id": engine.id,
             "scope_type": "user",
             "scope_id": 1,
-            "limit_total_tokens": 100,
+            "metric_type": "total_tokens",
+            "limit_value": 100,
         }
     )
-    assert limit["limit_total_tokens"] == 100
-    updated_limit = limits.update(limit["id"], {"limit_total_tokens": 50})
-    assert updated_limit["limit_total_tokens"] == 50
+    assert limit["metric_type"] == "total_tokens"
+    assert limit["limit_value"] == 100
+    updated_limit = limits.update(limit["id"], {"limit_value": 50})
+    assert updated_limit["limit_value"] == 50
 
     with pytest.raises(ValueError, match="period_unit unsupported"):
-        counters.create({"name": "bad", "period_unit": "year"})
+        counters.create({"name": "bad", "period_count": 1, "period_unit": "year"})
+    with pytest.raises(ValueError, match="period_count must be >= 1"):
+        counters.create({"name": "bad-count", "period_count": 0, "period_unit": "day"})
     with pytest.raises(ValueError, match="scope_id is required"):
         limits.create(
             {
                 "counter_id": counter["id"],
                 "engine_row_id": engine.id,
                 "scope_type": "role",
-                "limit_total_tokens": 10,
+                "metric_type": "total_tokens",
+                "limit_value": 10,
             }
         )
-    with pytest.raises(ValueError, match="limit_total_tokens must be >= 0"):
+    with pytest.raises(ValueError, match="metric_type unsupported"):
         limits.create(
             {
                 "counter_id": counter["id"],
                 "engine_row_id": engine.id,
                 "scope_type": "all",
-                "limit_total_tokens": -1,
+                "metric_type": "characters",
+                "limit_value": 10,
+            }
+        )
+    with pytest.raises(ValueError, match="limit_value must be >= 0"):
+        limits.create(
+            {
+                "counter_id": counter["id"],
+                "engine_row_id": engine.id,
+                "scope_type": "all",
+                "metric_type": "requests",
+                "limit_value": -1,
             }
         )
 

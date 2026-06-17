@@ -1198,3 +1198,21 @@ def test_sqlalchemy_obs_provider_sums_ai_usage_tokens_by_engine_scope(tmp_path):
     )
 
     assert used == 7
+
+    token_total = provider.aggregate_ai_model_usage(
+        metric_type="total_tokens",
+        engine_row_id=11,
+        user_id=1,
+        started_at=datetime(2026, 1, 1),
+        ended_at=datetime(2027, 1, 1),
+    )
+    request_count = provider.aggregate_ai_model_usage(
+        metric_type="requests",
+        engine_row_id=11,
+        user_id=1,
+        started_at=datetime(2026, 1, 1),
+        ended_at=datetime(2027, 1, 1),
+    )
+
+    assert token_total == 7
+    assert request_count == 2

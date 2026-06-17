@@ -6,6 +6,7 @@ from democrai.core.application.ai.engine.quotas.types import PERIOD_UNITS
 from democrai.core.application.models.base import BaseCoreModel
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models_engine_quota import EngineQuotaCounter
+from democrai.core.platform.utils.identity import to_optional_int
 
 
 class EngineQuotaCountersCoreModel(BaseCoreModel):
@@ -16,6 +17,7 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
         return {
             "id": item.id,
             "name": item.name,
+            "period_count": item.period_count,
             "period_unit": item.period_unit,
             "created_at": item.created_at.isoformat() if item.created_at else None,
             "updated_at": item.updated_at.isoformat() if item.updated_at else None,
@@ -25,6 +27,7 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
         return [
             {"field": "id", "type": "int"},
             {"field": "name", "type": "text"},
+            {"field": "period_count", "type": "int"},
             {"field": "period_unit", "type": "text"},
         ]
 
@@ -32,6 +35,7 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
         return [
             {"field": "id", "type": "int", "filterable": False},
             {"field": "name", "type": "str", "filterable": True, "filter_type": "text"},
+            {"field": "period_count", "type": "int", "filterable": True, "filter_type": "int"},
             {
                 "field": "period_unit",
                 "type": "str",
@@ -45,6 +49,7 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
     def form_model_create(self) -> list[dict[str, Any]]:
         return [
             {"field": "name", "type": "text", "required": True},
+            {"field": "period_count", "type": "number", "required": True},
             {
                 "field": "period_unit",
                 "type": "select",
@@ -60,6 +65,9 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
         period_unit = filters.get("period_unit")
         if isinstance(period_unit, str):
             query = query.filter(EngineQuotaCounter.period_unit == period_unit)
+        period_count = to_optional_int(filters.get("period_count"))
+        if period_count is not None:
+            query = query.filter(EngineQuotaCounter.period_count == period_count)
         try:
             counter_id = int(filters.get("id")) if filters.get("id") is not None else None
         except (TypeError, ValueError):
@@ -70,8 +78,13 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         name = str(payload.get("name") or "").strip()
+        period_count = to_optional_int(payload.get("period_count"))
         period_unit = str(payload.get("period_unit") or "").strip()
-        self._validate_payload(name=name, period_unit=period_unit)
+        self._validate_payload(
+            name=name,
+            period_count=period_count,
+            period_unit=period_unit,
+        )
         with SessionLocal() as session:
             duplicate = (
                 session.query(EngineQuotaCounter)
@@ -80,7 +93,11 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
             )
             if duplicate is not None:
                 raise ValueError("engine quota counter name already exists")
-            row = EngineQuotaCounter(name=name, period_unit=period_unit)
+            row = EngineQuotaCounter(
+                name=name,
+                period_count=period_count,
+                period_unit=period_unit,
+            )
             session.add(row)
             session.commit()
             session.refresh(row)
@@ -94,12 +111,19 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
             if row is None:
                 return None
             name = row.name
+            period_count = row.period_count
             period_unit = row.period_unit
             if "name" in payload:
                 name = str(payload.get("name") or "").strip()
+            if "period_count" in payload:
+                period_count = to_optional_int(payload.get("period_count"))
             if "period_unit" in payload:
                 period_unit = str(payload.get("period_unit") or "").strip()
-            self._validate_payload(name=name, period_unit=period_unit)
+            self._validate_payload(
+                name=name,
+                period_count=period_count,
+                period_unit=period_unit,
+            )
             duplicate = (
                 session.query(EngineQuotaCounter)
                 .filter(EngineQuotaCounter.name == name, EngineQuotaCounter.id != entity_id)
@@ -108,6 +132,7 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
             if duplicate is not None:
                 raise ValueError("engine quota counter name already exists")
             row.name = name
+            row.period_count = period_count
             row.period_unit = period_unit
             session.commit()
             session.refresh(row)
@@ -125,8 +150,15 @@ class EngineQuotaCountersCoreModel(BaseCoreModel):
             return True
 
     @staticmethod
-    def _validate_payload(*, name: str, period_unit: str) -> None:
+    def _validate_payload(
+        *,
+        name: str,
+        period_count: int | None,
+        period_unit: str,
+    ) -> None:
         if not name:
             raise ValueError("name is required")
+        if period_count is None or period_count < 1:
+            raise ValueError("period_count must be >= 1")
         if period_unit not in PERIOD_UNITS:
             raise ValueError(f"engine quota period_unit unsupported:{period_unit}")

@@ -5,6 +5,7 @@ from typing import Any
 from democrai.core.application.ai.engine.quotas.subjects import EngineQuotaSubject
 from democrai.core.application.ai.engine.quotas.subjects import resolve_quota_subject
 from democrai.core.application.ai.engine.quotas.types import EngineQuotaDecision
+from democrai.core.application.ai.engine.quotas.types import METRIC_TOTAL_TOKENS
 from democrai.core.application.ai.engine.quotas.types import SCOPE_ALL
 from democrai.core.application.ai.engine.quotas.types import SCOPE_GUEST
 from democrai.core.application.ai.engine.quotas.types import SCOPE_ORGANIZATION
@@ -45,17 +46,29 @@ def check_engine_quota(
         return EngineQuotaDecision(allowed=True, reason="engine_quota_unlimited")
 
     for item in applicable:
-        started_at, ended_at = rolling_window(item.period_unit, now=now)
+        started_at, ended_at = rolling_window(
+            item.period_unit,
+            period_count=item.period_count,
+            now=now,
+        )
         usage_filter = _usage_filter(item.scope_type, subject)
-        used = repository.sum_usage_total_tokens(
+        used = repository.aggregate_usage(
+            metric_type=item.metric_type,
             engine_row_id=engine_row_id,
             started_at=started_at,
             ended_at=ended_at,
             **usage_filter,
         )
-        limit_total = int(item.limit_total_tokens)
-        remaining = limit_total - used
-        if used >= limit_total:
+        limit_value = int(item.limit_value)
+        remaining = limit_value - used
+        if used >= limit_value:
+            token_fields = {}
+            if item.metric_type == METRIC_TOTAL_TOKENS:
+                token_fields = {
+                    "used_total_tokens": used,
+                    "limit_total_tokens": limit_value,
+                    "remaining_total_tokens": max(0, remaining),
+                }
             return EngineQuotaDecision(
                 allowed=False,
                 reason="engine_quota_exceeded",
@@ -63,9 +76,11 @@ def check_engine_quota(
                 limit_id=item.limit_id,
                 scope_type=item.scope_type,
                 scope_id=item.scope_id,
-                used_total_tokens=used,
-                limit_total_tokens=limit_total,
-                remaining_total_tokens=max(0, remaining),
+                metric_type=item.metric_type,
+                used_value=used,
+                limit_value=limit_value,
+                remaining_value=max(0, remaining),
+                **token_fields,
             )
 
     return EngineQuotaDecision(allowed=True, reason="engine_quota_available")
@@ -88,8 +103,9 @@ def require_engine_quota(
         "engine_quota_exceeded:"
         f"engine_registry_id={engine_registry_id}:"
         f"scope={decision.scope_type}:{decision.scope_id}:"
-        f"used={decision.used_total_tokens}:"
-        f"limit={decision.limit_total_tokens}"
+        f"metric={decision.metric_type}:"
+        f"used={decision.used_value}:"
+        f"limit={decision.limit_value}"
     )
 
 

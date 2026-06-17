@@ -17,6 +17,7 @@ class EngineQuotaCounter(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
+    period_count = Column(Integer, nullable=False, default=1)
     period_unit = Column(String(16), nullable=False, index=True)
     created_at = Column(DateTime, default=utc_now_naive, nullable=False)
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
@@ -24,7 +25,7 @@ class EngineQuotaCounter(Base):
     def __repr__(self):
         return (
             f"<EngineQuotaCounter(name='{self.name}', "
-            f"period_unit='{self.period_unit}')>"
+            f"period='{self.period_count} {self.period_unit}')>"
         )
 
 
@@ -36,6 +37,7 @@ class EngineQuotaLimit(Base):
             "engine_row_id",
             "scope_type",
             "scope_id",
+            "metric_type",
             name="uq_engine_quota_limit_scope",
         ),
         Index(
@@ -61,7 +63,8 @@ class EngineQuotaLimit(Base):
     )
     scope_type = Column(String(32), nullable=False, index=True)
     scope_id = Column(Integer, nullable=True, index=True)
-    limit_total_tokens = Column(Integer, nullable=False)
+    metric_type = Column(String(32), nullable=False, index=True)
+    limit_value = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=utc_now_naive, nullable=False)
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 

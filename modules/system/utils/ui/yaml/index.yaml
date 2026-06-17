@@ -158,7 +158,7 @@
                       - title: "@t/system.index.item.engine_quota_counters.title"
                         text: "@t/system.index.item.engine_quota_counters.text"
                         icon: "ric.speed-up-line"
-                        path: "/system/engine/quota/counters/list"
+                        path: "/system/engine_quota/counters/list"
                       - title: "@t/system.index.item.agents.title"
                         text: "@t/system.index.item.agents.text"
                         icon: "ric.robot-2-line"

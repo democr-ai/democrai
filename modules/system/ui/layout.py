@@ -63,6 +63,12 @@ async def shell_layout(builder):
                     "active_path": "/system/engine",
                 },
                 {
+                    "id": "engine_quota_counters",
+                    "label": "Engine quota counters",
+                    "path": "/system/engine_quota/counters/list",
+                    "active_path": "/system/engine_quota/counters",
+                },
+                {
                     "id": "capabilities",
                     "label": "Capabilities",
                     "path": "/system/capabilities/list",

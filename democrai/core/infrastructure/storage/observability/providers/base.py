@@ -160,6 +160,20 @@ class ObsStorageProvider(ABC):
         """Returns total successful token usage for one engine/scope/window."""
 
     @abstractmethod
+    def aggregate_ai_model_usage(
+        self,
+        *,
+        metric_type: str,
+        engine_row_id: int,
+        started_at: datetime,
+        ended_at: datetime,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        """Returns successful usage aggregate for one engine/scope/window."""
+
+    @abstractmethod
     def run_migrations(self) -> None:
         """Creates or updates backend storage structures."""
 

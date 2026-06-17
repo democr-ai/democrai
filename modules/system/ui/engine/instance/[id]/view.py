@@ -309,7 +309,7 @@ async def render(params: dict, session: dict):
         builder.set_store("/instance", payload)
         builder.set_store(
             "/engine_quota_limits/create_path",
-            f"/system/engine/quota/limit/global/{int(instance_id)}/create",
+            f"/system/engine_quota/limit/global/{int(instance_id)}/create",
             scope="page",
         )
         builder.set_store("/engine_quota_limits/visible", True, scope="page")

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from democrai.core.application.ai.engine.quotas.types import METRIC_TOTAL_TOKENS
 from democrai.core.infrastructure.database import SessionLocal
 from democrai.core.infrastructure.database.models_engine_quota import EngineQuotaCounter
 from democrai.core.infrastructure.database.models_engine_quota import EngineQuotaLimit
@@ -13,11 +14,13 @@ from democrai.core.runtime.foundation.app import app_ctx
 class EngineQuotaLimitRow:
     limit_id: int
     counter_id: int
+    period_count: int
     period_unit: str
     engine_row_id: int
     scope_type: str
     scope_id: int | None
-    limit_total_tokens: int
+    metric_type: str
+    limit_value: int
 
 
 class EngineQuotaRepository:
@@ -34,18 +37,21 @@ class EngineQuotaRepository:
                 EngineQuotaLimitRow(
                     limit_id=int(limit.id),
                     counter_id=int(counter.id),
+                    period_count=int(counter.period_count),
                     period_unit=str(counter.period_unit),
                     engine_row_id=int(limit.engine_row_id),
                     scope_type=str(limit.scope_type),
                     scope_id=int(limit.scope_id) if limit.scope_id is not None else None,
-                    limit_total_tokens=int(limit.limit_total_tokens),
+                    metric_type=str(limit.metric_type),
+                    limit_value=int(limit.limit_value),
                 )
                 for limit, counter in rows
             ]
 
-    def sum_usage_total_tokens(
+    def aggregate_usage(
         self,
         *,
+        metric_type: str,
         engine_row_id: int,
         started_at: datetime,
         ended_at: datetime,
@@ -57,7 +63,8 @@ class EngineQuotaRepository:
         if store is None:
             raise RuntimeError("engine_quota_observability_store_unavailable")
         return int(
-            store.sum_ai_model_usage_total_tokens(
+            store.aggregate_ai_model_usage(
+                metric_type=str(metric_type),
                 engine_row_id=int(engine_row_id),
                 started_at=started_at,
                 ended_at=ended_at,
@@ -66,4 +73,24 @@ class EngineQuotaRepository:
                 session_id=session_id,
             )
             or 0
+        )
+
+    def sum_usage_total_tokens(
+        self,
+        *,
+        engine_row_id: int,
+        started_at: datetime,
+        ended_at: datetime,
+        user_id: int | None = None,
+        organization_id: int | None = None,
+        session_id: str | None = None,
+    ) -> int:
+        return self.aggregate_usage(
+            metric_type=METRIC_TOTAL_TOKENS,
+            engine_row_id=engine_row_id,
+            started_at=started_at,
+            ended_at=ended_at,
+            user_id=user_id,
+            organization_id=organization_id,
+            session_id=session_id,
         )

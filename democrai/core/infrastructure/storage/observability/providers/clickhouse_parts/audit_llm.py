@@ -247,6 +247,27 @@ class ClickHouseAuditLLMMixin:
         organization_id: Optional[int] = None,
         session_id: Optional[str] = None,
     ) -> int:
+        return self.aggregate_ai_model_usage(
+            metric_type="total_tokens",
+            engine_row_id=engine_row_id,
+            started_at=started_at,
+            ended_at=ended_at,
+            user_id=user_id,
+            organization_id=organization_id,
+            session_id=session_id,
+        )
+
+    def aggregate_ai_model_usage(
+        self,
+        *,
+        metric_type: str,
+        engine_row_id: int,
+        started_at: Any,
+        ended_at: Any,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
         params: dict[str, Any] = {
             "engine_row_id": int(engine_row_id),
             "started_at": started_at,
@@ -267,9 +288,16 @@ class ClickHouseAuditLLMMixin:
         if session_id is not None:
             conditions.append("session_id = %(session_id)s")
             params["session_id"] = str(session_id)
+        metric = str(metric_type)
+        if metric == "total_tokens":
+            expression = "coalesce(sum(coalesce(total_tokens, 0)), 0)"
+        elif metric == "requests":
+            expression = "count()"
+        else:
+            raise ValueError(f"ai_model_usage_metric_unsupported:{metric}")
         result = self._client.query(
             f"""
-            SELECT coalesce(sum(coalesce(total_tokens, 0)), 0)
+            SELECT {expression}
             FROM ai_model_usage_events
             WHERE {" AND ".join(conditions)}
             """,

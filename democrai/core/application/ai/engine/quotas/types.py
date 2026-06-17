@@ -16,6 +16,13 @@ PERIOD_UNITS = {
     PERIOD_MONTH,
 }
 
+METRIC_TOTAL_TOKENS = "total_tokens"
+METRIC_REQUESTS = "requests"
+METRIC_TYPES = {
+    METRIC_TOTAL_TOKENS,
+    METRIC_REQUESTS,
+}
+
 SCOPE_ALL = "all"
 SCOPE_ORGANIZATION = "organization"
 SCOPE_ROLE = "role"
@@ -38,6 +45,10 @@ class EngineQuotaDecision:
     limit_id: int | None = None
     scope_type: str | None = None
     scope_id: int | None = None
+    metric_type: str | None = None
+    used_value: int = 0
+    limit_value: int | None = None
+    remaining_value: int | None = None
     used_total_tokens: int = 0
     limit_total_tokens: int | None = None
     remaining_total_tokens: int | None = None

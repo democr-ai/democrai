@@ -219,10 +219,38 @@ class SQLAlchemyObsProviderMixin:
         organization_id: Optional[int] = None,
         session_id: Optional[str] = None,
     ) -> int:
+        return self.aggregate_ai_model_usage(
+            metric_type="total_tokens",
+            engine_row_id=engine_row_id,
+            started_at=started_at,
+            ended_at=ended_at,
+            user_id=user_id,
+            organization_id=organization_id,
+            session_id=session_id,
+        )
+
+    def aggregate_ai_model_usage(
+        self,
+        *,
+        metric_type: str,
+        engine_row_id: int,
+        started_at: datetime,
+        ended_at: datetime,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
         with self._session() as session:
-            query = session.query(
-                func.coalesce(func.sum(func.coalesce(AIModelUsageEvent.total_tokens, 0)), 0)
-            ).filter(
+            metric = str(metric_type)
+            if metric == "total_tokens":
+                query = session.query(
+                    func.coalesce(func.sum(func.coalesce(AIModelUsageEvent.total_tokens, 0)), 0)
+                )
+            elif metric == "requests":
+                query = session.query(func.count(AIModelUsageEvent.id))
+            else:
+                raise ValueError(f"ai_model_usage_metric_unsupported:{metric}")
+            query = query.filter(
                 AIModelUsageEvent.engine_row_id == int(engine_row_id),
                 AIModelUsageEvent.success == True,  # noqa: E712
                 AIModelUsageEvent.timestamp >= started_at,

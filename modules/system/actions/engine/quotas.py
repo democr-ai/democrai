@@ -24,6 +24,7 @@ LIMITS_TABLE_ID = "engine_quota_limits_table"
 
 class CounterFormPayload(BaseModel):
     name: str = Field(min_length=1)
+    period_count: int = Field(ge=1)
     period_unit: str = Field(min_length=1)
 
     @field_validator("name", "period_unit")
@@ -47,7 +48,8 @@ class LimitFormPayload(BaseModel):
     counter_id: int
     engine_row_id: int | None = None
     scope_type: str | None = None
-    limit_total_tokens: int = Field(ge=0)
+    metric_type: str = Field(min_length=1)
+    limit_value: int = Field(ge=0)
 
 
 class SaveLimitPayload(BaseModel):
