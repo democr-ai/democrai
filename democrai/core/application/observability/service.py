@@ -353,8 +353,23 @@ class ObservabilityService:
         organization_id: int | None = None,
         session_id: str | None = None,
         node_id: str | None = None,
+        engine_row_id: int | None = None,
     ):
         request_meta = self._request_metadata()
+        if engine_row_id is None:
+            try:
+                from democrai.core.application.ai.pipeline_context import (
+                    current_ai_pipeline_context,
+                )
+
+                pipeline_context = current_ai_pipeline_context()
+                engine_row_id = (
+                    pipeline_context.engine_row_id
+                    if pipeline_context is not None
+                    else None
+                )
+            except Exception:
+                engine_row_id = None
         return self._emit(
             "record_ai_model_usage",
             user_id=user_id if user_id is not None else request_meta.get("actor_user_id"),
@@ -368,6 +383,7 @@ class ObservabilityService:
             objective=objective,
             provider=provider,
             engine=engine,
+            engine_row_id=engine_row_id,
             model_name=model_name,
             deployment_mode=deployment_mode,
             request_kind=request_kind,

@@ -11,12 +11,28 @@ def init(_context: dict | None = None) -> dict:
                 "id": "system",
                 "label": "System Services",
                 "icon": "ric.settings-2-line",
+                "priority": 50,
                 "position": "top",
                 "action": {
                     "name": "nav",
                     "context": {"type": "nav", "path": "/system/index"},
                 },
                 "active_path": "/system",
+            },
+            {
+                "id": "system_engine_quota_counters",
+                "label": "Engine Quota Counters",
+                "icon": "ric.speed-up-line",
+                "priority": 51,
+                "position": "top",
+                "action": {
+                    "name": "nav",
+                    "context": {
+                        "type": "nav",
+                        "path": "/system/engine/quota/counters/list",
+                    },
+                },
+                "active_path": "/system/engine/quota/counters",
             }
         ]
     }

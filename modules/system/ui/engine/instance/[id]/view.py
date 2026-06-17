@@ -15,6 +15,9 @@ from modules.system.utils.actions.engine.model_import import (
     provider_supports_inventory_import,
 )
 from modules.system.utils.actions.model.catalog import active_catalog_download_tasks
+from modules.system.utils.actions.engine.quotas import (
+    quota_limit_table_model,
+)
 from modules.system.utils.ui.engine.list import (
     provider_status_label,
     provider_status_variant,
@@ -271,6 +274,7 @@ async def render(params: dict, session: dict):
     builder = sdk.ui.Builder()
     _, preview_id = await shared_layout(builder)
     merge_builders(builder, sdk.ui.load("utils/ui/yaml/engine/instance_overview"))
+    merge_builders(builder, sdk.ui.load("utils/ui/yaml/engine/quota_limits"))
 
     instance_id = _resolve_instance_id(params)
     engine = None
@@ -303,6 +307,22 @@ async def render(params: dict, session: dict):
         payload["install_status_visible"] = bool(payload["install_nodes"])
         payload["install_summary_text"] = _install_summary_text(install_status)
         builder.set_store("/instance", payload)
+        builder.set_store(
+            "/engine_quota_limits/create_path",
+            f"/system/engine/quota/limit/global/{int(instance_id)}/create",
+            scope="page",
+        )
+        builder.set_store("/engine_quota_limits/visible", True, scope="page")
+        quota_table = builder.get_component("engine_quota_limits_table")
+        if quota_table is not None:
+            quota_table.set_property("model", quota_limit_table_model(sdk))
+            quota_table.set_property(
+                "remote_service",
+                {
+                    "name": "system.list_engine_quota_limits",
+                    "context": {"scope": "global", "subject_id": int(instance_id)},
+                },
+            )
         if card is not None:
             card.set_property("itemActions", _instance_actions(payload))
         breadcrumb = builder.get_component("engine_instance_overview_breadcrumb")

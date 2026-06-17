@@ -96,6 +96,7 @@ class ObsStorageProvider(ABC):
         objective: Optional[str] = None,
         provider: Optional[str] = None,
         engine: Optional[str] = None,
+        engine_row_id: Optional[int] = None,
         model_name: Optional[str] = None,
         deployment_mode: Optional[str] = None,
         request_kind: Optional[str] = None,
@@ -144,6 +145,19 @@ class ObsStorageProvider(ABC):
         limit: int = 500,
     ) -> list[AIModelUsageEventRecord]:
         """Returns AI model usage events for one pipeline ordered oldest first."""
+
+    @abstractmethod
+    def sum_ai_model_usage_total_tokens(
+        self,
+        *,
+        engine_row_id: int,
+        started_at: datetime,
+        ended_at: datetime,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        """Returns total successful token usage for one engine/scope/window."""
 
     @abstractmethod
     def run_migrations(self) -> None:

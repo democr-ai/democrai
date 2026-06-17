@@ -96,6 +96,7 @@ class _Provider:
             objective=kwargs.get("objective"),
             provider=kwargs.get("provider"),
             engine=kwargs.get("engine"),
+            engine_row_id=kwargs.get("engine_row_id"),
             model_name=kwargs.get("model_name"),
             deployment_mode=kwargs.get("deployment_mode"),
             request_kind=kwargs["request_kind"],
@@ -316,6 +317,7 @@ def test_observability_store_serializers_and_provider_url_selection(monkeypatch,
             objective="chat",
             provider="openai",
             engine="openai",
+            engine_row_id=11,
             model_name="gpt-test",
             deployment_mode="cloud",
             request_kind="completion",
@@ -424,6 +426,7 @@ def test_clickhouse_provider_builds_expected_queries(monkeypatch: pytest.MonkeyP
                             "chat",
                             "openai",
                             "openai",
+                            None,
                             "gpt-test",
                             "cloud",
                             "completion",
@@ -936,6 +939,7 @@ def test_clickhouse_audit_llm_mixin_filter_branches():
                         "chat",
                         "openai",
                         "openai",
+                        None,
                         "gpt",
                         "cloud",
                         "completion",
@@ -1135,3 +1139,62 @@ def test_sqlalchemy_obs_provider_filter_and_dedupe_branches(tmp_path):
         dedupe_key=None,
     )
     assert outbox2.id
+
+
+def test_sqlalchemy_obs_provider_sums_ai_usage_tokens_by_engine_scope(tmp_path):
+    provider = SqliteObsStorage(str(tmp_path / "obs-usage-sum.db"))
+    provider.run_migrations()
+
+    common = {
+        "objective": "chat",
+        "provider": "openai",
+        "engine": "openai",
+        "model_name": "gpt-test",
+        "deployment_mode": "runtime",
+        "request_kind": "completion",
+    }
+    provider.record_ai_model_usage(
+        **common,
+        engine_row_id=11,
+        user_id=1,
+        organization_id=10,
+        session_id="s1",
+        total_tokens=7,
+        success=True,
+    )
+    provider.record_ai_model_usage(
+        **common,
+        engine_row_id=11,
+        user_id=1,
+        organization_id=10,
+        session_id="s1",
+        total_tokens=None,
+        success=True,
+    )
+    provider.record_ai_model_usage(
+        **common,
+        engine_row_id=11,
+        user_id=1,
+        organization_id=10,
+        session_id="s1",
+        total_tokens=99,
+        success=False,
+    )
+    provider.record_ai_model_usage(
+        **common,
+        engine_row_id=12,
+        user_id=1,
+        organization_id=10,
+        session_id="s1",
+        total_tokens=40,
+        success=True,
+    )
+
+    used = provider.sum_ai_model_usage_total_tokens(
+        engine_row_id=11,
+        user_id=1,
+        started_at=datetime(2026, 1, 1),
+        ended_at=datetime(2027, 1, 1),
+    )
+
+    assert used == 7

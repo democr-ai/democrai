@@ -353,6 +353,8 @@ def test_install_python_packages(monkeypatch, tmp_path: Path):
 
 def test_reset_install_additional_branches(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(reset_install_mod, "get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(reset_install_mod, "_engine_cache_root", lambda: str(tmp_path / "missing_engine_cache"))
+    monkeypatch.setattr(reset_install_mod, "_extractor_cache_root", lambda: str(tmp_path / "missing_extractor_cache"))
     assert reset_install_mod._config_path().endswith("config.yaml")
     assert reset_install_mod._desktop_jwt_path().endswith("/.democrai/auth_token")
     assert reset_install_mod._sqlite_path_from_url(None) is None

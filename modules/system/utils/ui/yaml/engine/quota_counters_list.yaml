@@ -1,0 +1,67 @@
+- kind: Column
+  id: engine_quota_counters_page
+  spacing: 16
+  children:
+    - kind: Breadcrumb
+      id: engine_quota_counters_breadcrumb
+      style: "margin-bottom: 12px;"
+      segments:
+        - label: "@t/system.index.title"
+          type: nav
+          path: /system/index
+        - label: "@t/system.engine.quotas.counters.title"
+          current: true
+    - kind: Row
+      id: engine_quota_counters_header
+      spacing: 12
+      align: left
+      children:
+        - kind: Title
+          id: engine_quota_counters_title
+          text: "@t/system.engine.quotas.counters.title"
+          level: 2
+        - kind: Button
+          id: engine_quota_counter_create_btn
+          label: "@t/system.engine.quotas.action.new_counter"
+          icon: ric.add-line
+          variant: success
+          mode: ghost
+          required_permissions: [system.engine.manage]
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: /system/engine/quota/counters/create
+              position: right
+              dim: 620
+    - kind: DataTable
+      id: engine_quota_counters_table
+      show_row_numbers: true
+      paginated: true
+      page: 0
+      page_size: 25
+      total_rows: 0
+      remote_service: system.list_engine_quota_counters
+      model: []
+      rows: []
+      row_actions:
+        - label: "@t/system.engine.quotas.action.edit"
+          icon: ric.edit-line
+          required_permissions: [system.engine.manage]
+          action:
+            name: open_drawer
+            context:
+              type: nav
+              path: "$item.update_path"
+              position: right
+              dim: 620
+        - label: "@t/system.engine.quotas.action.delete"
+          icon: ric.delete-bin-line
+          variant: danger
+          required_permissions: [system.engine.manage]
+          action:
+            name: system.delete_engine_quota_counter
+            confirm:
+              text: "@t/system.engine.quotas.counter.delete.confirm.text"
+              confirm_text: "@t/system.engine.quotas.delete.confirm.accept"
+              cancel_text: "@t/system.engine.quotas.delete.confirm.cancel"

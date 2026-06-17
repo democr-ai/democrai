@@ -8,6 +8,7 @@ from typing import Any
 
 from democrai.core.application.ai.engine.orchestrator.jobs import EngineJob
 from democrai.core.application.ai.pipeline_context import ai_pipeline_step
+from democrai.core.platform.utils.identity import to_int_or_zero
 
 
 @dataclass
@@ -98,6 +99,7 @@ class EngineBatchingCoordinator:
                     input=_call_input(ticket),
                 ) as step:
                     await job.set_status_async("invoking")
+                    _require_engine_quota(job=job, provider=provider)
                     result = target(**payload)
                     if inspect.isawaitable(result):
                         result = await result
@@ -125,6 +127,7 @@ class EngineBatchingCoordinator:
                     input=_call_input(ticket),
                 ) as step:
                     await job.set_status_async("streaming")
+                    _require_engine_quota(job=job, provider=provider)
                     chunks = 0
                     result = target(**payload)
                     if inspect.isawaitable(result):
@@ -330,6 +333,22 @@ def _call_input(ticket: EngineBatchTicket) -> dict[str, Any]:
         "method": ticket.method,
         "payload_keys": sorted(str(key) for key in ticket.payload.keys()),
     }
+
+
+def _require_engine_quota(*, job: EngineJob, provider: Any) -> None:
+    engine_row_id = to_int_or_zero(getattr(provider, "engine_row_id", None))
+    if engine_row_id <= 0:
+        return
+    from democrai.core.application.ai.engine.quotas import require_engine_quota
+
+    request_context = job.request_context if isinstance(job.request_context, dict) else {}
+    if not request_context:
+        return
+    require_engine_quota(
+        engine_registry_id=engine_row_id,
+        user_id=to_int_or_zero(request_context.get("user")) or None,
+        request_context=request_context,
+    )
 
 
 def _positive_int(value: Any) -> int:

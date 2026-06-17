@@ -102,6 +102,7 @@ class ClickHouseCommonMixin:
                 objective Nullable(String),
                 provider Nullable(String),
                 engine Nullable(String),
+                engine_row_id Nullable(Int64),
                 model_name Nullable(String),
                 deployment_mode Nullable(String),
                 request_kind Nullable(String),
@@ -121,6 +122,9 @@ class ClickHouseCommonMixin:
         )
         self._client.command(
             "ALTER TABLE ai_model_usage_events ADD COLUMN IF NOT EXISTS node_id Nullable(String) AFTER session_id"
+        )
+        self._client.command(
+            "ALTER TABLE ai_model_usage_events ADD COLUMN IF NOT EXISTS engine_row_id Nullable(Int64) AFTER engine"
         )
         self._client.command(
             "ALTER TABLE ai_model_usage_events ADD COLUMN IF NOT EXISTS tokens_per_second Nullable(Float64) AFTER duration_ms"

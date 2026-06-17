@@ -4,6 +4,9 @@ from democrai.sdk.client import active_sdk as sdk
 from democrai.sdk.ui import merge_builders
 
 from modules.system.utils.actions.role.module import module_rows_for_role
+from modules.system.utils.actions.engine.quotas import (
+    quota_limit_table_model,
+)
 from modules.system.ui.layout import shared_layout
 from modules.system.utils.ui.user.render import resolve_route_id, set_title_text
 
@@ -40,7 +43,9 @@ async def render(params: dict, session: dict):
         else:
             page_builder = sdk.ui.load("utils/ui/yaml/roles/view")
             modules_builder = sdk.ui.load("utils/ui/yaml/roles/modules")
+            quotas_builder = sdk.ui.load("utils/ui/yaml/engine/quota_limits")
             merge_builders(page_builder, modules_builder)
+            merge_builders(page_builder, quotas_builder)
             is_super_role = str(role.get("name") or "").strip().lower() == "super"
             all_permissions = [
                 str(item.get("value") or "").strip()
@@ -190,6 +195,28 @@ async def render(params: dict, session: dict):
                 modules_table.set_property("total_rows", len(role_module_rows))
                 if is_super_role:
                     modules_table.set_property("row_actions", [])
+
+            page_builder.set_store(
+                "/engine_quota_limits/create_path",
+                f"/system/engine/quota/limit/role/{role_id}/create",
+                scope="page",
+            )
+            page_builder.set_store("/engine_quota_limits/visible", True, scope="page")
+            quota_table = page_builder.get_component("engine_quota_limits_table")
+            if quota_table is not None:
+                quota_table.set_property("model", quota_limit_table_model(sdk))
+                quota_table.set_property(
+                    "remote_service",
+                    {
+                        "name": "system.list_engine_quota_limits",
+                        "context": {"scope": "role", "subject_id": role_id},
+                    },
+                )
+                if is_super_role:
+                    quota_table.set_property("row_actions", [])
+            quota_create_btn = page_builder.get_component("engine_quota_limit_create_btn")
+            if quota_create_btn is not None and is_super_role:
+                quota_create_btn.set_property("enabled", False)
 
     builder = sdk.ui.Builder()
     _, preview_id = await shared_layout(builder)

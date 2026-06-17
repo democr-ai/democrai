@@ -93,13 +93,13 @@ class ClickHouseAuditLLMMixin:
             for row in result.result_rows
         ]
 
-    def record_ai_model_usage(self, *, user_id: Optional[int] = None, organization_id: Optional[int] = None, session_id: Optional[str] = None, node_id: Optional[str] = None, request_id: Optional[str] = None, correlation_id: Optional[str] = None, client_ip: Optional[str] = None, channel: Optional[str] = None, objective: Optional[str] = None, provider: Optional[str] = None, engine: Optional[str] = None, model_name: Optional[str] = None, deployment_mode: Optional[str] = None, request_kind: Optional[str] = None, agent_id: Optional[str] = None, prompt_tokens: Optional[int] = None, completion_tokens: Optional[int] = None, total_tokens: Optional[int] = None, duration_ms: Optional[float] = None, tokens_per_second: Optional[float] = None, success: bool = True, error: Optional[str] = None, metadata: Optional[dict] = None) -> AIModelUsageEventRecord:
+    def record_ai_model_usage(self, *, user_id: Optional[int] = None, organization_id: Optional[int] = None, session_id: Optional[str] = None, node_id: Optional[str] = None, request_id: Optional[str] = None, correlation_id: Optional[str] = None, client_ip: Optional[str] = None, channel: Optional[str] = None, objective: Optional[str] = None, provider: Optional[str] = None, engine: Optional[str] = None, engine_row_id: Optional[int] = None, model_name: Optional[str] = None, deployment_mode: Optional[str] = None, request_kind: Optional[str] = None, agent_id: Optional[str] = None, prompt_tokens: Optional[int] = None, completion_tokens: Optional[int] = None, total_tokens: Optional[int] = None, duration_ms: Optional[float] = None, tokens_per_second: Optional[float] = None, success: bool = True, error: Optional[str] = None, metadata: Optional[dict] = None) -> AIModelUsageEventRecord:
         timestamp = utc_now_naive()
         metadata_json = json.dumps(metadata or {})
         self._client.insert(
             "ai_model_usage_events",
-            [[timestamp, user_id, organization_id, session_id, node_id, request_id, correlation_id, client_ip, channel, objective, provider, engine, model_name, deployment_mode, request_kind, agent_id, prompt_tokens, completion_tokens, total_tokens, duration_ms, tokens_per_second, bool(success), error, metadata_json]],
-            column_names=["timestamp", "user_id", "organization_id", "session_id", "node_id", "request_id", "correlation_id", "client_ip", "channel", "objective", "provider", "engine", "model_name", "deployment_mode", "request_kind", "agent_id", "prompt_tokens", "completion_tokens", "total_tokens", "duration_ms", "tokens_per_second", "success", "error", "metadata_json"],
+            [[timestamp, user_id, organization_id, session_id, node_id, request_id, correlation_id, client_ip, channel, objective, provider, engine, engine_row_id, model_name, deployment_mode, request_kind, agent_id, prompt_tokens, completion_tokens, total_tokens, duration_ms, tokens_per_second, bool(success), error, metadata_json]],
+            column_names=["timestamp", "user_id", "organization_id", "session_id", "node_id", "request_id", "correlation_id", "client_ip", "channel", "objective", "provider", "engine", "engine_row_id", "model_name", "deployment_mode", "request_kind", "agent_id", "prompt_tokens", "completion_tokens", "total_tokens", "duration_ms", "tokens_per_second", "success", "error", "metadata_json"],
         )
         return AIModelUsageEventRecord(
             id=None,
@@ -115,6 +115,7 @@ class ClickHouseAuditLLMMixin:
             objective=objective,
             provider=provider,
             engine=engine,
+            engine_row_id=engine_row_id,
             model_name=model_name,
             deployment_mode=deployment_mode,
             request_kind=request_kind,
@@ -145,7 +146,7 @@ class ClickHouseAuditLLMMixin:
         result = self._client.query(
             f"""
             SELECT timestamp, user_id, organization_id, session_id, node_id, request_id,
-                   correlation_id, client_ip, channel, objective, provider, engine, model_name, deployment_mode,
+                   correlation_id, client_ip, channel, objective, provider, engine, engine_row_id, model_name, deployment_mode,
                    request_kind, agent_id, prompt_tokens, completion_tokens, total_tokens,
                    duration_ms, tokens_per_second, success, error, metadata_json
             FROM ai_model_usage_events
@@ -170,18 +171,19 @@ class ClickHouseAuditLLMMixin:
                 objective=row[9],
                 provider=row[10],
                 engine=row[11],
-                model_name=row[12],
-                deployment_mode=row[13],
-                request_kind=row[14],
-                agent_id=row[15],
-                prompt_tokens=row[16],
-                completion_tokens=row[17],
-                total_tokens=row[18],
-                duration_ms=row[19],
-                tokens_per_second=row[20],
-                success=bool(row[21]),
-                error=row[22],
-                metadata_json=row[23],
+                engine_row_id=row[12],
+                model_name=row[13],
+                deployment_mode=row[14],
+                request_kind=row[15],
+                agent_id=row[16],
+                prompt_tokens=row[17],
+                completion_tokens=row[18],
+                total_tokens=row[19],
+                duration_ms=row[20],
+                tokens_per_second=row[21],
+                success=bool(row[22]),
+                error=row[23],
+                metadata_json=row[24],
             )
             for row in result.result_rows
         ]
@@ -193,7 +195,7 @@ class ClickHouseAuditLLMMixin:
         result = self._client.query(
             """
             SELECT timestamp, user_id, organization_id, session_id, node_id, request_id,
-                   correlation_id, client_ip, channel, objective, provider, engine, model_name, deployment_mode,
+                   correlation_id, client_ip, channel, objective, provider, engine, engine_row_id, model_name, deployment_mode,
                    request_kind, agent_id, prompt_tokens, completion_tokens, total_tokens,
                    duration_ms, tokens_per_second, success, error, metadata_json
             FROM ai_model_usage_events
@@ -218,21 +220,64 @@ class ClickHouseAuditLLMMixin:
                 objective=row[9],
                 provider=row[10],
                 engine=row[11],
-                model_name=row[12],
-                deployment_mode=row[13],
-                request_kind=row[14],
-                agent_id=row[15],
-                prompt_tokens=row[16],
-                completion_tokens=row[17],
-                total_tokens=row[18],
-                duration_ms=row[19],
-                tokens_per_second=row[20],
-                success=bool(row[21]),
-                error=row[22],
-                metadata_json=row[23],
+                engine_row_id=row[12],
+                model_name=row[13],
+                deployment_mode=row[14],
+                request_kind=row[15],
+                agent_id=row[16],
+                prompt_tokens=row[17],
+                completion_tokens=row[18],
+                total_tokens=row[19],
+                duration_ms=row[20],
+                tokens_per_second=row[21],
+                success=bool(row[22]),
+                error=row[23],
+                metadata_json=row[24],
             )
             for row in result.result_rows
         ]
+
+    def sum_ai_model_usage_total_tokens(
+        self,
+        *,
+        engine_row_id: int,
+        started_at: Any,
+        ended_at: Any,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        params: dict[str, Any] = {
+            "engine_row_id": int(engine_row_id),
+            "started_at": started_at,
+            "ended_at": ended_at,
+        }
+        conditions = [
+            "engine_row_id = %(engine_row_id)s",
+            "success = 1",
+            "timestamp >= %(started_at)s",
+            "timestamp < %(ended_at)s",
+        ]
+        if user_id is not None:
+            conditions.append("user_id = %(user_id)s")
+            params["user_id"] = int(user_id)
+        if organization_id is not None:
+            conditions.append("organization_id = %(organization_id)s")
+            params["organization_id"] = int(organization_id)
+        if session_id is not None:
+            conditions.append("session_id = %(session_id)s")
+            params["session_id"] = str(session_id)
+        result = self._client.query(
+            f"""
+            SELECT coalesce(sum(coalesce(total_tokens, 0)), 0)
+            FROM ai_model_usage_events
+            WHERE {" AND ".join(conditions)}
+            """,
+            parameters=params,
+        )
+        if not result.result_rows:
+            return 0
+        return int(result.result_rows[0][0] or 0)
 
     def record_ai_model_runtime(self, **kwargs) -> AIModelRuntimeEventRecord:
         timestamp = utc_now_naive()

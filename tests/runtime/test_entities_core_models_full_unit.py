@@ -20,6 +20,8 @@ import democrai.core.application.ai.engine.config_crypto as eng_crypto_mod
 import democrai.core.application.models.entities.audit_events as audit_mod
 import democrai.core.application.models.entities.background_tasks as bg_mod
 import democrai.core.application.models.entities.engine_node_install_registry as enir_mod
+import democrai.core.application.models.entities.engine_quota_counters as eqc_mod
+import democrai.core.application.models.entities.engine_quota_limits as eql_mod
 import democrai.core.application.models.entities.engine_registry as er_mod
 import democrai.core.application.models.entities.extractor_node_install_registry as exnir_mod
 import democrai.core.application.models.entities.extractor_registry as exr_mod
@@ -41,6 +43,10 @@ from democrai.core.infrastructure.database.models import (
     Permission,
     Role,
     User,
+)
+from democrai.core.infrastructure.database.models_engine_quota import (
+    EngineQuotaCounter,
+    EngineQuotaLimit,
 )
 from democrai.core.infrastructure.storage.observability.models import (
     AuditEvent,
@@ -74,7 +80,18 @@ def core_session_local(monkeypatch):
         expire_on_commit=False,
     )
 
-    for mod in (er_mod, exr_mod, mcp_mod, mr_mod, ml_mod, om_mod, roles_mod, users_mod):
+    for mod in (
+        er_mod,
+        eqc_mod,
+        eql_mod,
+        exr_mod,
+        mcp_mod,
+        mr_mod,
+        ml_mod,
+        om_mod,
+        roles_mod,
+        users_mod,
+    ):
         monkeypatch.setattr(mod, "SessionLocal", SessionLocal)
 
     yield SessionLocal
@@ -157,6 +174,62 @@ def test_observability_core_model_session_factory_and_read_only(obs_session_loca
         model.update(1, {})
     with pytest.raises(NotImplementedError, match="is read-only"):
         model.delete(1)
+
+
+def test_engine_quota_core_models_create_update_delete_and_registry(core_session_local):
+    from democrai.core.application.models import build_core_model
+    from democrai.core.application.models import list_core_models
+
+    with core_session_local() as session:
+        engine = _seed_engine(session)
+
+    assert "engine_quota_counters" in list_core_models()
+    assert "engine_quota_limits" in list_core_models()
+
+    counters = build_core_model("engine_quota_counters", _ctx())
+    limits = build_core_model("engine_quota_limits", _ctx())
+
+    counter = counters.create({"name": "daily tokens", "period_unit": "day"})
+    assert counter["period_unit"] == "day"
+    updated_counter = counters.update(counter["id"], {"period_unit": "hour"})
+    assert updated_counter["period_unit"] == "hour"
+
+    limit = limits.create(
+        {
+            "counter_id": counter["id"],
+            "engine_row_id": engine.id,
+            "scope_type": "user",
+            "scope_id": 1,
+            "limit_total_tokens": 100,
+        }
+    )
+    assert limit["limit_total_tokens"] == 100
+    updated_limit = limits.update(limit["id"], {"limit_total_tokens": 50})
+    assert updated_limit["limit_total_tokens"] == 50
+
+    with pytest.raises(ValueError, match="period_unit unsupported"):
+        counters.create({"name": "bad", "period_unit": "year"})
+    with pytest.raises(ValueError, match="scope_id is required"):
+        limits.create(
+            {
+                "counter_id": counter["id"],
+                "engine_row_id": engine.id,
+                "scope_type": "role",
+                "limit_total_tokens": 10,
+            }
+        )
+    with pytest.raises(ValueError, match="limit_total_tokens must be >= 0"):
+        limits.create(
+            {
+                "counter_id": counter["id"],
+                "engine_row_id": engine.id,
+                "scope_type": "all",
+                "limit_total_tokens": -1,
+            }
+        )
+
+    assert limits.delete(limit["id"]) is True
+    assert counters.delete(counter["id"]) is True
 
 
 def test_audit_events_model_serialization_and_filters(obs_session_local):

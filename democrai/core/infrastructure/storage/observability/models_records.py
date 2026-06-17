@@ -100,6 +100,7 @@ class AIModelUsageEventRecord:
     objective: str | None
     provider: str | None
     engine: str | None
+    engine_row_id: int | None
     model_name: str | None
     deployment_mode: str | None
     request_kind: str | None
@@ -129,6 +130,7 @@ class AIModelUsageEventRecord:
             "objective": self.objective,
             "provider": self.provider,
             "engine": self.engine,
+            "engine_row_id": self.engine_row_id,
             "model_name": self.model_name,
             "deployment_mode": self.deployment_mode,
             "request_kind": self.request_kind,

@@ -5,6 +5,8 @@ from democrai.core.application.models.entities import (
     AvailableModelRegistryCoreModel,
     BackgroundTasksCoreModel,
     EngineNodeInstallRegistryCoreModel,
+    EngineQuotaCountersCoreModel,
+    EngineQuotaLimitsCoreModel,
     EngineRegistryCoreModel,
     EnvironmentVariableRegistryCoreModel,
     ExtractorMimeTypeBindingCoreModel,
@@ -54,6 +56,14 @@ register_core_model("engine_registry", lambda ctx: EngineRegistryCoreModel(ctx))
 register_core_model(
     "engine_node_install_registry",
     lambda ctx: EngineNodeInstallRegistryCoreModel(ctx),
+)
+register_core_model(
+    "engine_quota_counters",
+    lambda ctx: EngineQuotaCountersCoreModel(ctx),
+)
+register_core_model(
+    "engine_quota_limits",
+    lambda ctx: EngineQuotaLimitsCoreModel(ctx),
 )
 register_core_model(
     "environment_variable_registry",

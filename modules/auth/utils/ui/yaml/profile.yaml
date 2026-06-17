@@ -1,6 +1,7 @@
 - kind: ScrollArea
   id: auth_profile_scroll
   scroll_y: true
+  transparent: true
   children:
     - kind: Column
       id: auth_profile_page

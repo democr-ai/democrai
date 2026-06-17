@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from democrai.core.infrastructure.storage.observability.models import Base
 from democrai.core.infrastructure.storage.observability.models import AuditEvent
@@ -163,6 +163,7 @@ class SQLAlchemyObsProviderMixin:
         objective: Optional[str] = None,
         provider: Optional[str] = None,
         engine: Optional[str] = None,
+        engine_row_id: Optional[int] = None,
         model_name: Optional[str] = None,
         deployment_mode: Optional[str] = None,
         request_kind: Optional[str] = None,
@@ -189,6 +190,7 @@ class SQLAlchemyObsProviderMixin:
                 objective=objective,
                 provider=provider,
                 engine=engine,
+                engine_row_id=engine_row_id,
                 model_name=model_name,
                 deployment_mode=deployment_mode,
                 request_kind=request_kind,
@@ -206,6 +208,35 @@ class SQLAlchemyObsProviderMixin:
             session.commit()
             session.refresh(event)
             return event.to_record()
+
+    def sum_ai_model_usage_total_tokens(
+        self,
+        *,
+        engine_row_id: int,
+        started_at: datetime,
+        ended_at: datetime,
+        user_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        with self._session() as session:
+            query = session.query(
+                func.coalesce(func.sum(func.coalesce(AIModelUsageEvent.total_tokens, 0)), 0)
+            ).filter(
+                AIModelUsageEvent.engine_row_id == int(engine_row_id),
+                AIModelUsageEvent.success == True,  # noqa: E712
+                AIModelUsageEvent.timestamp >= started_at,
+                AIModelUsageEvent.timestamp < ended_at,
+            )
+            if user_id is not None:
+                query = query.filter(AIModelUsageEvent.user_id == int(user_id))
+            if organization_id is not None:
+                query = query.filter(
+                    AIModelUsageEvent.organization_id == int(organization_id)
+                )
+            if session_id is not None:
+                query = query.filter(AIModelUsageEvent.session_id == str(session_id))
+            return int(query.scalar() or 0)
 
     def get_ai_model_usage_events(
         self,

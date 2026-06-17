@@ -826,3 +826,4 @@ class ModuleLock(Base):
 # Register additional core-domain tables on the same metadata for Alembic.
 from democrai.core.application.knowledge import records as _knowledge_records  # noqa: F401
 from democrai.core.application.tasks import models as _task_models  # noqa: F401
+from democrai.core.infrastructure.database import models_engine_quota as _engine_quota_models  # noqa: F401

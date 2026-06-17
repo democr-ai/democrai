@@ -9,6 +9,12 @@ from democrai.core.application.models.entities.background_tasks import Backgroun
 from democrai.core.application.models.entities.engine_node_install_registry import (
     EngineNodeInstallRegistryCoreModel,
 )
+from democrai.core.application.models.entities.engine_quota_counters import (
+    EngineQuotaCountersCoreModel,
+)
+from democrai.core.application.models.entities.engine_quota_limits import (
+    EngineQuotaLimitsCoreModel,
+)
 from democrai.core.application.models.entities.engine_registry import EngineRegistryCoreModel
 from democrai.core.application.models.entities.environment_variable_registry import (
     EnvironmentVariableRegistryCoreModel,
@@ -54,6 +60,8 @@ __all__ = [
     "AvailableModelRegistryCoreModel",
     "BackgroundTasksCoreModel",
     "EngineNodeInstallRegistryCoreModel",
+    "EngineQuotaCountersCoreModel",
+    "EngineQuotaLimitsCoreModel",
     "EngineRegistryCoreModel",
     "EnvironmentVariableRegistryCoreModel",
     "ExtractorNodeInstallRegistryCoreModel",

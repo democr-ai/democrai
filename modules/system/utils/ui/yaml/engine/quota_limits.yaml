@@ -1,0 +1,70 @@
+- kind: Card
+  id: engine_quota_limits_card
+  variant: outlined
+  style: "padding: 8px;"
+  show_if:
+    conditions:
+      - left: {type: store, scope: page, path: /engine_quota_limits/visible, default: false}
+        op: "=="
+        right: true
+  children:
+    - kind: Column
+      id: engine_quota_limits_section
+      spacing: 12
+      children:
+        - kind: Row
+          id: engine_quota_limits_header
+          spacing: 12
+          align: left
+          children:
+            - kind: Title
+              id: engine_quota_limits_title
+              text: "@t/system.engine.quotas.limits.title"
+              level: 3
+            - kind: Button
+              id: engine_quota_limit_create_btn
+              label: "@t/system.engine.quotas.action.new_limit"
+              icon: ric.add-line
+              variant: success
+              mode: ghost
+              required_permissions: [system.engine.manage]
+              action:
+                name: open_drawer
+                context:
+                  type: nav
+                  path: "@state/page/engine_quota_limits/create_path"
+                  position: right
+                  dim: 720
+        - kind: DataTable
+          id: engine_quota_limits_table
+          show_row_numbers: true
+          paginated: true
+          page: 0
+          page_size: 25
+          total_rows: 0
+          remote_service:
+            name: system.list_engine_quota_limits
+            context: {}
+          model: []
+          rows: []
+          row_actions:
+            - label: "@t/system.engine.quotas.action.edit"
+              icon: ric.edit-line
+              required_permissions: [system.engine.manage]
+              action:
+                name: open_drawer
+                context:
+                  type: nav
+                  path: "$item.update_path"
+                  position: right
+                  dim: 720
+            - label: "@t/system.engine.quotas.action.delete"
+              icon: ric.delete-bin-line
+              variant: danger
+              required_permissions: [system.engine.manage]
+              action:
+                name: system.delete_engine_quota_limit
+                confirm:
+                  text: "@t/system.engine.quotas.limit.delete.confirm.text"
+                  confirm_text: "@t/system.engine.quotas.delete.confirm.accept"
+                  cancel_text: "@t/system.engine.quotas.delete.confirm.cancel"

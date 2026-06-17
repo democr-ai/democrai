@@ -225,6 +225,79 @@ async def test_engine_batching_skips_cancelled_ticket(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_engine_job_executor_checks_quota_before_provider(monkeypatch):
+    calls = []
+
+    class Provider:
+        engine_row_id = 44
+
+        async def generate_completion(self, **payload):
+            calls.append(("provider", payload))
+            return {"ok": True}
+
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
+        return Provider()
+
+    def fake_require_engine_quota(**kwargs):
+        calls.append(("quota", kwargs))
+
+    import democrai.core.application.ai.engine.orchestrator.executor as executor_mod
+    import democrai.core.application.ai.engine.quotas as quotas_mod
+
+    monkeypatch.setattr(executor_mod, "resolve_provider", fake_resolve_provider)
+    monkeypatch.setattr(quotas_mod, "require_engine_quota", fake_require_engine_quota)
+
+    job = _job(request_context={"user": 9, "session_key": "s1"})
+    await job.next_event()
+
+    result = await EngineJobExecutor().execute_unary(job)
+
+    assert result == {"ok": True}
+    assert calls[0] == (
+        "quota",
+        {
+            "engine_registry_id": 44,
+            "user_id": 9,
+            "request_context": {"user": 9, "session_key": "s1"},
+        },
+    )
+    assert calls[1][0] == "provider"
+
+
+@pytest.mark.asyncio
+async def test_engine_job_executor_blocks_provider_when_quota_exceeded(monkeypatch):
+    provider_called = False
+
+    class Provider:
+        engine_row_id = 44
+
+        async def generate_completion(self, **_payload):
+            nonlocal provider_called
+            provider_called = True
+            return {"ok": True}
+
+    async def fake_resolve_provider(_request, *, event_hook=None, allow_prompt=True):
+        return Provider()
+
+    def fake_require_engine_quota(**_kwargs):
+        raise RuntimeError("engine_quota_exceeded:unit")
+
+    import democrai.core.application.ai.engine.orchestrator.executor as executor_mod
+    import democrai.core.application.ai.engine.quotas as quotas_mod
+
+    monkeypatch.setattr(executor_mod, "resolve_provider", fake_resolve_provider)
+    monkeypatch.setattr(quotas_mod, "require_engine_quota", fake_require_engine_quota)
+
+    job = _job(request_context={"user": 9, "session_key": "s1"})
+    await job.next_event()
+
+    with pytest.raises(RuntimeError, match="engine_quota_exceeded"):
+        await EngineJobExecutor().execute_unary(job)
+
+    assert provider_called is False
+
+
+@pytest.mark.asyncio
 async def test_engine_batching_shutdown_fails_waiting_ticket(monkeypatch):
     class Provider:
         _democrai_instance_id = "instance-1"

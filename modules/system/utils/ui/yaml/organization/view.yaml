@@ -63,6 +63,9 @@
         - id: organization_mcp_tab
           label: "@t/system.organization.tabs.mcp"
           icon: ric.server-line
+        - id: organization_quota_tab
+          label: "@t/system.engine.quotas.tab"
+          icon: ric.speed-up-line
       children:
         - kind: Column
           id: organization_users_tab
@@ -84,3 +87,7 @@
           id: organization_mcp_tab
           children:
             - organization_mcp_section
+        - kind: Column
+          id: organization_quota_tab
+          children:
+            - engine_quota_limits_card

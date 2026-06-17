@@ -79,6 +79,333 @@ class Engines:
     def __init__(self, sdk=None) -> None:
         self.sdk = sdk
 
+    def quota_metadata(self) -> dict[str, Any]:
+        """Return public engine quota constants."""
+        from democrai.core.application.ai.engine.quotas.types import PERIOD_UNITS
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_ALL
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_GUEST
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_ORGANIZATION
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_ROLE
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_TYPES
+        from democrai.core.application.ai.engine.quotas.types import SCOPE_USER
+
+        return {
+            "period_units": sorted(PERIOD_UNITS),
+            "scope_types": sorted(SCOPE_TYPES),
+            "global_scope_types": [SCOPE_ALL, SCOPE_GUEST],
+            "target_scope_types": [SCOPE_ORGANIZATION, SCOPE_ROLE, SCOPE_USER],
+        }
+
+    def list_quota_counters(
+        self,
+        *,
+        page: int = 0,
+        page_size: int = 200,
+        filters: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """List quota counters."""
+        return self._models().engine_quota_counters.list(
+            page=page,
+            page_size=page_size,
+            filters=filters,
+            sort=sort,
+        )
+
+    def get_quota_counter(self, *, counter_id: int | str) -> dict[str, Any] | None:
+        """Return one quota counter."""
+        return self._models().engine_quota_counters.view(int(counter_id))
+
+    def create_quota_counter(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create one quota counter."""
+        return self._models().engine_quota_counters.create(dict(payload or {}))
+
+    def update_quota_counter(
+        self,
+        *,
+        counter_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update one quota counter."""
+        return self._models().engine_quota_counters.update(
+            int(counter_id),
+            dict(payload or {}),
+        )
+
+    def delete_quota_counter(self, *, counter_id: int | str) -> bool:
+        """Delete one quota counter."""
+        return bool(self._models().engine_quota_counters.delete(int(counter_id)))
+
+    def list_engine_global_quota_limits(
+        self,
+        *,
+        engine_registry_id: int | str,
+        page: int = 0,
+        page_size: int = 200,
+    ) -> dict[str, Any]:
+        """List all/guest quota limits for one engine."""
+        metadata = self.quota_metadata()
+        rows = self._all_quota_limits(
+            filters={"engine_row_id": int(engine_registry_id)},
+        )
+        rows = [
+            row
+            for row in rows
+            if str(row.get("scope_type") or "") in set(metadata["global_scope_types"])
+        ]
+        return self._page_rows(rows, page=page, page_size=page_size)
+
+    def create_engine_global_quota_limit(
+        self,
+        *,
+        engine_registry_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create an all/guest quota limit for one engine."""
+        values = dict(payload or {})
+        scope_type = str(values.get("scope_type") or "").strip()
+        if scope_type not in set(self.quota_metadata()["global_scope_types"]):
+            raise ValueError("scope_type must be all or guest")
+        values["engine_row_id"] = int(engine_registry_id)
+        values["scope_id"] = None
+        return self._models().engine_quota_limits.create(values)
+
+    def update_engine_global_quota_limit(
+        self,
+        *,
+        limit_id: int | str,
+        engine_registry_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update an all/guest quota limit for one engine."""
+        current = self._require_limit(limit_id)
+        if int(current.get("engine_row_id") or 0) != int(engine_registry_id):
+            raise ValueError("engine quota limit does not belong to this engine")
+        scope_type = str((payload or {}).get("scope_type") or current.get("scope_type") or "")
+        if scope_type not in set(self.quota_metadata()["global_scope_types"]):
+            raise ValueError("scope_type must be all or guest")
+        values = dict(payload or {})
+        values["engine_row_id"] = int(engine_registry_id)
+        values["scope_type"] = scope_type
+        values["scope_id"] = None
+        return self._models().engine_quota_limits.update(int(limit_id), values)
+
+    def list_organization_engine_quota_limits(
+        self,
+        *,
+        organization_id: int | str,
+        page: int = 0,
+        page_size: int = 200,
+    ) -> dict[str, Any]:
+        """List quota limits for one organization."""
+        return self._list_scoped_limits(
+            scope_type="organization",
+            scope_id=int(organization_id),
+            page=page,
+            page_size=page_size,
+        )
+
+    def list_role_engine_quota_limits(
+        self,
+        *,
+        role_id: int | str,
+        page: int = 0,
+        page_size: int = 200,
+    ) -> dict[str, Any]:
+        """List quota limits for one role."""
+        return self._list_scoped_limits(
+            scope_type="role",
+            scope_id=int(role_id),
+            page=page,
+            page_size=page_size,
+        )
+
+    def list_user_engine_quota_limits(
+        self,
+        *,
+        user_id: int | str,
+        page: int = 0,
+        page_size: int = 200,
+    ) -> dict[str, Any]:
+        """List quota limits for one user."""
+        return self._list_scoped_limits(
+            scope_type="user",
+            scope_id=int(user_id),
+            page=page,
+            page_size=page_size,
+        )
+
+    def create_organization_engine_quota_limit(
+        self,
+        *,
+        organization_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create one organization-scoped quota limit."""
+        return self._create_scoped_limit(
+            scope_type="organization",
+            scope_id=int(organization_id),
+            payload=payload,
+        )
+
+    def create_role_engine_quota_limit(
+        self,
+        *,
+        role_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create one role-scoped quota limit."""
+        return self._create_scoped_limit(
+            scope_type="role",
+            scope_id=int(role_id),
+            payload=payload,
+        )
+
+    def create_user_engine_quota_limit(
+        self,
+        *,
+        user_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create one user-scoped quota limit."""
+        return self._create_scoped_limit(
+            scope_type="user",
+            scope_id=int(user_id),
+            payload=payload,
+        )
+
+    def update_organization_engine_quota_limit(
+        self,
+        *,
+        organization_id: int | str,
+        limit_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update one organization-scoped quota limit."""
+        return self._update_scoped_limit(
+            scope_type="organization",
+            scope_id=int(organization_id),
+            limit_id=int(limit_id),
+            payload=payload,
+        )
+
+    def update_role_engine_quota_limit(
+        self,
+        *,
+        role_id: int | str,
+        limit_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update one role-scoped quota limit."""
+        return self._update_scoped_limit(
+            scope_type="role",
+            scope_id=int(role_id),
+            limit_id=int(limit_id),
+            payload=payload,
+        )
+
+    def update_user_engine_quota_limit(
+        self,
+        *,
+        user_id: int | str,
+        limit_id: int | str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update one user-scoped quota limit."""
+        return self._update_scoped_limit(
+            scope_type="user",
+            scope_id=int(user_id),
+            limit_id=int(limit_id),
+            payload=payload,
+        )
+
+    def delete_engine_quota_limit(self, *, limit_id: int | str) -> bool:
+        """Delete one engine quota limit."""
+        return bool(self._models().engine_quota_limits.delete(int(limit_id)))
+
+    def get_engine_quota_limit(self, *, limit_id: int | str) -> dict[str, Any] | None:
+        """Return one engine quota limit."""
+        return self._models().engine_quota_limits.view(int(limit_id))
+
+    def _models(self):
+        if self.sdk is None:
+            from democrai.sdk.models import CoreModelsSDK
+
+            return CoreModelsSDK(None)
+        return self.sdk.models
+
+    def _all_quota_limits(self, *, filters: dict[str, Any]) -> list[dict[str, Any]]:
+        listing = self._models().engine_quota_limits.all(filters=filters)
+        return list((listing or {}).get("rows") or [])
+
+    @staticmethod
+    def _page_rows(
+        rows: list[dict[str, Any]],
+        *,
+        page: int,
+        page_size: int,
+    ) -> dict[str, Any]:
+        page = max(0, int(page))
+        page_size = max(1, min(int(page_size), 200))
+        start = page * page_size
+        end = start + page_size
+        return {
+            "rows": rows[start:end],
+            "total_rows": len(rows),
+            "page": page,
+            "page_size": page_size,
+        }
+
+    def _list_scoped_limits(
+        self,
+        *,
+        scope_type: str,
+        scope_id: int,
+        page: int,
+        page_size: int,
+    ) -> dict[str, Any]:
+        rows = self._all_quota_limits(
+            filters={"scope_type": scope_type, "scope_id": scope_id},
+        )
+        return self._page_rows(rows, page=page, page_size=page_size)
+
+    def _create_scoped_limit(
+        self,
+        *,
+        scope_type: str,
+        scope_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        values = dict(payload or {})
+        values["scope_type"] = scope_type
+        values["scope_id"] = scope_id
+        return self._models().engine_quota_limits.create(values)
+
+    def _update_scoped_limit(
+        self,
+        *,
+        scope_type: str,
+        scope_id: int,
+        limit_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        current = self._require_limit(limit_id)
+        if (
+            str(current.get("scope_type") or "") != scope_type
+            or int(current.get("scope_id") or 0) != int(scope_id)
+        ):
+            raise ValueError("engine quota limit does not belong to this scope")
+        values = dict(payload or {})
+        values["scope_type"] = scope_type
+        values["scope_id"] = scope_id
+        return self._models().engine_quota_limits.update(limit_id, values)
+
+    def _require_limit(self, limit_id: int | str) -> dict[str, Any]:
+        current = self.get_engine_quota_limit(limit_id=limit_id)
+        if not isinstance(current, dict):
+            raise ValueError("engine quota limit not found")
+        return current
+
     async def constants(self) -> dict[str, Any]:
         """Return the shared AI engine/model contract constants."""
         from democrai.core.application.ai.constants import (

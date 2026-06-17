@@ -189,6 +189,9 @@ class ObservabilityStore:
             limit=limit,
         )
 
+    def sum_ai_model_usage_total_tokens(self, **kwargs) -> int:
+        return self.provider.sum_ai_model_usage_total_tokens(**kwargs)
+
     def run_migrations(self) -> None:
         self.provider.run_migrations()
 

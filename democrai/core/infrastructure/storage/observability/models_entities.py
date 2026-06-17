@@ -134,6 +134,7 @@ class AIModelUsageEvent(Base):
     objective = Column(String(128), nullable=True, index=True)
     provider = Column(String(128), nullable=True, index=True)
     engine = Column(String(128), nullable=True, index=True)
+    engine_row_id = Column(Integer, nullable=True, index=True)
     model_name = Column(String(255), nullable=True, index=True)
     deployment_mode = Column(String(64), nullable=True, index=True)
     request_kind = Column(String(64), nullable=True, index=True)
@@ -153,6 +154,10 @@ class AIModelUsageEvent(Base):
         Index("idx_ai_model_usage_model", "model_name", "timestamp"),
         Index("idx_ai_model_usage_corr", "correlation_id"),
         Index("idx_ai_model_usage_node", "node_id"),
+        Index("idx_ai_model_usage_engine_success_ts", "engine_row_id", "success", "timestamp"),
+        Index("idx_ai_model_usage_engine_user_success_ts", "engine_row_id", "user_id", "success", "timestamp"),
+        Index("idx_ai_model_usage_engine_org_success_ts", "engine_row_id", "organization_id", "success", "timestamp"),
+        Index("idx_ai_model_usage_engine_session_success_ts", "engine_row_id", "session_id", "success", "timestamp"),
     )
 
     def to_dict(self):
@@ -173,6 +178,7 @@ class AIModelUsageEvent(Base):
             objective=self.objective,
             provider=self.provider,
             engine=self.engine,
+            engine_row_id=self.engine_row_id,
             model_name=self.model_name,
             deployment_mode=self.deployment_mode,
             request_kind=self.request_kind,

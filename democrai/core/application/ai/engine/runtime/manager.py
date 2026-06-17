@@ -6,6 +6,7 @@ from typing import Any
 
 from democrai.core.infrastructure.sandbox.process_guard import process_guard_context
 from democrai.core.runtime.foundation.app import app_ctx
+from democrai.core.runtime.foundation.app import current_request_context_payload
 from democrai.core.runtime.dependencies.engine_env import (
     engine_env_context,
 )
@@ -211,6 +212,7 @@ class EngineRuntime:
         method: str,
         payload: dict[str, Any] | None = None,
     ) -> Any:
+        self._require_quota(engine_row_id=engine_row_id)
         with self._runtime_guard(engine_id, config):
             using_existing = self._has_matching_handle(
                 engine_row_id=engine_row_id,
@@ -265,6 +267,7 @@ class EngineRuntime:
         method: str,
         payload: dict[str, Any] | None = None,
     ):
+        self._require_quota(engine_row_id=engine_row_id)
         with self._runtime_guard(engine_id, config):
             using_existing = self._has_matching_handle(
                 engine_row_id=engine_row_id,
@@ -345,6 +348,22 @@ class EngineRuntime:
             model_registry_id=model_registry_id,
         )
         return True
+
+    @staticmethod
+    def _require_quota(*, engine_row_id: int) -> None:
+        if int(engine_row_id or 0) <= 0:
+            return
+        from democrai.core.application.ai.engine.quotas import require_engine_quota
+        from democrai.core.platform.utils.identity import to_int_or_zero
+
+        request_context = current_request_context_payload("engine_runtime.quota")
+        if not request_context:
+            return
+        require_engine_quota(
+            engine_registry_id=int(engine_row_id),
+            user_id=to_int_or_zero(request_context.get("user")) or None,
+            request_context=request_context,
+        )
 
     def cancel_request(self, *, engine_row_id: int, request_id: str) -> bool:
         with self._lock:

@@ -64,12 +64,21 @@
               type: date
               format: "%d/%m/%Y %H:%M"
           data: {}
-    - kind: Card
-      id: user_modules_card
-      variant: outlined
-      style: "padding: 8px;"
+    - kind: Tabs
+      id: user_view_tabs
+      tabs:
+        - id: user_modules_tab
+          label: "@t/system.user.modules.title"
+          icon: ric.lock-line
+        - id: user_quota_tab
+          label: "@t/system.engine.quotas.tab"
+          icon: ric.speed-up-line
       children:
         - kind: Column
-          id: user_modules_mount
+          id: user_modules_tab
           children:
             - user_modules_section
+        - kind: Column
+          id: user_quota_tab
+          children:
+            - engine_quota_limits_card
