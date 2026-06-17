@@ -164,6 +164,42 @@ def discover_media_reset_target(config_path: str | None = None) -> ResetTarget |
     )
 
 
+def _engine_cache_root() -> str:
+    from democrai.core.runtime.dependencies.engine_env import _engine_env_root
+
+    return str(_engine_env_root())
+
+
+def discover_engine_cache_reset_target() -> ResetTarget | None:
+    engine_cache_root = _engine_cache_root()
+    if not os.path.exists(engine_cache_root):
+        return None
+    return ResetTarget(
+        key="engine_cache",
+        label="Engine Cache",
+        path=engine_cache_root,
+        exists=True,
+    )
+
+
+def _extractor_cache_root() -> str:
+    from democrai.core.runtime.dependencies.extractor_env import _extractor_env_root
+
+    return str(_extractor_env_root())
+
+
+def discover_extractor_cache_reset_target() -> ResetTarget | None:
+    extractor_cache_root = _extractor_cache_root()
+    if not os.path.exists(extractor_cache_root):
+        return None
+    return ResetTarget(
+        key="extractor_cache",
+        label="Extractor Cache",
+        path=extractor_cache_root,
+        exists=True,
+    )
+
+
 def _confirm(prompt: str, *, input_fn=input) -> bool:
     answer = input_fn(f"{prompt} [y/N]: ").strip().lower()
     return answer in {"y", "yes"}
@@ -206,6 +242,8 @@ def _clear_desktop_jwt() -> str | None:
 def reset_installation(*, include_media: bool = False, input_fn=input) -> int:
     config_path, targets = discover_reset_targets()
     media_target = discover_media_reset_target(config_path) if include_media else None
+    engine_cache_target = discover_engine_cache_reset_target()
+    extractor_cache_target = discover_extractor_cache_reset_target()
 
     print("[RESET] This operation will remove the current config.yaml and return the application to setup mode.")
     print(f"[RESET] Current config: {config_path}")
@@ -226,6 +264,26 @@ def reset_installation(*, include_media: bool = False, input_fn=input) -> int:
             os.remove(path)
             removed_paths.append(path)
         print(f"[RESET] Removed {target.label}: {target.path}")
+
+    removed_engine_cache = False
+    if engine_cache_target and engine_cache_target.exists:
+        print(f"[RESET] Detected engine cache: {engine_cache_target.path}")
+        if _confirm("Confirm engine cache deletion?", input_fn=input_fn):
+            shutil.rmtree(engine_cache_target.path)
+            removed_engine_cache = True
+            print(f"[RESET] Removed {engine_cache_target.label}: {engine_cache_target.path}")
+        else:
+            print("[RESET] Engine cache deletion cancelled.")
+
+    removed_extractor_cache = False
+    if extractor_cache_target and extractor_cache_target.exists:
+        print(f"[RESET] Detected extractor cache: {extractor_cache_target.path}")
+        if _confirm("Confirm extractor cache deletion?", input_fn=input_fn):
+            shutil.rmtree(extractor_cache_target.path)
+            removed_extractor_cache = True
+            print(f"[RESET] Removed {extractor_cache_target.label}: {extractor_cache_target.path}")
+        else:
+            print("[RESET] Extractor cache deletion cancelled.")
 
     removed_media = False
     if include_media and media_target and media_target.exists:
@@ -261,6 +319,14 @@ def reset_installation(*, include_media: bool = False, input_fn=input) -> int:
         print(f"[RESET] Local databases removed: {len(removed_paths)}")
     else:
         print("[RESET] No local database deleted.")
+    if removed_engine_cache:
+        print("[RESET] Engine cache removed.")
+    elif engine_cache_target:
+        print("[RESET] Engine cache preserved.")
+    if removed_extractor_cache:
+        print("[RESET] Extractor cache removed.")
+    elif extractor_cache_target:
+        print("[RESET] Extractor cache preserved.")
     if include_media:
         if removed_media:
             print("[RESET] Local media removed.")

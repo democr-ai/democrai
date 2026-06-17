@@ -45,20 +45,30 @@ def test_reset_install_discovery_and_selection(tmp_path: Path, monkeypatch):
         (tmp_path / name).write_text("x", encoding="utf-8")
     (tmp_path / "kg.sqlite-wal").write_text("x", encoding="utf-8")
     (tmp_path / "assets").mkdir()
+    (tmp_path / "engine_env_cache" / "onnx").mkdir(parents=True)
+    (tmp_path / "extractor_env_cache" / "docling").mkdir(parents=True)
     (tmp_path / "jwt").write_text("tok", encoding="utf-8")
+    monkeypatch.setattr(reset_install_mod, "_engine_cache_root", lambda: str(tmp_path / "engine_env_cache"))
+    monkeypatch.setattr(reset_install_mod, "_extractor_cache_root", lambda: str(tmp_path / "extractor_env_cache"))
 
     _, targets = reset_install_mod.discover_reset_targets()
     assert targets
     media = reset_install_mod.discover_media_reset_target()
     assert media and media.exists
+    engine_cache = reset_install_mod.discover_engine_cache_reset_target()
+    assert engine_cache and engine_cache.exists
+    extractor_cache = reset_install_mod.discover_extractor_cache_reset_target()
+    assert extractor_cache and extractor_cache.exists
     chosen = reset_install_mod._choose_targets(targets, input_fn=lambda _p: "1,2")
     assert len(chosen) >= 1
 
-    answers = iter(["y", "all", "y", "DELETE MEDIA"])
+    answers = iter(["y", "all", "y", "y", "y", "DELETE MEDIA"])
     out = reset_install_mod.reset_installation(include_media=True, input_fn=lambda _p: next(answers))
     assert out == 0
     assert not (tmp_path / "kg.lbug").exists()
     assert not (tmp_path / "kg.lbug.wal").exists()
+    assert not (tmp_path / "engine_env_cache").exists()
+    assert not (tmp_path / "extractor_env_cache").exists()
 
 
 def test_cli_command_dispatch_and_module_status(monkeypatch):
