@@ -38,6 +38,7 @@ from democrai.core.application.ai.constants import (
     AI_CONTEXT_POLICY_DEFAULTS,
     AIContextPolicy,
 )
+from democrai.core.platform.utils.identity import to_int_or_zero
 
 
 _RUNTIME_TRANSITION_SEMAPHORES: dict[tuple[int, int], asyncio.Semaphore] = {}
@@ -395,16 +396,13 @@ class ModelOrchestrator:
                 return binding_label
         return model_info.name
 
-    def get_model_for_objective(
+    def _models_for_objective_selection(
         self,
         objective: str,
         *,
         required_capabilities: Optional[List[str]] = None,
         prefer_local: Optional[bool] = None,
-    ) -> Optional[ModelRegistry]:
-        """
-        Returns the model associated with a specific objective.
-        """
+    ) -> tuple[list[ModelRegistry], set[int]]:
         required = [objective] + [cap for cap in (required_capabilities or []) if cap]
         policy = self._load_selection_policy()
         with self._session_factory() as session:
@@ -430,7 +428,7 @@ class ModelOrchestrator:
             if mapped_model is not None and mapped_model not in candidates:
                 candidates.insert(0, mapped_model)
             if not candidates:
-                return None
+                return [], set()
             capability_priorities = self._load_capability_priorities(
                 session,
                 required_capabilities=required,
@@ -450,9 +448,88 @@ class ModelOrchestrator:
                     ),
                 ),
             )
+            priority_model_ids = set(capability_priorities)
             session.expunge_all()
-            return scored[0]
-        return None
+            return scored, priority_model_ids
+        return [], set()
+
+    def get_models_for_objective(
+        self,
+        objective: str,
+        *,
+        required_capabilities: Optional[List[str]] = None,
+        prefer_local: Optional[bool] = None,
+    ) -> list[ModelRegistry]:
+        """
+        Returns the ordered models associated with a specific objective.
+        """
+        models, _priority_model_ids = self._models_for_objective_selection(
+            objective,
+            required_capabilities=required_capabilities,
+            prefer_local=prefer_local,
+        )
+        return models
+
+    def get_model_for_objective(
+        self,
+        objective: str,
+        *,
+        required_capabilities: Optional[List[str]] = None,
+        prefer_local: Optional[bool] = None,
+    ) -> Optional[ModelRegistry]:
+        """
+        Returns the model associated with a specific objective.
+        """
+        models = self.get_models_for_objective(
+            objective,
+            required_capabilities=required_capabilities,
+            prefer_local=prefer_local,
+        )
+        return models[0] if models else None
+
+    def get_quota_available_model_for_objective(
+        self,
+        objective: str,
+        *,
+        required_capabilities: Optional[List[str]] = None,
+        prefer_local: Optional[bool] = None,
+        request_context: Optional[dict[str, Any]] = None,
+    ) -> tuple[Optional[ModelRegistry], bool]:
+        models, priority_model_ids = self._models_for_objective_selection(
+            objective,
+            required_capabilities=required_capabilities,
+            prefer_local=prefer_local,
+        )
+        if not models:
+            return None, False
+        if not isinstance(request_context, dict) or not request_context:
+            return models[0], False
+
+        prioritized = [model for model in models if model.id in priority_model_ids]
+        if not prioritized:
+            return models[0], False
+        candidates = prioritized
+
+        from democrai.core.application.ai.engine.quotas import check_engine_quota
+
+        user_id = to_int_or_zero(request_context.get("user")) or None
+        quota_candidates_checked = False
+        for model in candidates:
+            engine = getattr(model, "engine", None)
+            engine_row_id = to_int_or_zero(getattr(engine, "id", None))
+            if engine_row_id <= 0:
+                return model, False
+            decision = check_engine_quota(
+                engine_registry_id=engine_row_id,
+                user_id=user_id,
+                request_context=request_context,
+            )
+            if decision.allowed:
+                return model, False
+            if decision.reason != "engine_quota_exceeded":
+                return model, False
+            quota_candidates_checked = True
+        return None, quota_candidates_checked
 
     async def get_provider_for_objective(
         self,
@@ -482,14 +559,21 @@ class ModelOrchestrator:
         *,
         required_capabilities: Optional[List[str]] = None,
         prefer_local: Optional[bool] = None,
+        request_context: Optional[dict[str, Any]] = None,
         event_hook: Callable[[str, Dict[str, Any]], Any] | None = None,
     ) -> Dict[str, Any]:
-        model_info = self.get_model_for_objective(
+        model_info, quota_exhausted = self.get_quota_available_model_for_objective(
             objective,
             required_capabilities=required_capabilities,
             prefer_local=prefer_local,
+            request_context=request_context,
         )
         if not model_info:
+            if quota_exhausted:
+                return {
+                    "status": "error",
+                    "error": f"engine_quota_exhausted_for_objective:{objective}",
+                }
             return {
                 "status": "error",
                 "error": f"no_model_configured_for_objective:{objective}",

@@ -15,6 +15,14 @@ def json_loads(value: str, default: Any) -> Any:
     return json.loads(raw)
 
 
+def request_context_payload(request: Any) -> dict[str, Any]:
+    try:
+        payload = json_loads(getattr(request, "request_context_json", ""), {})
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 async def resolve_provider(
     request: Any,
     *,
@@ -76,6 +84,7 @@ async def resolve_provider_result(
                 item for item in capabilities if item
             ],
             prefer_local=optional_bool(request, "prefer_local"),
+            request_context=request_context_payload(request),
             event_hook=event_hook,
         )
     else:
@@ -144,14 +153,17 @@ def validate_selector(request: Any) -> dict[str, Any]:
         objective = request.objective or request.capability
         if not objective:
             raise RuntimeError("engine_orchestrator_objective_required")
-        model = model_orchestrator.get_model_for_objective(
+        model, quota_exhausted = model_orchestrator.get_quota_available_model_for_objective(
             objective,
             required_capabilities=[
                 item for item in capabilities if item
             ],
             prefer_local=optional_bool(request, "prefer_local"),
+            request_context=request_context_payload(request),
         )
         if model is None:
+            if quota_exhausted:
+                raise RuntimeError(f"engine_quota_exhausted_for_objective:{objective}")
             raise RuntimeError(f"no_model_configured_for_objective:{objective}")
         engine = getattr(model, "engine", None)
         return {
