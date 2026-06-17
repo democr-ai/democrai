@@ -60,6 +60,7 @@ export async function uploadNativeFile(
     moduleName: string;
     ingest?: boolean;
     jwt?: string;
+    actionName?: string;
   },
 ): Promise<UploadedFileRef> {
   const uri = String(entry?.uri || entry?.url || '').trim();
@@ -71,6 +72,8 @@ export async function uploadNativeFile(
   const formData = new FormData();
   formData.append('module_name', moduleName);
   formData.append('ingest', options.ingest === false ? 'false' : 'true');
+  const normalizedActionName = String(options.actionName || '').trim();
+  if (normalizedActionName) formData.append('action_name', normalizedActionName);
   formData.append('file', {
     uri,
     name,
@@ -100,6 +103,7 @@ export async function materializeAttachmentUploads(
     moduleName: string;
     ingest?: boolean;
     jwt?: string;
+    actionName?: string;
   },
 ): Promise<UploadedFileRef[]> {
   const source = Array.isArray(entries) ? entries : [];
@@ -123,6 +127,7 @@ export async function materializeAttachmentUploads(
       moduleName: options.moduleName,
       ingest: options.ingest ?? entry.ingest !== false,
       jwt: options.jwt,
+      actionName: options.actionName,
     })),
   );
   return [...resolved, ...uploaded];

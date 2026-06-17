@@ -13,6 +13,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { emitActionSpec, getLiteral, parseActionSpec, requestActionConfirm, toBoolean } from '../../shared';
 import { Icon } from '../../../components/a2ui/Icon';
+import { inferModuleNameFromAction, materializeAttachmentUploads } from '../../../utils/uploads';
 
 type OptionEntry = { id: string; name: string };
 type AttachmentEntry = {
@@ -92,6 +93,7 @@ export const Composer: React.FC<any> = ({
   stop_enabled,
   voice,
   voice_action,
+  ingest,
   attachment_accept,
   attachment_multiple,
   models,
@@ -117,6 +119,7 @@ export const Composer: React.FC<any> = ({
   setInput,
   style,
   disabled,
+  jwt,
 }) => {
   const [text, setText] = React.useState(getLiteral(value) || '');
   const [attachments, setAttachments] = React.useState<AttachmentEntry[]>([]);
@@ -185,15 +188,6 @@ export const Composer: React.FC<any> = ({
   const areOptionsEditable = toBoolean(options_editable ?? false);
   const shouldShowCapabilities = toBoolean(show_capabilities ?? true);
 
-  const attachmentPayload = React.useMemo(() => attachments.map((file) => ({
-    name: file.name,
-    size: file.size,
-    type: file.type || file.mimeType || '',
-    mimeType: file.mimeType || file.type || '',
-    uri: file.uri,
-    url: file.url || file.uri,
-  })), [attachments]);
-
   const buildPayload = React.useCallback((intent: string, extra: Record<string, any> = {}) => ({
     intent,
     component_id: id,
@@ -230,6 +224,21 @@ export const Composer: React.FC<any> = ({
     const parsed = parseActionSpec(submitAction);
     if (parsed.confirm && !(await requestActionConfirm(parsed.confirm))) return;
     const actionWithoutConfirm = typeof submitAction === 'object' ? { ...submitAction, confirm: undefined } : submitAction;
+    const moduleName = inferModuleNameFromAction(submitAction);
+    let uploadedAttachments: Array<Record<string, any>> = [];
+    if (attachments.length > 0) {
+      try {
+        uploadedAttachments = await materializeAttachmentUploads(attachments, {
+          moduleName,
+          ingest: ingest !== false,
+          jwt,
+          actionName: parsed.name,
+        });
+      } catch (uploadError) {
+        console.error('[reactnative:conversation:composer:upload:error]', uploadError);
+        return;
+      }
+    }
     const current = text;
     setText('');
     setInput?.(id, '');
@@ -239,7 +248,7 @@ export const Composer: React.FC<any> = ({
         intent: 'submit',
         component_id: id,
         text: current,
-        attachments: attachmentPayload,
+        attachments: uploadedAttachments,
         options: optionEntriesForFields(currentOptions, optionFields),
         selected_tools: selectedToolsState,
         selected_skills: selectedSkillsState,

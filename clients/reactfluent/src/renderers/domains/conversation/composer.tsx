@@ -4,7 +4,7 @@ import { parseStyle } from '@/utils/style';
 import { emitActionSpec, getLiteral, parseActionSpec, requestActionConfirm, toBoolean } from '@/renderers/shared';
 import { IconButton, PrimaryButton } from '@fluentui/react';
 import { AudioRecordingController, startBrowserAudioRecording } from '@/utils/audioRecording';
-import { inferModuleNameFromAction, uploadBrowserFile, uploadBrowserFiles } from '@/utils/uploads';
+import { inferActionName, inferModuleNameFromAction, uploadBrowserFile, uploadBrowserFiles } from '@/utils/uploads';
 import { cn } from '@/lib/utils';
 
 const normalizeModels = (raw: any): Array<{ id: string; name: string }> => {
@@ -363,6 +363,7 @@ export const Composer: React.FC<any> = ({
         const uploaded = await uploadBrowserFiles(fileAttachments, {
           moduleName,
           ingest: ingest !== false,
+          actionName: parsedSubmitAction.name,
         });
         uploadedAttachments = [
           ...uploadedAttachments,
@@ -452,6 +453,7 @@ export const Composer: React.FC<any> = ({
       const uploaded = await uploadBrowserFile(file, {
         moduleName: inferModuleNameFromAction(voiceAction),
         ingest: false,
+        actionName: inferActionName(voiceAction),
       });
       emitActionSpec(voiceAction, onAction, {
         [id]: buildInteractionPayload('voice_transcribe', {

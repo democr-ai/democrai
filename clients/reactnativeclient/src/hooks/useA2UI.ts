@@ -690,6 +690,7 @@ export function useA2UI(options?: UseA2UIOptions) {
             const uploaded = await materializeAttachmentUploads(currentValue, {
               moduleName,
               jwt: jwtRef.current || undefined,
+              actionName: normalizedActionName,
             });
             inputsRef.current = { ...inputsRef.current, [inputId]: uploaded };
             setInputs((prev) => ({ ...prev, [inputId]: uploaded }));

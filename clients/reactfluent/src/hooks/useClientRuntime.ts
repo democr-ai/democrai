@@ -1650,7 +1650,7 @@ export function useClientRuntime(options?: string | UseClientRuntimeOptions) {
             }
             const uploaded = await materializeAttachmentUploads(currentValue, {
               moduleName,
-              jwt: jwtRef.current || undefined,
+              actionName,
             });
             inputsRef.current = { ...inputsRef.current, [inputId]: uploaded };
             setInputs((prev) => ({ ...prev, [inputId]: uploaded }));

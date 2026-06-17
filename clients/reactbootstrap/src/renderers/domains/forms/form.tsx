@@ -352,6 +352,7 @@ export const Form: React.FC<any> = ({
         resolvedValues[key] = await materializeAttachmentUploads(current, {
           moduleName,
           ingest: field?.ingest !== false,
+          actionName,
         });
         setInput?.(key, resolvedValues[key]);
       }
