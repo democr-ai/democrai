@@ -17,6 +17,9 @@ from democrai.core.runtime.foundation.paths import logs_dir
 from democrai.core.runtime.foundation.registry import module_command_registry
 from .reset_install import reset_installation
 from .parsing import parse_module_command_tokens as _parse_module_command_tokens
+from .install_engines import install_engines
+from .install_extractors import install_extractors
+from .setup import setup_application
 
 
 def init_module_command_context(args) -> None:
@@ -318,6 +321,29 @@ def handle_cli_command(args) -> int | None:
         if args.json_output:
             return print_validation_result_json(result)
         return print_validation_result(result)
+    if args.command == "setup":
+        return setup_application(
+            config_path=args.config_path,
+            yes=args.yes,
+            json_output=args.json_output,
+            args=args,
+        )
+    if args.command == "install-engines":
+        return install_engines(
+            config_path=args.config_path,
+            reset_mode=args.reset_mode,
+            yes=args.yes,
+            json_output=args.json_output,
+            args=args,
+        )
+    if args.command == "install-extractors":
+        return install_extractors(
+            config_path=args.config_path,
+            reset_mode=args.reset_mode,
+            yes=args.yes,
+            json_output=args.json_output,
+            args=args,
+        )
     if args.command == "reset-install":
         return reset_installation(include_media=args.include_media)
     if args.command == "module-status":

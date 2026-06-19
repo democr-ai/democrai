@@ -102,10 +102,7 @@ def finalize_setup_runtime(
 
     db_type = context.config.get("database.type", "sqlite")
     db_url = context.config.get("database.url")
-    if db_type == "sqlite":
-        context.db = PersistenceProviderFactory.get_provider(db_type)
-    else:
-        context.db = PersistenceProviderFactory.get_provider(db_type, db_url=db_url)
+    context.db = PersistenceProviderFactory.get_provider(db_type, db_url=db_url)
 
     media_type = context.config.get("storage.media.type", "local")
     media_path = context.config.get("storage.media.path")
@@ -209,34 +206,6 @@ def finalize_setup_runtime(
 
     context.logger = LoggerManager(log_dir=str(logs_dir()), config=context.config)
 
-    from democrai.core.application.ai.engine.install_worker_runtime import (
-        start_engine_install_worker_process,
-    )
-    from democrai.core.application.ai.engine.manifests import sync_engine_manifests_to_registry
-    from democrai.core.infrastructure.ai.engine.invocation.orchestrator import (
-        EngineOrchestratorProviderResolver,
-    )
-    from democrai.core.application.ai.engine.orchestrator.runtime import (
-        start_engine_orchestrator_process,
-    )
-    from democrai.core.application.knowledge.extractor.manifests import (
-        sync_extractor_manifests_to_registry,
-    )
-    from democrai.core.application.knowledge.extractor.queue_worker_runtime import (
-        start_extraction_queue_worker_process,
-    )
-    from democrai.core.application.knowledge.query.runtime import (
-        start_knowledge_query_process,
-    )
-
-    sync_engine_manifests_to_registry()
-    start_engine_orchestrator_process(context)
-    start_knowledge_query_process(context)
-    EngineOrchestratorProviderResolver(config=context.config).provider().sync_active_engines()
-    start_engine_install_worker_process(context)
-    sync_extractor_manifests_to_registry()
-    start_extraction_queue_worker_process(context)
-
 
 def _sync_loaded_module_authorization(context) -> None:
     modules = getattr(context, "modules", None)
@@ -267,7 +236,7 @@ def _sync_loaded_module_authorization(context) -> None:
                 _load_module_rbac_manifest(module),
             )
         except Exception as exc:
-            context.logger.error(
+            context.logger.warning(
                 f"[Setup] Failed to sync module RBAC for {module_name}: {exc}"
             )
 

@@ -1,0 +1,39 @@
+extractors:
+  - id: docling
+    name: docling-main
+    install_config:
+      ocr_engine: rapidocr
+    runtime_config:
+      ocr_enabled: true
+      chunk_size: 1200
+      chunk_overlap: 120
+    mime_bindings:
+      - application/pdf
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - text/markdown
+      - text/plain
+      - text/html
+      - application/json
+      - image/png
+      - image/jpeg
+
+  - id: ai_audio
+    name: ai-audio-main
+    runtime_config:
+      model_registry_id: "${AUDIO_MODEL_REGISTRY_ID}"
+    mime_bindings:
+      - audio/mpeg
+      - audio/wav
+      - audio/flac
+
+  - id: ai_image
+    name: ai-image-main
+    runtime_config:
+      model_registry_id: "${IMAGE_MODEL_REGISTRY_ID}"
+      prompt: "Describe the image for knowledge ingestion."
+      temperature: 0.0
+      max_tokens: 900
+    mime_bindings:
+      - image/png
+      - image/jpeg
+      - image/webp

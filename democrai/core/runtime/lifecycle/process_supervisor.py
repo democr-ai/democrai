@@ -122,9 +122,10 @@ class ProcessSupervisor:
     def _pid_exists(self, pid: int) -> bool:
         if psutil is not None:
             try:
-                return psutil.pid_exists(pid)
+                proc = psutil.Process(pid)
+                return proc.status() != psutil.STATUS_ZOMBIE
             except Exception:
-                pass
+                return False
 
         try:
             from democrai.core.platform.utils.process import pid_exists
@@ -173,17 +174,20 @@ class ProcessSupervisor:
 
     @staticmethod
     def _wait_handle(handle: Any, timeout_ms: int) -> None:
-        for method_name in ("waitForFinished", "wait"):
+        wait_for_finished = getattr(handle, "waitForFinished", None)
+        if callable(wait_for_finished):
             try:
-                method = getattr(handle, method_name, None)
-                if callable(method):
-                    try:
-                        method(timeout_ms)
-                    except TypeError:
-                        method(timeout_ms / 1000.0)
-                    return
+                wait_for_finished(timeout_ms)
+                return
             except Exception:
-                continue
+                pass
+
+        wait = getattr(handle, "wait", None)
+        if callable(wait):
+            try:
+                wait(max(timeout_ms, 0) / 1000.0)
+            except Exception:
+                pass
 
 
 process_supervisor = ProcessSupervisor()

@@ -57,6 +57,11 @@
         "resource_type": "filesystem",
         "operation": "modify",
         "target": "{engine_config}/fsspec"
+      },
+      {
+        "resource_type": "network",
+        "operation": "receive",
+        "target": "https://aiinfra.pkgs.visualstudio.com/*"
       }
     ],
     "access_by_os": {

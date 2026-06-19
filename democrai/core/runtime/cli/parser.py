@@ -69,6 +69,40 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--path", dest="config_path")
     validate_parser.add_argument("--json", action="store_true", dest="json_output")
 
+    setup_parser = subparsers.add_parser(
+        "setup",
+        help="Run initial application setup from a YAML configuration file",
+    )
+    setup_parser.add_argument("config_path")
+    setup_parser.add_argument("--yes", action="store_true")
+    setup_parser.add_argument("--json", action="store_true", dest="json_output")
+
+    install_engines_parser = subparsers.add_parser(
+        "install-engines",
+        help="Install and activate engines from a YAML configuration file",
+    )
+    install_engines_parser.add_argument("config_path")
+    install_engines_parser.add_argument(
+        "--reset-mode",
+        choices=["keep", "selected", "full"],
+        default="keep",
+    )
+    install_engines_parser.add_argument("--yes", action="store_true")
+    install_engines_parser.add_argument("--json", action="store_true", dest="json_output")
+
+    install_extractors_parser = subparsers.add_parser(
+        "install-extractors",
+        help="Install and activate extractors from a YAML configuration file",
+    )
+    install_extractors_parser.add_argument("config_path")
+    install_extractors_parser.add_argument(
+        "--reset-mode",
+        choices=["keep", "selected", "full"],
+        default="keep",
+    )
+    install_extractors_parser.add_argument("--yes", action="store_true")
+    install_extractors_parser.add_argument("--json", action="store_true", dest="json_output")
+
     reset_parser = subparsers.add_parser(
         "reset-install",
         help="Remove the active config and optionally delete local SQLite databases",
@@ -111,6 +145,9 @@ def parse_args(argv: list[str] | None = None):
         "rollback",
         "migration-status",
         "validate-config",
+        "setup",
+        "install-engines",
+        "install-extractors",
         "reset-install",
         "module-status",
         "knowledge-rebuild",

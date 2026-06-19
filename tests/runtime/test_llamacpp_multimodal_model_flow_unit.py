@@ -14,6 +14,7 @@ from democrai.core.application.ai.models.catalog_download import (
     _catalog_artifact_network_access,
     _catalog_artifact_os_network_proxy_scope,
     _catalog_inventory_extra_config,
+    _current_module_network_subject,
     _download_catalog_to_storage,
 )
 from democrai.core.application.access_policy import AccessSubject
@@ -163,6 +164,44 @@ def test_catalog_download_proxy_scope_adds_huggingface_cdn_wildcard(monkeypatch)
     assert updates[-1] is current
 
 
+def test_catalog_download_network_subject_accepts_core_context():
+    with request_context_scope(
+        {
+            "request_id": "catalog-download-core",
+            "user": 0,
+            "organization_id": None,
+            "access_level": 3,
+            "channel": "cli",
+            "module_name": "core",
+        }
+    ):
+        subject = _current_module_network_subject()
+
+    assert subject.subject_type == "core"
+    assert subject.subject_name == "core"
+
+
+def test_catalog_download_network_subject_accepts_module_context():
+    with request_context_scope(
+        {
+            "request_id": "catalog-download-module",
+            "user": 1,
+            "organization_id": None,
+            "access_level": 3,
+            "module_name": "system",
+        }
+    ):
+        subject = _current_module_network_subject()
+
+    assert subject.subject_type == "module"
+    assert subject.subject_name == "system"
+
+
+def test_catalog_download_network_subject_requires_request_context():
+    with pytest.raises(RuntimeError, match="catalog_download_request_context_required"):
+        _current_module_network_subject()
+
+
 def test_multimodal_catalog_download_preserves_model_directory_with_dotted_id():
     calls: list[tuple] = []
 
@@ -209,6 +248,49 @@ def test_multimodal_catalog_download_preserves_model_directory_with_dotted_id():
     assert calls[1][2]["target"] == "mmproj-F16.gguf"
     assert calls[2][0] == "add_model"
     assert calls[2][2] == ".democrai-model-manifest.json"
+
+
+def test_multimodal_catalog_download_works_with_core_context():
+    calls: list[tuple] = []
+
+    def add_model(model_id, *, payload=None, source_path=None, filename=None):
+        calls.append(("add_model", model_id, filename, payload, source_path))
+        if filename:
+            return f"models/{model_id}/{filename}"
+        return f"models/{model_id}"
+
+    def add_model_from_source(model_id, *, source, filename=None, progress_callback=None):
+        calls.append(("add_model_from_source", model_id, source, filename))
+        return f"models/{model_id}"
+
+    with request_context_scope(
+        {
+            "request_id": "catalog-download-core-storage",
+            "user": 0,
+            "organization_id": None,
+            "access_level": 3,
+            "channel": "cli",
+            "module_name": "core",
+        }
+    ):
+        storage_ref = asyncio.run(
+            _download_catalog_to_storage(
+                ModelStorageOps(
+                    add_model=add_model,
+                    add_model_from_source=add_model_from_source,
+                    view=lambda _path: b"",
+                    delete=lambda _path: None,
+                ),
+                name="qwen3.5-0.8b-unsloth-q4-k-m",
+                entry=_qwen_vision_entry(),
+                task_id=None,
+            )
+        )
+
+    assert storage_ref == "models/qwen3.5-0.8b-unsloth-q4-k-m"
+    assert calls[0][0] == "add_model_from_source"
+    assert calls[1][0] == "add_model_from_source"
+    assert calls[2][0] == "add_model"
 
 
 def test_catalog_extra_config_requires_runtime_entrypoint_for_directory_models():

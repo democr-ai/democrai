@@ -29,8 +29,13 @@ from democrai.sdk.dependencies import (
     ensure_import,
     install_python_packages,
     install_torch_runtime,
+    resolve_torch_runtime_plan,
     torch_runtime_matches_plan,
     write_installed_torch_constraint,
+)
+from engines.onnx.runtime_packages import (
+    OnnxRuntimePackagePlan,
+    resolve_onnx_runtime_package_plan,
 )
 
 _HF_HUB_PACKAGE = "huggingface-hub>=0.34,<1.0"
@@ -63,41 +68,23 @@ def _log_ready_exception(check: str, exc: BaseException, **details: Any) -> None
     )
 
 
-def _onnxruntime_gpu_supported(torch_profile: str, os_name: str | None = None) -> bool:
-    resolved_os = str(os_name or platform.system()).strip().lower()
-    return resolved_os in {"linux", "windows"} and str(torch_profile or "") != "cpu"
-
-
 class OnnxEngine(BaseEngine, LLMProvider):
     engine_id = "onnx"
 
     @staticmethod
-    def _onnxruntime_package(torch_profile: str, os_name: str | None = None) -> str:
-        if _onnxruntime_gpu_supported(torch_profile, os_name=os_name):
-            return "onnxruntime-gpu"
-        return "onnxruntime"
-
-    @staticmethod
-    def _optimum_onnx_package(torch_profile: str, os_name: str | None = None) -> str:
-        extra = (
-            "onnxruntime-gpu"
-            if _onnxruntime_gpu_supported(torch_profile, os_name=os_name)
-            else "onnxruntime"
-        )
-        return f"optimum-onnx[{extra}]=={_OPTIMUM_ONNX_VERSION}"
+    def _optimum_onnx_package(plan: OnnxRuntimePackagePlan) -> str:
+        return f"optimum-onnx[{plan.optimum_extra}]=={_OPTIMUM_ONNX_VERSION}"
 
     @classmethod
-    def _install_packages(
-        cls, torch_profile: str, os_name: str | None = None
-    ) -> list[str]:
+    def _install_packages(cls, plan: OnnxRuntimePackagePlan) -> list[str]:
         return [
             "diffusers",
             "accelerate",
             "safetensors",
             _HF_HUB_PACKAGE,
             _OPTIMUM_PACKAGE,
-            cls._optimum_onnx_package(torch_profile, os_name=os_name),
-            cls._onnxruntime_package(torch_profile, os_name=os_name),
+            cls._optimum_onnx_package(plan),
+            plan.package,
             "sentence-transformers",
             _TRANSFORMERS_PACKAGE,
         ]
@@ -273,6 +260,11 @@ class OnnxEngine(BaseEngine, LLMProvider):
 
     @classmethod
     def _missing_module_labels(cls) -> list[str]:
+        torch_plan = resolve_torch_runtime_plan()
+        onnx_plan = resolve_onnx_runtime_package_plan(
+            torch_profile=torch_plan.profile,
+            os_name=platform.system(),
+        )
         checks = [
             ("diffusers", "diffusers"),
         ]
@@ -286,7 +278,7 @@ class OnnxEngine(BaseEngine, LLMProvider):
             or not cls._optimum_onnx_version_supported()
             or not cls._optimum_onnxruntime_supported()
         ):
-            missing_local.append(f"optimum-onnx[onnxruntime]=={_OPTIMUM_ONNX_VERSION}")
+            missing_local.append(cls._optimum_onnx_package(onnx_plan))
         if (
             not cls._module_available("transformers")
             or not cls._transformers_version_supported()
@@ -323,9 +315,16 @@ class OnnxEngine(BaseEngine, LLMProvider):
         source_node_id: str | None = None,
     ) -> None:
         torch_plan = install_torch_runtime(force=force)
+        onnx_plan = resolve_onnx_runtime_package_plan(
+            torch_profile=torch_plan.profile,
+            os_name=platform.system(),
+        )
         torch_constraint = write_installed_torch_constraint()
+        extra_pip_args = ["--constraint", torch_constraint]
+        if onnx_plan.pre:
+            extra_pip_args.append("--pre")
         install_python_packages(
-            cls._install_packages(torch_plan.profile, os_name=platform.system()),
+            cls._install_packages(onnx_plan),
             modules=[
                 "diffusers",
                 "optimum.onnxruntime",
@@ -333,8 +332,9 @@ class OnnxEngine(BaseEngine, LLMProvider):
                 "transformers",
             ],
             force=force,
+            index_url=onnx_plan.index_url,
             extra_index_url=torch_plan.index_url,
-            extra_pip_args=["--constraint", torch_constraint],
+            extra_pip_args=extra_pip_args,
         )
 
     @classmethod

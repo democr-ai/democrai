@@ -645,6 +645,7 @@ def seed_admin_user_custom(username, password, email=None):
             f"[Auth] Error seeding custom admin: {e}\n{traceback.format_exc()}"
         )
         db_core.rollback()
+        raise
     finally:
         db_core.close()
 

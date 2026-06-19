@@ -936,10 +936,15 @@ def _catalog_artifact_source(
 
 
 def _current_module_network_subject() -> AccessSubject:
-    current = req_ctx()
-    module_name = current.module_name
-    if not module_name or module_name == "core":
+    try:
+        current = req_ctx()
+    except LookupError as exc:
+        raise RuntimeError("catalog_download_request_context_required") from exc
+    module_name = str(current.module_name or "").strip()
+    if not module_name:
         raise RuntimeError("catalog_download_module_context_required")
+    if module_name == "core":
+        return AccessSubject.create("core", "core")
     return AccessSubject.create("module", module_name)
 
 

@@ -714,3 +714,29 @@ def test_setup_finalization_syncs_loaded_module_rbac(monkeypatch):
     setup_finalization_mod._sync_loaded_module_authorization(context)
 
     assert sync_calls == [("system", {"permissions": ["engine.model.manage"]})]
+
+
+def test_setup_finalization_rbac_sync_failure_logs_warning(monkeypatch):
+    module = SimpleNamespace(name="system", path="/mods/system")
+    warnings: list[str] = []
+    errors: list[str] = []
+    context = SimpleNamespace(
+        modules=SimpleNamespace(get_all_modules=lambda: [module]),
+        logger=SimpleNamespace(
+            warning=lambda message, *a, **k: warnings.append(str(message)),
+            error=lambda message, *a, **k: errors.append(str(message)),
+        ),
+    )
+    monkeypatch.setattr(
+        "democrai.core.application.auth.service.sync_module_authorization",
+        lambda module_name, manifest: (_ for _ in ()).throw(RuntimeError("db_down")),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.modules.loading._load_module_rbac_manifest",
+        lambda loaded_module: {"permissions": ["engine.model.manage"]},
+    )
+
+    setup_finalization_mod._sync_loaded_module_authorization(context)
+
+    assert warnings == ["[Setup] Failed to sync module RBAC for system: db_down"]
+    assert errors == []

@@ -39,7 +39,7 @@
       children:
       - kind: QRCode
         id: components_qrcode_static_url
-        content: https://democrai.example
+        content: https://democr.ai
         size: 160
       - kind: QRCode
         id: components_qrcode_static_wifi

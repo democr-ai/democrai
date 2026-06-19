@@ -1,0 +1,45 @@
+admin:
+  username: admin
+  email: admin@example.com
+  password: "${DEMOCRAI_ADMIN_PASSWORD}"
+
+config:
+  app:
+    timezone: UTC
+
+  database:
+    type: sqlite
+    data_type: sqlite
+
+  storage:
+    media:
+      type: local
+      path: /home/user/.local/share/democrai/assets
+    kg:
+      type: sqlite
+    vector:
+      type: sqlite-vec
+    observability:
+      type: sqlite
+
+  session:
+    identity:
+      provider: sqlite
+    ui_state:
+      provider: sqlite
+    cache:
+      provider: memory
+
+  network:
+    stream:
+      type: memory
+    redis:
+      enabled: false
+    ws:
+      codec: json
+
+  logging:
+    provider: local
+
+  modules:
+    trust_mode: all

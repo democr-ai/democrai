@@ -19,6 +19,7 @@ import tempfile
 import uuid
 from collections import deque
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -49,6 +50,7 @@ INSTALL_NETWORK_READY_FILE_ENV = "DEMOCRAI_INSTALL_NETWORK_READY_FILE"
 from democrai.core.runtime.foundation.paths import (
     ENGINES_PATH_ENV,
     EXTRACTORS_PATH_ENV,
+    HOME_DIR_ENV,
     MODULES_PATH_ENV,
 )
 from democrai.core.runtime.lifecycle.process_supervisor import process_supervisor
@@ -573,6 +575,7 @@ async def _run_extractor_install_runtime_process(
     ctx = app_ctx()
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
+    env.setdefault(HOME_DIR_ENV, str(Path.home()))
     current_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
         application_root()

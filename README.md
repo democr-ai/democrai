@@ -257,6 +257,14 @@ python main.py --client tauri
 
 On first run, the framework starts a setup wizard via the connected client. The wizard configures the database, AI providers, and the initial administrator user. The resulting configuration is generated locally and not designed to be deployed.
 
+Initial setup can also run from the core CLI:
+
+```bash
+python main.py setup path/to/setup.yaml
+```
+
+The setup YAML contains `admin` credentials and the runtime `config` payload. If `admin.password` is omitted, the command prompts for it interactively; in non-interactive runs use an environment variable such as `${DEMOCRAI_ADMIN_PASSWORD}`. The command only runs before an application config exists and will not overwrite an existing installation.
+
 ### Commands
 
 | Command | Purpose |
@@ -271,9 +279,125 @@ On first run, the framework starts a setup wizard via the connected client. The 
 | `python main.py create-migration data --module <name> -m "desc" --autogenerate` | Create a new module data migration |
 | `python main.py rollback data --steps 1` | Roll back one data migration step |
 | `python main.py validate-config` | Validate current configuration |
+| `python main.py setup examples/setup.example.yaml` | Run initial setup from YAML |
+| `python main.py install-engines examples/engine-install.example.yaml` | Install and activate engines/models from YAML |
+| `python main.py install-extractors examples/extractor-install.example.yaml` | Install and activate extractors from YAML |
 | `python main.py reset-install` | Reset the installation state |
 | `python main.py module-status` | Show module discovery and load status |
 | `python main.py knowledge-rebuild --all --dry-run` | Rebuild knowledge projections (dry run) |
+
+#### Engine installation from YAML
+
+The core CLI can install and activate engine instances from a YAML file:
+
+```bash
+python main.py install-engines path/to/engines.yaml
+```
+
+The command starts the application runtime, uses the core SDK context, and follows the same engine lifecycle used by the runtime: registry upsert, runtime config check, install, activation, model download when requested, and model binding activation. It does not require the `system` module to be installed.
+
+Supported options:
+
+```bash
+python main.py install-engines path/to/engines.yaml --reset-mode keep
+python main.py install-engines path/to/engines.yaml --reset-mode selected
+python main.py install-engines path/to/engines.yaml --reset-mode full --yes
+python main.py install-engines path/to/engines.yaml --json
+```
+
+Reset modes:
+
+| Mode | Behavior |
+|---|---|
+| `keep` | Keep existing engines and models; update declared items and skip already available downloads |
+| `selected` | Reset only engines/models declared in the YAML |
+| `full` | Reset all engine registry rows, model bindings, and downloaded model artifacts; requires `--yes` outside interactive confirmation |
+
+YAML shape:
+
+```yaml
+engines:
+  - provider: openai
+    name: openai-main
+    config:
+      api_key: "${OPENAI_API_KEY}"
+    models:
+      - id: gpt-5.5
+        activate: true
+
+  - provider: gemini
+    instances:
+      - name: gemini-main
+        config:
+          api_key: "${GEMINI_API_KEY}"
+        models:
+          - id: gemini-2.5-pro
+            activate: true
+      - name: gemini-fast
+        config:
+          api_key: "${GEMINI_API_KEY}"
+        models:
+          - id: gemini-2.5-flash
+            activate: true
+
+  - provider: ollama
+    instances:
+      - name: ollama-local
+        config:
+          base_url: http://localhost:11434
+        models:
+          - id: llama3.2
+            activate: true
+
+  - provider: llamacpp
+    name: llamacpp-local
+    models:
+      - id: tiny-llama3-test-q2-k
+        download: true
+        activate: true
+```
+
+Sensitive config values can reference environment variables with `${NAME}`. When multiple instances use the same provider, provider installation runs once and each instance is activated separately. A complete provider-oriented example is available at [`examples/engine-install.example.yaml`](examples/engine-install.example.yaml).
+
+#### Extractor installation from YAML
+
+The core CLI can install and activate knowledge extractors, then configure MIME routing:
+
+```bash
+python main.py install-extractors path/to/extractors.yaml
+```
+
+Supported options mirror `install-engines`:
+
+```bash
+python main.py install-extractors path/to/extractors.yaml --reset-mode keep
+python main.py install-extractors path/to/extractors.yaml --reset-mode selected
+python main.py install-extractors path/to/extractors.yaml --reset-mode full --yes
+python main.py install-extractors path/to/extractors.yaml --json
+```
+
+YAML shape:
+
+```yaml
+extractors:
+  - id: docling
+    install_config:
+      ocr_engine: rapidocr
+    runtime_config:
+      ocr_enabled: true
+      chunk_size: 1200
+    mime_bindings:
+      - application/pdf
+      - text/plain
+
+  - id: ai_audio
+    runtime_config:
+      model_registry_id: 12
+    mime_bindings:
+      - audio/mpeg
+```
+
+`ai_audio` and `ai_image` require a real `model_registry_id` for an already configured model with the required capability. If `model_registry_id` is omitted, the command can still install and activate the extractor, but the runtime configuration is incomplete and extraction will not be usable until that field is saved. A complete example is available at [`examples/extractor-install.example.yaml`](examples/extractor-install.example.yaml).
 
 ### Runtime extension paths
 

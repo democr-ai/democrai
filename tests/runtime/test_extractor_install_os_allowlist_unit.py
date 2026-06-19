@@ -189,6 +189,7 @@ async def test_extractor_install_process_uses_sandbox_launcher_state(monkeypatch
         events.append("spawn")
         assert command[:2] == [mod.sys.executable, "-m"]
         env = kwargs["env"]
+        assert env[mod.HOME_DIR_ENV]
         assert mod.INSTALL_NETWORK_READY_FILE_ENV in env
         assert not Path(env[mod.INSTALL_NETWORK_READY_FILE_ENV]).exists()
         assert kwargs["stdin"] is mod.subprocess.DEVNULL

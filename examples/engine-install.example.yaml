@@ -1,0 +1,132 @@
+engines:
+  - provider: anthropic
+    instances:
+      - name: anthropic-main
+        config:
+          api_key: "${ANTHROPIC_API_KEY}"
+        models:
+          - id: claude-sonnet-4-6
+            activate: true
+
+  - provider: edge
+    instances:
+      - name: edge-main
+        config:
+          rate: "+0%"
+        models: []
+
+  - provider: espeak
+    models: []
+
+  - provider: gemini
+    instances:
+      - name: gemini-main
+        config:
+          api_key: "${GEMINI_API_KEY}"
+        models:
+          - id: gemini-2.5-pro
+            activate: true
+      - name: gemini-fast
+        config:
+          api_key: "${GEMINI_API_KEY}"
+        models:
+          - id: gemini-2.5-flash
+            activate: true
+
+  - provider: gliner_glirel
+    models: []
+    # models:
+    #   - id: gliner-medium-glirel-large
+    #     download: true
+    #     activate: true
+
+  - provider: llamacpp
+    models: []
+    # models:
+    #   - id: tiny-llama3-test-q2-k
+    #     download: true
+    #     activate: true
+
+  - provider: nvidia_nim
+    instances:
+      - name: nvidia-nim-main
+        config:
+          base_url: "${NVIDIA_NIM_BASE_URL}"
+          api_key: "${NVIDIA_NIM_API_KEY}"
+        models: []
+
+  - provider: ollama
+    instances:
+      - name: ollama-local
+        config:
+          name: ollama-local
+          base_url: http://localhost:11434
+        models:
+          - id: llama3.2
+            activate: true
+
+  - provider: onnx
+    models: []
+
+  - provider: openai
+    instances:
+      - name: openai-main
+        config:
+          api_key: "${OPENAI_API_KEY}"
+        models:
+          - id: gpt-5.5
+            activate: true
+
+  - provider: openai_compatible
+    instances:
+      - name: openai-compatible-local
+        config:
+          base_url: "${OPENAI_COMPATIBLE_BASE_URL}"
+          api_key: "${OPENAI_COMPATIBLE_API_KEY}"
+        models:
+          - id: "${OPENAI_COMPATIBLE_MODEL}"
+            activate: true
+
+  - provider: openai_tts
+    instances:
+      - name: openai-tts-main
+        config:
+          api_key: "${OPENAI_API_KEY}"
+        models:
+          - id: tts-1
+            activate: true
+
+  - provider: openai_whisper
+    instances:
+      - name: openai-whisper-main
+        config:
+          api_key: "${OPENAI_API_KEY}"
+        models:
+          - id: whisper-1
+            activate: true
+
+  - provider: parler
+    models: []
+    # models:
+    #   - id: parler-tts-mini-v1
+    #     download: true
+    #     activate: true
+
+  - provider: qwen_tts
+    models: []
+
+  - provider: rebel
+    models: []
+
+  - provider: vllm
+    models: []
+
+  - provider: whisper
+    models: []
+    # models:
+    #   - id: faster-whisper-tiny
+    #     download: true
+    #     activate: true
+
+  - provider: yolo
+    models: []

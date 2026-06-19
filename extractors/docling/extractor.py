@@ -11,9 +11,8 @@ from urllib.request import urlretrieve
 from democrai.sdk.extractors import BaseExtractor, ExtractorResult, ExtractorSource
 from democrai.sdk.dependencies import (
     install_python_packages,
-    # install_torch_runtime,
-    # write_installed_torch_constraint,
-    resolve_torch_runtime_plan,
+    install_torch_runtime,
+    write_installed_torch_constraint,
 )
 
 
@@ -39,23 +38,25 @@ class DoclingExtractor(BaseExtractor):
         ).strip()
         if ocr_engine not in _DOCLING_OCR_ENGINES:
             raise ValueError(f"docling_ocr_engine_unsupported:{ocr_engine}")
-        # torch_plan = install_torch_runtime(force=force)
-        # torch_constraint = write_installed_torch_constraint()
-        torch_plan = resolve_torch_runtime_plan(
+        torch_plan = install_torch_runtime(
             packages=_TORCH_PACKAGES,
             modules=_TORCH_MODULES,
+            force=force,
+            clean_target=force,
+        )
+        torch_constraint = write_installed_torch_constraint(
+            distributions=_TORCH_MODULES,
         )
         if ocr_engine == "tesserocr":
             install_python_packages(
                 [
-                    *torch_plan.modules,
                     _DOCLING_TESSEROCR_PACKAGE,
                 ],
-                modules=[*torch_plan.modules, "docling", "tesserocr"],
+                modules=["docling", "tesserocr"],
                 force=force,
                 allow_source=True,
                 extra_index_url=torch_plan.index_url,
-                # extra_pip_args=["--constraint", torch_constraint],
+                extra_pip_args=["--constraint", torch_constraint],
             )
             cls._materialize_tesserocr_tessdata(
                 install_config=dict(install_config or {})
@@ -66,14 +67,13 @@ class DoclingExtractor(BaseExtractor):
 
         install_python_packages(
             [
-                *torch_plan.modules,
                 _DOCLING_RAPIDOCR_PACKAGE,
             ],
-            modules=[*torch_plan.modules, "docling", "rapidocr", "onnxruntime"],
+            modules=["docling", "rapidocr", "onnxruntime"],
             force=force,
             allow_source=True,
             extra_index_url=torch_plan.index_url,
-            # extra_pip_args=["--constraint", torch_constraint],
+            extra_pip_args=["--constraint", torch_constraint],
         )
         cls._download_docling_artifacts(ocr_engine=ocr_engine)
         cls._warmup_docling_models(ocr_engine=ocr_engine)

@@ -122,6 +122,29 @@ def _node_event_id(SessionLocal) -> str:
         return str(row.last_event_id or "") if row is not None else ""
 
 
+def test_onnx_install_network_access_declares_onnx_feed_without_global_default(monkeypatch):
+    from democrai.core.application.ai.engine.access_constants import (
+        DEFAULT_ENGINE_INSTALL_RECEIVE_URLS,
+    )
+    from democrai.core.application.ai.engine.manifests import list_engine_manifests
+    from democrai.core.application.ai.engine.runtime.access import get_engine_network_access
+    from democrai.core.runtime.foundation.app import app_ctx
+
+    ctx = app_ctx()
+    monkeypatch.setattr(ctx, "runtime_engine_paths", (str(Path.cwd() / "engines"),), raising=False)
+    list_engine_manifests.cache_clear()
+
+    targets = {
+        rule.resource.target
+        for rule in get_engine_network_access("onnx", "install", config={})
+        if rule.resource.resource_type == "network"
+    }
+
+    assert "https://aiinfra.pkgs.visualstudio.com/*" in targets
+    assert "https://aiinfra.pkgs.visualstudio.com/*" not in DEFAULT_ENGINE_INSTALL_RECEIVE_URLS
+    list_engine_manifests.cache_clear()
+
+
 @pytest.mark.asyncio
 async def test_engine_install_apply_uses_proxy_loopback_only(monkeypatch):
     import democrai.core.application.ai.engine.install_events as mod
@@ -221,6 +244,7 @@ async def test_engine_install_process_uses_sandbox_launcher_state(monkeypatch):
         assert env["ALL_PROXY"] == "http://127.0.0.1:4123"
         assert env["WSS_PROXY"] == "http://127.0.0.1:4123"
         assert env["DEMOCRAI_RUNTIME_ENV_JSON"] == runtime_env_json
+        assert env[mod.HOME_DIR_ENV]
         assert mod.INSTALL_NETWORK_READY_FILE_ENV in env
         assert not Path(env[mod.INSTALL_NETWORK_READY_FILE_ENV]).exists()
         assert kwargs["stdin"] is mod.subprocess.DEVNULL
