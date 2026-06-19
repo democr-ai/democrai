@@ -6,40 +6,210 @@ admin:
 config:
   app:
     timezone: UTC
+    engine_config_encryption_key: local-encryption-key
+
+  logging:
+    provider: local
+    # provider: http
+    # url: https://logs.example.com/ingest
+    # method: POST
+
+  sandbox:
+    os:
+      enabled: false
+      # helper_socket: /tmp/democrai_os_sandbox_helper.sock
+      # policy_file: /home/user/.local/share/democrai/os_sandbox_allowlist.json
+      # observed_file: /home/user/.local/share/democrai/os_sandbox_observed_endpoints.json
+      refresh_seconds: 60
 
   database:
     type: sqlite
+    # url: postgresql://democrai:secret@localhost:5432/democrai_core
     data_type: sqlite
+    # data_url: postgresql://democrai:secret@localhost:5432/democrai_data
 
   storage:
     media:
       type: local
       path: /home/user/.local/share/democrai/assets
+      #Users/user/Library/Application Support/democrai/assets
+      remote_cache:
+        ttl_seconds: 3600
+      # bucket: democrai-assets
+      # region: us-east-1
+      # access_key: your-access-key
+      # secret_key: your-secret-key
+      # session_token: ""
+      # endpoint_url: https://s3.amazonaws.com
+      # public_base_url: https://cdn.example.com/assets
+      # key_prefix: media
+      # use_path_style: false
     kg:
       type: sqlite
+      # db_path: /home/user/.local/share/democrai/kg.sqlite
+      # uri: bolt://localhost:7687
+      # user: neo4j
+      # password: secret
     vector:
       type: sqlite-vec
+      # host: localhost
+      # port: 19530
+      # user: ""
+      # password: ""
+      # api_key: ${PINECONE_API_KEY}
+      # cloud: aws
+      # region: us-east-1
+      # index_prefix: democrai
     observability:
       type: sqlite
-
-  session:
-    identity:
-      provider: sqlite
-    ui_state:
-      provider: sqlite
-    cache:
-      provider: memory
+      # url: postgresql://democrai:secret@localhost:5432/democrai_observability
+      # url: clickhouse://default:secret@localhost:8123/democrai_observability
+      retention:
+        events_days: 30
+        audit_days: 180
+        llm_usage_days: 90
+        export_outbox_days: 14
+        cleanup_interval_seconds: 86400
+      exporters:
+        outbox:
+          flush_interval_seconds: 30
+        otlp:
+          enabled: false
+          # endpoint: http://localhost:4317
+          insecure: true
+          service_name: democrai
 
   network:
+    # node_id: democrai-node-1
     stream:
       type: memory
     redis:
       enabled: false
+      url: redis://localhost:6379/0
     ws:
       codec: json
+      allow_client_codec_override: true
 
-  logging:
-    provider: local
+  ai:
+    engine_orchestrator:
+      enabled: true
+      # transport: unix
+      # transport: tcp
+      # socket_path: /home/user/.local/state/democrai/engine-orchestrator.sock
+      host: 127.0.0.1
+      port: 40151
+      # tls:
+      #   enabled: false
+      #   cert_file: /etc/democrai/tls/server.crt
+      #   key_file: /etc/democrai/tls/server.key
+      #   ca_file: /etc/democrai/tls/ca.crt
+      startup_timeout_seconds: 30
+      invoke_timeout_seconds: 0
+      registry_reconcile_seconds: 5
+      max_message_mb: 128
+      job_terminal_ttl_seconds: 300
+      job_output_queue_size: 256
+      scheduler_max_queue_depth: 100
+      scheduler_submit_timeout_seconds: 0
+      scheduler_worker_count: 4
+      scheduler_graceful_shutdown_seconds: 30
+      batch_wait_seconds: 0.05
+      batch_queue_size: 256
+      runtime_transition_worker_count: 1
+      invocation_worker_count: 4
+      provider:
+        type: grpc
+        params: {}
+        # type: queue
+        # params: {}
+      # node_coordination:
+      #   enabled: false
+      # queue:
+      #   claim_poll_seconds: 2.0
+      #   lease_seconds: 120
+      #   max_attempts: 3
+      #   keepalive_seconds: 10
+      #   retention_seconds: 86400
+      # placement:
+      #   force_claim_age_seconds: 10
+      # node_state:
+      #   active_threshold_seconds: 10
+      #   publish_seconds: 2
+      response_stream:
+        type: memory
+        params: {}
+        # type: redis
+        # params:
+        #   redis_url: redis://localhost:6379/0
+        ttl_seconds: 3600
+        maxlen: 10000
 
   modules:
     trust_mode: all
+    allow_user_modules: true
+    # extra_paths:
+    #   - /home/user/dev/democrai-modules
+    trusted_modules: []
+    sdk_boundary:
+      fail_closed_dynamic_imports: false
+
+  engines:
+    # extra_paths:
+    #   - /home/user/dev/democrai-engines
+
+  extractors:
+    # extra_paths:
+    #   - /home/user/dev/democrai-extractors
+
+  session:
+    idle_ttl_seconds: 3600
+    cookie_name: democrai_sid
+    # redis:
+    #   url: redis://localhost:6379/0
+    identity:
+      provider: sqlite
+      # provider: redis
+    ui_state:
+      provider: sqlite
+      # url: postgresql://democrai:secret@localhost:5432/democrai_ui_state
+      # provider: postgres
+      # provider: redis
+    cache:
+      provider: memory
+      # provider: redis
+      ttl_seconds: 300
+
+  auth:
+    jwt_secret: change-me-with-a-long-random-secret
+    jwt_issuer: democrai
+    jwt_access_ttl_seconds: 900
+    # jwt_audience: democrai-web
+    # jwt_tid: tenant-default
+    cookie_name: session
+    cookie_secure: false
+    cookie_http_only: true
+    cookie_samesite: lax
+    login_rate_limit:
+      enabled: true
+      username:
+        max_failures: 5
+        window_seconds: 300
+        lockout_seconds: 900
+      ip:
+        max_failures: 20
+        window_seconds: 300
+        lockout_seconds: 900
+
+  http:
+    client_ip:
+      mode: always_trust
+      trusted_proxies: []
+    cors:
+      enabled: true
+      allow_origins:
+        - http://localhost:5173
+      allow_credentials: true
+      allow_methods:
+        - "*"
+      allow_headers:
+        - "*"
