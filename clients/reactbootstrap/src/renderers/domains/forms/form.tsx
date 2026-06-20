@@ -622,8 +622,8 @@ export const Form: React.FC<any> = ({
           <div key={`form_node_${index}`}>{node}</div>
         ))}
       </div>
-      <div className="a2ui-form-actions mt-4 d-flex justify-content-end">
-        <Button type="submit" color="primary" disabled={submitDisabled} className="d-flex align-items-center gap-2">
+      <div className="a2ui-form-actions mt-4 d-flex justify-content-start">
+        <Button type="submit" color="primary" disabled={submitDisabled} className="a2ui-button a2ui-button-primary d-inline-flex align-items-center justify-content-center gap-2">
           {isSubmitLoading && <i className="ri-loader-4-line ri-spin" />}
           {getLiteral(submit_label)}
         </Button>

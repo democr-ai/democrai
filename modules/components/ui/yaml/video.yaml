@@ -35,7 +35,7 @@
     - kind: Video
       id: components_media_video_static
       source: assets/test.mp4
-      title: '@t/components.media.video.preview.title'
+      title: test
       poster: assets/demo-image.png
       controls: true
       width: 360
@@ -87,7 +87,7 @@
               type: store
               scope: page
               path: /components_media/video/title
-              default: Flower MP4
+              default: test
             poster:
               type: store
               scope: page
@@ -145,7 +145,7 @@
               type: store
               scope: global
               path: /components_media/video/title
-              default: Global Flower MP4
+              default: test
             poster:
               type: store
               scope: global
@@ -170,7 +170,7 @@
           - kind: Video
             id: components_media_video_direct
             source: assets/test.mp4
-            title: '@t/components.media.video.direct.title'
+            title: test
             poster: assets/demo-image.png
             controls: true
             width: 360
@@ -208,10 +208,33 @@
       children:
       - kind: Markdown
         id: components_media_video_python_code
-        text: '@t/components.media.video.definition.python'
+        text: |
+          ```python
+          builder.add(
+              sdk.ui.Video(
+                  "intro_video",
+                  source="assets/test.mp4",
+                  title="test",
+                  poster="assets/demo-image.png",
+                  controls=True,
+                  width=360,
+                  height=210,
+              )
+          )
+          ```
       - kind: Markdown
         id: components_media_video_yaml_code
-        text: '@t/components.media.video.definition.yaml'
+        text: |
+          ```yaml
+          - kind: Video
+            id: intro_video
+            source: "assets/test.mp4"
+            title: "test"
+            poster: "assets/demo-image.png"
+            controls: true
+            width: 360
+            height: 210
+          ```
   - kind: Card
     id: components_media_video_binding_card
     variant: outlined

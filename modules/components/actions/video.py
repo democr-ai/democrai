@@ -36,7 +36,7 @@ async def video_update(ctx: dict, session: dict, sdk) -> dict:
             component_type="Video",
             field="source",
         ),
-        "title": "Alternate video from runtime update",
+        "title": "test2",
         "poster": sdk.ui.resolve_media_source(
             "assets/demo_img.png",
             component_type="Video",

@@ -475,6 +475,48 @@ body {
   min-width: 10rem;
 }
 
+.main-sidebar-dropdown .dropdown-toggle::after {
+  display: none !important;
+  content: none !important;
+}
+
+.main-sidebar-dropdown-menu {
+  overflow: visible;
+}
+
+.main-sidebar-dropdown-menu::before {
+  content: "" !important;
+  position: absolute;
+  z-index: -1;
+  display: block !important;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border: inherit;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.main-sidebar-dropdown-menu[data-popper-placement^="right"]::before {
+  top: 14px;
+  left: -5px;
+}
+
+.main-sidebar-dropdown-menu[data-popper-placement^="left"]::before {
+  top: 14px;
+  right: -5px;
+}
+
+.main-sidebar-dropdown-menu[data-popper-placement^="top"]::before {
+  right: 14px;
+  bottom: -5px;
+}
+
+.main-sidebar-dropdown-menu[data-popper-placement^="bottom"]::before {
+  top: -5px;
+  right: 14px;
+}
+
 .module-sidebar-panel {
   background-color: #ffffff !important;
   border-right: 1px solid var(--border);
@@ -931,6 +973,7 @@ html:not(.dark) .module-content-panel {
 }
 
 .a2ui-form-actions {
+  justify-content: flex-start !important;
   margin-top: 1.25rem !important;
 }
 
@@ -1459,6 +1502,16 @@ html:not(.dark) .a2ui-app:has(#login_container) > main {
     ) !important;
 }
 
+html:not(.dark) .a2ui-app:has(main #username):has(main #password),
+html:not(.dark) .a2ui-app:has(main #username):has(main #password) > main {
+  background: var(--background) !important;
+}
+
+.dark .a2ui-app:has(main #username):has(main #password),
+.dark .a2ui-app:has(main #username):has(main #password) > main {
+  background: var(--background) !important;
+}
+
 .a2ui-app:has(#login_container) > main > .a2ui-column {
   position: relative;
 }
@@ -1481,12 +1534,91 @@ html:not(.dark) .a2ui-app:has(#login_container) > main {
   justify-content: center !important;
 }
 
+main:has(#username):has(#password) article.a2ui-card:has(.a2ui-form) {
+  width: min(428px, calc(100vw - 32px)) !important;
+  max-width: min(428px, calc(100vw - 32px));
+}
+
 html:not(.dark) .a2ui-app:has(#login_container) .webclient-logo-img {
   filter: brightness(0) saturate(100%) invert(23%) sepia(99%) saturate(2132%) hue-rotate(195deg) brightness(93%) contrast(101%);
 }
 
 .a2ui-app:not(:has(#login_container)) .webclient-logo-img {
   filter: brightness(0) invert(1);
+}
+
+html:not(.dark) main:has(#username):has(#password) .webclient-logo-img {
+  filter: brightness(0) saturate(100%) invert(23%) sepia(99%) saturate(2132%) hue-rotate(195deg) brightness(93%) contrast(101%) !important;
+}
+
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  margin: 0;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn {
+  color: var(--primary) !important;
+}
+
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn {
+  color: var(--bs-primary) !important;
+}
+
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:hover,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:focus-visible,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:active,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:hover,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:focus-visible,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:active,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn[aria-expanded="true"],
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn[aria-expanded="true"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:hover,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:focus-visible,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn:active,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn[aria-expanded="true"] {
+  color: var(--primary) !important;
+}
+
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:hover,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:focus-visible,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn:active,
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn[aria-expanded="true"] {
+  color: var(--bs-primary) !important;
+}
+
+.dark main:has(#username):has(#password) .main-sidebar-nav-btn i,
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-nav-btn i {
+  font-size: 1.25rem;
+}
+
+.dark main:has(#username):has(#password) #lang-toggle-btn,
+html:not(.dark) main:has(#username):has(#password) #lang-toggle-btn {
+  width: auto;
+  min-width: 40px;
+  padding: 0 0.625rem;
+  border-color: transparent !important;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+html:not(.dark) main:has(#username):has(#password) .main-sidebar-dropdown-menu {
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 .auth-layout {

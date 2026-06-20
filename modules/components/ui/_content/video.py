@@ -22,7 +22,7 @@ async def render(_params: dict, _session: dict):
         _video_source("assets/test.mp4"),
         scope="page",
     )
-    builder.set_store("/components_media/video/title", "Flower MP4", scope="page")
+    builder.set_store("/components_media/video/title", "test", scope="page")
     builder.set_store(
         "/components_media/video/poster",
         _video_poster("assets/demo-image.png"),
@@ -33,7 +33,7 @@ async def render(_params: dict, _session: dict):
         _video_source("assets/test.mp4"),
         scope="global",
     )
-    builder.set_store("/components_media/video/title", "Global Flower MP4", scope="global")
+    builder.set_store("/components_media/video/title", "test", scope="global")
     builder.set_store(
         "/components_media/video/poster",
         _video_poster("assets/demo-image.png"),
@@ -43,7 +43,7 @@ async def render(_params: dict, _session: dict):
         "/components_media/video_model",
         {
             "source": _video_source("assets/test.mp4"),
-            "title": "Data Flower MP4",
+            "title": "test",
             "poster": _video_poster("assets/demo-image.png"),
         },
     )

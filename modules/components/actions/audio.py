@@ -36,7 +36,7 @@ async def audio_update(ctx: dict, session: dict, sdk) -> dict:
             component_type="Audio",
             field="source",
         ),
-        "title": "Alternate audio from runtime update",
+        "title": "test2",
     }
 
     if mode == "page_store":

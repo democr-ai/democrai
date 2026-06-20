@@ -68,9 +68,9 @@
             context:
               source: features_add
             confirm:
-              text: '@t/datatable.confirm.add_prompt'
-              confirm_text: '@t/datatable.confirm.accept'
-              cancel_text: '@t/datatable.confirm.cancel'
+              text: '@t/components.datatable.confirm.add_prompt'
+              confirm_text: '@t/components.datatable.confirm.accept'
+              cancel_text: '@t/components.datatable.confirm.cancel'
           row_actions:
           - label: '@t/components.complex.datatable.action.inspect'
             icon: ric.search-eye-line
@@ -103,9 +103,9 @@
                 op: delete
                 item_id: $item.id
             confirm:
-              text: '@t/datatable.confirm.row_prompt'
-              confirm_text: '@t/datatable.confirm.accept'
-              cancel_text: '@t/datatable.confirm.cancel'
+              text: '@t/components.datatable.confirm.row_prompt'
+              confirm_text: '@t/components.datatable.confirm.accept'
+              cancel_text: '@t/components.datatable.confirm.cancel'
           selection_actions:
           - label: '@t/components.complex.datatable.action.export_selected'
             icon: ric.download-2-line
@@ -123,9 +123,9 @@
                 source: features_selection
                 op: archive
             confirm:
-              text: '@t/datatable.confirm.selection_prompt'
-              confirm_text: '@t/datatable.confirm.accept'
-              cancel_text: '@t/datatable.confirm.cancel'
+              text: '@t/components.datatable.confirm.selection_prompt'
+              confirm_text: '@t/components.datatable.confirm.accept'
+              cancel_text: '@t/components.datatable.confirm.cancel'
           model: '@data/components_complex/datatable_model/model'
           rows: '@data/components_complex/datatable_model/rows'
       - kind: Column

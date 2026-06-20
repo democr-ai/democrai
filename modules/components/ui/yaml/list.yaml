@@ -45,7 +45,7 @@
           id: components_complex_list_text
           template: text
           selectable: true
-          selected_items_action_label: '@t/list.confirm.selected_label'
+          selected_items_action_label: '@t/components.list.confirm.selected_label'
           data_source:
             type: inline
             data:
@@ -85,7 +85,7 @@
           template: title_text
           selectable: true
           orientation: vertical
-          selected_items_action_label: '@t/list.confirm.selected_label'
+          selected_items_action_label: '@t/components.list.confirm.selected_label'
           data_source:
             type: inline
             data:
@@ -124,7 +124,7 @@
         - kind: List
           id: components_complex_list_custom
           selectable: true
-          selected_items_action_label: '@t/list.confirm.selected_label'
+          selected_items_action_label: '@t/components.list.confirm.selected_label'
           data_source:
             type: inline
             data:
@@ -197,7 +197,7 @@
           id: components_complex_list_confirm
           template: title_text
           selectable: true
-          selected_items_action_label: '@t/list.confirm.selected_label'
+          selected_items_action_label: '@t/components.list.confirm.selected_label'
           data_source:
             type: inline
             data:
@@ -215,11 +215,11 @@
               source: confirm_click
               item_id: $item.id
             confirm:
-              text: '@t/list.confirm.click_prompt'
-              confirm_text: '@t/list.confirm.accept'
-              cancel_text: '@t/list.confirm.cancel'
+              text: '@t/components.list.confirm.click_prompt'
+              confirm_text: '@t/components.list.confirm.accept'
+              cancel_text: '@t/components.list.confirm.cancel'
           item_actions:
-          - label: '@t/list.confirm.item_action'
+          - label: '@t/components.list.confirm.item_action'
             icon: ric.search-eye-line
             action:
               name: components.list_event
@@ -227,17 +227,17 @@
                 source: confirm_menu
                 item_id: $item.id
               confirm:
-                text: '@t/list.confirm.menu_prompt'
-                confirm_text: '@t/list.confirm.accept'
-                cancel_text: '@t/list.confirm.cancel'
+                text: '@t/components.list.confirm.menu_prompt'
+                confirm_text: '@t/components.list.confirm.accept'
+                cancel_text: '@t/components.list.confirm.cancel'
           selected_items_action:
             name: components.list_event
             context:
               source: confirm_selected
             confirm:
-              text: '@t/list.confirm.selected_prompt'
-              confirm_text: '@t/list.confirm.accept'
-              cancel_text: '@t/list.confirm.cancel'
+              text: '@t/components.list.confirm.selected_prompt'
+              confirm_text: '@t/components.list.confirm.accept'
+              cancel_text: '@t/components.list.confirm.cancel'
   - kind: Card
     id: components_complex_list_runtime_card
     variant: outlined
@@ -285,7 +285,7 @@
               name: components.list_event
               context:
                 source: page_selected
-            selected_items_action_label: '@t/list.confirm.selected_label'
+            selected_items_action_label: '@t/components.list.confirm.selected_label'
           - kind: Button
             id: components_complex_list_page_button
             label: '@t/components.complex.usage.page_store_button'
@@ -310,7 +310,7 @@
               name: components.list_event
               context:
                 source: data_selected
-            selected_items_action_label: '@t/list.confirm.selected_label'
+            selected_items_action_label: '@t/components.list.confirm.selected_label'
           - kind: Button
             id: components_complex_list_data_button
             label: '@t/components.complex.usage.data_button'
@@ -343,7 +343,7 @@
               name: components.list_event
               context:
                 source: global_selected
-            selected_items_action_label: '@t/list.confirm.selected_label'
+            selected_items_action_label: '@t/components.list.confirm.selected_label'
           - kind: Button
             id: components_complex_list_global_button
             label: '@t/components.complex.usage.global_store_button'
@@ -384,7 +384,7 @@
               name: components.list_event
               context:
                 source: direct_selected
-            selected_items_action_label: '@t/list.confirm.selected_label'
+            selected_items_action_label: '@t/components.list.confirm.selected_label'
             capabilities:
             - dataSource.set
             - dataSource.data.append

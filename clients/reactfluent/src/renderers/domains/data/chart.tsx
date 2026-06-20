@@ -9,14 +9,15 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
 
   const numericData = data.map((value: unknown) => Number(value)).filter((value: number) => Number.isFinite(value));
   const maxVal = Math.max(...numericData, 1);
-  const height = 240;
+  const height = 270;
   const width = 480;
-  const padding = { top: 18, right: 18, bottom: 44, left: 44 };
+  const padding = { top: 18, right: 18, bottom: 68, left: 44 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
   const stepX = chartWidth / (numericData.length > 1 ? numericData.length - 1 : 1);
   const baselineY = height - padding.bottom;
+  const labelY = height - 22;
   const visibleLabelIndexes = (() => {
     const count = Math.min(labels.length, numericData.length);
     return Array.from({ length: count }, (_, i) => i);
@@ -120,10 +121,10 @@ export const Chart: React.FC<any> = ({ chartType = 'bar', data = [], labels = []
               <text 
                 key={i} 
                 x={textX} 
-                y={height - 8}
+                y={labelY}
                 textAnchor="end"
                 dominantBaseline="middle"
-                transform={`rotate(-45 ${textX} ${height - 8})`}
+                transform={`rotate(-45 ${textX} ${labelY})`}
                 className="ds-chart-axis-label ds-chart-x-label"
               >
                 {label}

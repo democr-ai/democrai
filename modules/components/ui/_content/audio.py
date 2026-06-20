@@ -18,16 +18,16 @@ async def render(_params: dict, _session: dict):
         _audio_source("assets/test.mp3"),
         scope="page",
     )
-    builder.set_store("/components_media/audio/title", "T-Rex Roar", scope="page")
+    builder.set_store("/components_media/audio/title", "test", scope="page")
     builder.set_store(
         "/components_media/audio/source",
         _audio_source("assets/test.mp3"),
         scope="global",
     )
-    builder.set_store("/components_media/audio/title", "Global T-Rex Roar", scope="global")
+    builder.set_store("/components_media/audio/title", "test", scope="global")
     builder.set_data(
         "/components_media/audio_model",
-        {"source": _audio_source("assets/test.mp3"), "title": "Data T-Rex Roar"},
+        {"source": _audio_source("assets/test.mp3"), "title": "test"},
     )
     builder.set_data(
         "/components_media/audio_bindings",
