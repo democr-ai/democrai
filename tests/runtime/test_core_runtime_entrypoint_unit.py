@@ -112,6 +112,160 @@ def test_start_core_runtime_sets_context_and_bootstraps(monkeypatch, tmp_path):
     assert ctx.logger.log_dir == str(tmp_path / "logs")
 
 
+def test_runtime_os_sandbox_relaunch_runs_launch_strategy(monkeypatch, tmp_path):
+    observed = {}
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("sandbox:\n  os:\n    enabled: true\n", encoding="utf-8")
+
+    class _Strategy:
+        def run(self, policy):
+            observed["policy"] = policy
+            raise SystemExit(17)
+
+    monkeypatch.setattr(paths_mod, "get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.core_os_sandbox_relaunch_required",
+        lambda _config: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.is_core_os_sandbox_relaunched",
+        lambda: False,
+    )
+
+    def _build_policy(config, command, env, cwd, runtime_mode=None):
+        observed["policy_input"] = (config, command, env, cwd, runtime_mode)
+        return SimpleNamespace(command=command, env=env, cwd=cwd)
+
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.build_core_worker_launch_policy",
+        _build_policy,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
+        lambda: _Strategy(),
+    )
+    monkeypatch.setattr(entrypoint_mod.sys, "argv", ["main.py", "install-engines", "cfg.yaml"])
+
+    try:
+        entrypoint_mod.ensure_runtime_os_sandbox_relaunched(
+            SimpleNamespace(mode="desktop"),
+            raw_argv=["install-engines", "cfg.yaml"],
+        )
+    except SystemExit as exc:
+        assert exc.code == 17
+    else:
+        raise AssertionError("expected relaunch strategy to terminate")
+
+    _config, command, env, cwd, runtime_mode = observed["policy_input"]
+    assert command == [entrypoint_mod.sys.executable, "main.py", "install-engines", "cfg.yaml"]
+    assert env
+    assert cwd
+    assert runtime_mode == "desktop"
+    assert observed["policy"].command == command
+
+
+def test_runtime_os_sandbox_relaunch_uses_spawn_worker_when_broker_required(
+    monkeypatch,
+    tmp_path,
+):
+    observed = {}
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("sandbox:\n  os:\n    enabled: true\n", encoding="utf-8")
+
+    class _Strategy:
+        uses_spawn_broker = True
+
+        def run(self, _policy):
+            raise AssertionError("broker launches must keep a supervisor process alive")
+
+    class _Process:
+        def wait(self):
+            observed["waited"] = True
+            return 23
+
+    def _spawn_core_worker(command, *, env, pass_fds=(), runtime_mode=""):
+        observed["spawn"] = (command, env, pass_fds, runtime_mode)
+        return _Process()
+
+    def _release_core_worker(process):
+        observed["released"] = process
+
+    monkeypatch.setattr(paths_mod, "get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.core_os_sandbox_relaunch_required",
+        lambda _config: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.is_core_os_sandbox_relaunched",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.build_core_worker_launch_policy",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("spawn_core_worker owns policy construction")
+        ),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
+        lambda: _Strategy(),
+    )
+    monkeypatch.setattr(
+        "democrai.sdk.runtime.spawn_core_worker",
+        _spawn_core_worker,
+    )
+    monkeypatch.setattr(
+        "democrai.sdk.runtime.release_core_worker",
+        _release_core_worker,
+    )
+    monkeypatch.setattr(entrypoint_mod.sys, "argv", ["main.py", "install-engines"])
+
+    try:
+        entrypoint_mod.ensure_runtime_os_sandbox_relaunched(
+            SimpleNamespace(mode="desktop"),
+            raw_argv=["install-engines"],
+        )
+    except SystemExit as exc:
+        assert exc.code == 23
+    else:
+        raise AssertionError("expected broker launch to terminate parent")
+
+    command, env, pass_fds, runtime_mode = observed["spawn"]
+    assert command == [entrypoint_mod.sys.executable, "main.py", "install-engines"]
+    assert env
+    assert pass_fds == ()
+    assert runtime_mode == "desktop"
+    assert observed["waited"] is True
+    assert isinstance(observed["released"], _Process)
+
+
+def test_runtime_os_sandbox_relaunch_skips_when_already_relaunched(
+    monkeypatch,
+    tmp_path,
+):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("sandbox:\n  os:\n    enabled: true\n", encoding="utf-8")
+    monkeypatch.setattr(paths_mod, "get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.core_os_sandbox_relaunch_required",
+        lambda _config: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.is_core_os_sandbox_relaunched",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.factory.get_core_launch_strategy",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("launch strategy should not be used")
+        ),
+    )
+
+    entrypoint_mod.ensure_runtime_os_sandbox_relaunched(
+        SimpleNamespace(mode="desktop"),
+        raw_argv=["install-engines", "cfg.yaml"],
+    )
+
+
 def test_manifest_roots_include_runtime_paths(monkeypatch, tmp_path):
     ctx = app_ctx()
     monkeypatch.setattr(ctx, "runtime_engine_paths", (str(tmp_path / "engines"),), raising=False)

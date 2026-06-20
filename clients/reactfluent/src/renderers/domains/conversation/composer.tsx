@@ -34,6 +34,17 @@ const normalizeList = (raw: any): string[] => {
     .filter(Boolean);
 };
 
+const sameStringList = (left: string[], right: string[]): boolean => (
+  left.length === right.length && left.every((value, index) => value === right[index])
+);
+
+const samePlainOptions = (left: Record<string, any>, right: Record<string, any>): boolean => {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key]));
+};
+
 const optionEntries = (raw: Record<string, any>): Array<{ key: string; value: any }> => (
   Object.entries(raw).map(([key, value]) => ({ key, value }))
 );
@@ -198,36 +209,40 @@ export const Composer: React.FC<any> = ({
   const [currentOptions, setCurrentOptions] = React.useState<Record<string, any>>(normalizedOptions);
 
   React.useEffect(() => {
-    setText(getLiteral(value) || '');
+    const next = getLiteral(value) || '';
+    setText((previous) => (previous === next ? previous : next));
   }, [value]);
 
   React.useEffect(() => {
     const explicit = String(model ?? '').trim();
     if (explicit) {
-      setCurrentModel(explicit);
+      setCurrentModel((previous) => (previous === explicit ? previous : explicit));
       return;
     }
     if (!modelOptions.length) {
-      setCurrentModel('');
+      setCurrentModel((previous) => (previous === '' ? previous : ''));
       return;
     }
     setCurrentModel((prev) => (prev && modelOptions.some((m) => m.id === prev) ? prev : modelOptions[0].id));
   }, [model, modelOptions]);
 
   React.useEffect(() => {
-    setSelectedToolsState(normalizeList(selected_tools));
+    const next = normalizeList(selected_tools);
+    setSelectedToolsState((previous) => (sameStringList(previous, next) ? previous : next));
   }, [selectedToolsPropKey]);
 
   React.useEffect(() => {
-    setSelectedSkillsState(normalizeList(selected_skills));
+    const next = normalizeList(selected_skills);
+    setSelectedSkillsState((previous) => (sameStringList(previous, next) ? previous : next));
   }, [selectedSkillsPropKey]);
 
   React.useEffect(() => {
-    setSelectedMcpState(normalizeList(selected_mcp));
+    const next = normalizeList(selected_mcp);
+    setSelectedMcpState((previous) => (sameStringList(previous, next) ? previous : next));
   }, [selectedMcpPropKey]);
 
   React.useEffect(() => {
-    setCurrentOptions(normalizedOptions);
+    setCurrentOptions((previous) => (samePlainOptions(previous, normalizedOptions) ? previous : normalizedOptions));
   }, [normalizedOptions]);
 
   React.useEffect(() => () => {

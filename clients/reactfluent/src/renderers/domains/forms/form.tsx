@@ -626,11 +626,12 @@ export const Form: React.FC<any> = ({
           <div key={`form_node_${index}`}>{node}</div>
         ))}
       </div>
-      <div className="ds-form-actions mt-4 d-flex justify-content-end">
+      <div className="ds-form-actions mt-4 d-flex justify-content-start">
         <PrimaryButton
           type="submit"
           disabled={submitDisabled}
-          className="ds-button ds-button-primary ds-button-medium"
+          className="ds-button ds-button-primary ds-button-medium d-inline-flex align-items-center justify-content-center"
+          style={{ minWidth: 'auto' }}
           onRenderIcon={isSubmitLoading ? () => <Spinner size={SpinnerSize.xSmall} /> : undefined}
         >
           {getLiteral(submit_label)}

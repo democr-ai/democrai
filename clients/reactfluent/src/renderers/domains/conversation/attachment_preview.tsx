@@ -4,7 +4,6 @@ import { Button } from '@/design/system';
 import { Image as MediaImage } from '@/renderers/domains/media/image';
 import { useResolvedMediaUrl } from '@/hooks/useResolvedMediaUrl';
 import { getLiteral } from '@/renderers/shared';
-import { cn } from '@/lib/utils';
 
 export const AttachmentPreview: React.FC<any> = ({
   id,
@@ -69,65 +68,65 @@ export const AttachmentPreview: React.FC<any> = ({
   };
 
   return (
-    <div id={id} className="w-100 rounded border p-3 bg-white" style={parseStyle(style)}>
-      <div className="mb-3 d-flex align-items-center justify-content-between border-bottom pb-2">
-        <div className="xsmall text-muted text-uppercase fw-bold">
-          <i className="ri-attachment-2 me-1" />
-          {String(name || 'Attachment')} <span className="mx-1">·</span> {normalizedMime || 'unknown'}
+    <div id={id} className="ds-preview ds-attachment-preview" style={parseStyle(style)}>
+      <div className="ds-preview-header">
+        <div className="ds-preview-title">
+          <i className="ri-attachment-2" />
+          <span>{String(name || 'Attachment')}</span>
+          <span className="ds-preview-meta">{normalizedMime || 'unknown'}</span>
         </div>
-        <div className="xsmall text-muted">{String(file_id || '-')}</div>
+        <div className="ds-preview-id">{String(file_id || '-')}</div>
       </div>
 
-      <div className="mb-3 d-flex align-items-center gap-2">
-        <div className="btn-group shadow-sm">
-          <Button type="button" color="outline-primary" size="xs" className="px-3" onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))}>
+      <div className="ds-preview-toolbar">
+        <div className="ds-preview-zoom" role="group" aria-label="Zoom">
+          <Button type="button" color="default" size="xs" className="ds-preview-icon-button" onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))}>
             <i className="ri-subtract-line" />
           </Button>
-          <div className="bg-light border-top border-bottom px-2 d-flex align-items-center xsmall fw-bold" style={{ minWidth: '50px', justifyContent: 'center' }}>
+          <div className="ds-preview-zoom-value">
             {Math.round(zoom * 100)}%
           </div>
-          <Button type="button" color="outline-primary" size="xs" className="px-3" onClick={() => setZoom((z) => Math.min(4, z + 0.15))}>
+          <Button type="button" color="default" size="xs" className="ds-preview-icon-button" onClick={() => setZoom((z) => Math.min(4, z + 0.15))}>
             <i className="ri-add-line" />
           </Button>
         </div>
         
-        <div className="ms-auto">
-          <Button type="button" color="primary" size="xs" className="d-flex align-items-center gap-2" onClick={onDownload}>
-            <i className="ri-download-2-line" />
-            Download
-          </Button>
-        </div>
+        <div className="ds-preview-toolbar-spacer" />
+        <Button type="button" color="default" size="xs" className="ds-preview-button" onClick={onDownload}>
+          <i className="ri-download-2-line" />
+          Download
+        </Button>
       </div>
 
-      <div className="preview-container bg-light rounded overflow-hidden d-flex align-items-center justify-content-center" style={{ minHeight: '200px' }}>
+      <div className="ds-preview-surface">
         {!src ? (
-          <div className="text-muted small p-4 text-center">
-            <i className="ri-error-warning-line d-block fs-3 mb-2" />
+          <div className="ds-preview-empty">
+            <i className="ri-error-warning-line" />
             Preview is not available in this client.
           </div>
         ) : normalizedMime.startsWith('image/') ? (
-          <div ref={imageWrapRef} className="overflow-auto w-100" style={{ maxHeight: `${h}px` }}>
+          <div ref={imageWrapRef} className="ds-preview-scroll" style={{ maxHeight: `${h}px` }}>
             <MediaImage
               id={`${String(id || 'attachment_preview')}_image`}
               alt={String(name || 'attachment')}
               url={src}
               width={imageWidth}
               height={imageHeight}
-              className="img-fluid d-block mx-auto"
+              className="ds-preview-image"
             />
           </div>
         ) : normalizedMime === 'application/pdf' ? (
-          <div className="overflow-auto w-100" style={{ height: `${h}px` }}>
+          <div className="ds-preview-scroll" style={{ height: `${h}px` }}>
             <iframe
               title="attachment-preview-pdf"
               src={src}
-              className="border-0 w-100"
+              className="ds-preview-frame"
               style={{ height: `${h * zoom}px`, minWidth: '100%' }}
             />
           </div>
         ) : (
-          <div className="text-muted small p-4 text-center">
-            <i className="ri-file-unknow-line d-block fs-3 mb-2" />
+          <div className="ds-preview-empty">
+            <i className="ri-file-unknow-line" />
             Preview is not supported for this file type.
           </div>
         )}

@@ -30,6 +30,7 @@ export const Switch: React.FC<any> = ({ id, label, checked, action, onAction, se
     >
       <Toggle
         id={id}
+        className="ds-toggle"
         label={getLiteral(label)}
         checked={local}
         onChange={(event, checked) => { void onChange(event, checked); }}

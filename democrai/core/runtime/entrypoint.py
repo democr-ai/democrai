@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Any, Iterable
 
 from democrai.core.infrastructure.observability.logger.manager import LoggerManager
 from democrai.core.runtime.bootstrap.bootstrap_pipeline import RuntimeBootstrapper
@@ -94,6 +95,58 @@ def core_runtime_options_from_args(args) -> CoreRuntimeOptions:
         engines_path=os.environ.get(ENGINES_PATH_ENV),
         extractors_path=os.environ.get(EXTRACTORS_PATH_ENV),
     )
+
+
+def ensure_runtime_os_sandbox_relaunched(
+    args: Any,
+    *,
+    raw_argv: list[str] | None = None,
+) -> None:
+    from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+        build_core_worker_launch_policy,
+        core_os_sandbox_relaunch_required,
+        is_core_os_sandbox_relaunched,
+    )
+    from democrai.core.infrastructure.sandbox.os.factory import (
+        get_core_launch_strategy,
+    )
+    from democrai.core.platform.config.yaml_config import YamlConfigProvider
+    from democrai.core.runtime.foundation.paths import get_data_dir
+
+    config_path = os.path.join(get_data_dir(), "config.yaml")
+    if not os.path.exists(config_path):
+        return
+    config = YamlConfigProvider(config_path)
+    if not core_os_sandbox_relaunch_required(config):
+        return
+    if is_core_os_sandbox_relaunched():
+        return
+
+    argv = list(sys.argv[1:] if raw_argv is None else raw_argv)
+    command = [sys.executable, sys.argv[0], *argv]
+    launch_strategy = get_core_launch_strategy()
+    if bool(getattr(launch_strategy, "uses_spawn_broker", False)):
+        from democrai.sdk.runtime import release_core_worker, spawn_core_worker
+
+        process = spawn_core_worker(
+            command,
+            env=dict(os.environ),
+            runtime_mode=str(getattr(args, "mode", "") or ""),
+        )
+        try:
+            return_code = process.wait()
+        finally:
+            release_core_worker(process)
+        raise SystemExit(int(return_code or 0))
+
+    policy = build_core_worker_launch_policy(
+        config,
+        command=command,
+        env=dict(os.environ),
+        cwd=os.getcwd(),
+        runtime_mode=str(getattr(args, "mode", "") or ""),
+    )
+    launch_strategy.run(policy)
 
 
 def start_core_runtime(options: CoreRuntimeOptions) -> str | None:

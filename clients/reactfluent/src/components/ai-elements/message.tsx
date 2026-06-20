@@ -60,7 +60,7 @@ export const MessageContent = ({
   return (
     <div
       className={cn(
-        "p-3 rounded shadow-sm small border",
+        "ds-ai-message-content p-3 small border",
         isUser ? "bg-primary text-white border-primary" : "bg-white border-light",
         className
       )}

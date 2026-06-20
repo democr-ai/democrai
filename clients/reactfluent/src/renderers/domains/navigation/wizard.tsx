@@ -103,7 +103,9 @@ export const Wizard: React.FC<any> = ({
                 })
               }
             >
-              <span className="ds-wizard-nav-icon ds-wizard-nav-icon-left" aria-hidden="true" />
+              <span className="ds-wizard-nav-icon" aria-hidden="true">
+                <i className="ri-arrow-left-line" />
+              </span>
               <span>{getLiteral(prev_label)}</span>
             </DefaultButton>
             <PrimaryButton
@@ -120,7 +122,9 @@ export const Wizard: React.FC<any> = ({
               }
             >
               <span>{getLiteral(next_label)}</span>
-              <span className="ds-wizard-nav-icon ds-wizard-nav-icon-right" aria-hidden="true" />
+              <span className="ds-wizard-nav-icon" aria-hidden="true">
+                <i className="ri-arrow-right-line" />
+              </span>
             </PrimaryButton>
           </div>
         ) : null}

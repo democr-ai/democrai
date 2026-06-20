@@ -8,6 +8,7 @@ import pytest
 
 import democrai.core.runtime.dependencies.installer as installer_mod
 import democrai.core.runtime.cli.commands as cli_commands_mod
+import democrai.core.runtime.launcher as runtime_launcher_mod
 import democrai.core.runtime.cli.migration as migration_mod
 import democrai.core.runtime.cli.parsing as cli_parsing_mod
 import democrai.core.runtime.cli.reset_install as reset_install_mod
@@ -96,6 +97,41 @@ def test_cli_command_dispatch_and_module_status(monkeypatch):
     assert cli_commands_mod.handle_cli_command(SimpleNamespace(command="module-callable", module_command="x", module_args=[])) == 0
     with pytest.raises(ValueError):
         cli_commands_mod.handle_cli_command(SimpleNamespace(command="other"))
+
+
+def test_runtime_launcher_relaunch_preflight_runs_before_cli_dispatch(monkeypatch):
+    args = SimpleNamespace(command="install-engines", mode="server")
+    monkeypatch.setattr(runtime_launcher_mod, "parse_args", lambda argv: args)
+    monkeypatch.setattr(
+        runtime_launcher_mod,
+        "ensure_runtime_os_sandbox_relaunched",
+        lambda runtime_args, raw_argv=None: (_ for _ in ()).throw(SystemExit(31)),
+    )
+    monkeypatch.setattr(
+        runtime_launcher_mod,
+        "handle_cli_command",
+        lambda runtime_args: (_ for _ in ()).throw(
+            AssertionError("cli dispatch should not run in parent")
+        ),
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        runtime_launcher_mod.main(["install-engines", "cfg.yaml"])
+
+    assert raised.value.code == 31
+
+
+def test_runtime_launcher_already_relaunched_continues_to_cli(monkeypatch):
+    args = SimpleNamespace(command="install-extractors", mode="server")
+    monkeypatch.setattr(runtime_launcher_mod, "parse_args", lambda argv: args)
+    monkeypatch.setattr(
+        runtime_launcher_mod,
+        "ensure_runtime_os_sandbox_relaunched",
+        lambda runtime_args, raw_argv=None: None,
+    )
+    monkeypatch.setattr(runtime_launcher_mod, "handle_cli_command", lambda _args: 9)
+
+    assert runtime_launcher_mod.main(["install-extractors", "cfg.yaml"]) == 9
 
 
 def test_create_module_data_migration_uses_runtime_module_models(monkeypatch, tmp_path: Path):

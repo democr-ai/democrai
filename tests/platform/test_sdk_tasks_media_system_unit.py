@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -693,6 +694,153 @@ def test_system_setup_finalize_process_restrictions_branches(monkeypatch):
     monkeypatch.setattr(system_mod, "finalize_setup_runtime", _finalize_warn)
     system.setup.finalize("admin", "pw")
     assert warn_calls and "process restrictions failed" in warn_calls[-1]
+
+
+def _patch_setup_finalize_runtime_dependencies(monkeypatch, context, tmp_path):
+    calls: list[str] = []
+
+    monkeypatch.setattr(setup_finalization_mod, "app_ctx", lambda: context)
+    monkeypatch.setattr(setup_finalization_mod, "get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.database._default_engine",
+        None,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.data.database._engine",
+        None,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.database.factory.PersistenceProviderFactory.get_provider",
+        lambda *_a, **_k: SimpleNamespace(
+            run_migrations=lambda: calls.append("db_migrations")
+        ),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.media.factory.MediaProviderFactory.get_provider",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.kg.factory.KGStoreFactory.get_provider",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.vector.factory.VectorStoreFactory.get_provider",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.data.factory.DataStorageProviderFactory.get_provider",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.observability.factory.ObservabilityFactory.get_provider",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.storage.migrations.orchestrator.run_storage_migrations",
+        lambda _ctx: calls.append("storage_migrations"),
+    )
+    monkeypatch.setattr(
+        "democrai.core.application.auth.service.seed_admin_user_custom",
+        lambda *_a, **_k: calls.append("seed_admin"),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.observability.logger.manager.LoggerManager",
+        lambda **_k: context.logger,
+    )
+    return calls
+
+
+def _setup_finalize_context(tmp_path):
+    return SimpleNamespace(
+        setup_mode=True,
+        config=SimpleNamespace(
+            get=lambda key, default=None: {
+                "database.type": "sqlite",
+                "database.data_type": "sqlite",
+                "storage.media.type": "local",
+                "storage.media.path": str(tmp_path / "media"),
+                "storage.kg.type": "sqlite",
+                "storage.vector.type": "sqlite-vec",
+                "storage.observability.type": "sqlite",
+                "storage.observability.exporters.otlp.enabled": False,
+            }.get(key, default)
+        ),
+        logger=SimpleNamespace(
+            info=lambda *_a, **_k: None,
+            warning=lambda *_a, **_k: None,
+        ),
+        network=SimpleNamespace(core=None),
+        modules=SimpleNamespace(get_all_modules=lambda: []),
+    )
+
+
+def test_setup_finalize_skips_current_process_sandbox_for_relaunch_only_provider(
+    monkeypatch,
+    tmp_path,
+):
+    context = _setup_finalize_context(tmp_path)
+    calls = _patch_setup_finalize_runtime_dependencies(monkeypatch, context, tmp_path)
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.current_process.is_os_sandbox_enabled",
+        lambda _cfg: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.provider_supports_current_process_os_sandbox",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.current_process.apply_current_process_os_sandbox",
+        lambda _cfg: (_ for _ in ()).throw(
+            AssertionError("current-process sandbox should not be applied")
+        ),
+    )
+
+    setup_finalization_mod.finalize_setup_runtime(
+        admin_user="admin",
+        admin_pass="pw",
+        admin_email=None,
+    )
+
+    assert calls == ["db_migrations", "storage_migrations", "seed_admin"]
+    assert context.setup_mode is False
+
+
+def test_setup_finalize_applies_current_process_sandbox_for_supported_provider(
+    monkeypatch,
+    tmp_path,
+):
+    context = _setup_finalize_context(tmp_path)
+    calls = _patch_setup_finalize_runtime_dependencies(monkeypatch, context, tmp_path)
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.current_process.is_os_sandbox_enabled",
+        lambda _cfg: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.core_relaunch.provider_supports_current_process_os_sandbox",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.process_guard.process_guard_bypass_context",
+        lambda: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        "democrai.core.infrastructure.sandbox.os.current_process.apply_current_process_os_sandbox",
+        lambda _cfg: calls.append("apply_sandbox"),
+    )
+
+    setup_finalization_mod.finalize_setup_runtime(
+        admin_user="admin",
+        admin_pass="pw",
+        admin_email=None,
+    )
+
+    assert calls == [
+        "db_migrations",
+        "storage_migrations",
+        "seed_admin",
+        "apply_sandbox",
+    ]
+    assert context.setup_mode is False
 
 
 def test_setup_finalization_syncs_loaded_module_rbac(monkeypatch):

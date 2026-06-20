@@ -181,12 +181,15 @@ def finalize_setup_runtime(
 
     os_sandbox_enabled = False
     try:
+        from democrai.core.infrastructure.sandbox.os.core_relaunch import (
+            provider_supports_current_process_os_sandbox,
+        )
         from democrai.core.infrastructure.sandbox.os.current_process import (
             apply_current_process_os_sandbox,
             is_os_sandbox_enabled,
         )
         os_sandbox_enabled = is_os_sandbox_enabled(context.config)
-        if os_sandbox_enabled:
+        if os_sandbox_enabled and provider_supports_current_process_os_sandbox():
             from democrai.core.infrastructure.sandbox.process_guard import (
                 process_guard_bypass_context,
             )

@@ -45,6 +45,7 @@ export const Toggle: React.FC<any> = ({
     >
       <FluentToggle
         id={id}
+        className="ds-toggle"
         label={getLiteral(label)}
         checked={value}
         onChange={(_event, checked) => { void handleChange(Boolean(checked)); }}

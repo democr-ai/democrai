@@ -7,6 +7,7 @@ import threading
 from democrai.core.runtime.cli import build_parser, handle_cli_command, parse_args
 from democrai.core.runtime.entrypoint import (
     core_runtime_options_from_args,
+    ensure_runtime_os_sandbox_relaunched,
     start_core_runtime,
 )
 from democrai.core.runtime.foundation.app import app_ctx
@@ -98,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     args = parse_args(_with_packaged_defaults(raw_argv))
+    ensure_runtime_os_sandbox_relaunched(args, raw_argv=raw_argv)
     cli_rc = handle_cli_command(args)
     if cli_rc is not None:
         return int(cli_rc)

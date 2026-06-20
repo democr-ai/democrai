@@ -31,7 +31,7 @@ const withResizeParams = (url: string, width?: number, height?: number): string 
   }
 };
 
-export const Image: React.FC<any> = ({ id, alt, url, width, height, fit, style, sendAction }) => {
+export const Image: React.FC<any> = ({ id, alt, url, width, height, fit, style, className, sendAction }) => {
   const messages = useI18n();
   const raw = getLiteral(url, '');
   const altText = getLiteral(alt, '');
@@ -97,7 +97,7 @@ export const Image: React.FC<any> = ({ id, alt, url, width, height, fit, style, 
 
   return (
     <div
-      className={`d-flex align-items-center justify-content-center overflow-hidden ${shouldTintLogo ? 'flex-shrink-0' : 'rounded'} ${(!resolvedWidth && !shouldTintLogo) ? 'w-100' : ''} ${(!resolvedHeight && !shouldTintLogo) ? 'min-vh-0' : ''}`}
+      className={`d-flex align-items-center justify-content-center overflow-hidden ${shouldTintLogo ? 'flex-shrink-0' : 'rounded'} ${(!resolvedWidth && !shouldTintLogo) ? 'w-100' : ''} ${(!resolvedHeight && !shouldTintLogo) ? 'min-vh-0' : ''} ${className || ''}`}
       style={containerStyle}
     >
       {blocked ? (

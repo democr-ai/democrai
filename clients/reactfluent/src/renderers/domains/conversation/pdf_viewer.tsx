@@ -56,28 +56,26 @@ export const PdfViewer: React.FC<any> = ({
   };
 
   return (
-    <div id={id} className="w-100" style={parseStyle(style)}>
-      <div className="mb-3 d-flex align-items-center justify-content-between border-bottom pb-2">
-        <div className="small fw-bold text-muted">
-          <i className="ri-file-pdf-2-line me-2 text-danger" />
+    <div id={id} className="ds-preview ds-pdf-viewer" style={parseStyle(style)}>
+      <div className="ds-preview-header">
+        <div className="ds-preview-title">
+          <i className="ri-file-pdf-2-line" />
           {getLiteral(resolvedName || 'PDF Viewer')}
         </div>
-        <Button type="button" color="primary" outline size="xs" className="d-flex align-items-center gap-2" onClick={onDownload}>
+        <Button type="button" color="default" size="xs" className="ds-preview-button" onClick={onDownload}>
           <i className="ri-download-2-line" />
           Download PDF
         </Button>
       </div>
 
       {!src ? (
-        <div className="rounded border p-4 text-center bg-light text-muted small">
-          <i className="ri-error-warning-line d-block fs-3 mb-2" />
+        <div className="ds-preview-empty">
+          <i className="ri-error-warning-line" />
           {messages.pdfSourceUnavailable || 'PDF source is not available.'}
         </div>
       ) : (
-        <div className="p-2 border rounded bg-light">
-          <div className="bg-white rounded border overflow-hidden" style={{ height: `${h}px` }}>
-            <iframe title="pdf-viewer" src={src} className="h-100 w-100 border-0" />
-          </div>
+        <div className="ds-preview-surface">
+          <iframe title="pdf-viewer" src={src} className="ds-preview-frame" style={{ height: `${h}px` }} />
         </div>
       )}
     </div>

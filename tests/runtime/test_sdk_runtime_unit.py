@@ -61,6 +61,11 @@ def test_sdk_runtime_start_returns_endpoint(monkeypatch):
     )
     monkeypatch.setattr(
         entrypoint,
+        "ensure_runtime_os_sandbox_relaunched",
+        lambda runtime_args, raw_argv=None: None,
+    )
+    monkeypatch.setattr(
+        entrypoint,
         "start_core_runtime",
         _start_core_runtime,
     )
@@ -72,3 +77,61 @@ def test_sdk_runtime_start_returns_endpoint(monkeypatch):
     assert handle.exit_code is None
     assert observed["options_args"] is args
     assert observed["options"] == "options"
+
+
+def test_sdk_runtime_start_relaunch_preflight_runs_before_cli_dispatch(monkeypatch):
+    from democrai.sdk import runtime
+    from democrai.core.runtime import cli, entrypoint
+
+    args = SimpleNamespace(
+        os_sandbox_helper_process=False,
+        mode="desktop",
+        port=9010,
+        workers=1,
+        server_worker=False,
+    )
+    monkeypatch.setattr(cli, "parse_args", lambda argv: args)
+    monkeypatch.setattr(
+        entrypoint,
+        "ensure_runtime_os_sandbox_relaunched",
+        lambda runtime_args, raw_argv=None: (_ for _ in ()).throw(SystemExit(23)),
+    )
+    monkeypatch.setattr(
+        cli,
+        "handle_cli_command",
+        lambda runtime_args: (_ for _ in ()).throw(
+            AssertionError("cli dispatch should not run in parent")
+        ),
+    )
+
+    try:
+        runtime.start(argv=["install-engines", "cfg.yaml"])
+    except SystemExit as exc:
+        assert exc.code == 23
+    else:
+        raise AssertionError("expected relaunch preflight to terminate")
+
+
+def test_sdk_runtime_start_already_relaunched_continues_to_cli(monkeypatch):
+    from democrai.sdk import runtime
+    from democrai.core.runtime import cli, entrypoint
+
+    args = SimpleNamespace(
+        os_sandbox_helper_process=False,
+        mode="desktop",
+        port=9010,
+        workers=1,
+        server_worker=False,
+    )
+    monkeypatch.setattr(cli, "parse_args", lambda argv: args)
+    monkeypatch.setattr(
+        entrypoint,
+        "ensure_runtime_os_sandbox_relaunched",
+        lambda runtime_args, raw_argv=None: None,
+    )
+    monkeypatch.setattr(cli, "handle_cli_command", lambda runtime_args: 7)
+
+    handle = runtime.start(argv=["install-engines", "cfg.yaml"])
+
+    assert handle.args is args
+    assert handle.exit_code == 7

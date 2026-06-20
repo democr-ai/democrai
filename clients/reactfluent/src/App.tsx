@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useClientRuntime } from './hooks/useClientRuntime';
 import { ClientRenderer } from './components/renderer/Renderer';
 import { 
+  IconButton,
   Modal,
   Spinner,
 } from '@fluentui/react';
@@ -105,18 +106,29 @@ function App() {
   const defaultDrawerDim = 720;
   const drawerDim = positiveNumber(drawerSurface?.options?.dim);
   const isVerticalDrawer = drawerPosition === 'top' || drawerPosition === 'bottom';
+  const drawerClosable = drawerSurface?.options?.closable !== false && drawerSurface?.options?.dismissible !== false;
   
   const drawerClassName = `ds-drawer-surface ds-drawer-${drawerPosition}`;
   const drawerStyle =
     !isVerticalDrawer
       ? {
           overflowX: 'hidden',
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          ...(drawerPosition === 'left' ? { left: 0 } : { right: 0 }),
           minWidth: 0,
+          height: '100vh',
+          maxHeight: '100vh',
           width: `min(${drawerDim || defaultDrawerDim}px, 96vw)`,
           maxWidth: `min(${drawerDim || defaultDrawerDim}px, 96vw, 100vw)`
         }
       : {
           overflowX: 'hidden',
+          position: 'fixed',
+          right: 0,
+          left: 0,
+          ...(drawerPosition === 'top' ? { top: 0 } : { bottom: 0 }),
           minWidth: 0,
           width: '100vw',
           maxWidth: '100vw',
@@ -172,11 +184,21 @@ function App() {
 
         <Modal
           isOpen={!!drawerSurface?.rootId}
+          isModeless
           onDismiss={() => closeSurface('drawer')}
           containerClassName={drawerClassName}
           styles={{ main: drawerStyle as any }}
         >
           <div className="ds-dialog-content">
+            {drawerClosable ? (
+              <IconButton
+                className="ds-drawer-close"
+                iconProps={{ iconName: 'Cancel' }}
+                ariaLabel="Close drawer"
+                title="Close"
+                onClick={() => closeSurface('drawer')}
+              />
+            ) : null}
             {drawerSurface?.rootId ? (
               <ClientRenderer
                 surfaceId="drawer"
