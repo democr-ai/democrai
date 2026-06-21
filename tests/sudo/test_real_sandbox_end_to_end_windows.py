@@ -235,6 +235,30 @@ def sandbox_harness(tmp_path: Path) -> Path:
             ctx.setup_mode = False
             ctx.runtime_mode = "test"
             ctx.logger = HarnessLogger()
+            # Everything originates from a module: skill/MCP/tool guards inherit
+            # the owning module's declared access via the module registry, just
+            # as production does. Register the real "system" module so
+            # OwnerModuleAccess can resolve it instead of failing closed.
+            import json as _json
+            from democrai.core.infrastructure.modules.manager import (
+                Module as _Module,
+                ModuleManager as _ModuleManager,
+            )
+
+            _mgr = getattr(ctx, "modules", None)
+            if _mgr is None:
+                _mgr = _ModuleManager()
+                ctx.modules = _mgr
+            if _mgr.get_module("system") is None:
+                _system_path = os.path.join(os.getcwd(), "modules", "system")
+                with open(os.path.join(_system_path, "manifest.json")) as _mh:
+                    _system_manifest = _json.load(_mh)
+                _mgr._modules["system"] = _Module(
+                    _system_path,
+                    _system_manifest,
+                    is_builtin=True,
+                    owner_id="harness",
+                )
             return cfg
 
 
@@ -796,6 +820,7 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def case_application_bootstrap():
             cfg = app_config()
+            os.environ["DEMOCRAI_CORE_OS_SANDBOX_REEXEC"] = "1"
             from democrai.core.infrastructure.sandbox.os.bootstrap import bootstrap_current_process_os_sandbox
             from democrai.core.runtime.foundation.app import app_ctx
             details = bootstrap_current_process_os_sandbox(app_ctx(), reason="windows_real_sandbox_test", mode="test")

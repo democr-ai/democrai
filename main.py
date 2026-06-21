@@ -500,12 +500,12 @@ def _create_shared_listener(host: str, port: int) -> socket.socket:
 
 
 def _run_server_master(args) -> int:
-    if os.name == "nt":
+    worker_count = max(1, int(args.workers or 1))
+    if os.name == "nt" and worker_count > 1:
         print("[ServerMaster] --workers>1 is not supported on Windows yet.")
         return 2
 
-    worker_count = max(1, int(args.workers or 1))
-    listener = _create_shared_listener(args.host, args.port)
+    listener = None if os.name == "nt" else _create_shared_listener(args.host, args.port)
     stop_event = threading.Event()
     reload_event = threading.Event()
     exit_code = {"value": 0}
@@ -562,12 +562,13 @@ def _run_server_master(args) -> int:
                 args,
                 server_worker=True,
                 workers=1,
-                listen_fd=listener.fileno(),
+                listen_fd=listener.fileno() if listener is not None else None,
                 worker_index=worker_index,
             )
+            pass_fds = (listener.fileno(),) if listener is not None else ()
             child = _start_core_worker(
                 worker_args,
-                pass_fds=(listener.fileno(),),
+                pass_fds=pass_fds,
             )
             children.append(child)
 
@@ -590,10 +591,11 @@ def _run_server_master(args) -> int:
         if reloader is not None:
             reloader.stop()
         _shutdown_children(force=exit_code["value"] not in (0, 130))
-        try:
-            listener.close()
-        except Exception:
-            pass
+        if listener is not None:
+            try:
+                listener.close()
+            except Exception:
+                pass
 
     return exit_code["value"]
 

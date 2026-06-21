@@ -355,6 +355,55 @@ def test_run_server_master_launches_core_workers_with_listener_fd(monkeypatch):
     assert observed["closed"] is True
 
 
+def test_run_server_master_windows_single_worker_without_listener(monkeypatch):
+    import main as main_mod
+
+    observed = {"workers": []}
+
+    class _Proc:
+        def __init__(self):
+            self._polls = 0
+
+        def poll(self):
+            self._polls += 1
+            return 0 if self._polls > 1 else None
+
+        def terminate(self):
+            observed.setdefault("terminated", 0)
+            observed["terminated"] += 1
+
+        def wait(self, timeout=None):
+            observed.setdefault("waits", []).append(timeout)
+            return 0
+
+        def kill(self):
+            observed["killed"] = True
+
+    args = _handle(mode="server", workers=1, host="127.0.0.1", port=8000, dev=0).args
+    monkeypatch.setattr(main_mod.os, "name", "nt")
+    monkeypatch.setattr(
+        main_mod,
+        "_create_shared_listener",
+        lambda host, port: (_ for _ in ()).throw(AssertionError("listener should not be created")),
+    )
+    monkeypatch.setattr(main_mod.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(main_mod.signal, "signal", lambda *_args: None)
+    monkeypatch.setattr(
+        main_mod,
+        "_start_core_worker",
+        lambda worker_args, pass_fds=(): (
+            observed["workers"].append((worker_args, pass_fds)),
+            _Proc(),
+        )[1],
+    )
+
+    assert main_mod._run_server_master(args) == 0
+    worker_args, pass_fds = observed["workers"][0]
+    assert worker_args.server_worker is True
+    assert worker_args.listen_fd is None
+    assert pass_fds == ()
+
+
 def test_start_core_worker_uses_sandbox_launch_strategy(monkeypatch):
     import main as main_mod
 

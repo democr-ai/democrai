@@ -33,6 +33,7 @@ from dataclasses import dataclass
 
 # fwpuclnt returns Win32/HRESULT codes; 0 == ERROR_SUCCESS.
 ERROR_SUCCESS = 0
+FWP_E_ALREADY_EXISTS = 0x80320009
 RPC_C_AUTHN_WINNT = 10
 
 FWPM_SESSION_FLAG_DYNAMIC = 0x00000001
@@ -365,9 +366,14 @@ def _fwpuclnt() -> ctypes.WinDLL:
     return ctypes.WinDLL("fwpuclnt", use_last_error=True)
 
 
+def _wfp_code(code: int) -> int:
+    return int(code) & 0xFFFFFFFF
+
+
 def _check(code: int, where: str) -> None:
-    if int(code) != ERROR_SUCCESS:
-        raise OSError(f"{where} failed: 0x{int(code) & 0xFFFFFFFF:08X}")
+    normalized = _wfp_code(code)
+    if normalized != ERROR_SUCCESS:
+        raise OSError(f"{where} failed: 0x{normalized:08X}")
 
 
 def _security_descriptor_blob_for_sid(string_sid: str) -> tuple[FWP_BYTE_BLOB, object]:
@@ -461,10 +467,16 @@ class WfpEngine:
         sublayer.displayData.name = "democrai egress"
         sublayer.displayData.description = "democrai sandbox egress sublayer"
         sublayer.weight = 0x0F00
-        code = int(self._fwpuclnt.FwpmSubLayerAdd0(self._engine, ctypes.byref(sublayer), None))
+        code = _wfp_code(
+            self._fwpuclnt.FwpmSubLayerAdd0(
+                self._engine,
+                ctypes.byref(sublayer),
+                None,
+            )
+        )
         # FWP_E_ALREADY_EXISTS (0x80320009) is fine — a prior dynamic session in
         # this process, or a leftover, already created it.
-        if code not in (ERROR_SUCCESS, 0x80320009):
+        if code not in (ERROR_SUCCESS, FWP_E_ALREADY_EXISTS):
             _check(code, "FwpmSubLayerAdd0")
 
     def close(self) -> None:
