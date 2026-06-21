@@ -41,6 +41,36 @@ def test_extractor_install_runtime_applies_manifest_environment(monkeypatch):
     }
 
 
+def test_extractor_cache_env_does_not_emit_docling_specific_env(monkeypatch, tmp_path):
+    import democrai.core.runtime.dependencies.extractor_env as mod
+
+    monkeypatch.setattr(mod, "get_extractor_local_env_path", lambda _id=None: tmp_path / "env")
+    monkeypatch.setattr(mod, "get_extractor_local_cache_path", lambda _id=None: tmp_path / "cache")
+    monkeypatch.setattr(mod, "get_extractor_local_config_path", lambda _id=None: tmp_path / "config")
+    monkeypatch.setattr(mod, "get_extractor_local_tmp_path", lambda _id=None: tmp_path / "tmp")
+
+    env = mod._extractor_cache_env("docling")
+
+    assert env["HF_HOME"] == str(tmp_path / "cache" / "huggingface")
+    assert env["HF_HUB_CACHE"] == str(tmp_path / "cache" / "huggingface" / "hub")
+    assert env["HUGGINGFACE_HUB_CACHE"] == str(tmp_path / "cache" / "huggingface" / "hub")
+    assert env["MODELSCOPE_CACHE"] == str(tmp_path / "cache" / "modelscope")
+    assert env["MPLCONFIGDIR"] == str(tmp_path / "config" / "matplotlib")
+    assert env["TORCH_HOME"] == str(tmp_path / "cache" / "torch")
+
+
+def test_clean_worker_env_removes_generic_extractor_env(monkeypatch, tmp_path):
+    import democrai.core.application.knowledge.extractor.worker_subject as mod
+
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "external" / "hf"))
+    monkeypatch.setenv("KEEP_ME", "1")
+
+    env = mod._clean_worker_env()
+
+    assert "HF_HOME" not in env
+    assert env["KEEP_ME"] == "1"
+
+
 def test_extractor_environment_rejects_invalid_manifest_values(monkeypatch):
     import democrai.core.application.knowledge.extractor.runtime as mod
 

@@ -11,14 +11,22 @@ from urllib.parse import urlparse
 from fastapi import HTTPException
 from democrai.core.platform.utils.mime_detection import extension_for_mime_type
 from democrai.core.runtime.foundation.app import app_ctx
-from democrai.core.runtime.foundation.paths import cache_dir
+from democrai.core.runtime.foundation.paths import (
+    cache_dir,
+    fs_exists,
+    fs_path,
+    fs_read_text,
+    fs_stat,
+    fs_unlink,
+    fs_write_text,
+)
 
 DEFAULT_MEDIA_CACHE_TTL_SECONDS = 3600
 
 
 def media_cache_root() -> Path:
     root = cache_dir() / "media_proxy"
-    root.mkdir(parents=True, exist_ok=True)
+    os.makedirs(fs_path(root), exist_ok=True)
     return root
 
 
@@ -28,7 +36,7 @@ def media_cache_key(module_name: str, url: str) -> str:
 
 def media_cache_module_dir(module_name: str) -> Path:
     module_dir = media_cache_root() / module_name
-    module_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(fs_path(module_dir), exist_ok=True)
     return module_dir
 
 
@@ -65,10 +73,10 @@ def media_cache_ttl_seconds() -> int:
 def is_cache_entry_fresh(
     path: Path, ttl_seconds: int, *, now: float | None = None
 ) -> bool:
-    if ttl_seconds <= 0 or not path.exists():
+    if ttl_seconds <= 0 or not fs_exists(path):
         return False
     current_time = time.time() if now is None else float(now)
-    return (current_time - path.stat().st_mtime) < float(ttl_seconds)
+    return (current_time - fs_stat(path).st_mtime) < float(ttl_seconds)
 
 
 def prune_media_cache(
@@ -78,23 +86,23 @@ def prune_media_cache(
     current_time = time.time() if now is None else float(now)
     for candidate in module_dir.iterdir():
         try:
-            is_stale = (current_time - candidate.stat().st_mtime) >= float(ttl_seconds)
+            is_stale = (current_time - fs_stat(candidate).st_mtime) >= float(ttl_seconds)
         except FileNotFoundError:
             continue
         if not is_stale:
             continue
         try:
-            candidate.unlink()
+            fs_unlink(candidate)
         except FileNotFoundError:
             continue
 
 
 def read_media_cache_metadata(module_name: str, url: str) -> dict[str, object] | None:
     metadata_path = media_cache_metadata_path(module_name, url)
-    if not metadata_path.exists():
+    if not fs_exists(metadata_path):
         return None
     try:
-        return json.loads(metadata_path.read_text(encoding="utf-8"))
+        return json.loads(fs_read_text(metadata_path, encoding="utf-8"))
     except Exception:
         return None
 
@@ -103,7 +111,7 @@ def write_media_cache_metadata(
     module_name: str, url: str, payload: dict[str, object]
 ) -> None:
     metadata_path = media_cache_metadata_path(module_name, url)
-    metadata_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    fs_write_text(metadata_path, json.dumps(payload, sort_keys=True), encoding="utf-8")
 
 
 def cached_media_payload(
@@ -118,7 +126,7 @@ def cached_media_payload(
     cache_path = Path(path_value)
     if not is_cache_entry_fresh(cache_path, ttl_seconds, now=now):
         return None
-    expires_at = cache_path.stat().st_mtime + float(ttl_seconds)
+    expires_at = fs_stat(cache_path).st_mtime + float(ttl_seconds)
     return {
         "path": str(cache_path),
         "content_type": metadata.get("content_type") or "application/octet-stream",

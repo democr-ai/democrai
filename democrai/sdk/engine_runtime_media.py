@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-import shutil
 import threading
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from democrai.core.application.ai.engine.runtime.serialization import json_value
+from democrai.core.runtime.foundation.paths import fs_is_dir, fs_rmtree, fs_unlink
 from democrai.core.runtime.ipc.local_binary_payload import LocalBinaryPayloadChannel
 from democrai.core.runtime.ipc.local_connection import connect_from_env
 
@@ -28,12 +27,11 @@ class RuntimeMaterializedMedia:
     def cleanup(self) -> None:
         if not self.temporary:
             return
-        target = Path(self.path)
         try:
-            if target.is_dir():
-                shutil.rmtree(target, ignore_errors=True)
+            if fs_is_dir(self.path):
+                fs_rmtree(self.path, ignore_errors=True)
             else:
-                target.unlink(missing_ok=True)
+                fs_unlink(self.path, missing_ok=True)
         except OSError:
             pass
 

@@ -19,6 +19,7 @@ from democrai.core.application.services.external_access import (
 from democrai.core.platform.utils.debug import debug_media_flow
 from democrai.core.platform.utils.mime_detection import detect_mime_type, filename_hint_from_url
 from democrai.core.runtime.foundation.app import app_ctx
+from democrai.core.runtime.foundation.paths import fs_stat, fs_unlink, fs_write_bytes
 from democrai.core.infrastructure.sandbox.proxy_access import is_module_target_declared
 from democrai.core.application.handler.services.runtime.cache import (
     cached_media_payload,
@@ -229,13 +230,13 @@ async def resolve_external_media_to_cache(
         cache_path = media_cache_path(module_name, url, content_type)
         previous = read_media_cache_metadata(module_name, url) or {}
         previous_path = str(previous.get("path") or "")
-        cache_path.write_bytes(response.content)
+        fs_write_bytes(cache_path, response.content)
         if previous_path and previous_path != str(cache_path):
             try:
-                Path(previous_path).unlink()
+                fs_unlink(previous_path)
             except FileNotFoundError:
                 pass
-        expires_at = cache_path.stat().st_mtime + float(ttl_seconds)
+        expires_at = fs_stat(cache_path).st_mtime + float(ttl_seconds)
         payload = {
             "path": str(cache_path),
             "content_type": content_type or "application/octet-stream",

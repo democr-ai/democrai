@@ -19,6 +19,7 @@ from democrai.core.application.knowledge.task_progress import (
 from democrai.core.platform.utils.timezone import utc_now_naive
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import current_request_context_payload
+from democrai.core.runtime.foundation.paths import fs_open, fs_path
 
 _FILENAME_SAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -142,9 +143,9 @@ def store_uploaded_media(
             "democrai_setup_uploads",
             normalized_module,
         )
-        os.makedirs(temp_root, exist_ok=True)
+        os.makedirs(fs_path(temp_root), exist_ok=True)
         persisted_path = os.path.join(temp_root, stored_filename)
-        with open(persisted_path, "wb") as fh:
+        with fs_open(persisted_path, "wb") as fh:
             fh.write(data)
         digest = hashlib.sha256(data).hexdigest()
         return MediaUploadResult(

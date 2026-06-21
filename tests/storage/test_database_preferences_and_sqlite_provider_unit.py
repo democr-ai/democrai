@@ -100,6 +100,7 @@ def test_preferences_get_and_set_handle_missing_table(monkeypatch):
     pref_mod.set_preference("lang", "it")
 
 
+@pytest.mark.posix_only
 def test_sqlite_persistence_provider_init_and_migrations(monkeypatch, tmp_path):
     db_path = str(tmp_path / "democrai.db")
     engine_calls = []
@@ -208,6 +209,7 @@ def test_sqlite_persistence_provider_run_migrations_reraises(monkeypatch, tmp_pa
         provider.run_migrations()
 
 
+@pytest.mark.posix_only
 def test_sqlite_persistence_provider_uses_default_data_dir(monkeypatch):
     monkeypatch.setattr(sqlite_mod, "get_data_dir", lambda: "/data")
     monkeypatch.setattr(

@@ -32,7 +32,6 @@ def _configure_project_cache(cache_root: Path) -> None:
     os.environ["HUGGINGFACE_HUB_CACHE"] = str(hf_cache)
     os.environ["TRANSFORMERS_CACHE"] = str(hf_cache)
     os.environ["DOCLING_CACHE_DIR"] = str(docling_cache)
-    os.environ["DOCLING_ARTIFACTS_PATH"] = str(docling_models)
     os.environ["ORT_CACHE_DIR"] = str(onnx_cache)
     os.environ["MODEL_CACHE_DIR"] = str(surya_cache)
 

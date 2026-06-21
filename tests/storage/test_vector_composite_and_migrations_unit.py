@@ -232,6 +232,7 @@ def test_composite_vector_store_covers_read_write_policies(monkeypatch: pytest.M
     assert logger_calls
 
 
+@pytest.mark.posix_only
 def test_vector_and_observability_migrations_handlers(monkeypatch: pytest.MonkeyPatch, tmp_path):
     logger = SimpleNamespace(info=lambda *args, **kwargs: None, error=lambda *args, **kwargs: None)
 

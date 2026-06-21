@@ -21,6 +21,13 @@ __all__ = [
     "is_system_dependency_installed",
     "ensure_engine_venv",
     "ensure_extractor_venv",
+    "fs_exists",
+    "fs_is_dir",
+    "fs_is_file",
+    "fs_path",
+    "get_engine_local_cache_path",
+    "get_extractor_local_cache_path",
+    "logical_path",
 ]
 
 
@@ -46,6 +53,52 @@ def ensure_extractor_venv():
     from democrai.core.runtime.dependencies.installer import ensure_extractor_venv
 
     ensure_extractor_venv()
+
+
+def get_engine_local_cache_path(engine_id: str | None = None):
+    from democrai.core.runtime.dependencies.engine_env import (
+        get_engine_local_cache_path,
+    )
+
+    return get_engine_local_cache_path(engine_id)
+
+
+def get_extractor_local_cache_path(extractor_id: str | None = None):
+    from democrai.core.runtime.dependencies.extractor_env import (
+        get_extractor_local_cache_path,
+    )
+
+    return get_extractor_local_cache_path(extractor_id)
+
+
+def fs_path(path):
+    from democrai.core.runtime.foundation.paths import fs_path
+
+    return fs_path(path)
+
+
+def logical_path(path):
+    from democrai.core.runtime.foundation.paths import logical_path
+
+    return logical_path(path)
+
+
+def fs_exists(path):
+    from democrai.core.runtime.foundation.paths import fs_exists
+
+    return fs_exists(path)
+
+
+def fs_is_dir(path):
+    from democrai.core.runtime.foundation.paths import fs_is_dir
+
+    return fs_is_dir(path)
+
+
+def fs_is_file(path):
+    from democrai.core.runtime.foundation.paths import fs_is_file
+
+    return fs_is_file(path)
 
 
 def install_python_packages(

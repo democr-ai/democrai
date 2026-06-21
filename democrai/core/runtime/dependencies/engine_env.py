@@ -13,7 +13,7 @@ from pathlib import Path
 from democrai.core.runtime.dependencies.env_constants import ENVIRONMENT_CONTEXT_LOCK
 from democrai.core.runtime.dependencies.env_constants import engine_runtime_command_path
 from democrai.core.runtime.dependencies.installer_env import RUNTIME_ENV_JSON_ENV
-from democrai.core.runtime.foundation.paths import cache_dir, data_dir
+from democrai.core.runtime.foundation.paths import cache_dir, data_dir, fs_path
 
 
 _current_engine_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -399,26 +399,6 @@ def _module_from_path(module: object, root: str) -> bool:
         return False
 
 
-def _extended_length_path(path: str) -> str:
-    """Return the Windows extended-length form (``\\\\?\\``) of an absolute path.
-
-    Deep dependency trees (e.g. llama-cpp-python vendors llama.cpp, whose web-UI
-    Svelte components nest well past Windows' 260-char MAX_PATH) cannot be
-    addressed by the classic Win32 API when long-path support is disabled, so a
-    plain ``shutil.rmtree`` dies with WinError 3. Prefixing the root lifts the
-    limit for every path rmtree derives from it. No-op off Windows / when already
-    prefixed (``os.path.abspath`` makes every other input absolute first).
-    """
-    if os.name != "nt":
-        return path
-    if path.startswith("\\\\?\\"):
-        return path
-    absolute = os.path.abspath(path)
-    if absolute.startswith("\\\\"):  # UNC share: \\server\share -> \\?\UNC\server\share
-        return "\\\\?\\UNC" + absolute[1:]
-    return "\\\\?\\" + absolute
-
-
 def _rmtree_long_path(target: Path) -> None:
     def _on_error(func, path, exc):
         # Already gone (race / earlier partial delete) — nothing to do.
@@ -438,7 +418,7 @@ def _rmtree_long_path(target: Path) -> None:
                 pass
         raise exc
 
-    shutil.rmtree(_extended_length_path(str(target)), onexc=_on_error)
+    shutil.rmtree(fs_path(target), onexc=_on_error)
 
 
 def clear_local_engine_env(engine_id: str | None = None) -> None:

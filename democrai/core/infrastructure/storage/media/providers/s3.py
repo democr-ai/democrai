@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import posixpath
 import tempfile
 from typing import Any
@@ -9,6 +10,7 @@ from pathlib import Path
 from democrai.core.infrastructure.storage.errors import ProviderConfigError
 from democrai.core.infrastructure.storage.errors import ProviderNotAvailableError
 from democrai.core.infrastructure.storage.media.providers.base import MaterializedMedia, MediaProvider
+from democrai.core.runtime.foundation.paths import fs_open, fs_path, logical_path
 
 
 class S3MediaProvider(MediaProvider):
@@ -130,14 +132,14 @@ class S3MediaProvider(MediaProvider):
             handle = tempfile.NamedTemporaryFile(
                 delete=False,
                 suffix=suffix,
-                dir=str(destination_dir) if destination_dir is not None else None,
+                dir=fs_path(destination_dir) if destination_dir is not None else None,
             )
             try:
                 handle.write(self.load(normalized))
                 handle.flush()
             finally:
                 handle.close()
-            return MaterializedMedia(path=handle.name, temporary=True)
+            return MaterializedMedia(path=logical_path(handle.name), temporary=True)
 
         directory_prefix = normalized.rstrip("/")
         files = [
@@ -151,7 +153,7 @@ class S3MediaProvider(MediaProvider):
         target_root = Path(
             tempfile.mkdtemp(
                 prefix="democrai-media-",
-                dir=str(destination_dir) if destination_dir is not None else None,
+                dir=fs_path(destination_dir) if destination_dir is not None else None,
             )
         )
         for item in files:
@@ -159,9 +161,10 @@ class S3MediaProvider(MediaProvider):
             if not relative_name:
                 continue
             target = target_root / relative_name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(self.load(item))
-        return MaterializedMedia(path=str(target_root), temporary=True)
+            os.makedirs(fs_path(target.parent), exist_ok=True)
+            with fs_open(target, "wb") as handle:
+                handle.write(self.load(item))
+        return MaterializedMedia(path=logical_path(str(target_root)), temporary=True)
 
     def delete(self, path: str) -> None:
         normalized = self._normalize_path(path)

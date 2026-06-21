@@ -159,6 +159,7 @@ def test_media_factory_all_branches(monkeypatch: pytest.MonkeyPatch):
         mod.MediaProviderFactory.get_provider("unknown")
 
 
+@pytest.mark.posix_only
 def test_kg_factory_all_paths(monkeypatch: pytest.MonkeyPatch):
     from democrai.core.infrastructure.storage.kg import factory
 
@@ -192,6 +193,7 @@ def test_kg_factory_all_paths(monkeypatch: pytest.MonkeyPatch):
     assert factory.KGStoreFactory.create_default() == ("ladybug", "/tmp/kg.lbug")
 
 
+@pytest.mark.posix_only
 def test_vector_factory_all_paths(monkeypatch: pytest.MonkeyPatch):
     from democrai.core.infrastructure.storage.vector import factory as mod
 

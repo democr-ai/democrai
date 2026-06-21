@@ -4,14 +4,13 @@ import contextlib
 import contextvars
 import importlib
 import os
-import shutil
 import sys
 import tempfile
 from pathlib import Path
 
 from democrai.core.runtime.dependencies.env_constants import ENVIRONMENT_CONTEXT_LOCK
 from democrai.core.runtime.dependencies.env_constants import engine_runtime_command_path
-from democrai.core.runtime.foundation.paths import cache_dir, data_dir
+from democrai.core.runtime.foundation.paths import cache_dir, data_dir, fs_exists, fs_rmtree
 
 _EXTRACTOR_ENV_ROOT: Path | None = None
 _EXTRACTOR_LOCAL_PATH_OVERRIDES: dict[str, dict[str, Path]] = {}
@@ -30,7 +29,6 @@ _current_extractor_env: contextvars.ContextVar[dict[str, str] | None] = (
 
 
 _EXTRACTOR_CACHE_ENV_KEYS = (
-    "DOCLING_ARTIFACTS_PATH",
     "HF_HOME",
     "HF_HUB_CACHE",
     "HF_HUB_OFFLINE",
@@ -42,7 +40,6 @@ _EXTRACTOR_CACHE_ENV_KEYS = (
     "XDG_CONFIG_HOME",
     "PATH",
     "PYTHONPATH",
-    "TESSDATA_PREFIX",
     "TORCH_HOME",
     "TMPDIR",
     "TEMP",
@@ -50,7 +47,6 @@ _EXTRACTOR_CACHE_ENV_KEYS = (
 )
 
 _EXTRACTOR_SHIELDED_ENV_KEYS = (
-    "DOCLING_ARTIFACTS_PATH",
     "HF_DATASETS_CACHE",
     "HF_HOME",
     "HF_HUB_CACHE",
@@ -59,29 +55,12 @@ _EXTRACTOR_SHIELDED_ENV_KEYS = (
     "MODELSCOPE_CACHE",
     "MPLCONFIGDIR",
     "NETRC",
-    "TESSDATA_PREFIX",
     "TORCH_HOME",
     "TRANSFORMERS_CACHE",
     "TRANSFORMERS_OFFLINE",
     "XDG_CACHE_HOME",
     "XDG_CONFIG_HOME",
 )
-
-
-def get_extractor_tessdata_path(extractor_id: str | None = None) -> Path:
-    path = get_extractor_local_cache_path(extractor_id) / "tessdata"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def get_extractor_docling_artifacts_path(extractor_id: str | None = None) -> Path:
-    path = get_extractor_local_cache_path(extractor_id) / "docling" / "models"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _tessdata_prefix(extractor_id: str) -> str:
-    return str(get_extractor_tessdata_path(extractor_id))
 
 
 def get_current_extractor_id() -> str | None:
@@ -100,7 +79,6 @@ def _extractor_cache_env(extractor_id: str) -> dict[str, str]:
     tmp_root = get_extractor_local_tmp_path(extractor_id)
     env = {
         "HF_HOME": str(cache_root / "huggingface"),
-        "DOCLING_ARTIFACTS_PATH": str(get_extractor_docling_artifacts_path(extractor_id)),
         "HF_HUB_CACHE": str(cache_root / "huggingface" / "hub"),
         "HUGGINGFACE_HUB_CACHE": str(cache_root / "huggingface" / "hub"),
         "MODELSCOPE_CACHE": str(cache_root / "modelscope"),
@@ -115,9 +93,6 @@ def _extractor_cache_env(extractor_id: str) -> dict[str, str]:
         "TEMP": str(tmp_root),
         "TMP": str(tmp_root),
     }
-    tessdata_prefix = _tessdata_prefix(extractor_id)
-    if tessdata_prefix:
-        env["TESSDATA_PREFIX"] = tessdata_prefix
     return env
 
 
@@ -412,8 +387,8 @@ def _path_is_within(path: str, root: str) -> bool:
 
 def clear_local_extractor_env(extractor_id: str | None = None) -> None:
     target = get_extractor_local_env_path(extractor_id)
-    if target.exists():
-        shutil.rmtree(target)
+    if fs_exists(target):
+        fs_rmtree(target)
 
 
 def has_extractor_env_context() -> bool:

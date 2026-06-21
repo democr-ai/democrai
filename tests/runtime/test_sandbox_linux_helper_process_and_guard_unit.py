@@ -1291,6 +1291,28 @@ def test_path_allowed_accepts_zoneinfo_symlink_and_realpath_variants(monkeypatch
         mod._STATE.reset(st)
 
 
+def test_path_under_roots_treats_windows_extended_path_as_same_root(monkeypatch):
+    mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
+
+    monkeypatch.setattr(mod.os, "name", "nt", raising=False)
+    monkeypatch.setattr(mod.os, "sep", "\\", raising=False)
+
+    roots = (r"C:\Users\fabio\AppData\Roaming\democrai",)
+
+    assert mod._path_under_roots(
+        r"\\?\C:\Users\fabio\AppData\Roaming\democrai\assets\a.bin",
+        roots,
+    )
+    assert mod._path_under_roots(
+        r"\\?\c:\users\fabio\appdata\roaming\democrai\assets\a.bin",
+        roots,
+    )
+    assert not mod._path_under_roots(
+        r"\\?\C:\Users\fabio\AppData\Roaming\outside\a.bin",
+        roots,
+    )
+
+
 def test_path_allowed_accepts_homebrew_python_zoneinfo_path(monkeypatch):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
     target = "/usr/share/lib/zoneinfo/CEST"

@@ -22,6 +22,11 @@ from democrai.core.application.handler.services.runtime.media_targets import Med
 from democrai.core.platform.utils.mime_detection import detect_mime_type
 from democrai.core.runtime.foundation.app import req_ctx
 from democrai.core.runtime.foundation.paths import (
+    fs_exists,
+    fs_is_file,
+    fs_path,
+    fs_stat,
+    fs_write_bytes,
     get_runtime_engine_dirs,
     get_runtime_extractor_dirs,
     get_runtime_module_dirs,
@@ -158,7 +163,7 @@ def _asset_resize_cache_path(
         / target.kind
         / target.owner_name
     )
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(fs_path(cache_dir), exist_ok=True)
     return cache_dir / f"{key}{suffix}"
 
 
@@ -169,7 +174,7 @@ def _save_resized_asset(
     width: int,
     height: int,
 ) -> None:
-    with Image.open(source_path) as image:
+    with Image.open(fs_path(source_path)) as image:
         image = ImageOps.exif_transpose(image)
         if width > 0 and height > 0:
             resized = ImageOps.fit(
@@ -190,13 +195,13 @@ def _save_resized_asset(
         suffix = cache_path.suffix.lower()
         if suffix in {".jpg", ".jpeg"} and resized.mode in {"RGBA", "LA", "P"}:
             resized = resized.convert("RGB")
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        os.makedirs(fs_path(cache_path.parent), exist_ok=True)
         buffer = io.BytesIO()
         resized.save(
             buffer,
             format=(Image.registered_extensions().get(suffix) or "PNG"),
         )
-        cache_path.write_bytes(buffer.getvalue())
+        fs_write_bytes(cache_path, buffer.getvalue())
 
 
 def _serve_resized_asset(
@@ -213,8 +218,8 @@ def _serve_resized_asset(
         height=height,
     )
     try:
-        cache_stat = cache_path.stat()
-        source_stat = os.stat(source_path)
+        cache_stat = fs_stat(cache_path)
+        source_stat = fs_stat(source_path)
         cache_fresh = cache_stat.st_mtime >= source_stat.st_mtime
     except FileNotFoundError:
         cache_fresh = False
@@ -231,7 +236,7 @@ def _serve_resized_asset(
 
     media_type = mimetypes.guess_type(str(cache_path))[0] or "application/octet-stream"
     return FileResponse(
-        path=str(cache_path),
+        path=fs_path(cache_path),
         media_type=media_type,
         headers={
             "Cache-Control": "private, max-age=3600",
@@ -258,7 +263,7 @@ def _serve_scoped_file(
 
     target_path = safe_join_under(str(base_dir), file_path)
 
-    if not os.path.exists(target_path) or not os.path.isfile(target_path):
+    if not fs_exists(target_path) or not fs_is_file(target_path):
         raise HTTPException(status_code=404, detail="Media file not found")
 
     resize_width, resize_height = _resize_dimensions(width, height)
@@ -278,7 +283,7 @@ def _serve_scoped_file(
         )
 
     return FileResponse(
-        path=target_path,
+        path=fs_path(target_path),
         headers={
             "Cache-Control": "private, max-age=3600",
             "Vary": "Authorization, Cookie, X-JWT",

@@ -21,7 +21,12 @@ from democrai.sdk.engines import (
 )
 from democrai.sdk.dependencies import (
     ensure_import,
+    fs_is_dir,
+    fs_is_file,
+    fs_path,
+    get_engine_local_cache_path,
     install_python_packages,
+    logical_path,
     resolve_torch_runtime_plan,
 )
 from democrai.sdk.engine_runtime_media import (
@@ -29,7 +34,6 @@ from democrai.sdk.engine_runtime_media import (
     media_exists,
     save_model_artifact,
 )
-
 import logging
 
 logger = logging.getLogger("qwen_tts")
@@ -109,30 +113,33 @@ class QwenTTSEngine(BaseEngine, BaseTTSProvider):
             return existing_path
         os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
         huggingface_hub = importlib.import_module("huggingface_hub")
-        return str(
+        tokenizer_path = cls._tokenizer_cache_path()
+        os.makedirs(fs_path(tokenizer_path), exist_ok=True)
+        return logical_path(
             huggingface_hub.snapshot_download(
                 repo_id=TOKENIZER_REPO,
-                local_dir_use_symlinks=False,
+                local_dir=fs_path(tokenizer_path),
                 max_workers=1,
             )
         )
 
     @classmethod
+    def _tokenizer_cache_path(cls) -> Path:
+        return get_engine_local_cache_path(cls.engine_id) / "tokenizer"
+
+    @classmethod
     def _configured_tokenizer_path(cls) -> str:
-        hub_cache = str(os.environ.get("HF_HUB_CACHE") or "").strip()
-        if not hub_cache:
+        tokenizer_path = cls._tokenizer_cache_path()
+        if not fs_is_dir(tokenizer_path):
             return ""
-        snapshots_dir = (
-            Path(hub_cache)
-            / "models--Qwen--Qwen3-TTS-Tokenizer-12Hz"
-            / "snapshots"
-        )
-        if not snapshots_dir.is_dir():
-            return ""
-        snapshots = [path for path in snapshots_dir.iterdir() if path.is_dir()]
-        if not snapshots:
-            return ""
-        return str(max(snapshots, key=lambda path: path.stat().st_mtime))
+        for filename in cls._tokenizer_required_files():
+            if not fs_is_file(tokenizer_path / filename):
+                return ""
+        return str(tokenizer_path)
+
+    @staticmethod
+    def _tokenizer_required_files() -> tuple[str, ...]:
+        return ("config.json", "model.safetensors", "preprocessor_config.json")
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:

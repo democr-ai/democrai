@@ -606,13 +606,15 @@ class EngineWorkerSubject:
                 "temporary": bool(materialized.temporary),
             }
         if operation == "media.save_model_artifact":
+            from democrai.core.runtime.foundation.paths import fs_is_file
+
             storage_path = str(payload.get("storage_path") or "").strip()
             source_path = str(payload.get("source_path") or "").strip()
             if not storage_path:
                 raise ValueError("storage_path_required")
             if not source_path:
                 raise ValueError("source_path_required")
-            if not Path(source_path).is_file():
+            if not fs_is_file(source_path):
                 raise FileNotFoundError(source_path)
             if not storage_path.startswith("models/"):
                 raise ValueError("model_artifact_storage_path_required")

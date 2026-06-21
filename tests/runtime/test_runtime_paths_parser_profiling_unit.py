@@ -13,6 +13,31 @@ import democrai.core.runtime.foundation.paths as paths_mod
 import democrai.core.runtime.observability.profiling as profiling_mod
 
 
+def test_windows_extended_path_converts_drive_and_unc(monkeypatch):
+    monkeypatch.setattr(paths_mod.os, "name", "nt", raising=False)
+    monkeypatch.setattr(
+        paths_mod.os.path,
+        "abspath",
+        lambda value: str(value),
+    )
+
+    assert paths_mod.windows_extended_path(r"C:\a\b") == r"\\?\C:\a\b"
+    assert (
+        paths_mod.windows_extended_path(r"\\server\share\a")
+        == r"\\?\UNC\server\share\a"
+    )
+    assert paths_mod.windows_extended_path(r"\\?\C:\a\b") == r"\\?\C:\a\b"
+    assert paths_mod.logical_path(r"\\?\C:\a\b") == r"C:\a\b"
+    assert paths_mod.logical_path(r"\\?\UNC\server\share\a") == r"\\server\share\a"
+
+
+def test_windows_extended_path_noop_off_windows(monkeypatch):
+    monkeypatch.setattr(paths_mod.os, "name", "posix", raising=False)
+
+    assert paths_mod.windows_extended_path("/tmp/a") == "/tmp/a"
+    assert paths_mod.fs_path("/tmp/a") == "/tmp/a"
+
+
 @pytest.mark.posix_only
 def test_paths_helpers_and_resolution(monkeypatch, tmp_path: Path):
     # _mkdir failure branch

@@ -323,7 +323,7 @@ def _cached_realpath(path_value: Any) -> str:
                 return str(resolved)
     _profile_count("process_guard.path.realpath.calls")
     with _profile_span("process_guard.path.realpath"):
-        resolved = os.path.normpath(os.path.realpath(expanded))
+        resolved = os.path.normpath(_strip_extended_length_prefix(os.path.realpath(expanded)))
     with _REALPATH_CACHE_LOCK:
         _bounded_cache_set(
             _GLOBAL_REALPATH_CACHE,
@@ -1244,12 +1244,19 @@ def _external_access_cache_set(
             cache.clear()
     cache[key] = value
 
+def _path_match_value(path: str) -> str:
+    normalized = os.path.normpath(_strip_extended_length_prefix(str(path)))
+    return os.path.normcase(normalized) if os.name == "nt" else normalized
 
 def _path_under_roots(path: str, roots: tuple[str, ...]) -> bool:
     with _profile_span("process_guard.path_allowed.scan_rules"):
+        candidate = _path_match_value(path)
         for allowed_root in roots:
+            root = _path_match_value(allowed_root)
             _profile_count("process_guard.path_allowed.rules_checked")
-            if path == allowed_root or path.startswith(allowed_root + os.sep):
+            #if path == allowed_root or path.startswith(allowed_root + os.sep):
+            #    return True
+            if candidate == root or candidate.startswith(root + os.sep):
                 return True
     return False
 
@@ -1356,7 +1363,7 @@ def _check_path(path_value: Any, *, operation: str) -> None:
         with _profile_span("process_guard.check_path"):
             resolved_operation = _resolve_filesystem_operation(path_value, operation)
             if _config_access_denied(path_value):
-                _raise_config_access_denied(path_value, operation=resolved_operation)
+                _raise_config_access_denied(path_value, operation=resolved_operation)            
             if _path_allowed(path_value, operation=resolved_operation):
                 return
             if _is_windows_missing_read(path_value, resolved_operation):

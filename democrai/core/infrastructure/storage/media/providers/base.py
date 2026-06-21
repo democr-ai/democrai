@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
-import shutil
+
+from democrai.core.runtime.foundation.paths import (
+    fs_is_dir,
+    fs_read_bytes,
+    fs_rmtree,
+    fs_unlink,
+)
 
 
 @dataclass(frozen=True)
@@ -14,12 +19,11 @@ class MaterializedMedia:
     def cleanup(self) -> None:
         if not self.temporary:
             return
-        target = Path(self.path)
         try:
-            if target.is_dir():
-                shutil.rmtree(target, ignore_errors=True)
+            if fs_is_dir(self.path):
+                fs_rmtree(self.path, ignore_errors=True)
             else:
-                target.unlink(missing_ok=True)
+                fs_unlink(self.path, missing_ok=True)
         except OSError:
             pass
 
@@ -34,7 +38,7 @@ class MediaProvider(ABC):
 
     def save_file(self, path: str, source_path: str) -> str:
         """Saves a local file to storage and returns a relative path or URL."""
-        return self.save(path, Path(source_path).read_bytes())
+        return self.save(path, fs_read_bytes(source_path))
 
     @abstractmethod
     def load(self, path: str) -> bytes:

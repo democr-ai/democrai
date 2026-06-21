@@ -5,6 +5,7 @@ import pytest
 import democrai.core.infrastructure.database.providers.postgres as mod
 
 
+@pytest.mark.posix_only
 def test_postgres_provider_session_url_and_migrations(monkeypatch: pytest.MonkeyPatch):
     created = {}
     monkeypatch.setattr(mod, "create_engine", lambda url, pool_pre_ping=True: created.setdefault("engine", (url, pool_pre_ping)) or "engine")

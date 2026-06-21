@@ -157,6 +157,7 @@ def test_redis_json_store_load_save_delete(monkeypatch):
     assert sorted(ttl_store.keys()) == ["abc", "k1", "k2", "scalar"]
 
 
+@pytest.mark.posix_only
 def test_sqlalchemy_json_store_and_data_db_helpers(monkeypatch):
     row = _Model("k1", json.dumps({"ok": True}))
     db = _Db(row=row)
@@ -224,6 +225,7 @@ def test_sqlalchemy_json_store_and_data_db_helpers(monkeypatch):
         pass
 
 
+@pytest.mark.posix_only
 def test_data_storage_providers_and_data_store_scopes(monkeypatch):
     with pytest.raises(TypeError):
         data_base_mod.DataStorageProvider()

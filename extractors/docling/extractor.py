@@ -10,6 +10,9 @@ from urllib.request import urlretrieve
 
 from democrai.sdk.extractors import BaseExtractor, ExtractorResult, ExtractorSource
 from democrai.sdk.dependencies import (
+    fs_exists,
+    fs_path,
+    get_extractor_local_cache_path,
     install_python_packages,
     install_torch_runtime,
     write_installed_torch_constraint,
@@ -64,7 +67,7 @@ class DoclingExtractor(BaseExtractor):
             cls._download_docling_artifacts(ocr_engine=ocr_engine)
             cls._warmup_docling_models(ocr_engine=ocr_engine)
             return
-
+       
         install_python_packages(
             [
                 _DOCLING_RAPIDOCR_PACKAGE,
@@ -84,22 +87,19 @@ class DoclingExtractor(BaseExtractor):
         *,
         install_config: dict[str, Any],
     ) -> None:
-        target_path = str(os.environ.get("TESSDATA_PREFIX") or "").strip()
-        if not target_path:
-            raise RuntimeError("docling_tessdata_cache_unavailable")
-        target = Path(target_path)
-        target.mkdir(parents=True, exist_ok=True)
+        target = cls._tessdata_path()
+        os.makedirs(fs_path(target), exist_ok=True)
         print(f"Preparing Tesseract language data cache: {target}", flush=True)
         languages = cls._tesserocr_languages(install_config)
         for language in languages:
             destination = target / f"{language}.traineddata"
-            if destination.exists():
+            if fs_exists(destination):
                 continue
             source = (
                 "https://raw.githubusercontent.com/tesseract-ocr/"
                 f"tessdata_fast/main/{language}.traineddata"
             )
-            urlretrieve(source, destination)
+            urlretrieve(source, fs_path(destination))
 
     @staticmethod
     def _tesserocr_languages(install_config: dict[str, Any]) -> tuple[str, ...]:
@@ -179,7 +179,7 @@ class DoclingExtractor(BaseExtractor):
     @classmethod
     def _download_docling_artifacts(cls, *, ocr_engine: str) -> None:
         artifacts_path = cls._docling_artifacts_path()
-        artifacts_path.mkdir(parents=True, exist_ok=True)
+        os.makedirs(fs_path(artifacts_path), exist_ok=True)
         print(f"Preparing Docling artifacts cache: {artifacts_path}", flush=True)
         try:
             from docling.utils import model_downloader
@@ -187,7 +187,7 @@ class DoclingExtractor(BaseExtractor):
             raise RuntimeError("docling_model_downloader_unavailable") from exc
         try:
             model_downloader.download_models(
-                output_dir=artifacts_path,
+                output_dir=Path(fs_path(artifacts_path)),
                 with_layout=True,
                 with_tableformer=True,
                 with_easyocr=False,
@@ -198,12 +198,17 @@ class DoclingExtractor(BaseExtractor):
         except Exception as exc:
             raise RuntimeError("docling_artifacts_download_failed") from exc
 
-    @staticmethod
-    def _docling_artifacts_path() -> Path:
-        target_path = str(os.environ.get("DOCLING_ARTIFACTS_PATH") or "").strip()
-        if not target_path:
-            raise RuntimeError("docling_artifacts_cache_unavailable")
-        return Path(target_path)
+    @classmethod
+    def _cache_root(cls) -> Path:
+        return get_extractor_local_cache_path(cls.extractor_id)
+
+    @classmethod
+    def _docling_artifacts_path(cls) -> Path:
+        return cls._cache_root() / "docling" / "models"
+
+    @classmethod
+    def _tessdata_path(cls) -> Path:
+        return cls._cache_root() / "tessdata"
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:
@@ -325,7 +330,7 @@ class DoclingExtractor(BaseExtractor):
         if ocr_engine == "tesserocr":
             from docling.datamodel.pipeline_options import TesseractOcrOptions
 
-            return TesseractOcrOptions()
+            return TesseractOcrOptions(path=str(self._tessdata_path()))
         if ocr_engine == "rapidocr":
             from docling.datamodel.pipeline_options import RapidOcrOptions
 

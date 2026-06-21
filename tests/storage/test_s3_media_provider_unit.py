@@ -204,11 +204,30 @@ def test_s3_media_provider_get_path_directory(monkeypatch: pytest.MonkeyPatch, t
     materialized = provider.get_path("models/m", destination_dir=str(tmp_path))
     root = Path(materialized.path)
     assert materialized.temporary is True
+    assert not materialized.path.startswith("\\\\?\\")
     assert root.parent == tmp_path
     assert (root / "a.bin").read_bytes() == b"A"
     assert (root / "sub" / "b.bin").read_bytes() == b"B"
     materialized.cleanup()
     assert not root.exists()
+
+
+def test_s3_media_provider_get_path_file_keeps_logical_temp_path(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    client = _FakeS3Client()
+    _install_fake_boto3(monkeypatch, client)
+    provider = S3MediaProvider("bucket", key_prefix="k")
+
+    provider.save("models/m/long.bin", b"model")
+
+    destination = tmp_path / ("nested-" * 8)
+    destination.mkdir()
+    materialized = provider.get_path("models/m/long.bin", destination_dir=str(destination))
+
+    assert materialized.temporary is True
+    assert not materialized.path.startswith("\\\\?\\")
+    assert Path(materialized.path).parent == destination
+    assert Path(materialized.path).read_bytes() == b"model"
+    materialized.cleanup()
 
 
 def test_s3_media_provider_build_client_without_region(monkeypatch: pytest.MonkeyPatch):

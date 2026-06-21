@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 try:
     import pwd
 except Exception:  # pragma: no cover
@@ -18,9 +21,113 @@ HOME_DIR_ENV = "DEMOCRAI_HOME_DIR"
 _AF_UNIX_SOCKET_PATH_LIMIT = 100
 
 
+def _strip_windows_extended_path(path: str) -> str:
+    if not path.startswith("\\\\?\\"):
+        return path
+    if path.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + path[8:]
+    return path[4:]
+
+
+def logical_path(path: str | os.PathLike[str]) -> str:
+    """Return a normal application path, never a Windows extended-length path."""
+
+    value = os.fsdecode(os.fspath(path))
+    if os.name != "nt":
+        return value
+    return _strip_windows_extended_path(value)
+
+
+def windows_extended_path(path: str | os.PathLike[str]) -> str:
+    """Return a Windows extended-length path for filesystem syscalls.
+
+    Application state should keep normal paths. This helper is only for the
+    boundary where Python hands a local path to Windows.
+    """
+
+    value = os.fsdecode(os.fspath(path))
+    if os.name != "nt":
+        return value
+    if value.startswith("\\\\?\\"):
+        return value
+    absolute = os.path.abspath(os.path.expanduser(value))
+    if absolute.startswith("\\\\"):
+        return "\\\\?\\UNC" + absolute[1:]
+    return "\\\\?\\" + absolute
+
+
+def fs_path(path: str | os.PathLike[str]) -> str:
+    return windows_extended_path(path)
+
+
+def fs_parent_mkdir(path: str | os.PathLike[str]) -> None:
+    parent = os.path.dirname(logical_path(path))
+    if parent:
+        os.makedirs(fs_path(parent), exist_ok=True)
+
+
+@contextmanager
+def fs_open(path: str | os.PathLike[str], *args, **kwargs) -> Iterator:
+    handle = open(fs_path(path), *args, **kwargs)
+    try:
+        yield handle
+    finally:
+        handle.close()
+
+
+def fs_exists(path: str | os.PathLike[str]) -> bool:
+    return os.path.exists(fs_path(path))
+
+
+def fs_is_file(path: str | os.PathLike[str]) -> bool:
+    return os.path.isfile(fs_path(path))
+
+
+def fs_is_dir(path: str | os.PathLike[str]) -> bool:
+    return os.path.isdir(fs_path(path))
+
+
+def fs_stat(path: str | os.PathLike[str]):
+    return os.stat(fs_path(path))
+
+
+def fs_unlink(path: str | os.PathLike[str], *, missing_ok: bool = False) -> None:
+    try:
+        os.unlink(fs_path(path))
+    except FileNotFoundError:
+        if not missing_ok:
+            raise
+
+
+def fs_rmtree(path: str | os.PathLike[str], **kwargs) -> None:
+    shutil.rmtree(fs_path(path), **kwargs)
+
+
+def fs_read_bytes(path: str | os.PathLike[str]) -> bytes:
+    with fs_open(path, "rb") as handle:
+        return handle.read()
+
+
+def fs_write_bytes(path: str | os.PathLike[str], data: bytes) -> None:
+    fs_parent_mkdir(path)
+    with fs_open(path, "wb") as handle:
+        handle.write(data)
+
+
+def fs_read_text(path: str | os.PathLike[str], *args, **kwargs) -> str:
+    with fs_open(path, "r", *args, **kwargs) as handle:
+        return handle.read()
+
+
+def fs_write_text(path: str | os.PathLike[str], data: str, *args, **kwargs) -> None:
+    fs_parent_mkdir(path)
+    with fs_open(path, "w", *args, **kwargs) as handle:
+        handle.write(data)
+
+
 def _mkdir(path: Path) -> Path:
     try:
-        path.mkdir(parents=True, exist_ok=True)
+        os.makedirs(fs_path(path), exist_ok=True)
     except Exception:
         # Logger may not be initialized yet.
         logged = False

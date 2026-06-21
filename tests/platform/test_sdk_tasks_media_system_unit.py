@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import io
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -362,6 +363,40 @@ def test_media_add_model_variants(tmp_path: Path, monkeypatch):
     )
     assert out8 == "models/m8"
     assert storage["models/m8/nested-model/tokenizer.json"] == b"owner/targeted:tokenizer.json"
+
+
+def test_media_download_url_to_file_uses_filesystem_path(monkeypatch, tmp_path: Path):
+    opened_paths = []
+
+    class Response(io.BytesIO):
+        headers = {"Content-Length": "7"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            self.close()
+
+    class Target(io.BytesIO):
+        def __init__(self, path):
+            super().__init__()
+            self.path = path
+
+        def __enter__(self):
+            opened_paths.append(self.path)
+            return self
+
+        def __exit__(self, *_args):
+            self.close()
+
+    monkeypatch.setattr(media_mod, "urlopen", lambda _request: Response(b"payload"))
+    monkeypatch.setattr(media_mod, "fs_parent_mkdir", lambda _path: None)
+    monkeypatch.setattr(media_mod, "fs_open", lambda path, *_args, **_kwargs: Target(f"FS::{path}"))
+
+    target = tmp_path / "deep" / "model.bin"
+    media_mod.Media._download_url_to_file("https://example.test/model.bin", target_path=target)
+
+    assert opened_paths == [f"FS::{target}"]
 
 
 def test_remote_model_storage_uses_framework_media_bypass(monkeypatch, tmp_path: Path):

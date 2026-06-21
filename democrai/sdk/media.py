@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import time
 import contextlib
 from pathlib import Path
@@ -21,7 +20,17 @@ from democrai.core.platform.utils.identity import to_optional_int
 from democrai.core.platform.utils.mime_detection import detect_mime_type
 from democrai.core.runtime.foundation.app import app_ctx
 from democrai.core.runtime.foundation.app import req_ctx
-from democrai.core.runtime.foundation.paths import get_data_dir
+from democrai.core.runtime.foundation.paths import (
+    fs_exists,
+    fs_is_dir,
+    fs_is_file,
+    fs_open,
+    fs_parent_mkdir,
+    fs_path,
+    fs_rmtree,
+    get_data_dir,
+    logical_path,
+)
 
 __all__ = [
     "Media",
@@ -134,15 +143,21 @@ class Media:
             return self.move(raw_source_path, storage_path)
 
         source = Path(raw_source_path).expanduser()
-        if source.is_dir():
+        source_root_value = os.path.abspath(os.path.expanduser(str(source)))
+        source_root = Path(source_root_value)
+        if fs_is_dir(source_root_value):
             files: list[str] = []
-            for candidate in sorted(source.rglob("*")):
-                if not candidate.is_file():
-                    continue
-                relative_name = candidate.relative_to(source).as_posix()
-                media_path = f"models/{normalized_model_id}/{relative_name}"
-                require_media_provider().save_file(media_path, str(candidate))
-                files.append(relative_name)
+            for root, _, filenames in os.walk(fs_path(source_root_value)):
+                root = logical_path(root)
+                for filename in sorted(filenames):
+                    candidate = Path(root) / filename
+                    if not fs_is_file(candidate):
+                        continue
+                    relative_name = candidate.relative_to(source_root).as_posix()
+                    media_path = f"models/{normalized_model_id}/{relative_name}"
+                    require_media_provider().save_file(media_path, str(candidate))
+                    files.append(relative_name)
+            files.sort()
             manifest_path = f"models/{normalized_model_id}/{MODEL_MANIFEST_NAME}"
             require_media_provider().save(
                 manifest_path,
@@ -150,14 +165,14 @@ class Media:
             )
             return f"models/{normalized_model_id}"
 
-        if not source.is_file():
+        if not fs_is_file(source_root_value):
             raise ValueError("model source path is not readable")
 
-        target_name = os.path.basename(str(filename or "").strip()) or source.name
+        target_name = os.path.basename(str(filename or "").strip()) or source_root.name
         if not target_name:
             raise ValueError("filename is required when saving model file")
         storage_path = f"models/{normalized_model_id}/{target_name}"
-        return str(require_media_provider().save_file(storage_path, str(source)))
+        return str(require_media_provider().save_file(storage_path, source_root_value))
 
     def add_model_from_source(
         self,
@@ -188,7 +203,7 @@ class Media:
                 staging_dir = self._model_staging_dir(normalized_model_id)
                 try:
                     target = staging_dir / source_target if source_target else staging_dir / target_name
-                    target.parent.mkdir(parents=True, exist_ok=True)
+                    fs_parent_mkdir(target)
                     self._download_url_to_file(
                         url,
                         target_path=target,
@@ -199,8 +214,8 @@ class Media:
                         return self.add_model(normalized_model_id, source_path=str(staging_dir))
                     return self.add_model(normalized_model_id, source_path=str(target))
                 finally:
-                    if staging_dir.exists():
-                        shutil.rmtree(staging_dir)
+                    if fs_exists(staging_dir):
+                        fs_rmtree(staging_dir)
         raise ValueError(f"unsupported_model_source:{source_type or 'unknown'}")
 
     def _add_huggingface_model_from_source(
@@ -231,7 +246,7 @@ class Media:
                 staging_dir = self._model_staging_dir(model_id)
                 try:
                     target = staging_dir / source_target if source_target else staging_dir / target_name
-                    target.parent.mkdir(parents=True, exist_ok=True)
+                    fs_parent_mkdir(target)
                     self._download_huggingface_file_to_path(
                         repo_id=repo,
                         revision=revision,
@@ -244,8 +259,8 @@ class Media:
                         return self.add_model(model_id, source_path=str(staging_dir))
                     return self.add_model(model_id, source_path=str(target), filename=target_name)
                 finally:
-                    if staging_dir.exists():
-                        shutil.rmtree(staging_dir)
+                    if fs_exists(staging_dir):
+                        fs_rmtree(staging_dir)
 
         with _framework_media_storage_context():
             staging_dir = self._model_staging_dir(model_id)
@@ -261,8 +276,8 @@ class Media:
                 )
                 return self.add_model(model_id, source_path=str(staging_dir))
             finally:
-                if staging_dir.exists():
-                    shutil.rmtree(staging_dir)
+                if fs_exists(staging_dir):
+                    fs_rmtree(staging_dir)
 
     @staticmethod
     def _model_source_target(source: dict[str, Any]) -> str:
@@ -303,11 +318,11 @@ class Media:
         if not resolved_files:
             raise ValueError("huggingface_snapshot_empty")
 
-        destination.mkdir(parents=True, exist_ok=True)
+        os.makedirs(fs_path(destination), exist_ok=True)
         total_files = len(resolved_files)
         for index, remote_path in enumerate(resolved_files, start=1):
             target = destination / remote_path
-            target.parent.mkdir(parents=True, exist_ok=True)
+            fs_parent_mkdir(target)
             self._download_huggingface_file_to_path(
                 repo_id=repo,
                 revision=resolved_revision,
@@ -394,15 +409,15 @@ class Media:
     @staticmethod
     def _temp_dir() -> Path:
         path = Path(get_data_dir()) / "tmp"
-        path.mkdir(parents=True, exist_ok=True)
+        os.makedirs(fs_path(path), exist_ok=True)
         return path
 
     @classmethod
     def _model_staging_dir(cls, model_id: str) -> Path:
         path = cls._temp_dir() / f"democrai_model_{cls._normalize_model_id(model_id)}"
-        if path.exists():
-            shutil.rmtree(path)
-        path.mkdir(parents=True, exist_ok=False)
+        if fs_exists(path):
+            fs_rmtree(path)
+        os.makedirs(fs_path(path), exist_ok=False)
         return path
 
     @staticmethod
@@ -442,8 +457,8 @@ class Media:
         total_files: int | None = None,
     ) -> None:
         request = Request(url, headers=cls._huggingface_headers(token))
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        with urlopen(request) as response, open(target_path, "wb") as target:
+        fs_parent_mkdir(target_path)
+        with urlopen(request) as response, fs_open(target_path, "wb") as target:
             total_bytes = int(response.headers.get("Content-Length") or 0)
             downloaded = 0
             last_emit = 0.0

@@ -62,7 +62,6 @@ _WORKER_CONFIG_KEYS = (
 )
 
 _EXTRACTOR_ENV_KEYS = {
-    "DOCLING_ARTIFACTS_PATH",
     "HF_DATASETS_CACHE",
     "HF_HOME",
     "HF_HUB_CACHE",
@@ -73,7 +72,6 @@ _EXTRACTOR_ENV_KEYS = {
     "NETRC",
     "PATH",
     "PYTHONPATH",
-    "TESSDATA_PREFIX",
     "TEMP",
     "TMP",
     "TMPDIR",
