@@ -22,6 +22,12 @@ class FakeModelProxy:
         self.rows.append(row)
         return dict(row)
 
+    def view(self, entity_id):
+        for row in self.rows:
+            if int(row["id"]) == int(entity_id):
+                return dict(row)
+        return None
+
     def update(self, entity_id, payload):
         for row in self.rows:
             if int(row["id"]) == int(entity_id):

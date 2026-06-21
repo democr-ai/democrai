@@ -1,12 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import builtins
 import importlib
+import threading
 from types import SimpleNamespace
 
 import pytest
 
 setup_mod = importlib.import_module("democrai.core.runtime.cli.setup")
+
+
+@pytest.fixture
+def running_loop():
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    try:
+        yield loop
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join(timeout=2.0)
+        loop.close()
 
 
 class _ConfigProvider:
@@ -25,7 +40,7 @@ class _SetupSDK:
         self.ctx = ctx
         self.fail = fail
 
-    def finalize(self, admin_user, admin_pass, *, admin_email=None):
+    async def request_finalize(self, admin_user, admin_pass, *, admin_email=None):
         if self.fail:
             raise RuntimeError("finalize_down")
         self.calls.append(
@@ -57,9 +72,10 @@ config:
     )
 
 
-def _patch_runtime(monkeypatch, ctx, setup_sdk):
+def _patch_runtime(monkeypatch, ctx, setup_sdk, loop=None):
     import democrai.sdk.client as sdk_client
 
+    ctx.network = SimpleNamespace(_loop=loop)
     fake_sdk = SimpleNamespace(system=SimpleNamespace(setup=setup_sdk))
     token = sdk_client.current_sdk.set(fake_sdk)
     monkeypatch.setattr(setup_mod, "app_ctx", lambda: ctx)
@@ -120,13 +136,13 @@ def test_setup_missing_password_without_tty(tmp_path, monkeypatch):
     assert result == 2
 
 
-def test_setup_prompt_password_with_tty(tmp_path, monkeypatch):
+def test_setup_prompt_password_with_tty(tmp_path, monkeypatch, running_loop):
     config_path = tmp_path / "setup.yaml"
     _write_setup(config_path, password=None)
     config_provider = _ConfigProvider()
     ctx = SimpleNamespace(setup_mode=True, config=config_provider)
     setup_sdk = _SetupSDK(ctx)
-    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk)
+    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk, loop=running_loop)
     monkeypatch.setattr(setup_mod.sys.stdin, "isatty", lambda: True)
     responses = iter(["prompt-secret", "prompt-secret"])
     monkeypatch.setattr(setup_mod.getpass, "getpass", lambda prompt: next(responses))
@@ -170,13 +186,13 @@ def test_setup_requires_confirmation_without_tty(tmp_path, monkeypatch):
     assert setup_sdk.calls == []
 
 
-def test_setup_confirms_before_runtime_start(tmp_path, monkeypatch):
+def test_setup_confirms_before_runtime_start(tmp_path, monkeypatch, running_loop):
     config_path = tmp_path / "setup.yaml"
     _write_setup(config_path)
     config_provider = _ConfigProvider()
     ctx = SimpleNamespace(setup_mode=True, config=config_provider)
     setup_sdk = _SetupSDK(ctx)
-    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk)
+    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk, loop=running_loop)
     events: list[str] = []
     monkeypatch.setattr(setup_mod.sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(
@@ -204,14 +220,14 @@ def test_setup_confirms_before_runtime_start(tmp_path, monkeypatch):
     assert events[:2] == ["confirm", "runtime"]
 
 
-def test_setup_flow_saves_config_and_finalizes(tmp_path, monkeypatch):
+def test_setup_flow_saves_config_and_finalizes(tmp_path, monkeypatch, running_loop):
     config_path = tmp_path / "setup.yaml"
     _write_setup(config_path, password="${ADMIN_PASSWORD}")
     monkeypatch.setenv("ADMIN_PASSWORD", "env-secret")
     config_provider = _ConfigProvider()
     ctx = SimpleNamespace(setup_mode=True, config=config_provider)
     setup_sdk = _SetupSDK(ctx)
-    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk)
+    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk, loop=running_loop)
 
     try:
         result = setup_mod.setup_application(
@@ -259,13 +275,13 @@ def test_setup_existing_installation_blocks_without_saving(tmp_path, monkeypatch
     assert setup_sdk.calls == []
 
 
-def test_setup_finalize_error_returns_operational_failure(tmp_path, monkeypatch):
+def test_setup_finalize_error_returns_operational_failure(tmp_path, monkeypatch, running_loop):
     config_path = tmp_path / "setup.yaml"
     _write_setup(config_path)
     config_provider = _ConfigProvider()
     ctx = SimpleNamespace(setup_mode=True, config=config_provider)
     setup_sdk = _SetupSDK(ctx, fail=True)
-    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk)
+    token, sdk_client = _patch_runtime(monkeypatch, ctx, setup_sdk, loop=running_loop)
 
     try:
         result = setup_mod.setup_application(

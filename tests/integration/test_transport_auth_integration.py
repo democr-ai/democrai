@@ -109,8 +109,8 @@ def test_http_ping_is_available_and_rpc_is_not_registered():
     app_ctx().config = types.SimpleNamespace(get=lambda _k, _d=None: "secure-secret-key-123456789012345678" if _k == "auth.jwt_secret" else _d)
 
     app = build_fastapi_app(_CoreStub())
-    ping_ep = next(r.endpoint for r in app.routes if r.path == "/ping")
-    assert all(r.path != "/rpc" for r in app.routes)
+    ping_ep = next(r.endpoint for r in app.routes if getattr(r, "path", None) == "/ping")
+    assert all(getattr(r, "path", None) != "/rpc" for r in app.routes)
 
     # no-auth context
     tk1 = set_req_ctx(

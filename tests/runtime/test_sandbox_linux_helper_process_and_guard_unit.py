@@ -1291,6 +1291,7 @@ def test_path_allowed_accepts_zoneinfo_symlink_and_realpath_variants(monkeypatch
         mod._STATE.reset(st)
 
 
+@pytest.mark.windows_only
 def test_path_under_roots_treats_windows_extended_path_as_same_root(monkeypatch):
     mod = importlib.import_module("democrai.core.infrastructure.sandbox.process_guard")
 

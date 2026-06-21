@@ -514,10 +514,14 @@ def test_seed_admin_user_custom_paths(monkeypatch):
     assert user.email == "new@example.com"
     assert user.access_level == auth_service_mod.ROLE_LEVEL_SUPER
 
+    # On commit failure the seed must roll back and propagate: the admin must be
+    # created, the caller must not proceed as if it succeeded.
     db3 = _DB(role=None, user=None, fail=True)
     monkeypatch.setattr(auth_service_mod, "SessionLocal", lambda: db3)
-    auth_service_mod.seed_admin_user_custom("admin", b"pw")
+    with pytest.raises(RuntimeError, match="db-fail"):
+        auth_service_mod.seed_admin_user_custom("admin", b"pw")
     assert db3.rolled >= 1
+    assert db3.closed is True
 
 
 def test_verify_permissions_profiles_error_and_profiler_paths(monkeypatch):

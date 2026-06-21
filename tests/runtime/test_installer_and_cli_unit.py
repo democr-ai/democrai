@@ -631,6 +631,9 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     ] == "hardlink"
     monkeypatch.setattr(installer_mod.importlib.util, "find_spec", lambda _m: None)
     assert installer_mod._import_any(["a", "b"]) is False
+    # importlib is a singleton, so patching import_module here also breaks pytest's
+    # own string-form setattr resolution. Restore it once _verify_imports is exercised.
+    real_import_module = installer_mod.importlib.import_module
     monkeypatch.setattr(
         installer_mod.importlib,
         "import_module",
@@ -638,6 +641,7 @@ def test_installer_additional_branches(monkeypatch, tmp_path: Path):
     )
     ok, err = installer_mod._verify_imports(["a", "b"])
     assert ok is False and err is not None
+    monkeypatch.setattr(installer_mod.importlib, "import_module", real_import_module)
 
     monkeypatch.setattr(installer_mod, "_install_into_current_env", lambda: True)
     pip_calls = []

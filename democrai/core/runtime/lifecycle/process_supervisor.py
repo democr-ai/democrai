@@ -174,7 +174,12 @@ class ProcessSupervisor:
 
     @staticmethod
     def _wait_handle(handle: Any, timeout_ms: int) -> None:
-        wait_for_finished = getattr(handle, "waitForFinished", None)
+        # getattr itself can raise for a deleted Qt QProcess ("Internal C++ object
+        # already deleted"); callers in cleanup.py rely on terminate() never raising.
+        try:
+            wait_for_finished = getattr(handle, "waitForFinished", None)
+        except Exception:
+            wait_for_finished = None
         if callable(wait_for_finished):
             try:
                 wait_for_finished(timeout_ms)
@@ -182,7 +187,10 @@ class ProcessSupervisor:
             except Exception:
                 pass
 
-        wait = getattr(handle, "wait", None)
+        try:
+            wait = getattr(handle, "wait", None)
+        except Exception:
+            wait = None
         if callable(wait):
             try:
                 wait(max(timeout_ms, 0) / 1000.0)

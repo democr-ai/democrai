@@ -161,6 +161,7 @@ def test_process_supervisor_tree_and_wait_helpers(monkeypatch):
             supervisor, supervisor_mod.ProcessSupervisor
         ),
     )
+    # Without psutil it falls back to the platform liveness probe (os.kill based).
     monkeypatch.setattr(supervisor_mod, "psutil", None)
     calls = []
     monkeypatch.setattr(os, "kill", lambda pid, sig: calls.append((pid, sig)))
@@ -168,10 +169,25 @@ def test_process_supervisor_tree_and_wait_helpers(monkeypatch):
     monkeypatch.setattr(os, "kill", lambda pid, sig: (_ for _ in ()).throw(OSError("gone")))
     assert supervisor._pid_exists(5) is False
 
-    broken_psutil = SimpleNamespace(pid_exists=lambda pid: (_ for _ in ()).throw(RuntimeError("pid boom")))
-    monkeypatch.setattr(supervisor_mod, "psutil", broken_psutil)
-    monkeypatch.setattr(os, "kill", lambda pid, sig: calls.append((pid, sig)))
+    # With psutil a live (non-zombie) process is alive, a zombie is treated as gone.
+    def _make_psutil(status):
+        return SimpleNamespace(
+            STATUS_ZOMBIE="zombie",
+            Process=lambda pid: SimpleNamespace(status=lambda: status),
+        )
+
+    monkeypatch.setattr(supervisor_mod, "psutil", _make_psutil("running"))
     assert supervisor._pid_exists(6) is True
+    monkeypatch.setattr(supervisor_mod, "psutil", _make_psutil("zombie"))
+    assert supervisor._pid_exists(6) is False
+
+    # A failing psutil probe reports the pid as gone (no os.kill fallback).
+    broken_psutil = SimpleNamespace(
+        STATUS_ZOMBIE="zombie",
+        Process=lambda pid: (_ for _ in ()).throw(RuntimeError("pid boom")),
+    )
+    monkeypatch.setattr(supervisor_mod, "psutil", broken_psutil)
+    assert supervisor._pid_exists(6) is False
 
 
 def test_process_supervisor_stop_and_wait_methods():
@@ -189,7 +205,8 @@ def test_process_supervisor_stop_and_wait_methods():
     supervisor._force_stop(handle)
     supervisor._wait_handle(handle, 1500)
 
-    second = SimpleNamespace(wait=lambda timeout: waited.append(("wait_ms", timeout)))
+    # A Popen-like handle (wait only) receives the timeout in seconds, not ms.
+    second = SimpleNamespace(wait=lambda timeout: waited.append(("wait_secs", timeout)))
     supervisor._wait_handle(second, 2000)
 
     class _SecondsWaiter:
@@ -214,7 +231,7 @@ def test_process_supervisor_stop_and_wait_methods():
 
     assert graceful == ["terminate"]
     assert force == ["kill"]
-    assert waited == [("qt", 1500), ("wait_ms", 2000), ("wait_seconds", 2.0)]
+    assert waited == [("qt", 1500), ("wait_secs", 2.0), ("wait_seconds", 2.0)]
 
 
 def test_process_supervisor_terminate_tree_force_path(monkeypatch):

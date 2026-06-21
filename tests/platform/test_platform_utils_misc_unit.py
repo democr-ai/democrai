@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import os
 import sys
 from types import ModuleType, SimpleNamespace
@@ -209,7 +210,9 @@ def test_discovery_and_system_error_paths(monkeypatch, tmp_path):
     monitor_shutdown = system_mod.SystemResourceMonitor()
     monitor_shutdown._nvml_initialized = True
     printed = []
-    monkeypatch.setattr("builtins.print", lambda msg: printed.append(msg))
+    # Object-form setattr: this test patches importlib.import_module above, so the
+    # string form ("builtins.print") would mis-resolve through it.
+    monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
     monitor_shutdown.shutdown()
     assert printed
 
