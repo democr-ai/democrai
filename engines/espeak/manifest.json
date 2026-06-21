@@ -9,8 +9,8 @@
       "path": "models/catalog.json"
     }
   },
-    "install": {
-        "access": [
+  "install": {
+    "access": [
       {
         "resource_type": "filesystem",
         "operation": "read",
@@ -31,103 +31,183 @@
         "operation": "create",
         "target": "{engine_config}/fsspec"
       },
-            {
-                "resource_type": "filesystem",
-                "operation": "modify",
-                "target": "{engine_config}/fsspec"
-            }
-        ],
-        "access_by_os": {
-            "linux": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/bin/espeak"
-                }
-            ],
-            "darwin": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/homebrew/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/homebrew/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/local/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak"
-                }
-            ],
-            "windows": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
-                }
-            ]
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "access_by_os": {
+      "linux": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak-ng"
         },
-        "env": {
-            "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/bin/espeak"
         }
+      ],
+      "darwin": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/homebrew/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/homebrew/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/homebrew/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/homebrew/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak"
+        }
+      ],
+      "windows": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+        }
+      ]
+    },
+    "env": {
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    }
   },
   "runtime": {
     "access": [
@@ -151,103 +231,183 @@
         "operation": "create",
         "target": "{engine_config}/fsspec"
       },
-            {
-                "resource_type": "filesystem",
-                "operation": "modify",
-                "target": "{engine_config}/fsspec"
-            }
-        ],
-        "access_by_os": {
-            "linux": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/bin/espeak"
-                }
-            ],
-            "darwin": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/homebrew/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/homebrew/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/opt/local/bin/espeak"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak-ng"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "/usr/local/bin/espeak"
-                }
-            ],
-            "windows": [
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
-                },
-                {
-                    "resource_type": "filesystem",
-                    "operation": "execute",
-                    "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
-                }
-            ]
+      {
+        "resource_type": "filesystem",
+        "operation": "modify",
+        "target": "{engine_config}/fsspec"
+      }
+    ],
+    "access_by_os": {
+      "linux": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak-ng"
         },
-        "env": {
-            "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/bin/espeak"
         }
+      ],
+      "darwin": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/homebrew/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/homebrew/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/homebrew/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/homebrew/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/opt/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/opt/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak-ng"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "/usr/local/bin/espeak"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "/usr/local/bin/espeak"
+        }
+      ],
+      "windows": [
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak-ng.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "read",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+        },
+        {
+          "resource_type": "filesystem",
+          "operation": "execute",
+          "target": "C:\\Program Files (x86)\\eSpeak NG\\espeak.exe"
+        }
+      ]
+    },
+    "env": {
+      "FSSPEC_CONFIG_DIR": "{engine_config}/fsspec"
+    }
   },
   "provider": {
     "id": "espeak",
