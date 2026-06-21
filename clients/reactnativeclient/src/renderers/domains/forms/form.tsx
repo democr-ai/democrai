@@ -432,9 +432,22 @@ export const Form: React.FC<any> = ({
           />
         );
       case 'password':
-        return <TextField {...commonProps} password />;
+        return (
+          <TextField
+            {...commonProps}
+            password
+            autoCapitalize={field?.autoCapitalize ?? field?.autocapitalize}
+          />
+        );
       default:
-        return <TextField {...commonProps} placeholder={placeholder} />;
+        return (
+          <TextField
+            {...commonProps}
+            placeholder={placeholder}
+            autoCapitalize={field?.autoCapitalize ?? field?.autocapitalize}
+            keyboardType={type === 'email' ? 'email-address' : undefined}
+          />
+        );
     }
   };
 

@@ -837,15 +837,10 @@ html:not(.dark) .module-content-panel {
 }
 
 .a2ui-field select.a2ui-select-single {
-  padding-right: 2.5rem;
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position:
-    calc(100% - 1.1rem) 50%,
-    calc(100% - 0.82rem) 50% !important;
-  background-size: 0.36rem 0.36rem, 0.36rem 0.36rem !important;
-  background-repeat: no-repeat !important;
+  padding-right: 0.75rem;
+  background-image: none !important;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .a2ui-field select.a2ui-select-multiple {

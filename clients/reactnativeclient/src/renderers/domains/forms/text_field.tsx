@@ -15,6 +15,8 @@ export const TextField: React.FC<any> = ({
   password,
   onChangeMode,
   error,
+  autoCapitalize,
+  keyboardType,
 }) => {
   const [localVal, setLocalVal] = React.useState(getLiteral(value) || '');
 
@@ -60,6 +62,9 @@ export const TextField: React.FC<any> = ({
         onChangeText={handleChange}
         onSubmitEditing={handleSubmit}
         secureTextEntry={password}
+        autoCapitalize={autoCapitalize ?? 'none'}
+        autoCorrect={password ? false : undefined}
+        keyboardType={keyboardType}
         placeholderTextColor="#6E7681"
       />
       {error ? (

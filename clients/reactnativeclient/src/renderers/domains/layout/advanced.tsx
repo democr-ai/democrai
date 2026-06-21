@@ -95,6 +95,7 @@ export const Splitter: React.FC<any> = ({
   max_sizes: declaredMaxSizes,
   stretch,
   style,
+  stateModel,
 }) => {
   const isPhone = usePhoneLayout();
   const responsiveStyle = useResponsiveStyle(style);
@@ -106,9 +107,27 @@ export const Splitter: React.FC<any> = ({
   const [firstPaneOpen, setFirstPaneOpen] = useState(!isPhone);
   const isHorizontal = direction !== 'vertical';
 
+  // Current route as tracked by the app (server-driven nav). When a menu pane
+  // navigates, this changes — see modules/components nav items (type: "nav").
+  const currentRoute = String(
+    stateModel?.global?.current_path ?? stateModel?.current_path ?? stateModel?.currentPath ?? '',
+  );
+  const previousRouteRef = React.useRef(currentRoute);
+
   useEffect(() => {
     setFirstPaneOpen(!isPhone);
   }, [isPhone]);
+
+  // On phone the panes share the screen via a toggle: the menu pane navigates,
+  // then the user wants to land back on the main content. When the route
+  // changes (i.e. a navigation actually happened), collapse the menu and show
+  // the main pane. Expanding tree branches does not change the route, so the
+  // menu stays open while browsing — only a real page change closes it.
+  useEffect(() => {
+    if (previousRouteRef.current === currentRoute) return;
+    previousRouteRef.current = currentRoute;
+    if (isPhone) setFirstPaneOpen(false);
+  }, [currentRoute, isPhone]);
 
   useEffect(() => {
     if (panes.length === 0) {

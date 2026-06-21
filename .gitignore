@@ -37,3 +37,5 @@ build/
 .coverage
 
 .DS_Store
+# Local MCP config (not shared)
+.mcp.json

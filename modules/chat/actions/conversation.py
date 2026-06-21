@@ -889,7 +889,7 @@ async def delete_thread(ctx: dict[str, Any], session: dict, module_sdk):
 @action("load_older_messages")
 @permission_required(["chat.view"])
 async def load_older_messages(ctx: dict[str, Any], session: dict, module_sdk):
-    conversation_id = int(ctx.get("conversation_id") or None)
+    conversation_id = int(ctx.get("conversation_id") or 0)
     if not conversation_id:
         return module_sdk.effects.respond()
 

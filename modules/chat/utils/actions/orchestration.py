@@ -21,7 +21,6 @@ CHAT_TOOLS = [
     "chat.read-document",
     "chat.extract-full-summary",
     "chat.search-documents",
-    "chat.search-messages",
     "chat.wait-seconds",
 ]
 CHAT_SKILLS = ["chat.chat_context"]
