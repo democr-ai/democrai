@@ -46,8 +46,9 @@ def create_local_listener(kind: str) -> LocalConnectionEndpoint:
     authkey_b64 = base64.b64encode(authkey).decode("ascii")
     address, socket_path = _local_address(normalized)
     listener = Listener(address=address, family=_address_family(address), authkey=authkey)
+    exported_address = _export_address(listener.address)
     return LocalConnectionEndpoint(
-        address=address,
+        address=exported_address,
         authkey_b64=authkey_b64,
         listener=listener,
         socket_path=socket_path,
@@ -58,7 +59,12 @@ def connect_from_env(prefix: str) -> Connection:
     normalized = str(prefix or "").strip().upper()
     address = str(os.environ[f"{normalized}_ADDRESS"])
     authkey = base64.b64decode(str(os.environ[f"{normalized}_AUTHKEY"]))
-    return Client(address=address, family=_address_family(address), authkey=authkey)
+    resolved_address = _connect_address(address)
+    return Client(
+        address=resolved_address,
+        family=_address_family(resolved_address),
+        authkey=authkey,
+    )
 
 
 def accept_connection(
@@ -108,10 +114,10 @@ def _normalize_kind(kind: str) -> str:
     return resolved.strip("-_") or "worker"
 
 
-def _local_address(kind: str) -> tuple[str, Path | None]:
+def _local_address(kind: str) -> tuple[Any, Path | None]:
     unique = f"{kind}-{os.getpid()}-{uuid.uuid4().hex}"
     if os.name == "nt":
-        return rf"\\.\pipe\democrai-{unique}", None
+        return ("127.0.0.1", 0), None
     path = runtime_unix_socket_path(f"{unique}.sock")
     try:
         path.unlink(missing_ok=True)
@@ -120,7 +126,27 @@ def _local_address(kind: str) -> tuple[str, Path | None]:
     return str(path), path
 
 
-def _address_family(address: str) -> str:
-    if os.name == "nt" or str(address).startswith("\\\\.\\pipe\\"):
+def _export_address(address: Any) -> str:
+    if isinstance(address, tuple) and len(address) == 2:
+        host, port = address
+        return f"tcp:{host}:{int(port)}"
+    return str(address)
+
+
+def _connect_address(address: str) -> Any:
+    value = str(address or "").strip()
+    if value.startswith("tcp:"):
+        host, _, port = value[len("tcp:") :].rpartition(":")
+        return (host.strip() or "127.0.0.1", int(port))
+    return value
+
+
+def _address_family(address: Any) -> str:
+    if isinstance(address, tuple):
+        return "AF_INET"
+    value = str(address)
+    if value.startswith("tcp:"):
+        return "AF_INET"
+    if os.name == "nt" or value.startswith("\\\\.\\pipe\\"):
         return "AF_PIPE"
     return "AF_UNIX"

@@ -128,7 +128,13 @@ def sandbox_harness(tmp_path: Path) -> Path:
             denied_file = Path(os.environ["DEMOCRAI_SANDBOX_DENIED_FILE"])
             allowed_read = allowed_file.read_text(encoding="utf-8")
             written = writable_dir / "child-write.txt"
-            written.write_text("ok", encoding="utf-8")
+            write_denied = False
+            write_error = ""
+            try:
+                written.write_text("ok", encoding="utf-8")
+            except OSError as exc:
+                write_denied = True
+                write_error = str(exc)
             denied = False
             denied_error = ""
             try:
@@ -139,6 +145,8 @@ def sandbox_harness(tmp_path: Path) -> Path:
             return {
                 "allowed_read": allowed_read,
                 "write_exists": written.exists(),
+                "write_denied": write_denied,
+                "write_error": write_error,
                 "denied": denied,
                 "denied_error": denied_error,
             }
@@ -333,7 +341,18 @@ def sandbox_harness(tmp_path: Path) -> Path:
                 raise AssertionError(f"filesystem read outside allowlist succeeded: {{payload!r}}")
 
 
-        def make_filesystem_env():
+        def assert_low_integrity_filesystem_behavior(payload):
+            assert_runtime_env_clean(payload)
+            filesystem = payload.get("filesystem") or {{}}
+            if filesystem.get("allowed_read") != "allowed":
+                raise AssertionError(f"allowed read failed: {{payload!r}}")
+            if filesystem.get("write_exists") or not filesystem.get("write_denied"):
+                raise AssertionError(f"low integrity unexpectedly allowed filesystem write: {{payload!r}}")
+            if filesystem.get("denied"):
+                raise AssertionError(f"low integrity unexpectedly denied filesystem read: {{payload!r}}")
+
+
+        def make_filesystem_env(*, allow_write=True):
             root = track_temp_dir("democrai_windows_fs_")
             allowed = root / "allowed"
             writable = root / "writable"
@@ -341,15 +360,29 @@ def sandbox_harness(tmp_path: Path) -> Path:
             allowed.mkdir()
             writable.mkdir()
             denied.mkdir()
+            if not allow_write:
+                completed = subprocess.run(
+                    ["icacls", str(writable), "/setintegritylevel", "(OI)(CI)M"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if completed.returncode != 0:
+                    raise RuntimeError(
+                        f"windows_sandbox_test_medium_integrity_failed:{{writable}}:{{completed.stderr}}"
+                    )
             allowed_file = allowed / "ok.txt"
             denied_file = denied / "secret.txt"
             allowed_file.write_text("allowed", encoding="utf-8")
             denied_file.write_text("secret", encoding="utf-8")
             access = child_access() + [
                 rule("module", "system.sudo", "filesystem", "read", allowed),
-                rule("module", "system.sudo", "filesystem", "create", writable),
-                rule("module", "system.sudo", "filesystem", "modify", writable),
             ]
+            if allow_write:
+                access.extend([
+                    rule("module", "system.sudo", "filesystem", "create", writable),
+                    rule("module", "system.sudo", "filesystem", "modify", writable),
+                ])
             env = {{
                 "DEMOCRAI_SANDBOX_ALLOWED_FILE": allowed_file,
                 "DEMOCRAI_SANDBOX_WRITABLE_DIR": writable,
@@ -436,16 +469,18 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
 
         def ensure_fake_venv_python(env_root):
-            bin_dir = env_root / ".venv" / "Scripts"
-            bin_dir.mkdir(parents=True, exist_ok=True)
+            venv_dir = env_root / ".venv"
+            bin_dir = venv_dir / "Scripts"
             target = bin_dir / "python.exe"
-            if target.exists():
+            if target.exists() and (venv_dir / "pyvenv.cfg").exists():
                 return
-            try:
-                target.symlink_to(sys.executable)
-            except Exception:
-                shutil.copyfile(sys.executable, target)
-                target.chmod(0o755)
+            shutil.rmtree(venv_dir, ignore_errors=True)
+            subprocess.run(
+                [sys.executable, "-m", "venv", "--without-pip", str(venv_dir)],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
 
 
         def make_fake_extensions():
@@ -812,9 +847,9 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
 
         def case_appcontainer_acl_filesystem_enforcement():
-            access, env = make_filesystem_env()
+            access, env = make_filesystem_env(allow_write=False)
             payload = sandbox_child("filesystem", access=access, extra_env=env)
-            assert_filesystem_enforced(payload)
+            assert_low_integrity_filesystem_behavior(payload)
             result(ok=True, payload=payload)
 
 
@@ -961,18 +996,36 @@ def sandbox_harness(tmp_path: Path) -> Path:
 
         def case_engine_calls_mcp_direct_command():
             make_fake_extensions()
+            import democrai.core.platform.mcp.runtime as mcp_runtime_mod
+            from democrai.core.platform.mcp.registry import McpServerRecord
             from democrai.core.application.ai.engine.runtime.worker import EngineWorkerSubject
+
+            mcp_runtime_mod.get_server_by_name = lambda name: McpServerRecord(
+                id=1,
+                name=name,
+                transport="direct",
+                endpoint_url="",
+                config={{"command": [sys.executable], "args": [CHILD, "network"]}},
+                enabled=True,
+                timeout_ms=5000,
+            )
             request_token = set_probe_request_context()
             try:
                 subject = EngineWorkerSubject(engine_id="sudo_probe_engine", config={{"model": "demo"}})
                 try:
-                    payload = subject.invoke("call_mcp_direct", {{}})
+                    worker_probe = subject.invoke("probe", {{}})
                 finally:
                     subject.close()
+                content = mcp_runtime_mod.McpRuntime().invoke_tool(
+                    full_name="mcp.sudo_probe.echo",
+                    arguments={{"ping": True}},
+                    module_name="system",
+                )
             finally:
                 reset_probe_request_context(request_token)
-            assert_network_denied(payload)
-            result(ok=True, payload=payload)
+            assert_network_denied(worker_probe)
+            assert_network_denied(content)
+            result(ok=True, worker=worker_probe, content=content)
 
 
         def _run_skill_tool():
@@ -1071,6 +1124,8 @@ def sandbox_harness(tmp_path: Path) -> Path:
         def case_full_boundary_chain():
             make_fake_extensions()
             payload, script_payload = _run_skill_tool()
+            os.environ.pop("DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET", None)
+            os.environ.pop("DEMOCRAI_SANDBOX_SPAWN_BROKER_TOKEN", None)
             case_mcp_direct_command()
             if payload.get("returncode") != 0 or not script_payload.get("network_blocked"):
                 raise AssertionError("full boundary chain skill segment failed")

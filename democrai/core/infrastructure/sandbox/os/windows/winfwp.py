@@ -28,6 +28,7 @@ from __future__ import annotations
 import ctypes
 import socket
 import sys
+import uuid
 from ctypes import wintypes
 from dataclasses import dataclass
 
@@ -62,9 +63,6 @@ FWP_ACTRL_MATCH_FILTER = 0x00000001
 
 IPPROTO_TCP = 6
 IPPROTO_UDP = 17
-
-# Stable sublayer key for democrai's egress filters (arbitrary fixed GUID).
-_DEMOCRAI_SUBLAYER_GUID = "{a3b1f2c4-9d6e-4f1a-8b2c-7e5d4c3b2a10}"
 
 # Well-known WFP GUIDs.
 _FWPM_LAYER_ALE_AUTH_CONNECT_V4 = "{c38d57d1-05a7-4c33-904f-7fbceee60e82}"
@@ -439,6 +437,7 @@ class WfpEngine:
     def __init__(self) -> None:
         self._fwpuclnt = _fwpuclnt()
         self._engine = wintypes.HANDLE()
+        self._sublayer_guid = f"{{{uuid.uuid4()}}}"
         # identity key -> list[filter id]
         self._filters: dict[str, list[int]] = {}
         # keepalive references for condition buffers, indexed by identity key
@@ -463,7 +462,7 @@ class WfpEngine:
 
     def _ensure_sublayer(self) -> None:
         sublayer = FWPM_SUBLAYER0()
-        sublayer.subLayerKey = GUID(_DEMOCRAI_SUBLAYER_GUID)
+        sublayer.subLayerKey = GUID(self._sublayer_guid)
         sublayer.displayData.name = "democrai egress"
         sublayer.displayData.description = "democrai sandbox egress sublayer"
         sublayer.weight = 0x0F00
@@ -474,8 +473,8 @@ class WfpEngine:
                 None,
             )
         )
-        # FWP_E_ALREADY_EXISTS (0x80320009) is fine — a prior dynamic session in
-        # this process, or a leftover, already created it.
+        # Extremely unlikely UUID collision: benign if WFP already has the same
+        # dynamic sublayer in this session.
         if code not in (ERROR_SUCCESS, FWP_E_ALREADY_EXISTS):
             _check(code, "FwpmSubLayerAdd0")
 
@@ -521,7 +520,7 @@ class WfpEngine:
     ) -> None:
         flt = FWPM_FILTER0()
         flt.layerKey = GUID(layer_guid)
-        flt.subLayerKey = GUID(_DEMOCRAI_SUBLAYER_GUID)
+        flt.subLayerKey = GUID(self._sublayer_guid)
         flt.displayData.name = "democrai egress filter"
         flt.weight.type = FWP_UINT8
         flt.weight.uint8 = weight

@@ -153,6 +153,10 @@ def _configured_internal_ipc_target_allowed(target: str) -> bool:
     for key in (
         "DEMOCRAI_SANDBOX_SPAWN_BROKER_SOCKET",
         "DEMOCRAI_OS_SANDBOX_HELPER_SOCKET",
+        "DEMOCRAI_ENGINE_WORKER_CONTROL_ADDRESS",
+        "DEMOCRAI_ENGINE_WORKER_PARENT_ADDRESS",
+        "DEMOCRAI_EXTRACTOR_WORKER_CONTROL_ADDRESS",
+        "DEMOCRAI_EXTRACTOR_WORKER_PARENT_ADDRESS",
     ):
         value = str(os.environ.get(key, "") or "").strip()
         if not value.startswith("tcp:"):

@@ -347,6 +347,20 @@ def _apply_network_enforcement(policy: SandboxLaunchPolicy, pid: int) -> None:
         )
 
 
+def _assert_enforceable_sandbox_host_pid(pid: int) -> str:
+    from democrai.core.infrastructure.sandbox.os.windows import (
+        sandbox_host,
+        winfwp,
+    )
+
+    image_path = winfwp.process_image_path(int(pid))
+    if not sandbox_host.is_sandbox_host(image_path):
+        raise RuntimeError(
+            f"windows_network_enforcement_target_not_sandbox_host:{int(pid)}:{image_path}"
+        )
+    return image_path
+
+
 def _clear_network_enforcement(pid: int) -> None:
     try:
         from democrai.core.infrastructure.sandbox.os.helper import (
@@ -426,6 +440,7 @@ def spawn_low_integrity_process(
                 # enforcement cannot be applied (e.g. the elevated helper is
                 # unavailable), terminate the still-suspended child — it never ran.
                 try:
+                    _assert_enforceable_sandbox_host_pid(pid)
                     _apply_network_enforcement(policy, pid)
                 except BaseException:
                     with contextlib.suppress(Exception):
