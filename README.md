@@ -44,6 +44,12 @@ That combination is intentionally broad. The project is still beta, but the arch
 
 Let agents build UI components that render as native application surfaces, not as screenshots or markup fragments. Democr.ai modules describe UI declaratively on the server, then stream structured updates as the agent works.
 
+The short demo shows the important part: one backend-declared YAML surface reflected through client renderers, while the backend keeps ownership of behavior, actions, and runtime effects.
+
+<p align="center">
+  <a href="https://democr.ai/assets/ui_video.mp4">Watch the A2UI demo video</a>
+</p>
+
 <p align="center">
   <img src="https://democr.ai/assets/screens/chat_1.png" alt="Democr.ai chat interface with an agent composing a server-driven UI response" width="100%" style="border-radius: 8px;">
 </p>

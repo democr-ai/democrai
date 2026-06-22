@@ -375,6 +375,15 @@ def _seed_priority_models(
 
 
 def _patch_objective_selection(monkeypatch):
+    import democrai.core.application.ai.models.hardware_compatibility as hw_mod
+
+    monkeypatch.setattr(
+        hw_mod,
+        "app_ctx",
+        lambda: SimpleNamespace(
+            logger=SimpleNamespace(debug=lambda *_args, **_kwargs: None)
+        ),
+    )
     monkeypatch.setattr(
         ModelOrchestrator, "_provider_capabilities", classmethod(lambda cls, m: {"chat"})
     )
