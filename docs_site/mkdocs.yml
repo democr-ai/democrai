@@ -96,6 +96,7 @@ nav:
       - SDK Overview: reference/sdk/overview.md
       - Public Boundary: reference/sdk/public-boundary.md
       - Runtime Lifecycle: reference/sdk/runtime.md
+      - SDK Client: reference/sdk/client.md
       - UI Builder and A2UI:
           - Overview: reference/sdk/ui-builder-and-a2ui.md
           - Builder and Stores: reference/sdk/ui-builder-and-a2ui-builder-and-stores.md
@@ -144,6 +145,7 @@ nav:
               - Provider Discovery: reference/sdk/engines/provider-discovery.md
               - Installation and Runtime: reference/sdk/engines/installation-and-runtime.md
               - Model Catalog and Resolution: reference/sdk/engines/model-catalog-and-resolution.md
+              - Quotas: reference/sdk/engines/quotas.md
               - Engine Runtime Media: reference/sdk/engines/runtime-media.md
           - environment:
               - Overview: reference/sdk/environment/index.md
@@ -169,6 +171,7 @@ nav:
           - knowledge:
               - Overview: reference/sdk/knowledge/index.md
               - Document Extraction: reference/sdk/knowledge/document-extraction.md
+              - Queued Extraction: reference/sdk/knowledge/queued-extraction.md
               - Working With Registered Extractors: reference/sdk/knowledge/working-with-registered-extractors.md
               - Ingesting Documents: reference/sdk/knowledge/ingesting-documents.md
               - Retrieving Knowledge: reference/sdk/knowledge/retrieving-knowledge.md
@@ -182,11 +185,18 @@ nav:
               - Working With Core Model Proxies: reference/sdk/models/working-with-core-model-proxies.md
               - users: reference/sdk/models/users.md
               - roles: reference/sdk/models/roles.md
+              - organizations: reference/sdk/models/organizations.md
+              - organization_agent: reference/sdk/models/organization-agent.md
+              - organization_mcp: reference/sdk/models/organization-mcp.md
+              - organization_tool: reference/sdk/models/organization-tool.md
               - module_locks: reference/sdk/models/module-locks.md
               - engine_registry: reference/sdk/models/engine-registry.md
               - engine_node_install_registry: reference/sdk/models/engine-node-install-registry.md
+              - engine_quota_counters: reference/sdk/models/engine-quota-counters.md
+              - engine_quota_limits: reference/sdk/models/engine-quota-limits.md
               - environment_variable_registry: reference/sdk/models/environment-variable-registry.md
               - model_registry: reference/sdk/models/model-registry.md
+              - agent_model_configs: reference/sdk/models/agent-model-configs.md
               - available_model_registry: reference/sdk/models/available-model-registry.md
               - model_capability_priority: reference/sdk/models/model-capability-priority.md
               - objective_mappings: reference/sdk/models/objective-mappings.md
@@ -197,6 +207,8 @@ nav:
               - background_tasks: reference/sdk/models/background-tasks.md
               - audit_events: reference/sdk/models/audit-events.md
               - ai_model_usage: reference/sdk/models/llm-usage.md
+              - ai_model_pipeline_steps: reference/sdk/models/ai-model-pipeline-steps.md
+          - normalize: reference/sdk/normalize.md
           - pages: reference/sdk/pages.md
           - system:
               - Overview: reference/sdk/system/index.md

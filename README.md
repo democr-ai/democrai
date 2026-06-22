@@ -2,9 +2,9 @@
   <img src="https://democr.ai/logo-full-white.svg" alt="Democr.ai" width="360">
 </p>
 
-A Python framework for building agentic AI applications with a server-driven UI, native observability, and an integrated security model — designed for environments with regulatory or operational constraints where reproducibility and auditability matter.
+A Python framework for building agentic AI applications with server-driven UI, native observability, OS-level sandboxing, pluggable model orchestration, and a strict extension boundary — designed for environments where reproducibility, auditability, and operational control matter.
 
-> Status: Beta 0.0.1 — public preview, released as-is. The framework is not production-ready and ships without warranty. APIs and behavior may change before the first stable release. Use at your own risk.
+> Status: Beta 0.0.1b3 — public preview. The core architecture is implemented and actively tested, but APIs and operational behavior may still change before the first stable release. The software ships without warranty.
 
 ## Links
 
@@ -16,16 +16,29 @@ A Python framework for building agentic AI applications with a server-driven UI,
 Democr.ai is a complete runtime framework for AI applications. It provides:
 
 - Server-driven UI for agentic contexts, implementing and extending Google's A2UI protocol
-- Multi-client rendering of the same UI definition (web, desktop, additional clients in development)
+- Multi-client rendering of the same UI definition across web and desktop clients
 - Native multi-tenancy enforced at write time
-- OS-level sandboxing for engine and extension processes
+- Cross-platform OS-level sandboxing for engine and extension processes
 - Triple-layer audit through SQLAlchemy hooks, with sensitive field redaction
 - RBAC with declarative module manifests
-- Pluggable AI engine orchestration (local and remote models)
+- Pluggable AI engine orchestration across local, remote, and distributed runtimes
+- Engine quotas for request and token governance by engine and subject scope
 - Knowledge subsystem with vector and graph backends
 - A strict modular architecture where everything — including authentication — is a module built against the public SDK
 
 The framework is designed around a clear boundary between core runtime and extensions. The SDK is the only supported way to build on top.
+
+## What makes it different
+
+Most AI application stacks combine a chat UI, an LLM client, a workflow library, and separate infrastructure for audit, permissions, sandboxing, and observability. Democr.ai puts those concerns in one runtime contract:
+
+- UI is declared server-side and rendered by independent clients.
+- Modules, engines, and extractors are installable extensions with a public SDK boundary.
+- Model calls flow through an orchestrator that supports local providers, remote providers, process isolation, quotas, and multi-node execution.
+- Security and audit are runtime primitives, not application conventions.
+- Knowledge ingestion, retrieval, media handling, tools, MCP, and agent skills share the same request and observability context.
+
+That combination is intentionally broad. The project is still beta, but the architecture is already aimed at production-grade constraints rather than demos or single-chatbot prototypes.
 
 ## A2UI
 
@@ -92,13 +105,13 @@ Democr.ai is composed of distinct subsystems:
 - **Network** — WebSocket, IPC, HTTP under a unified protocol layer
 - **AI engine orchestrator** — job-based scheduling, batching, gRPC process isolation, HITL support
 - **Knowledge** — ingestion queue, projection workers, vector + graph retrieval
-- **Sandbox** — OS-level isolation (Landlock + seccomp + iptables + helper process | seatbelt | appcontainer)
+- **Sandbox** — OS-level isolation (Landlock + seccomp + iptables + helper process | seatbelt | Windows Low Integrity + WFP)
 - **Multi-tenancy** — write-time enforcement with materialized scope filters
 - **RBAC** — declarative access policies in module manifests
 - **Modules** — framework extension surface, via SDK
 - **Engines** — pluggable AI inference providers
 - **Extractors** — pluggable knowledge extraction providers
-- **Clients** — independent rendering surfaces (web, desktop, future mobile)
+- **Clients** — independent rendering surfaces for web, desktop, and mobile-oriented clients
 - **Platform** — agents, skills, tools, MCP, UI builder
 
 Detailed subsystem documentation is available at [democr.ai/docs/](https://democr.ai/docs/).
@@ -108,7 +121,7 @@ Detailed subsystem documentation is available at [democr.ai/docs/](https://democ
 | Capability | Status | Notes |
 |---|---|---|
 | Server-driven UI (extended A2UI) | Implemented | websocket and ipc transport |
-| Multi-client rendering | Implemented | Web, Qt desktop, Tauri |
+| Multi-client rendering | Implemented | Web, Qt desktop, Tauri, React variants |
 | Multi-tenancy | Implemented | Write-time enforcement |
 | RBAC | Implemented | Declarative manifests |
 | AI engine orchestration | Implemented | Job-based, gRPC isolated |
@@ -116,14 +129,15 @@ Detailed subsystem documentation is available at [democr.ai/docs/](https://democ
 | Audit (triple layer) | Implemented | Sensitive field redaction |
 | OS sandbox (Landlock + seccomp + iptables) | Implemented | |
 | OS sandbox on macOS | Implemented | Seatbelt |
-| OS sandbox on Windows | In development | AppContainer |
-| Local AI inference | Implemented | vLLM, llama.cpp, and others |
+| OS sandbox on Windows | Implemented | Low Integrity + WFP; egress enforcement uses an elevated helper |
+| Local AI inference | Implemented | vLLM, llama.cpp, ONNX, Ollama, and others |
 | Cloud AI providers | Implemented | OpenAI, Anthropic, Google, and others |
-| Multi-node engine orchestration | Roadmap | Single-node currently |
+| Multi-node engine orchestration | Implemented | Shared queue, node registry, Redis response streams |
 | mTLS for internal gRPC services | Roadmap | Server-side TLS + service JWT first |
 | Tokenizer-aware context budget guard | Roadmap | Basic heuristic guard for oversized prompt messages and tool outputs first |
-| Multi-node tuning | Roadmap | |
-| Mobile clients | Roadmap | |
+| Multi-node tuning | Roadmap | Distributed fine-tuning workflows |
+| Mobile clients | Experimental | React Native client exists but is not certified |
+| Engine quotas | Implemented | Request and token limits by engine and subject scope |
 | Request observability | Implemented | Correlation chain across layers |
 
 ## Stress benchmark snapshot
@@ -174,7 +188,7 @@ than once.
 
 ## Threat model
 
-The framework offers security as foundational primitives: OS-level sandboxing (Linux), immutable audit, RBAC, and at-rest encryption of secrets stored in the database. Modules operate within these primitives according to the policies they declare (sandbox allow-lists, RBAC permissions, access scope).
+The framework offers security as foundational primitives: OS-level sandboxing, immutable audit, RBAC, scoped data access, and at-rest encryption of secrets stored in the database. Modules operate within these primitives according to the policies they declare (sandbox allow-lists, RBAC permissions, access scope).
 
 The threat model covered by the framework is **accidental supply-chain compromise** — a third-party module with a bug or compromised dependency must not be able to harm the system beyond its declared scope.
 
@@ -186,7 +200,7 @@ The framework's `config.yaml` is plaintext and is generated locally by the setup
 
 ### Requirements
 - Python >=3.12,<3.14
-- Linux is recommended for full security features
+- Linux is the most tested environment for full security features
 - Optional: NVIDIA GPU with CUDA for local inference
 
 ### Install
@@ -196,14 +210,16 @@ From the repository root:
 ```bash
 ./setup_venv.sh
 
-# for install and run in desktop mode ./run.sh
+# alternatively, install and run desktop mode with ./run.sh
 ```
 
 
-For the React web client and the Tauri desktop client, install cargo and their frontend dependencies before running them:
+For the React web clients and the Tauri desktop client, install frontend dependencies before running them. Tauri also requires Cargo.
 
 ```bash
 yarn --cwd clients/webclient install
+yarn --cwd clients/reactbootstrap install
+yarn --cwd clients/reactfluent install
 yarn --cwd clients/tauri install
 ```
 
@@ -241,6 +257,7 @@ Web clients are independent React applications. The runner launches them with `y
 
 ```bash
 python main.py --mode server --client webclient
+python main.py --mode server --client reactbootstrap
 ```
 
 #### Web client in desktop mode with tauri
@@ -419,40 +436,41 @@ extractors add document or media ingestion capabilities.
 
 ## Tested components
 
-The components listed below have been validated through development and integration testing. The list will be expanded as additional engines, extractors, and models are formally certified for the first stable release.
+The components listed below have working implementations covered by development or integration tests. The list will be refined as engines, extractors, and specific model combinations are certified for stable releases.
 
 > Note: a complete and versioned list of tested models, engines, and extractors will accompany the first stable release.
-> Provider implementations may exist in the repository before they are certified. Components not listed here should be treated as implemented but not yet validated through the current integration pass.
+> Provider implementations may exist in the repository before they are certified. Components not listed here should be treated as available implementation work, not as a stable support promise.
 
 ### AI engines
 
 | Engine | CPU/GPU | Status |
 |---|---|---|
-| `onnx` | CPU | Basic implementation |
-| `llamacpp` | CPU/GPU | Basic implementation |
-| `vllm` | GPU | Basic implementation |
-| `parler` | GPU | Basic implementation |
-| `qwen_tts` | GPU | Basic implementation |
-| `whisper` | GPU | Basic implementation |
-| `espeak` | CPU | Basic implementation |
-| `rebel` | GPU | Basic implementation |
-| `gliner+glirel` | GPU | Basic implementation |
-| `ollama` | GPU (local) | Basic implementation |
-| `openai compatible` | - | Basic implementation |
-| `openai` | - | Basic implementation |
-| `gemini` | - | Basic implementation |
-| `anthropic` | - | Basic implementation |
-| `openai whisper` | - | Basic implementation |
-| `openai tts` | - | Basic implementation |
-| `edge tts` | - | Basic implementation |
+| `onnx` | CPU | Implemented |
+| `llamacpp` | CPU/GPU | Implemented |
+| `vllm` | GPU | Implemented |
+| `parler` | GPU | Implemented |
+| `qwen_tts` | GPU | Implemented |
+| `whisper` | GPU | Implemented |
+| `espeak` | CPU | Implemented |
+| `rebel` | GPU | Implemented |
+| `gliner+glirel` | GPU | Implemented |
+| `ollama` | GPU (local) | Implemented |
+| `openai compatible` | - | Implemented |
+| `openai` | - | Implemented |
+| `gemini` | - | Implemented |
+| `anthropic` | - | Implemented |
+| `openai whisper` | - | Implemented |
+| `openai tts` | - | Implemented |
+| `edge tts` | - | Implemented |
+| `nvidia_nim` | - | Implemented |
 
 ### Knowledge extractors
 
 | Extractor | Tested with | Status |
 |---|---|---|
-| `docling` | Tesseract/RapidOCR | Basic implementation |
-| `ai_audio` | Whisper (faster whisper) | Basic implementation |
-| `ai_image` | Gemma 4 26B A3B | Basic implementation |
+| `docling` | Tesseract/RapidOCR | Implemented |
+| `ai_audio` | Whisper (faster whisper) | Implemented |
+| `ai_image` | Gemma 4 26B A3B | Implemented |
 
 ### Storage backends
 - SQLite (default, recommended for development)
@@ -467,7 +485,10 @@ The components listed below have been validated through development and integrat
 ### Clients
 - `qtdesktop` — PySide6-based desktop client
 - `webclient` — React web client
+- `reactbootstrap` — React web client with Bootstrap/AGID theme
 - `tauri` — Tauri-based desktop client
+
+Additional client implementations exist in the repository, including `reactfluent`, `electron`, and `reactnativeclient`, but are not part of the certified client set yet.
 
 ## Repository layout
 
@@ -481,7 +502,11 @@ The components listed below have been validated through development and integrat
 - `extractors/` — knowledge and media extractor implementations
 - `clients/qtdesktop/` — Qt desktop client
 - `clients/webclient/` — React web client
+- `clients/reactbootstrap/` — React web client with Bootstrap/AGID theme
+- `clients/reactfluent/` — React web client variant
 - `clients/tauri/` — Tauri-based desktop client
+- `clients/electron/` — Electron wrapper for web clients
+- `clients/reactnativeclient/` — React Native client
 - `docs_site/` — MkDocs documentation pipeline
 - `tests/` — Python test suites
 
@@ -509,27 +534,31 @@ npm install
 
 The items below are planned for upcoming releases, in approximate order:
 
-- **Multi-node engine orchestration** — distributed routing of AI inference requests across nodes with capability-aware placement and load awareness
 - **Multi-node tuning** — distributed fine-tuning workflows
-- **OS sandbox on Windows** — port of the Linux sandbox kernel to Windows primitives
-- **Additional clients** — mobile clients and expanded web framework variants, alongside the existing `webclient`, `qtdesktop`, and Tauri-based desktop
+- **Client certification** — broaden the certified set beyond `webclient`, `reactbootstrap`, `qtdesktop`, and Tauri-based desktop
+- **Mobile clients** — complete and certify the React Native client
 - **Knowledge subsystem improvements** — additional projection backends, refined retrieval, expanded extractor coverage
 - **And many more** — see the issue tracker for the full backlog and active proposals
 
 ## Tests
 
-Run the framework test suite:
+Run the full framework test suite:
 
 ```bash
-source .venv/bin/activate
-pytest -c tests/pytest.ini tests/runtime
+.venv/bin/python -m pytest -c tests/pytest.ini
+```
+
+Run the runtime subset:
+
+```bash
+.venv/bin/python -m pytest -c tests/pytest.ini tests/runtime
 ```
 
 With coverage:
 
 ```bash
-pytest -c tests/pytest.ini --cov-config=tests/.coveragerc --cov=democrai tests/runtime
-coverage html --rcfile=tests/.coveragerc
+.venv/bin/python -m pytest -c tests/pytest.ini --cov-config=tests/.coveragerc --cov=democrai tests/runtime
+.venv/bin/coverage html --rcfile=tests/.coveragerc
 ```
 
 Some tests depend on external engines or services. Verify the local environment before running broader suites.

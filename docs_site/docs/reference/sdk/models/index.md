@@ -65,11 +65,18 @@ At the moment, the core registry exposes these model names:
 
 - `users`
 - `roles`
+- `organizations`
+- `organization_agent`
+- `organization_mcp`
+- `organization_tool`
 - `module_locks`
 - `engine_registry`
 - `engine_node_install_registry`
+- `engine_quota_counters`
+- `engine_quota_limits`
 - `environment_variable_registry`
 - `model_registry`
+- `agent_model_configs`
 - `available_model_registry`
 - `model_capability_priority`
 - `objective_mappings`

@@ -27,10 +27,11 @@ The top-level facade exposes:
 - `module_sdk.system.notifications`
 - `module_sdk.system.setup`
 
-and also five direct helper methods:
+and also direct helper methods:
 
 - `module_sdk.system.os_name()`
 - `module_sdk.system.has_nvidia()`
+- `module_sdk.system.gpu_info()`
 - `module_sdk.system.temp_dir()`
 - `module_sdk.system.is_dev()`
 - `module_sdk.system.log(...)`

@@ -22,7 +22,9 @@ This domain can be used in two different styles, and the documentation should ke
 
 Inside module actions, renders, and helpers that already receive the request-scoped SDK instance, you normally work through `module_sdk.engines`.
 
-That object exposes the `Engines` facade and its methods are `async`, so you call them with `await`.
+That object exposes the `Engines` facade. Most provider, install, runtime, and model-management methods are `async`, so you call those with `await`.
+
+Quota-management methods are synchronous because they delegate to the core model proxies directly. The method sections below call out that distinction explicitly.
 
 Example:
 
@@ -181,6 +183,31 @@ Engine runtime media helpers:
 These are imported from `democrai.sdk.engine_runtime_media` and are valid only
 inside the engine worker process.
 
+Quota methods:
+
+- `quota_metadata()`
+- `list_quota_counters(page=..., page_size=..., filters=..., sort=...)`
+- `get_quota_counter(counter_id=...)`
+- `create_quota_counter(payload)`
+- `update_quota_counter(counter_id=..., payload=...)`
+- `delete_quota_counter(counter_id=...)`
+- `list_engine_global_quota_limits(engine_registry_id=..., page=..., page_size=...)`
+- `create_engine_global_quota_limit(engine_registry_id=..., payload=...)`
+- `update_engine_global_quota_limit(limit_id=..., engine_registry_id=..., payload=...)`
+- `list_organization_engine_quota_limits(organization_id=..., page=..., page_size=...)`
+- `list_role_engine_quota_limits(role_id=..., page=..., page_size=...)`
+- `list_user_engine_quota_limits(user_id=..., page=..., page_size=...)`
+- `create_organization_engine_quota_limit(organization_id=..., payload=...)`
+- `create_role_engine_quota_limit(role_id=..., payload=...)`
+- `create_user_engine_quota_limit(user_id=..., payload=...)`
+- `update_organization_engine_quota_limit(organization_id=..., limit_id=..., payload=...)`
+- `update_role_engine_quota_limit(role_id=..., limit_id=..., payload=...)`
+- `update_user_engine_quota_limit(user_id=..., limit_id=..., payload=...)`
+- `get_engine_quota_limit(limit_id=...)`
+- `delete_engine_quota_limit(limit_id=...)`
+
+These methods are synchronous.
+
 Legacy catalog/source-mode methods:
 
 - `model_source_modes(engine_id=...)`
@@ -226,6 +253,7 @@ The rest of this domain is split into focused pages:
 - Provider Discovery
 - Installation and Runtime
 - Model Management and Resolution
+- Quotas
 - Engine Runtime Media
 
 Read them in that order if you are new to the domain. That sequence matches the usual lifecycle developers encounter in real modules: discover provider, validate/support/install it, then manage the models that belong to it.

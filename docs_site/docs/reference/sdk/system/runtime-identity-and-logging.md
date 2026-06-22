@@ -1,9 +1,10 @@
 # Runtime Identity and Logging
 
-This section covers the five direct helper methods on `module_sdk.system`:
+This section covers the direct helper methods on `module_sdk.system`:
 
 - `os_name()`
 - `has_nvidia()`
+- `gpu_info()`
 - `temp_dir()`
 - `is_dev()`
 - `log(...)`
@@ -66,6 +67,50 @@ The method delegates to the module-level helper `sdk.system.has_nvidia()`, which
 3. otherwise returns the truthiness of `has_nvidia_gpu`
 
 That means this is a best-effort runtime capability check, not a hardware inventory API.
+
+## `gpu_info() -> dict`
+
+This method returns the GPU details reported by the current runtime.
+
+Example:
+
+```python
+gpu = module_sdk.system.gpu_info()
+vram_mb = gpu["vram_mb"]
+```
+
+The returned payload contains:
+
+- `has_nvidia`
+- `vram_mb`
+- `nvidia_driver_version`
+- `cuda_driver_version`
+
+Like `has_nvidia()`, this is a best-effort runtime snapshot. If resource
+detection fails, the method returns a payload with `has_nvidia` false, zero
+VRAM, and empty driver-version strings.
+
+## Module-Level CUDA Helpers
+
+The `democrai.sdk.system` module also exports two lower-level helpers:
+
+- `cuda_toolkit_available()`
+- `can_build_cuda_extension()`
+
+These are not methods on `module_sdk.system`. They are direct module imports
+for code that needs to distinguish GPU presence from CUDA build-toolchain
+availability.
+
+```python
+from democrai.sdk.system import can_build_cuda_extension
+
+if can_build_cuda_extension():
+    ...
+```
+
+Use `has_nvidia()` for GPU presence. Use `can_build_cuda_extension()` only when
+the question is specifically whether a CUDA source extension can be built on
+the current host.
 
 ## `temp_dir() -> str`
 

@@ -11,6 +11,9 @@ This section covers the rest of the `ui` facade:
 - `mount_shell_frame(...)`
 - `nav_active_path_rule(...)`
 
+The module-level `Router` helper is also covered here because it is routing
+plumbing rather than a component API.
+
 These helpers matter because they keep UI authoring aligned with the runtime’s actual routing, resource resolution, and shell composition behavior.
 
 ## `resolve_route(route, session, extra_params=None)`
@@ -198,6 +201,23 @@ as active matches.
 
 This is useful because subsection pages usually still want the parent nav entry highlighted.
 
+## Module-Level `Router`
+
+`democrai.sdk.ui.Router` exposes two static helpers:
+
+- `Router.invalidate_module_routes(module_name)`
+- `Router.parse_path(path)`
+
+`invalidate_module_routes(...)` clears cached route entries for one module.
+Use it only in infrastructure or module-lifecycle flows where the route table
+has changed.
+
+`parse_path(...)` parses a route path through the main application router and
+returns the parsed result directly.
+
+Normal page code should use `module_sdk.ui.resolve_route(...)` when it needs to
+resolve a route in the context of the current SDK instance.
+
 ## Practical Guidance
 
 Use these helpers to stay aligned with the runtime instead of rebuilding path, resource, and shell logic ad hoc.
@@ -207,4 +227,3 @@ In particular:
 - prefer `load(...)` for YAML-first pages
 - use `resolve_media_source(...)` only when you are building media payloads manually
 - use `mount_shell_frame(...)` for repeated shell layouts instead of duplicating the same row/splitter/host structure
-

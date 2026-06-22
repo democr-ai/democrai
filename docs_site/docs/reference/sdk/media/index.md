@@ -58,7 +58,7 @@ It keeps UI code aligned with the runtime rule that every media resource shown t
 
 Older versions of this domain exposed many more methods.
 
-Those methods were not making module code clearer. They were leaking storage and runtime complexity into the public SDK surface. The old implementation still exists in `democrai/sdk/media_deprecated.py` as migration reference, but it is no longer part of the public `module_sdk.media` contract.
+Those methods were not making module code clearer. They were leaking storage and runtime complexity into the public SDK surface. They are no longer part of the public `module_sdk.media` contract.
 
 This documentation covers only the supported public API.
 
@@ -66,6 +66,16 @@ This documentation covers only the supported public API.
 
 - **Uploads and Stored Files** covers `add(...)`, `add_model(...)`, `add_model_from_source(...)`, `view(...)`, `get_path(...)`, `move(...)`, and `delete(...)`
 - **Public URLs and UI Consumption** covers `get_public_url(...)`
+
+The `democrai.sdk.media` module also exports two direct helpers:
+
+- `media_type_from_content_type(...)`
+- `require_media_provider()`
+
+`require_media_provider()` returns the active media provider or raises
+`RuntimeError("media_provider_unavailable")`. It is for infrastructure and
+provider-adjacent code that deliberately needs the provider object. Normal
+module code should prefer `module_sdk.media`.
 
 If you keep those two areas separate, the domain becomes straightforward:
 

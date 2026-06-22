@@ -92,6 +92,24 @@ Passing the explicit `stream_id` is clearer when the action already received it 
 These methods read client-held runtime state.
 They are not a replacement for persisted server state, and they should not be used to make domain persistence decisions that require a server-side source of truth.
 
+## `ask_client(stream_id, query, timeout=5.0)`
+
+Use this low-level method when you need to send a supported client-state query
+directly.
+
+```python
+value = await module_sdk.effects.ask_client(
+    stream_id,
+    {"kind": "store_value", "path": "/filters", "scope": "page"},
+)
+```
+
+If `stream_id` is `None`, the SDK tries to use the current request stream. If no
+stream can be resolved, it raises `ValueError("stream_id is required")`.
+
+Prefer the narrower helpers below when they match the data you need. They build
+the query payload for the supported client-state shapes.
+
 ## `ask_current_store_value(stream_id, store_key, store_type="auto", timeout=5.0)`
 
 Use this to read a value from the client store.

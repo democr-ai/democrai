@@ -12,9 +12,9 @@ Use these docs to build modules without guessing how the runtime works.
 
 <div class="docs-home-hero__actions" markdown="1">
 
-[Start building](start/getting-started){ .md-button .md-button--primary }
-[Build the chat module](guides/module-construction/building-chat-module){ .md-button }
-[Browse the SDK](reference/sdk/overview.html){ .md-button }
+[Start building](start/getting-started.md){ .md-button .md-button--primary }
+[Build the chat module](guides/module-construction/building-chat-module.md){ .md-button }
+[Browse the SDK](reference/sdk/overview.md){ .md-button }
 
 </div>
 
@@ -29,22 +29,22 @@ Use these docs to build modules without guessing how the runtime works.
 <p class="section-intro">Start from the workflow that matches what you need to do next.</p>
 
 <div class="docs-home-paths">
-  <a class="docs-home-path" href="start/getting-started">
+  <a class="docs-home-path" href="start/getting-started.html">
     <span class="docs-home-path__kicker">Setup</span>
     <strong>Run Democr.ai locally</strong>
     <span>Install the environment, start desktop or server mode, and understand the runtime process shape.</span>
   </a>
-  <a class="docs-home-path" href="start/first-module-15-minutes">
+  <a class="docs-home-path" href="start/first-module-15-minutes.html">
     <span class="docs-home-path__kicker">First feature</span>
     <strong>Create a module</strong>
     <span>Build the smallest useful module before going deeper into manifests, actions, and UI contracts.</span>
   </a>
-  <a class="docs-home-path" href="guides/module-construction/building-chat-module">
+  <a class="docs-home-path" href="guides/module-construction/building-chat-module.html">
     <span class="docs-home-path__kicker">Real module</span>
     <strong>Study the chat module</strong>
     <span>Follow a complete tutorial covering models, UI, actions, tools, agents, skills, and streaming updates.</span>
   </a>
-  <a class="docs-home-path" href="reference/components/">
+  <a class="docs-home-path" href="reference/components/index.html">
     <span class="docs-home-path__kicker">Interface</span>
     <strong>Use A2UI components</strong>
     <span>Find component contracts, YAML examples, binding behavior, visibility rules, and runtime updates.</span>
@@ -60,27 +60,27 @@ Use these docs to build modules without guessing how the runtime works.
 <p class="section-intro">Democr.ai separates application code from runtime infrastructure. Modules stay inside the SDK boundary while the core owns orchestration, storage, transports, and enforcement.</p>
 
 <div class="docs-home-capabilities">
-  <a class="docs-home-capability" href="guides/module-foundations/module-structure">
+  <a class="docs-home-capability" href="guides/module-foundations/module-structure.html">
     <strong>Modules</strong>
     <span>Package pages, actions, models, RBAC, locales, tools, agents, skills, and commands.</span>
   </a>
-  <a class="docs-home-capability" href="reference/sdk/ui-builder-and-a2ui">
+  <a class="docs-home-capability" href="reference/sdk/ui-builder-and-a2ui.html">
     <strong>Server-driven UI</strong>
     <span>Describe screens as A2UI/YAML and let clients render the same contract across transports.</span>
   </a>
-  <a class="docs-home-capability" href="reference/sdk/ai/">
+  <a class="docs-home-capability" href="reference/sdk/ai/index.html">
     <strong>AI runtime</strong>
     <span>Resolve model capabilities, run completions and streams, expose tools, and keep providers isolated.</span>
   </a>
-  <a class="docs-home-capability" href="reference/sdk/knowledge/">
+  <a class="docs-home-capability" href="reference/sdk/knowledge/index.html">
     <strong>Knowledge</strong>
     <span>Extract documents, ingest markdown and chunks, retrieve scoped content, and track background work.</span>
   </a>
-  <a class="docs-home-capability" href="sandbox/">
+  <a class="docs-home-capability" href="sandbox/index.html">
     <strong>Sandbox</strong>
     <span>Restrict filesystem, process, network, and external access through runtime policies.</span>
   </a>
-  <a class="docs-home-capability" href="start/operational-tools">
+  <a class="docs-home-capability" href="start/operational-tools.html">
     <strong>Operations</strong>
     <span>Use config validation, migrations, provider setup, observability, and troubleshooting tools.</span>
   </a>

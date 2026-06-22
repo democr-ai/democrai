@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import io
+import tempfile
 import time
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any, AsyncGenerator
@@ -33,6 +34,9 @@ _PARLER_PACKAGES = (
     "sentencepiece",
     "protobuf>=4.0.0",
 )
+_PARLER_CONSTRAINTS = (
+    "numpy<2.5",
+)
 _PARLER_MODULES = (
     "parler_tts",
     "transformers",
@@ -56,6 +60,7 @@ class ParlerEngine(BaseEngine, BaseTTSProvider):
             packages=_TORCH_PACKAGES,
             modules=_TORCH_MODULES,
         )
+        constraints_path = cls._write_install_constraints()
         install_python_packages(
             [
                 *torch_plan.packages,
@@ -65,7 +70,21 @@ class ParlerEngine(BaseEngine, BaseTTSProvider):
             force=True,
             allow_source=True,
             extra_index_url=torch_plan.index_url,
+            extra_pip_args=["--constraint", constraints_path],
         )
+
+    @staticmethod
+    def _write_install_constraints() -> str:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            prefix="parler-constraints-",
+            suffix=".txt",
+            delete=False,
+        ) as handle:
+            handle.write("\n".join(_PARLER_CONSTRAINTS))
+            handle.write("\n")
+            return handle.name
 
     @classmethod
     def _check_ready(cls, *, node_id: str | None = None) -> dict[str, Any]:

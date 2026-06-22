@@ -218,6 +218,17 @@ Besides the `Dependencies` facade, the `sdk.dependencies` module also reexports 
 - `torch_runtime_matches_plan(...)`
 - `write_installed_torch_constraint(...)`
 - `install_command_preview(...)`
+- `install_system_dependency(...)`
+- `is_system_dependency_installed(...)`
+- `ensure_engine_venv(...)`
+- `ensure_extractor_venv(...)`
+- `get_engine_local_cache_path(...)`
+- `get_extractor_local_cache_path(...)`
+- `fs_path(...)`
+- `logical_path(...)`
+- `fs_exists(...)`
+- `fs_is_dir(...)`
+- `fs_is_file(...)`
 
 These are real exports, but they are not methods on `module_sdk.dependencies`.
 
@@ -343,6 +354,43 @@ preview = install_command_preview("ffmpeg")
 ```
 
 In the current codebase this pattern is used by the system dependency-missing modal to explain the expected install command to the user.
+
+### System Dependency Helpers
+
+The module also exports helpers for managed system dependencies:
+
+- `install_system_dependency(key: str)`
+- `is_system_dependency_installed(key: str)`
+
+Use these only in explicit dependency-management flows. For normal module
+features, prefer `ensure_import(...)` and let the runtime surface missing
+dependencies through the managed error path.
+
+### Runtime Environment Helpers
+
+Two helpers ensure isolated runtime environments for installable providers:
+
+- `ensure_engine_venv(engine_id: str, requirements=None)`
+- `ensure_extractor_venv(extractor_id: str, requirements=None)`
+
+They are infrastructure helpers for engine/extractor setup flows, not general
+module dependency APIs.
+
+### Local Cache and Filesystem Helpers
+
+The module exports cache-path and logical-filesystem helpers:
+
+- `get_engine_local_cache_path(engine_id: str, *parts)`
+- `get_extractor_local_cache_path(extractor_id: str, *parts)`
+- `fs_path(...)`
+- `logical_path(...)`
+- `fs_exists(...)`
+- `fs_is_dir(...)`
+- `fs_is_file(...)`
+
+Use these when provider infrastructure needs the SDK's logical path rules or
+engine/extractor-local cache locations. Do not use them to bypass higher-level
+SDK domains such as `media` when the value is a persisted user-facing file.
 
 ## Which API You Should Normally Choose
 

@@ -57,6 +57,7 @@ At the facade level, `module_sdk.ui` exposes:
 
 At module level, `sdk.ui` also exposes:
 
+- `UIComponents`
 - `Router`
 - `publish_to_stream(...)`
 - low-level symbols such as `Component`, `Condition`, `bound`, and literal/bound value helpers
@@ -67,4 +68,3 @@ Those are documented where they matter, but the normal module entry point remain
 
 - Builder and Surface Messages
 - YAML, Resources, and Routing Helpers
-
