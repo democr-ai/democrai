@@ -4,7 +4,7 @@
 
 A Python framework for building agentic AI applications with server-driven UI, native observability, OS-level sandboxing, pluggable model orchestration, and a strict extension boundary — designed for environments where reproducibility, auditability, and operational control matter.
 
-> Status: Beta 0.0.1b3 — public preview. The core architecture is implemented and actively tested, but APIs and operational behavior may still change before the first stable release. The software ships without warranty.
+> Status: Beta 0.0.1b4 — public preview. The core architecture is implemented and actively tested, but APIs and operational behavior may still change before the first stable release. The software ships without warranty.
 
 ## Links
 
