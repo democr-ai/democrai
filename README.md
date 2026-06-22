@@ -140,7 +140,7 @@ Detailed subsystem documentation is available at [democr.ai/docs/](https://democ
 | Cloud AI providers | Implemented | OpenAI, Anthropic, Google, and others |
 | Multi-node engine orchestration | Implemented | Shared queue, node registry, Redis response streams |
 | mTLS for internal gRPC services | Roadmap | Server-side TLS + service JWT first |
-| Tokenizer-aware context budget guard | Roadmap | Basic heuristic guard for oversized prompt messages and tool outputs first |
+| Context budget guard | Implemented | Heuristic guard for oversized prompt messages and tool outputs, scaled by model context settings |
 | Multi-node tuning | Roadmap | Distributed fine-tuning workflows |
 | Mobile clients | Experimental | React Native client exists but is not certified |
 | Engine quotas | Implemented | Request and token limits by engine and subject scope |
